@@ -14,3 +14,16 @@ dist/
 spikes/stt-bench/engines/
 spikes/stealth/results/*.png
 spikes/stealth/evidence/
+
+# Rust / Tauri
+crates/lowk-app/gen/
+
+# Frontend
+ui/dist/
+ui/.svelte-kit/
+ui/test-results/
+ui/playwright-report/
+
+# Local
+.env
+*.log

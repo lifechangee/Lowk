@@ -1,0 +1,22 @@
+# Placeholder: replace @lowk-architect and the WP owners with real handles.
+# Architect-gated paths (docs/ARCHITECTURE.md section 14).
+/crates/lowk-types/   @lowk-architect
+/deny.toml            @lowk-architect
+/Cargo.toml           @lowk-architect
+/.github/             @lowk-architect
+
+# Work-package owners (one crate or ui area per WP).
+/crates/lowk-stealth/   @wp2-stealth
+/tools/stealth-probe/   @wp2-stealth
+/crates/lowk-input/     @wp3-input
+/crates/lowk-store/     @wp4-store
+/crates/lowk-platform/  @wp5-platform
+/crates/lowk-app/       @wp6-app
+/crates/lowk-session/   @wp7-session
+/crates/lowk-audio/     @wp7-session
+/crates/lowk-stt/       @wp7-session
+/ui/src/main/           @wp8-ui-main
+/ui/src/lib/components/ @wp8-ui-main
+/ui/src/overlay/        @wp9-ui-overlay
+/ui/src/lib/i18n/       @wp10-i18n
+/ui/src/lib/tokens.css  @wp10-i18n
