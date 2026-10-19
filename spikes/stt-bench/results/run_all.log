@@ -38,3 +38,25 @@ nemotron_mlx:bf16-auto       03_them_q.wav                WER 0.185 CER 0.120 la
 nemotron_mlx:bf16-auto       04_me_n.wav                  WER 0.291 CER 0.371 lag50 0.502s lag90 1.244s onset50 0.989s final 0.106s RTFc 0.139 RAM 1649MB
 nemotron_mlx:bf16-auto       04_me_q.wav                  WER 0.330 CER 0.365 lag50 0.625s lag90 1.499s onset50 0.833s final 0.131s RTFc 0.135 RAM 1649MB
 nemotron_mlx:bf16-auto       04_them_n.wav                WER 0.213 CER 0.159 lag50 -0.925s lag90 0.763s onset50 1.595s final 0.104s RTFc 0.135 RAM 1649MB
+nemotron_mlx:bf16-auto       04_them_q.wav                WER 0.197 CER 0.146 lag50 -0.724s lag90 1.404s onset50 1.258s final 0.12s RTFc 0.128 RAM 1649MB
+nemotron_mlx:bf16-auto       05_me_n.wav                  WER 0.437 CER 0.336 lag50 0.437s lag90 1.491s onset50 1.903s final 0.134s RTFc 0.127 RAM 1650MB
+nemotron_mlx:bf16-auto       05_me_q.wav                  WER 0.398 CER 0.275 lag50 1.57s lag90 3.939s onset50 1.064s final 0.177s RTFc 0.13 RAM 1650MB
+nemotron_mlx:bf16-auto       05_them_n.wav                WER 0.355 CER 0.212 lag50 -0.025s lag90 1.016s onset50 1.313s final 0.139s RTFc 0.135 RAM 1650MB
+nemotron_mlx:bf16-auto       05_them_q.wav                WER 0.355 CER 0.212 lag50 0.99s lag90 1.942s onset50 1.393s final 0.124s RTFc 0.127 RAM 1650MB
+nemotron_mlx:bf16-auto       fleurs_ru_1.wav              WER 0.054 CER 0.009 lag50 0.451s lag90 1.134s onset50 1.319s final 0.137s RTFc 0.137 RAM 1650MB
+nemotron_mlx:bf16-auto       fleurs_ru_2.wav              WER 0.180 CER 0.065 lag50 1.097s lag90 1.971s onset50 1.451s final 0.151s RTFc 0.149 RAM 1651MB
+nemotron_mlx:bf16-auto       fleurs_ru_3.wav              WER 0.061 CER 0.040 lag50 0.281s lag90 1.139s onset50 1.145s final 0.135s RTFc 0.148 RAM 1651MB
+nemotron_mlx:bf16-auto       synth_codeswitch_ru_en.wav   WER 0.136 CER 0.095 lag50 1.068s lag90 1.733s onset50 1.352s final 0.148s RTFc 0.134 RAM 1651MB
+saved ~/Applications/Projects/Lowk/spikes/stt-bench/results/20261020-003616-nemotron_mlx-bf16-auto.json
+voxtral_mlx:4bit-480ms       01_me_n.wav                  WER 0.255 CER 0.167 lag50 61.348s lag90 63.344s onset50 1.451s final 63.586s RTFc 1.694 RAM 3395MB
+voxtral_mlx:4bit-480ms       01_me_q.wav                  WER 0.329 CER 0.206 lag50 53.643s lag90 56.504s onset50 1.332s final 52.389s RTFc 1.537 RAM 3583MB
+voxtral_mlx:4bit-480ms       01_them_n.wav                WER 0.040 CER 0.018 lag50 19.035s lag90 22.016s onset50 1.629s final 21.099s RTFc 1.518 RAM 3326MB
+voxtral_mlx:4bit-480ms       01_them_q.wav                WER 0.160 CER 0.071 lag50 30.261s lag90 32.298s onset50 2.608s final 31.14s RTFc 1.725 RAM 3271MB
+voxtral_mlx:4bit-480ms       02_me_n.wav                  WER 0.364 CER 0.277 lag50 47.754s lag90 50.452s onset50 2.706s final 47.477s RTFc 1.613 RAM 3270MB
+voxtral_mlx:4bit-480ms       02_me_q.wav                  WER 0.336 CER 0.277 lag50 62.726s lag90 63.97s onset50 21.408s final 61.351s RTFc 1.954 RAM 3509MB
+voxtral_mlx:4bit-480ms       02_them_n.wav                WER 0.213 CER 0.173 lag50 17.451s lag90 19.118s onset50 0.864s final 18.008s RTFc 1.53 RAM 3267MB
+voxtral_mlx:4bit-480ms       02_them_q.wav                WER 0.213 CER 0.161 lag50 19.403s lag90 21.173s onset50 1.444s final 20.742s RTFc 1.591 RAM 3319MB
+voxtral_mlx:4bit-480ms       03_me_n.wav                  WER 0.239 CER 0.130 lag50 31.602s lag90 36.113s onset50 1.104s final 33.051s RTFc 1.508 RAM 3312MB
+voxtral_mlx:4bit-480ms       03_me_q.wav                  WER 0.293 CER 0.213 lag50 29.832s lag90 34.582s onset50 1.676s final 30.242s RTFc 1.459 RAM 3309MB
+voxtral_mlx:4bit-480ms       03_them_n.wav                WER 0.185 CER 0.114 lag50 14.448s lag90 15.008s onset50 3.147s final 15.137s RTFc 1.69 RAM 3354MB
+voxtral_mlx:4bit-480ms       03_them_q.wav                WER 0.074 CER 0.049 lag50 26.902s lag90 28.026s onset50 18.099s final 28.991s RTFc 2.438 RAM 3232MB
