@@ -1,0 +1,35 @@
+[package]
+name = "lowk-app"
+description = "Lowk Tauri shell: windows, capabilities, command/event glue. The only crate that knows Tauri."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+default-run = "lowk"
+
+[lib]
+name = "lowk_app"
+
+[[bin]]
+name = "lowk"
+path = "src/main.rs"
+
+[dependencies]
+lowk-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+specta.workspace = true
+specta-typescript.workspace = true
+tauri-specta.workspace = true
+tauri.workspace = true
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[features]
+# Set by the Tauri CLI for release builds (embeds the frontend).
+custom-protocol = ["tauri/custom-protocol"]
+
+[lints]
+workspace = true

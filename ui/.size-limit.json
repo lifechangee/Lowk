@@ -1,0 +1,5 @@
+[
+  { "name": "overlay JS (gzip)", "path": "dist/assets/overlay-*.js", "limit": "60 KB", "gzip": true },
+  { "name": "overlay CSS (gzip)", "path": "dist/assets/overlay-*.css", "limit": "10 KB", "gzip": true },
+  { "name": "main JS (gzip)", "path": "dist/assets/main-*.js", "limit": "150 KB", "gzip": true }
+]

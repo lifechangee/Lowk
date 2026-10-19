@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "overlay",
+  "description": "Overlay window: read-only commands + events. No core:window permissions; Rust owns every window operation.",
+  "windows": ["overlay"],
+  "permissions": [
+    "core:event:default",
+    "allow-settings-get",
+    "allow-locale-get"
+  ]
+}
