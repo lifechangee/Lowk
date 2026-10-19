@@ -76,13 +76,19 @@ fn fake_descriptor() -> EngineDescriptor {
     }
 }
 
-/// Emits one `Final` with placeholder text on `flush`; for contract tests.
+/// Emits a `Partial` every [`FAKE_PARTIAL_EVERY`] pushed frames (rev 0, 1, ...)
+/// and one `Final` (next rev) on `flush`; for contract tests.
+/// Frames between two partials of [`FakeEngine`].
+pub const FAKE_PARTIAL_EVERY: u64 = 10;
+
 pub struct FakeEngine {
     desc: EngineDescriptor,
     stream: Stream,
     sink: Option<Arc<dyn SttSink>>,
     frames: u64,
     utt: UttId,
+    rev: u32,
+    t_start: MonoNs,
 }
 impl FakeEngine {
     pub fn new(stream: Stream) -> Self {
@@ -92,6 +98,8 @@ impl FakeEngine {
             sink: None,
             frames: 0,
             utt: 0,
+            rev: 0,
+            t_start: 0,
         }
     }
 }
@@ -103,23 +111,46 @@ impl SttEngine for FakeEngine {
         self.sink = Some(sink);
         Ok(())
     }
-    fn push(&mut self, _frame: &Frame16k) -> Result<()> {
+    fn push(&mut self, frame: &Frame16k) -> Result<()> {
+        if self.frames == 0 {
+            self.utt += 1;
+            self.rev = 0;
+            self.t_start = frame.t_mono_ns;
+        }
         self.frames += 1;
+        if self.frames % FAKE_PARTIAL_EVERY == 0 {
+            if let Some(s) = &self.sink {
+                s.emit(SttEvent {
+                    stream: self.stream,
+                    utt: self.utt,
+                    rev: self.rev,
+                    kind: SttKind::Partial,
+                    text: format!("fake utterance ({} frames)", self.frames),
+                    lang: None,
+                    t_start_ns: self.t_start,
+                    t_audio_end_ns: frame.t_mono_ns,
+                    t_emit_ns: now_mono_ns(),
+                });
+                self.rev += 1;
+            }
+        }
         Ok(())
     }
     fn flush(&mut self) -> Result<()> {
+        if self.frames == 0 {
+            return Ok(());
+        }
         if let Some(s) = &self.sink {
             let now = now_mono_ns();
-            self.utt += 1;
             s.emit(SttEvent {
                 stream: self.stream,
                 utt: self.utt,
-                rev: 0,
+                rev: self.rev,
                 kind: SttKind::Final,
                 text: format!("fake utterance ({} frames)", self.frames),
                 lang: None,
-                t_start_ns: now,
-                t_audio_end_ns: now,
+                t_start_ns: self.t_start,
+                t_audio_end_ns: now.max(self.t_start),
                 t_emit_ns: now,
             });
         }
@@ -161,5 +192,37 @@ mod tests {
         .unwrap();
         e.flush().unwrap();
         assert_eq!(sink.events.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn fake_engine_partials_then_final_with_monotonic_revs() {
+        let sink = arc_sink();
+        let mut e = FakeEngine::new(Stream::System);
+        let cfg = SttConfig {
+            stream: Stream::System,
+            langs: vec![],
+            vocab_hints: vec![],
+        };
+        e.start(&cfg, sink.clone()).unwrap();
+        let f = Frame16k {
+            stream: Stream::System,
+            t_mono_ns: 5,
+            pcm: vec![0.0; 320],
+        };
+        for _ in 0..25 {
+            e.push(&f).unwrap();
+        }
+        e.flush().unwrap();
+        e.flush().unwrap(); // nothing open: no extra event
+        let evs = sink.events.lock().unwrap();
+        let kinds: Vec<_> = evs.iter().map(|x| (x.utt, x.rev, x.kind)).collect();
+        assert_eq!(
+            kinds,
+            vec![
+                (1, 0, SttKind::Partial),
+                (1, 1, SttKind::Partial),
+                (1, 2, SttKind::Final)
+            ]
+        );
     }
 }
