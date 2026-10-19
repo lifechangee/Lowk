@@ -1,8 +1,6 @@
 //! Audio capture: per-OS backends, rings, resampling, AEC. M0 stub: trait only
 //! plus a no-op backend. The real backends are seeded from `spikes/audio`.
-use lowk_types::{
-    AecMode, AppError, AudioApp, DeviceInfo, ErrorCode, Frame16k, Result, Stream, Target,
-};
+use lowk_types::{AecMode, AppError, AudioApp, DeviceInfo, ErrorCode, Frame16k, Result, Stream, Target};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug)]
@@ -192,6 +190,9 @@ mod tests {
         assert!(remote.is_capturing());
         drop(h);
         assert!(!remote.push_frame(f));
-        assert_eq!((n.load(Ordering::SeqCst), remote.starts(), remote.stops()), (1, 1, 1));
+        assert_eq!(
+            (n.load(Ordering::SeqCst), remote.starts(), remote.stops()),
+            (1, 1, 1)
+        );
     }
 }

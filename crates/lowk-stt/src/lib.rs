@@ -166,6 +166,25 @@ impl SttEngine for FakeEngine {
     }
 }
 
+/// Factory for [`FakeEngine`] (id `fake`); lets sessions run before real
+/// backends exist.
+#[derive(Default)]
+pub struct FakeEngineFactory;
+impl SttEngineFactory for FakeEngineFactory {
+    fn descriptor(&self) -> EngineDescriptor {
+        fake_descriptor()
+    }
+    fn fitness(&self, _hw: &HwInfo) -> Fitness {
+        Fitness::Possible
+    }
+    fn create(&self, stream: Stream) -> Result<Box<dyn SttEngine>> {
+        Ok(Box::new(FakeEngine::new(stream)))
+    }
+    fn assets(&self) -> Vec<DownloadSpec> {
+        vec![]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
