@@ -80,12 +80,12 @@
       <div class="cin tabrow">
         <div class="tabs" role="tablist">
           {#each tabs as tab (tab.id)}
-            <button class="tab" class:on={ui.callTab === tab.id} role="tab" aria-selected={ui.callTab === tab.id} onclick={() => (ui.callTab = tab.id)}><span class="lbl">{tab.label}</span></button>
+            <button class="tab" class:on={ui.callTab === tab.id} role="tab" aria-selected={ui.callTab === tab.id} onclick={() => (ui.callTab = tab.id)}><span>{tab.label}</span></button>
           {/each}
         </div>
         <div class="tools">
           <Button size="sm" pressed={ui.callTab === 'md'} onclick={() => (ui.callTab = ui.callTab === 'md' ? 'transcript' : 'md')}>{tm('main.exportMd')}</Button>
-          <Button size="sm" icon="download" onclick={doExport}>{tm('main.export')}</Button>
+          <Button size="sm" icon="download" title={tm('main.export')} onclick={doExport} />
         </div>
       </div>
     </div>
@@ -153,18 +153,18 @@
   .d { width: 3px; height: 3px; border-radius: 50%; background: var(--tx3); }
   .tabsbar { border-bottom: 1px solid var(--line); flex: none; }
   .tabrow { display: flex; align-items: center; height: 44px; gap: var(--s4); }
-  .tabs { display: flex; gap: var(--s1); height: 100%; min-width: 0; }
-  .tab { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; height: 44px; max-width: 200px; padding: 0 var(--s3); color: var(--tx2); font-size: 13px; border-bottom: 2px solid transparent; margin-bottom: -1px; min-width: 0; }
+  .tabs { display: flex; gap: var(--s1); height: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .tab { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; height: 44px; padding: 0 var(--s3); color: var(--tx2); font-size: 13px; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; flex: none; }
   .tab:hover { color: var(--tx); }
   .tab.on { color: var(--tx); border-color: var(--ac); font-weight: 550; }
   .tools { margin-left: auto; display: flex; gap: var(--s2); flex: none; }
   .doc { flex: 1; overflow: auto; padding: var(--s6) 0 64px; min-height: 0; }
-  .ln { display: grid; grid-template-columns: 56px 72px minmax(0, 1fr); gap: var(--s3); padding: var(--s1) 0; }
+  .ln { display: grid; grid-template-columns: 64px 72px minmax(0, 1fr); gap: var(--s3); padding: var(--s1) 0; }
   .ts { font: 500 12px/20px var(--mono); color: var(--tx3); }
   .sp-me { font-size: 12px; font-weight: 700; color: var(--tx); }
   .sp-sys { font-size: 12px; font-weight: 600; color: var(--tx2); }
   .sys .tx { color: var(--tx2); }
-  .ind { margin-left: 140px; }
+  .ind { margin-left: 148px; }
   .qa { margin-top: var(--s2); margin-bottom: var(--s2); border: 1px solid var(--line); border-left: 2px solid var(--ac); border-radius: 4px 12px 12px 4px; background: var(--panel); padding: var(--s3) var(--s4); }
   .qa .q { font: 600 var(--fs-xs) var(--font); letter-spacing: 0.03em; color: var(--ac); margin-bottom: var(--s2); display: flex; gap: var(--s2); align-items: center; }
   .qa p { margin: 0 0 var(--s1); }

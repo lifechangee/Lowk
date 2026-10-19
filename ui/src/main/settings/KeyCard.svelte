@@ -52,6 +52,7 @@
   .pill { display: inline-flex; align-items: center; gap: var(--s1); font-size: 12px; padding: 0 var(--s2); height: 20px; border-radius: 99px; background: var(--hv); color: var(--tx3); max-width: 60%; }
   .pill.on { background: var(--acbg); color: var(--ac); }
   .in { display: flex; gap: var(--s2); }
+  .in :global(.btn) { flex: none; }
   .acts { display: flex; gap: var(--s2); align-items: center; min-width: 0; }
   .msg { font-size: 12px; color: var(--warn); }
   .msg.ok { color: var(--ac); }

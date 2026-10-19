@@ -40,7 +40,7 @@
   .t { font: 600 14px/20px var(--mono); }
   .m { color: var(--tx2); font-size: 12px; }
   .sp { flex: 1; }
-  .ln { display: grid; grid-template-columns: 56px 72px minmax(0, 1fr); gap: var(--s3); padding: var(--s1) 0; animation: fi 0.4s; }
+  .ln { display: grid; grid-template-columns: 64px 72px minmax(0, 1fr); gap: var(--s3); padding: var(--s1) 0; animation: fi 0.4s; }
   @keyframes fi { from { opacity: 0; transform: translateY(4px); } }
   .ts { font: 500 12px/20px var(--mono); color: var(--tx3); }
   .sp-me { font-size: 12px; font-weight: 700; }

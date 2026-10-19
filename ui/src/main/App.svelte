@@ -5,7 +5,7 @@
   import Icon from '../lib/components/Icon.svelte';
   import Kbd from '../lib/components/Kbd.svelte';
   import RecDot from '../lib/components/RecDot.svelte';
-  import { loadSystemLocale, locale } from '../lib/i18n/locale.svelte';
+  import { locale } from '../lib/i18n/locale.svelte';
   import { api, folderKey } from './api';
   import { bindFor, triggerText } from './binds';
   import { clock } from './fmt';
@@ -23,7 +23,7 @@
   const route = $derived(router.route);
 
   onMount(async () => {
-    locale.init(await loadSystemLocale());
+    locale.init(await api.localeGet().catch(() => 'en'));
     await Promise.all([prefs.load(), library.reload()]);
     if (!prefs.value.onboarding?.done && router.route.name !== 'onboarding') router.go(hrefs.onboarding(prefs.value.onboarding?.step ?? 0));
     ready = true;

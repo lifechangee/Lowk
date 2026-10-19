@@ -7,7 +7,7 @@
   import Section from '../../lib/components/Section.svelte';
   import Tag from '../../lib/components/Tag.svelte';
   import TextInput from '../../lib/components/TextInput.svelte';
-  import { tPlural } from '../../lib/i18n/locale.svelte';
+  import { locale, tPlural } from '../../lib/i18n/locale.svelte';
   import { api, folderKey, SYS_TRASH, SYS_UNSORTED } from '../api';
   import { clock, duration, greeting, when } from '../fmt';
   import { tm } from '../i18n';
@@ -18,7 +18,7 @@
   let { flash = false }: { flash?: boolean } = $props();
 
   const mod = api.platform() === 'macos' ? '⌘K' : 'Ctrl K';
-  const last = $derived(library.recent[0]);
+  const last = $derived(library.recent.find((c) => c.ended !== null));
   const folders = $derived(
     [...library.folders].sort((a, b) => (library.lastActivity(folderKey(b.id)) ?? '').localeCompare(library.lastActivity(folderKey(a.id)) ?? '')),
   );
@@ -42,7 +42,7 @@
   <div class="hin">
     <h1>{greeting()}</h1>
     <p class="lead lbl">
-      {tm('main.libraryStats', { calls: library.active.length, folders: library.folders.length, last: last ? `${when(last.started, new Date(), false)}, ${duration(last.duration_s)}` : '—' })}
+      {tm('main.libraryStats', { calls: library.active.length, folders: library.folders.length, last: last ? `${when(last.started, new Date(), false).toLocaleLowerCase(locale.lang)},${duration(last.duration_s)}` : '—' })}
     </p>
 
     <NewCallCard {flash} />
@@ -59,7 +59,7 @@
           <div class="ic">{f.title.slice(0, 1).toUpperCase()}</div>
           <h4 class="lbl">{f.title}</h4>
           <small class="lbl">{tPlural('main.calls', f.call_count)}</small>
-          <small class="lbl">{#if library.lastActivity(key)}{tm('m.lastCall', { when: when(library.lastActivity(key)!, new Date(), false) })}{:else}{tm('m.noCallsYet')}{/if}</small>
+          <small class="lbl">{#if library.lastActivity(key)}{tm('m.lastCall', { when: when(library.lastActivity(key)!, new Date(), false).toLocaleLowerCase(locale.lang) })}{:else}{tm('m.noCallsYet')}{/if}</small>
           <div class="tgs">{#each f.tags.slice(0, 2) as t (t)}<Tag text={'# ' + t} />{/each}</div>
         </a>
       {/each}
