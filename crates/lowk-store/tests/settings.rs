@@ -1,0 +1,106 @@
+use lowk_store::*;
+use lowk_types::*;
+use std::fs;
+
+#[test]
+fn defaults_written_patch_persists_and_notifies() {
+    let d = tempfile::tempdir().unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    assert!(d.path().join("settings.toml").exists());
+    assert_eq!(s.get().templates.len(), 3);
+    let rx = s.subscribe();
+    let out = s
+        .patch(SettingsPatch(
+            serde_json::json!({"ui": {"font_px": 18}, "overlay": {"opacity": 40}}),
+        ))
+        .unwrap();
+    assert_eq!(out.ui.font_px, 18);
+    assert_eq!(rx.try_recv().unwrap().ui.font_px, 18);
+    // survives restart
+    let s2 = FileSettingsStore::open(d.path()).unwrap();
+    assert_eq!(s2.get(), out);
+    // invalid patch is rejected and changes nothing
+    assert!(s2
+        .patch(SettingsPatch(serde_json::json!({"ui": {"font_px": "big"}})))
+        .is_err());
+    assert_eq!(s2.get(), out);
+}
+
+#[test]
+fn unknown_keys_survive_and_corrupt_file_is_backed_up() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("settings.toml");
+    fs::write(&p, "future_key = 7\n[ui]\nfont_px = 20\nnew_ui_key = \"x\"\n").unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    assert_eq!(s.get().ui.font_px, 20);
+    s.patch(SettingsPatch(serde_json::json!({"ui": {"font_px": 21}})))
+        .unwrap();
+    let t = fs::read_to_string(&p).unwrap();
+    assert!(t.contains("future_key = 7") && t.contains("new_ui_key"), "{t}");
+
+    fs::write(&p, "this is = not [toml").unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    assert!(s.load_warning().is_some());
+    assert!(d.path().join("settings.toml.bad").exists());
+    assert_eq!(s.get().ui.font_px, Settings::default().ui.font_px);
+}
+
+#[test]
+fn external_edit_reload_notifies() {
+    let d = tempfile::tempdir().unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    let rx = s.subscribe();
+    let t = fs::read_to_string(s.path())
+        .unwrap()
+        .replace("font_px = 14", "font_px = 16");
+    fs::write(s.path(), t).unwrap();
+    assert_eq!(s.reload().unwrap().ui.font_px, 16);
+    assert_eq!(rx.try_recv().unwrap().ui.font_px, 16);
+}
+
+#[test]
+fn templates() {
+    let mut t = TemplateSet::defaults();
+    assert_eq!(t.all().len(), 3);
+    assert!(t.get("brief").unwrap().instruction.contains("Кратко ответь"));
+    assert!(t.get("complement").unwrap().needs_my_answer);
+    assert_eq!(t.get(TEMPLATE_SUMMARY).unwrap().names.ru, "Резюме");
+    assert_eq!(t.resolve(Some("nope"), "brief").unwrap().id, "brief");
+    assert_eq!(t.resolve(Some("complement"), "brief").unwrap().id, "complement");
+    assert!(t.remove("brief").is_err());
+    let custom = Template {
+        id: "mine".into(),
+        names: LocalizedName {
+            ru: "Моё".into(),
+            en: "Mine".into(),
+        },
+        instruction: "Do it".into(),
+        needs_my_answer: false,
+        vision: false,
+        reasoning: false,
+    };
+    t.upsert(custom).unwrap();
+    t.remove("mine").unwrap();
+
+    let d = tempfile::tempdir().unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    let mut t = TemplateSet::from_settings(&s.get());
+    t.upsert(Template {
+        id: "x".into(),
+        names: LocalizedName {
+            ru: "x".into(),
+            en: "x".into(),
+        },
+        instruction: "y".into(),
+        needs_my_answer: true,
+        vision: false,
+        reasoning: false,
+    })
+    .unwrap();
+    let out = s.set_templates(&t).unwrap();
+    assert_eq!(out.templates.len(), 4);
+    assert_eq!(
+        FileSettingsStore::open(d.path()).unwrap().get().templates.len(),
+        4
+    );
+}
