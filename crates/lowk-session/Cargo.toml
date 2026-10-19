@@ -1,6 +1,6 @@
 [package]
 name = "lowk-session"
-description = "Lowk: lowk-session crate (M0 stub)"
+description = "Lowk session orchestrator: state machine, event bus, transcript buffer, Q&A links, demo feed"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,11 @@ publish = false
 
 [dependencies]
 lowk-types.workspace = true
+lowk-audio.workspace = true
+lowk-stt.workspace = true
+serde.workspace = true
+time = { workspace = true, features = ["formatting"] }
+tracing.workspace = true
 
 [lints]
 workspace = true

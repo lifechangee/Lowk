@@ -2272,7 +2272,12 @@ dependencies = [
 name = "lowk-session"
 version = "0.0.1"
 dependencies = [
+ "lowk-audio",
+ "lowk-stt",
  "lowk-types",
+ "serde",
+ "time",
+ "tracing",
 ]
 
 [[package]]
