@@ -1,6 +1,6 @@
 [package]
 name = "lowk-input"
-description = "Lowk: lowk-input crate (M0 stub)"
+description = "Lowk input: bind model, combo adapter, low-level keyboard/mouse hooks, cursor source, conflict detection"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,15 @@ publish = false
 
 [dependencies]
 lowk-types.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
 
 [lints]
 workspace = true

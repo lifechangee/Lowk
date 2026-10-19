@@ -1,42 +1,40 @@
-//! Bind model backends: combo (plugin adapter), low-level kb/mouse, cursor
-//! source, conflict detection. M0 stub (WP3 owns it).
-use lowk_types::*;
-use std::sync::mpsc::{channel, Receiver, Sender};
+//! Lowk input: `BindSpec` -> backends, `BindEvent{action, phase}`, cursor
+//! source, conflict detection, record mode.
+//!
+//! * [`combo`]: adapter trait the app shell implements over
+//!   `tauri-plugin-global-shortcut` (no permission).
+//! * [`lowlevel`] + `platform`: own CGEventTap / WH_KEYBOARD_LL + WH_MOUSE_LL
+//!   hooks on dedicated threads (hold binds, modifier-only, mouse side buttons,
+//!   swallowing). Hooks never log key content.
+//! * [`manager::InputManager`]: routes binds, merges events, builds `BindReport`.
+pub mod combo;
+pub mod conflicts;
+pub mod cursor;
+mod engine;
+pub mod keys;
+pub mod lowlevel;
+pub mod manager;
+pub mod matcher;
+mod noop;
+pub mod platform;
 
-/// Accepts binds, reports them active, never emits events.
-pub struct NoopInputBackend {
-    tx: Sender<BindEvent>,
-    rx: std::sync::Mutex<Option<Receiver<BindEvent>>>,
-}
-impl Default for NoopInputBackend {
-    fn default() -> Self {
-        let (tx, rx) = channel();
-        Self {
-            tx,
-            rx: std::sync::Mutex::new(Some(rx)),
-        }
-    }
-}
-impl NoopInputBackend {
-    /// Test helper: inject an event as if a bind fired.
-    pub fn inject(&self, ev: BindEvent) {
-        let _ = self.tx.send(ev);
-    }
-}
-impl InputBackend for NoopInputBackend {
-    fn set_binds(&mut self, binds: &[BindSpec]) -> Result<BindReport> {
-        Ok(BindReport {
-            entries: binds
-                .iter()
-                .map(|b| BindStatusEntry {
-                    action: b.action,
-                    status: BindStatus::Active,
-                })
-                .collect(),
-        })
-    }
-    fn events(&self) -> Receiver<BindEvent> {
-        // Single-consumer channel: the first call hands out the receiver.
-        self.rx.lock().unwrap().take().unwrap_or_else(|| channel().1)
-    }
+pub use combo::{ComboBackend, ComboEvents, ComboRegistrar};
+pub use conflicts::{analyze as analyze_conflicts, soft_warning, Conflict, ConflictKind};
+pub use cursor::SystemCursor;
+pub use lowlevel::LowLevelBackend;
+pub use manager::{InputHandle, InputManager, InputStatus};
+pub use noop::NoopInputBackend;
+pub use platform::{HookError, PermSnapshot};
+
+use lowk_types::{BindSpec, Result};
+
+/// Spec entry point: build a manager and apply `binds`.
+pub fn start_input(
+    binds: Vec<BindSpec>,
+    registrar: Option<Box<dyn ComboRegistrar>>,
+) -> Result<(InputHandle, lowk_types::BindReport)> {
+    use lowk_types::InputBackend;
+    let mut h = InputManager::new(registrar);
+    let report = h.set_binds(&binds)?;
+    Ok((h, report))
 }
