@@ -17,6 +17,10 @@ pub enum AppEvent {
     Queue(QueueState),
     Store(StoreChange),
     Level(AudioLevel),
+    /// «Мой ответ» text grew or its link closed.
+    MyAnswer(QaUpdate),
+    /// An STT engine failed (isolated per stream).
+    SttError(SttError),
 }
 
 impl AppEvent {
@@ -38,6 +42,8 @@ impl AppEvent {
             AppEvent::Queue(_) => QUEUE_CHANGED,
             AppEvent::Store(_) => STORE_CHANGED,
             AppEvent::Level(_) => AUDIO_LEVEL,
+            AppEvent::MyAnswer(_) => QA_MY_ANSWER,
+            AppEvent::SttError(_) => STT_ERROR,
         }
     }
 }

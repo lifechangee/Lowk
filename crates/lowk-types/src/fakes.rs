@@ -66,7 +66,7 @@ impl OverlayController for NoopOverlayController {
     fn mode(&self) -> OverlayMode {
         self.state.lock().unwrap().1
     }
-    fn move_hold(&self, _phase: Phase, _cursor: &dyn CursorSource) {}
+    fn move_hold(&self, _phase: Phase, _cursor: Arc<dyn CursorSource>) {}
     fn status(&self) -> StealthStatus {
         StealthStatus::Unavailable("noop controller".into())
     }

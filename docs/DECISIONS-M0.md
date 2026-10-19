@@ -27,3 +27,17 @@ Ambiguities in `ARCHITECTURE.md` resolved by the simplest option. Architect: vet
 20. **Windows cross-check from macOS** needs a dummy `llvm-rc` on PATH (`printf '#!/bin/sh\nexit 0\n' > /tmp/fakebin/llvm-rc`), then `cargo check --workspace --target x86_64-pc-windows-msvc`.
 21. **Frontend**: TypeScript pinned to `~6` (svelte-check does not support TS 7 yet); `pnpm@10.34.7`. i18n is split per namespace under `ui/src/lib/i18n/{ru,en}/<ns>.ts` (spec section 14); `ru` defines the key type and `en` must match (type + unit test).
 22. `ui/` is its own pnpm root (`ui/pnpm-lock.yaml`), no root workspace file.
+
+## Integration (WP6): contract changes applied to `lowk-types`
+Proposals from the per-crate `CONTRACT-CHANGES.md` files (now deleted) were folded in:
+23. **Hardware**: `HwReport`, `SttTier`, `RecReason`, `Recommendation` moved from `lowk-platform` into `lowk-types` (specta); `hw_probe` returns `HwReport`.
+24. **Events**: `AppEvent::MyAnswer(QaUpdate)` (`qa://my-answer`) and `AppEvent::SttError(SttError)` (`stt://error`). `QaUpdate`, `QaRecord`, `CloseReason` moved to `lowk_types::qa`. `Session` publishes both on the bus (`subscribe_qa` stays as a convenience for tests).
+25. **Call id**: `CallStore::begin_call -> (CallId, recorder)` is satisfied by `CallWriter::id()`; the app adapter is a thin wrapper, no store change needed.
+26. **`NewCall.clock: Option<SessionClock>`**: `Vault::begin_call` uses it (else starts its own clock). `Session` always sets it.
+27. **Bind phases** stay `Down`/`Up` (a hold is the time between them, auto-repeat suppressed); no `Held`. `InputStatus` stays Rust-only: `binds_get` returns `BindsState { binds, report }` instead. Key-code validation stays in `lowk-input` (`is_known_code`), `binds_set` rejects unknown codes before saving.
+28. **`OverlayController::move_hold(phase, Arc<dyn CursorSource>)`**: the follow loop outlives the call. The app passes `lowk_input::SystemCursor`; the stealth crate no longer carries native cursor sources.
+29. **`Tone.scrim_min`** (0..1) is emitted by the tone algorithm (re-emits when it moves by >= 0.05); the overlay scrim is `max(k * .85, scrim_min)`.
+30. **`ScreenGrab`** trait (no window exclusion) lives in `lowk-types`; `lowk-stealth` uses it for the self-test pixel layer (`SelfTestCapture` removed). `RegionSampler` (excludes own windows) is the tone sampler's trait.
+31. **Templates**: `default_templates()` includes `summary` («Резюме»); `lowk-store` no longer appends it.
+32. **Not applied**: `StartOpts.demo_speed` (demo pace is `SessionDeps::demo_pace`), `Vault` extras stay in `lowk-store` (app uses them directly), `OverlayController` extras (`escape`, `on_window_event`, event sink) are reached through `Stealth.overlay` (`OverlayCtl`), since they are app-shell concerns.
+33. `NewCall.started` stays UTC RFC 3339; local-offset needs a safe source from `lowk-platform` (post-M0).

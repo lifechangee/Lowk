@@ -40,6 +40,10 @@ pub struct Tone {
     pub mv: String,
     pub luma: f32,
     pub busy: f32,
+    /// Minimum scrim opacity (0..1) that keeps WCAG 4.5:1 for the worst-case
+    /// backdrop pixel. The UI scrim is `max(k * .85, scrim_min)`.
+    #[serde(default)]
+    pub scrim_min: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]

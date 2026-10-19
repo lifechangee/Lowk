@@ -196,10 +196,10 @@ impl Vault {
     }
 
     pub fn begin_call(&self, m: NewCall) -> Result<CallWriter> {
-        let clock = SessionClock {
+        let clock = m.clock.unwrap_or_else(|| SessionClock {
             t0_mono: now_mono_ns(),
             t0_wall_ms: wall_ms(),
-        };
+        });
         self.begin_call_with_clock(m, clock)
     }
 

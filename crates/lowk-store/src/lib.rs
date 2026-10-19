@@ -13,7 +13,7 @@ mod watch;
 pub mod writer;
 
 pub use settings::{FileSettingsStore, SETTINGS_FILE};
-pub use templates::{summary_template, TemplateSet, TEMPLATE_SUMMARY};
+pub use templates::TemplateSet;
 pub use transfer::ImportReport;
 pub use util::{atomic_write, sanitize_name};
 pub use vault::{Call, FolderPatch, ItemKind, TrashItem, Vault, VaultInner};

@@ -16,6 +16,7 @@ fn new_call(folder: FolderRef) -> NewCall {
         languages: vec![],
         speaker_me: "Я".into(),
         speaker_system: "Система".into(),
+        clock: None,
     }
 }
 

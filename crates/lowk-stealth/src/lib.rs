@@ -16,7 +16,7 @@ pub mod policy;
 pub mod tone;
 
 pub use backend::{Readback, WindowBackend};
-pub use controller::{OverlayCtl, PillCtl, SelfTestCapture, WindowEventKind, MAIN, OVERLAY, PILL};
+pub use controller::{OverlayCtl, PillCtl, WindowEventKind, MAIN, OVERLAY, PILL};
 pub use guard::StealthGuard;
 pub use mode::{Interaction, ModeChange, ModeInput, ModeMachine};
 pub use policy::{WindowPolicy, WindowRole};
@@ -127,7 +127,7 @@ pub fn create_stealth(
         pill = Some(PillCtl::new(guard.clone(), main_thread.clone(), b));
     }
 
-    let ctl = OverlayCtl::new(guard.clone(), main_thread.clone(), ob, native::cursor());
+    let ctl = OverlayCtl::new(guard.clone(), main_thread.clone(), ob);
     if let Some(b) = main_be {
         ctl.set_main_backend(b);
     }

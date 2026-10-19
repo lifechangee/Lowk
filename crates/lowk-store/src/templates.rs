@@ -2,29 +2,13 @@
 //! (`[[templates]]`); this is the editing/lookup layer.
 use lowk_types::*;
 
-pub const TEMPLATE_SUMMARY: &str = "summary";
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TemplateSet(Vec<Template>);
-
-/// «Резюме»: used by `llm_summarize`; not offered in the overlay chip by default.
-pub fn summary_template() -> Template {
-    Template {
-        id: TEMPLATE_SUMMARY.into(),
-        names: LocalizedName { ru: "Резюме".into(), en: "Summary".into() },
-        instruction: "Сделай краткое резюме созвона: ключевые темы, решения, договорённости и следующие шаги. Отвечай на языке разговора.".into(),
-        needs_my_answer: false,
-        vision: false,
-        reasoning: false,
-    }
-}
 
 impl TemplateSet {
     /// «Кратко», «Дополни мой ответ», «Резюме».
     pub fn defaults() -> Self {
-        let mut v = default_templates();
-        v.push(summary_template());
-        Self(v)
+        Self(default_templates())
     }
 
     pub fn from_settings(s: &Settings) -> Self {

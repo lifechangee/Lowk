@@ -200,7 +200,25 @@ fn tone_from(kind: ToneKind, p: &Palette, rgb: String, inv: String, stats: &Samp
         mv: p.mv.into(),
         luma: stats.median,
         busy: stats.busy,
+        scrim_min: scrim_floor(kind, stats_worst(kind, stats)),
     }
+}
+
+fn stats_worst(kind: ToneKind, s: &SampleStats) -> f32 {
+    if kind == ToneKind::Light {
+        s.p10
+    } else {
+        s.p90
+    }
+}
+
+/// Scrim opacity floor for the worst-case backdrop pixel behind the text.
+fn scrim_floor(kind: ToneKind, worst: f32) -> f32 {
+    let (scrim, fg) = match kind {
+        ToneKind::Light => (LIGHT.scrim_luma, LIGHT.fg_luma),
+        _ => (DARK.scrim_luma, DARK.fg_luma),
+    };
+    required_scrim_alpha(scrim, fg, worst, ToneParams::default().target_contrast)
 }
 
 /// Stateful tone selector with smoothing and hysteresis.
@@ -326,6 +344,7 @@ impl AdaptiveTone {
             Some(prev) => {
                 prev.tone != tone.tone
                     || (prev.luma - tone.luma).abs() >= self.params.deadband
+                    || (prev.scrim_min - tone.scrim_min).abs() >= 0.05
                     || (tone.tone == ToneKind::Color && rgb_dist(&prev.rgb, &tone.rgb) > 12.0)
             }
         };
@@ -358,6 +377,7 @@ fn fixed(kind: ToneKind, p: &Palette) -> Tone {
         mv: p.mv.into(),
         luma: if kind == ToneKind::Light { 0.9 } else { 0.05 },
         busy: 0.0,
+        scrim_min: 0.0,
     }
 }
 

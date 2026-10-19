@@ -41,3 +41,50 @@ pub struct HwInfo {
     pub free_disk_gb: f32,
     pub on_battery: bool,
 }
+
+/// `HwInfo` plus what the recommender needs (`hw_probe` payload).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct HwReport {
+    pub info: HwInfo,
+    pub physical_cores: u32,
+    pub logical_cores: u32,
+    /// `Some(4)` for "Apple M4 Pro"; `None` off Apple Silicon.
+    pub apple_silicon_gen: Option<u8>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum SttTier {
+    /// Larger local model (accurate/streaming) should run comfortably.
+    LocalHigh,
+    /// Only a small local model is plausible.
+    LocalLight,
+    /// Recommend cloud transcription.
+    Cloud,
+}
+
+/// Machine-readable reason; the UI maps it to copy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum RecReason {
+    AppleSiliconCapable,
+    AppleSiliconLimited,
+    IntelMac,
+    DiscreteGpu,
+    DiscreteGpuSmall,
+    CpuOnlyCapable,
+    WeakCpu,
+    LowRam,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Recommendation {
+    pub tier: SttTier,
+    pub reason: RecReason,
+}
+
+impl Recommendation {
+    pub fn local(&self) -> bool {
+        self.tier != SttTier::Cloud
+    }
+}

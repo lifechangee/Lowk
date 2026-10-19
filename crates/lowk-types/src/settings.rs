@@ -17,6 +17,7 @@ pub const DEFAULT_LLM_MODEL: &str = "deepseek/deepseek-v4.1-flash";
 pub const DEFAULT_OPENROUTER_URL: &str = "https://openrouter.ai/api/v1";
 pub const TEMPLATE_BRIEF: &str = "brief";
 pub const TEMPLATE_COMPLEMENT: &str = "complement";
+pub const TEMPLATE_SUMMARY: &str = "summary";
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 #[serde(default)]
@@ -427,7 +428,23 @@ pub fn default_templates() -> Vec<Template> {
             vision: false,
             reasoning: false,
         },
+        summary_template(),
     ]
+}
+
+/// «Резюме»: used by `llm_summarize`; not offered in the overlay chip by default.
+pub fn summary_template() -> Template {
+    Template {
+        id: TEMPLATE_SUMMARY.into(),
+        names: LocalizedName {
+            ru: "Резюме".into(),
+            en: "Summary".into(),
+        },
+        instruction: "Сделай краткое резюме созвона: ключевые темы, решения, договорённости и следующие шаги. Отвечай на языке разговора.".into(),
+        needs_my_answer: false,
+        vision: false,
+        reasoning: false,
+    }
 }
 
 // --- binds ---------------------------------------------------------------

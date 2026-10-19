@@ -10,7 +10,7 @@ use crate::mode::Interaction;
 use crate::policy::{WindowPolicy, WindowRole};
 use crate::RawWindow;
 use block2::RcBlock;
-use lowk_types::{CursorSource, Rect, Result};
+use lowk_types::{Rect, Result};
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObjectProtocol};
 use objc2::{define_class, msg_send, ClassType, MainThreadOnly};
@@ -30,16 +30,6 @@ const SCREEN_SAVER_LEVEL: isize = 1000; // NSScreenSaverWindowLevel
 extern "C" {
     fn object_setClass(obj: *mut c_void, cls: *const c_void) -> *const c_void;
     fn CGWindowListCopyWindowInfo(option: u32, relative_to: u32) -> *mut c_void;
-    fn CGEventCreate(source: *const c_void) -> *mut c_void;
-    fn CGEventGetLocation(ev: *const c_void) -> CGPoint;
-    fn CFRelease(cf: *const c_void);
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct CGPoint {
-    x: f64,
-    y: f64,
 }
 
 /// Windows (by pointer) currently allowed to become key.
@@ -294,27 +284,6 @@ impl WindowBackend for Win {
     fn is_key(&self) -> bool {
         self.win.isKeyWindow()
     }
-}
-
-struct MacCursor;
-impl CursorSource for MacCursor {
-    fn position(&self) -> (f64, f64) {
-        // CGEvent location is global, top-left origin, points; needs no permission.
-        // SAFETY: CGEventCreate(NULL) returns +1 or null.
-        unsafe {
-            let ev = CGEventCreate(std::ptr::null());
-            if ev.is_null() {
-                return (0.0, 0.0);
-            }
-            let p = CGEventGetLocation(ev);
-            CFRelease(ev);
-            (p.x, p.y)
-        }
-    }
-}
-
-pub fn cursor() -> Arc<dyn CursorSource> {
-    Arc::new(MacCursor)
 }
 
 /// Space change, display reconfiguration and wake re-apply everything.

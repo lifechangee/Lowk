@@ -1,55 +1,7 @@
 //! Hardware probe and the static local-vs-cloud recommendation (ARCHITECTURE 6.4).
 //! The recommendation is a pre-filter; the 5-10 s benchmark has the last word.
-use lowk_types::{GpuInfo, HwInfo, Os};
-use serde::{Deserialize, Serialize};
+use lowk_types::{GpuInfo, HwInfo, HwReport, Os, RecReason, Recommendation, SttTier};
 use sysinfo::{Disks, System};
-
-/// `HwInfo` plus what the recommender needs but `HwInfo` lacks (see CONTRACT-CHANGES.md).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct HwReport {
-    pub info: HwInfo,
-    pub physical_cores: u32,
-    pub logical_cores: u32,
-    /// `Some(4)` for "Apple M4 Pro"; `None` off Apple Silicon.
-    pub apple_silicon_gen: Option<u8>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SttTier {
-    /// Larger local model (accurate/streaming) should run comfortably.
-    LocalHigh,
-    /// Only a small local model is plausible.
-    LocalLight,
-    /// Recommend cloud transcription.
-    Cloud,
-}
-
-/// Machine-readable reason; the UI maps it to copy.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RecReason {
-    AppleSiliconCapable,
-    AppleSiliconLimited,
-    IntelMac,
-    DiscreteGpu,
-    DiscreteGpuSmall,
-    CpuOnlyCapable,
-    WeakCpu,
-    LowRam,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Recommendation {
-    pub tier: SttTier,
-    pub reason: RecReason,
-}
-
-impl Recommendation {
-    pub fn local(&self) -> bool {
-        self.tier != SttTier::Cloud
-    }
-}
 
 const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
 

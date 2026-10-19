@@ -2,7 +2,7 @@
 //! (Idle -> Starting -> Recording <-> Paused -> Stopping -> Idle).
 use crate::bus::EventBus;
 use crate::deps::{CallRecorder, HintRequest, SessionDeps};
-use crate::qa::{ClosedAnswer, QaOutput, QaRecord, QaTracker, QaUpdate};
+use crate::qa::{ClosedAnswer, QaOutput, QaTracker};
 use crate::replay::{rebase, Pacer, ReplayItem, ReplayKind, ReplaySource};
 use crate::transcript::{Applied, TranscriptBuf};
 use lowk_audio::{AudioEvent, CaptureConfig, CaptureHandle, FrameSink};
@@ -152,7 +152,8 @@ impl SttSink for SessionSink {
     fn error(&self, e: SttError) {
         if let Some(i) = self.0.upgrade() {
             tracing::warn!(?e, "stt error");
-            i.core().stt_errors.push(e);
+            i.core().stt_errors.push(e.clone());
+            i.bus.emit(AppEvent::SttError(e));
         }
     }
 }
@@ -179,7 +180,7 @@ impl Session {
     pub fn add_sink(&self, sink: Arc<dyn EventSink>) {
         self.inner.bus.add_sink(sink)
     }
-    /// «Мой ответ» updates (text so far / closed). See CONTRACT-CHANGES.md.
+    /// «Мой ответ» updates (text so far / closed); also published as `AppEvent::MyAnswer`.
     pub fn subscribe_qa(&self) -> Receiver<QaUpdate> {
         let (tx, rx) = channel();
         self.inner.qa_subs.lock().unwrap().push(tx);
@@ -327,7 +328,7 @@ impl Session {
         let mut out = Out::default();
         let recorder = {
             let mut c = inner.core();
-            let o = c.qa.close(crate::qa::CloseReason::SessionEnd);
+            let o = c.qa.close(CloseReason::SessionEnd);
             c.absorb_qa(o, &mut out);
             c.recorder.take()
         };
@@ -461,6 +462,7 @@ impl Inner {
             let mut subs = self.qa_subs.lock().unwrap();
             for u in out.qa {
                 subs.retain(|s| s.send(u.clone()).is_ok());
+                self.bus.emit(AppEvent::MyAnswer(u));
             }
         }
     }
@@ -523,6 +525,7 @@ impl Inner {
             languages: settings.stt.languages.clone(),
             speaker_me: me_label.into(),
             speaker_system: sys_label.into(),
+            clock: Some(clock),
         };
 
         if o.demo {

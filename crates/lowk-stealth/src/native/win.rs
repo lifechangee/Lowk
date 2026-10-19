@@ -14,7 +14,7 @@ use crate::backend::{unavailable, Readback, WindowBackend};
 use crate::mode::Interaction;
 use crate::policy::WindowPolicy;
 use crate::RawWindow;
-use lowk_types::{CursorSource, Rect, Result};
+use lowk_types::{Rect, Result};
 use parking_lot::Mutex;
 use raw_window_handle::RawWindowHandle;
 use std::ffi::c_void;
@@ -288,22 +288,6 @@ impl WindowBackend for Win {
         // SAFETY: no preconditions.
         unsafe { GetForegroundWindow() == self.hwnd() }
     }
-}
-
-struct WinCursor;
-impl CursorSource for WinCursor {
-    fn position(&self) -> (f64, f64) {
-        let mut p = POINT::default();
-        // SAFETY: valid out pointer.
-        unsafe {
-            let _ = GetCursorPos(&mut p);
-        }
-        (p.x as f64, p.y as f64)
-    }
-}
-
-pub fn cursor() -> Arc<dyn CursorSource> {
-    Arc::new(WinCursor)
 }
 
 static ON_CHANGE: OnceLock<Arc<dyn Fn() + Send + Sync>> = OnceLock::new();

@@ -2,6 +2,7 @@
 //! here. Implementations: see the crate named in each doc comment.
 use crate::*;
 use std::sync::mpsc::Receiver;
+use std::sync::Arc;
 
 /// Runs closures on the OS UI thread (AppKit / Win32). Implemented by
 /// `lowk-app` over Tauri's `run_on_main_thread`.
@@ -44,7 +45,8 @@ pub trait OverlayController: Send + Sync {
     fn panic_hide(&self);
     fn set_mode(&self, m: OverlayMode) -> Result<()>;
     fn mode(&self) -> OverlayMode;
-    fn move_hold(&self, phase: Phase, cursor: &dyn CursorSource);
+    /// The follow loop outlives the call, hence the owned source.
+    fn move_hold(&self, phase: Phase, cursor: Arc<dyn CursorSource>);
     fn status(&self) -> StealthStatus;
     fn selftest(&self) -> Result<SelfTestReport>;
 }
@@ -73,4 +75,11 @@ pub trait EventSink: Send + Sync {
 pub trait RegionSampler: Send + Sync {
     /// RGBA8 bitmap of `rect` scaled to `w` x `h`, excluding our own windows.
     fn grab_region(&self, rect: Rect, w: u32, h: u32) -> Result<Vec<u8>>;
+}
+
+/// Plain screen grab *without* window exclusion (what a normal capturer sees).
+/// Used by the stealth self-test pixel layer; implemented by `lowk-capture`.
+pub trait ScreenGrab: Send + Sync {
+    /// RGBA8 pixels of `rect` (global top-left points) with width and height.
+    fn grab(&self, rect: Rect) -> Result<(Vec<u8>, u32, u32)>;
 }

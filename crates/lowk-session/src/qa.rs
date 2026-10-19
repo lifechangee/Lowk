@@ -6,42 +6,10 @@
 //! Me segment (the interviewer moved on), 90 s after arming, session end.
 //! All times are event time (`MonoNs` carried by the events), so behaviour is
 //! deterministic and replayable.
-use lowk_types::{MonoNs, QaId, Stream, SttEvent, SttKind};
-use serde::{Deserialize, Serialize};
+use lowk_types::{CloseReason, MonoNs, QaId, QaRecord, QaUpdate, Stream, SttEvent, SttKind};
 
 pub const MY_ANSWER_TIMEOUT_NS: u64 = 90_000_000_000;
 pub const LONG_SYSTEM_NS: u64 = 3_000_000_000;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CloseReason {
-    NextAsk,
-    SystemQuestion,
-    Timeout,
-    SessionEnd,
-}
-
-/// One question/hint/answer triple.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct QaRecord {
-    pub qa_id: QaId,
-    pub question: String,
-    pub hint: String,
-    pub my_answer: String,
-    pub armed_at: MonoNs,
-    /// Event time of the first collected Me segment.
-    pub first_at: Option<MonoNs>,
-    /// `None` while the link is still collecting.
-    pub closed: Option<CloseReason>,
-}
-
-/// Emitted whenever the «Мой ответ» text of a link changes or the link closes.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct QaUpdate {
-    pub qa_id: QaId,
-    pub text: String,
-    pub closed: Option<CloseReason>,
-}
 
 /// Returned for the session to journal (`CallEntry::MyAnswer`).
 #[derive(Clone, Debug, PartialEq, Eq)]

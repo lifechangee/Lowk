@@ -16,6 +16,7 @@ pub mod ids;
 pub mod llm;
 pub mod overlay;
 pub mod perm;
+pub mod qa;
 pub mod session;
 pub mod settings;
 pub mod store;
@@ -31,6 +32,7 @@ pub use ids::*;
 pub use llm::*;
 pub use overlay::*;
 pub use perm::*;
+pub use qa::*;
 pub use session::*;
 pub use settings::*;
 pub use store::*;
@@ -61,6 +63,9 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<BindReport>();
     types.register_mut::<BindSpec>();
     types.register_mut::<HwInfo>();
+    types.register_mut::<HwReport>();
+    types.register_mut::<Recommendation>();
+    types.register_mut::<QaRecord>();
     types.register_mut::<EngineDescriptor>();
     types.register_mut::<RetrievalQuery>();
     types.register_mut::<ContextChunk>();
@@ -73,6 +78,8 @@ pub fn register_types(types: &mut specta::Types) {
 /// high-rate streams that bypass the bus. `lowk-app` and the UI both use these.
 pub mod events {
     pub const STT_SEGMENT: &str = "stt://segment";
+    pub const STT_ERROR: &str = "stt://error";
+    pub const QA_MY_ANSWER: &str = "qa://my-answer";
     pub const SESSION_STATE: &str = "session://state";
     pub const AUDIO_LEVEL: &str = "audio://level";
     pub const LLM_START: &str = "llm://start";

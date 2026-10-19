@@ -1,5 +1,5 @@
 //! Vault DTOs (the on-disk format itself is owned by `lowk-store`).
-use crate::{CallId, FolderRef, LangTag, QaId, SttEvent, Ulid};
+use crate::{CallId, FolderRef, LangTag, QaId, SessionClock, SttEvent, Ulid};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
@@ -57,6 +57,10 @@ pub struct NewCall {
     /// Labels written to the `speakers` table, chosen from the UI language.
     pub speaker_me: String,
     pub speaker_system: String,
+    /// Session clock (monotonic <-> wall) so `CallEntry::Final` times map to
+    /// offsets; `None` = the writer starts its own clock now.
+    #[serde(default)]
+    pub clock: Option<SessionClock>,
 }
 
 /// What `CallWriter::push` accepts.

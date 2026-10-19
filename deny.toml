@@ -14,6 +14,9 @@ version = 2
 ignore = [
     { id = "RUSTSEC-2024-0436", reason = "paste: unmaintained, transitive (tauri/specta); no safe upgrade" },
     { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: unmaintained, transitive (tauri Linux deps); no safe upgrade" },
+    { id = "RUSTSEC-2026-0370", reason = "zvariant: unmaintained, Linux-only transitive of keyring secret-service; no safe upgrade" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names: unmaintained, Linux-only transitive of keyring secret-service; no safe upgrade" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: unmaintained, Linux-only transitive of keyring secret-service; no safe upgrade" },
 ]
 
 [licenses]

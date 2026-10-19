@@ -28,14 +28,6 @@ pub enum WindowEventKind {
     Wake,
 }
 
-/// Optional pixel layer of the self-test: grabs a screen rect *without*
-/// excluding any window (like a normal capturer). Implemented by the app over
-/// `lowk-capture`. Returns RGBA8 pixels with their width and height; only
-/// colours are inspected (magenta overlay sentinel, green main sentinel).
-pub trait SelfTestCapture: Send + Sync {
-    fn grab(&self, rect: Rect) -> Result<(Vec<u8>, u32, u32)>;
-}
-
 struct Follow {
     stop: Arc<AtomicBool>,
     handle: std::thread::JoinHandle<()>,
@@ -52,8 +44,7 @@ pub struct OverlayCtl {
     follow: Mutex<Option<Follow>>,
     last_reassert: Mutex<Instant>,
     pub(crate) resample: AtomicBool,
-    capture: Mutex<Option<Arc<dyn SelfTestCapture>>>,
-    native_cursor: Arc<dyn CursorSource>,
+    capture: Mutex<Option<Arc<dyn ScreenGrab>>>,
 }
 
 impl OverlayCtl {
@@ -61,7 +52,6 @@ impl OverlayCtl {
         guard: StealthGuard,
         main: Arc<dyn MainThread>,
         backend: Arc<dyn WindowBackend>,
-        native_cursor: Arc<dyn CursorSource>,
     ) -> Arc<Self> {
         Arc::new(Self {
             guard,
@@ -75,7 +65,6 @@ impl OverlayCtl {
             last_reassert: Mutex::new(Instant::now()),
             resample: AtomicBool::new(false),
             capture: Mutex::new(None),
-            native_cursor,
         })
     }
 
@@ -85,7 +74,9 @@ impl OverlayCtl {
     pub(crate) fn set_main_backend(&self, b: Arc<dyn WindowBackend>) {
         *self.main_backend.lock() = Some(b);
     }
-    pub fn set_selftest_capture(&self, c: Arc<dyn SelfTestCapture>) {
+    /// Pixel layer of the self-test: a grab *without* window exclusion. The
+    /// overlay UI must paint a magenta sentinel (`r>170, b>170, g<100`) meanwhile.
+    pub fn set_selftest_capture(&self, c: Arc<dyn ScreenGrab>) {
         *self.capture.lock() = Some(c);
     }
 
@@ -273,17 +264,8 @@ impl OverlayController for OverlayCtl {
         self.machine.lock().effective()
     }
 
-    fn move_hold(&self, phase: Phase, cursor: &dyn CursorSource) {
-        // The follow loop outlives this call, so it samples the native cursor;
-        // the borrowed source is used for the initial grab (no jump) only.
-        let (x, y) = cursor.position();
-        self.move_hold_with(
-            phase,
-            Arc::new(Seeded {
-                first: Mutex::new(Some((x, y))),
-                native: self.native_cursor.clone(),
-            }),
-        );
+    fn move_hold(&self, phase: Phase, cursor: Arc<dyn CursorSource>) {
+        self.move_hold_with(phase, cursor);
     }
 
     fn status(&self) -> StealthStatus {
@@ -327,17 +309,6 @@ impl OverlayController for OverlayCtl {
             main_visible,
             details,
         })
-    }
-}
-
-/// First `position()` returns the caller's cursor sample, later ones the native cursor.
-struct Seeded {
-    first: Mutex<Option<(f64, f64)>>,
-    native: Arc<dyn CursorSource>,
-}
-impl CursorSource for Seeded {
-    fn position(&self) -> (f64, f64) {
-        self.first.lock().take().unwrap_or_else(|| self.native.position())
     }
 }
 
@@ -403,7 +374,7 @@ mod tests {
         guard
             .protect_backend(OVERLAY, WindowPolicy::OVERLAY, Arc::new(fb.clone()))
             .unwrap();
-        let ctl = OverlayCtl::new(guard, main, Arc::new(fb.clone()), Arc::new(FixedCursor(0.0, 0.0)));
+        let ctl = OverlayCtl::new(guard, main, Arc::new(fb.clone()));
         let sink = Arc::new(CollectEventSink::default());
         ctl.set_sink(sink.clone());
         (ctl, fb, sink)
