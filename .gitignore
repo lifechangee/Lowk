@@ -27,3 +27,4 @@ ui/playwright-report/
 # Local
 .env
 *.log
+.claude/
