@@ -1,0 +1,151 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 2 * * *" # nightly: OS jobs always run
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  # Decides whether the expensive macOS/Windows jobs run (private-repo minutes).
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      os: ${{ steps.f.outputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            os:
+              - 'crates/lowk-audio/**'
+              - 'crates/lowk-stealth/**'
+              - 'crates/lowk-input/**'
+              - 'crates/lowk-platform/**'
+              - 'crates/lowk-capture/**'
+              - 'crates/lowk-app/**'
+              - 'crates/lowk-types/**'
+              - 'ui/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/ci.yml'
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,cargo-deny
+      - run: cargo fmt --all -- --check
+      # lowk-app needs WebKitGTK on Linux; it is linted in the macOS job.
+      - run: cargo clippy --workspace --exclude lowk-app --all-targets -- -D warnings
+      - run: cargo xtask check-deps
+      - run: cargo deny check
+
+  test-pure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --exclude lowk-app
+
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - run: pnpm --dir ui install --frozen-lockfile
+      - run: pnpm --dir ui check
+      - run: pnpm --dir ui test
+      - run: pnpm --dir ui build
+      - run: pnpm --dir ui size
+      # TODO(WP10): Playwright overflow/screenshot tests in RU and EN.
+      - name: licenses (frontend)
+        run: pnpm --dir ui licenses list --prod --json > /dev/null
+
+  test-macos:
+    needs: changes
+    if: needs.changes.outputs.os == 'true' || github.event_name != 'pull_request'
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - run: pnpm --dir ui install --frozen-lockfile
+      - run: pnpm --dir ui build
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - name: bindings are fresh
+        run: |
+          cargo xtask bindings
+          git diff --exit-code -- ui/src/lib/ipc/bindings.ts
+
+  # Windows: compile + clippy + tests that need no desktop. Runtime/stealth
+  # probe testing is deferred until PC access (see probe-win below).
+  test-windows:
+    needs: changes
+    if: needs.changes.outputs.os == 'true' || github.event_name != 'pull_request'
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm --dir ui install --frozen-lockfile
+      - run: pnpm --dir ui build
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+  # Disabled until the owner has Windows PC access (docs/ARCHITECTURE.md 11).
+  probe-win:
+    if: false
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "stealth capture-probe lands with WP2 (tools/stealth-probe)"
