@@ -1,43 +1,202 @@
-/* Design tokens (single source). Seeded from docs/ARCHITECTURE.md section 2.2.
-   Main window: dark only in alpha, theme-ready via these vars.
+/* Design tokens (single source). Seeded from docs/ARCHITECTURE.md section 2.2
+   and docs/design/lowk-mockups-v3.html.
+
+   Main window: dark is the default (alpha). Light is opt-in via
+   <html data-theme="light">; there is no automatic light mode yet.
    Overlay: uses only adaptive tokens derived from --rgb/--fg/--inv/--int/--mv/--k
-   (set by the overlay://tone event; WP9). No fixed colours in overlay components. */
+   (set by the overlay://tone event, WP9; presets below via data-tone).
+   No overlay component may use a fixed colour.
+
+   Spacing is a 4px grid. Colours: monochrome grey, one muted-blue accent,
+   and functional colours (--rec, --live, --move) only for indicators. */
+
+/* ---------- Main window: dark (default) ---------- */
 :root {
+  /* surfaces */
   --pg: #09090a;
   --bg: #111113;
   --side: #0d0d0f;
   --panel: #17171a;
   --line: #27272b;
+  --line-strong: #3a3a40;
+
+  /* text */
   --tx: #ececee;
   --tx2: #8e8e96;
   --tx3: #5e5e66;
+
+  /* interaction overlays */
   --hv: rgba(255, 255, 255, 0.05);
   --sel: rgba(255, 255, 255, 0.085);
+  --focus: rgba(139, 166, 196, 0.6);
+
+  /* accent (the only accent) */
   --ac: #8ba6c4;
   --acbg: rgba(139, 166, 196, 0.15);
   --acfg: #0b1118;
+
+  /* functional indicators (recording, mode) */
   --rec: #ff4d4f;
+  --recbg: rgba(255, 77, 79, 0.14);
   --live: #46d37a;
+  --livebg: rgba(70, 211, 122, 0.14);
   --move: #ffc24a;
+  --movebg: rgba(255, 194, 74, 0.14);
+
+  /* danger / warning text (non-indicator) */
+  --warn: #c4c4ca;
+  --warnbg: rgba(255, 255, 255, 0.04);
+
+  /* shadows */
+  --sh: 0 30px 80px rgba(0, 0, 0, 0.5);
+
+  /* radii */
   --r-sm: 6px;
   --r: 8px;
   --r-lg: 12px;
   --r-xl: 16px;
+  --r-pill: 999px;
+
+  /* spacing, 4px grid */
+  --s0: 2px;
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
   --s4: 16px;
+  --s5: 20px;
   --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+  --s12: 48px;
+
+  /* typography */
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif;
   --mono: ui-monospace, Menlo, 'Cascadia Mono', monospace;
-  --fs: 14px/20px;
-  --fs-sm: 12px/16px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
   --fs-xs: 11px/16px;
+  --fs-sm: 12px/16px;
+  --fs: 14px/20px;
+  --fs-lg: 16px/24px;
+  --fs-xl: 20px/28px;
+  --fs-2xl: 24px/32px;
+  /* overlay text size is a setting (overlay.font_px) */
+  --ov-fs: 14px;
+
+  /* motion */
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  color-scheme: dark;
 }
 
+/* ---------- Main window: light (opt-in) ---------- */
+:root[data-theme='light'] {
+  --pg: #f4f4f6;
+  --bg: #fafafb;
+  --side: #efeff2;
+  --panel: #ffffff;
+  --line: #e2e2e7;
+  --line-strong: #c9c9d0;
+
+  --tx: #18181b;
+  --tx2: #63636b;
+  --tx3: #9a9aa3;
+
+  --hv: rgba(0, 0, 0, 0.04);
+  --sel: rgba(0, 0, 0, 0.07);
+  --focus: rgba(79, 111, 146, 0.6);
+
+  --ac: #4f6f92;
+  --acbg: rgba(79, 111, 146, 0.14);
+  --acfg: #ffffff;
+
+  --rec: #e5484d;
+  --recbg: rgba(229, 72, 77, 0.12);
+  --live: #1f9d55;
+  --livebg: rgba(31, 157, 85, 0.12);
+  --move: #b7791f;
+  --movebg: rgba(183, 121, 31, 0.12);
+
+  --warn: #4a4a52;
+  --warnbg: rgba(0, 0, 0, 0.03);
+
+  --sh: 0 24px 60px rgba(0, 0, 0, 0.14);
+
+  color-scheme: light;
+}
+
+/* ---------- Overlay: tone inputs ----------
+   Set by the overlay://tone event. Channel triples ("r g b") so that
+   rgb(var(--x) / alpha) works. Defaults = dark tone at 90% opacity. */
+:root {
+  --rgb: 9 9 10;          /* scrim colour (background under the overlay) */
+  --fg: 236 236 238;      /* text colour chosen for that background */
+  --inv: 11 17 24;        /* text on a solid chip */
+  --int: 139 166 196;     /* interactive-mode indicator */
+  --mv: 255 194 74;       /* moving-mode indicator */
+  --k: 0.9;               /* user opacity, 0..1 */
+}
+/* Tone presets: match the mockup's three backgrounds
+   (dark code editor, light document, saturated slide). */
+:root[data-tone='dark'] {
+  --rgb: 9 9 10;
+  --fg: 236 236 238;
+  --inv: 11 17 24;
+  --int: 139 166 196;
+  --mv: 255 194 74;
+}
+:root[data-tone='light'] {
+  --rgb: 245 245 247;
+  --fg: 24 24 27;
+  --inv: 255 255 255;
+  --int: 40 90 150;
+  --mv: 176 110 0;
+}
+:root[data-tone='color'] {
+  --rgb: 110 60 160;
+  --fg: 255 255 255;
+  --inv: 40 20 70;
+  --int: 200 220 255;
+  --mv: 255 220 120;
+}
+
+/* ---------- Overlay: derived adaptive tokens ----------
+   Everything below is calc() over the inputs above, so that the whole
+   overlay (background, border, chips, menus) fades together with --k. */
+body.overlay {
+  --bgc: rgb(var(--rgb) / calc(var(--k) * 0.72));       /* background */
+  --bd: rgb(var(--fg) / calc(var(--k) * 0.16));         /* border */
+  --ln: rgb(var(--fg) / calc(var(--k) * 0.1));          /* dividers */
+  --chip: rgb(var(--fg) / calc(var(--k) * 0.1));        /* chip / button fill */
+  --menu: rgb(var(--rgb) / calc(var(--k) * 0.92));      /* in-page menus */
+  --shd: rgb(0 0 0 / calc(var(--k) * 0.35));            /* drop shadow */
+  --tx: rgb(var(--fg));                                 /* primary text: always opaque */
+  --tx2: rgb(var(--fg) / 0.66);                         /* secondary text */
+  --ts: rgb(var(--fg) / 0.46);                          /* tertiary / "system" text */
+  --intc: rgb(var(--int));                              /* interactive indicator */
+  --mvc: rgb(var(--mv));                                /* moving indicator */
+  --recc: var(--rec);                                   /* recording indicator (functional) */
+  --chipfg: rgb(var(--inv));                            /* text on an active chip */
+  background: transparent;
+  color: var(--tx);
+  font-size: var(--ov-fs);
+}
+
+/* ---------- Base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body { font: var(--fs) var(--font); color: var(--tx); background: var(--bg); overflow-wrap: anywhere; }
+body {
+  font: var(--fs) var(--font);
+  color: var(--tx);
+  background: var(--bg);
+  overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+}
 body.overlay { background: transparent; user-select: none; }
-/* Any status/label container: strict text bounds in RU and EN. */
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Any status/label container: strict text bounds in RU and EN (brief section 2.3). */
 .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
