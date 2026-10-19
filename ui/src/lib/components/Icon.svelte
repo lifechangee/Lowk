@@ -1,4 +1,4 @@
-<script lang="ts">
+<script lang="ts" module>
   // Inline stroke icons on a 16px grid; `currentColor`, no dependencies.
   const paths = {
     search: '<circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/>',
@@ -37,6 +37,9 @@
   } as const;
 
   export type IconName = keyof typeof paths;
+</script>
+
+<script lang="ts">
   let { name, size = 16, label }: { name: IconName; size?: number; label?: string } = $props();
 </script>
 
