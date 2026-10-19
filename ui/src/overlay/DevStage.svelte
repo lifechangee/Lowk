@@ -54,6 +54,7 @@
   onMount(() => {
     source.start(store);
     if (q.get('still') === '1') preload();
+    if (view === 'pill') store.phase = 'idle';
     const m = q.get('mode') as OverlayMode | null;
     if (m) store.setMode(m);
     if (q.get('menu') === '1') store.menuOpen = true;
