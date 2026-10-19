@@ -1,6 +1,6 @@
 [package]
 name = "lowk-stealth"
-description = "Lowk: lowk-stealth crate (M0 stub)"
+description = "Lowk stealth: WindowPolicy, StealthGuard, ModeMachine, magnet, panic hide, adaptive tone, self-test, per-OS native code."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,27 @@ publish = false
 
 [dependencies]
 lowk-types.workspace = true
+parking_lot.workspace = true
+raw-window-handle.workspace = true
+tracing.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2.workspace = true
+objc2-app-kit = { workspace = true, features = ["std", "NSWindow", "NSPanel", "NSResponder", "NSApplication", "NSRunningApplication", "NSWorkspace", "NSScreen", "NSView", "NSEvent", "NSGraphics", "NSColor", "NSTextField", "NSControl", "NSText", "NSTextView"] }
+objc2-foundation = { workspace = true, features = ["std", "NSArray", "NSGeometry", "NSString", "NSNotification", "NSOperation", "NSThread", "NSObject", "NSDictionary", "NSValue"] }
+block2.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Accessibility",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemInformation",
+] }
 
 [lints]
 workspace = true
