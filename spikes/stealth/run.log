@@ -1,0 +1,69 @@
+[1792434121182] overlay class NSKVONotifying_TaoWindow -> NSPanel
+[1792434121191] CHECK reason=setup -> sharingType before=1 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434121191] after_show collectionBehavior=337 mask=0x8084
+[1792434121191] CHECK reason=initial-show -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434121193] setup complete
+[1792434121448] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434122469] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434123498] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434124525] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434124785] CMD main-hide
+[1792434124787] CHECK reason=main-hide -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434125547] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434126562] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434127581] CMD main-focus
+[1792434127587] CHECK reason=main-focus -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434127587] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434128598] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434129612] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434130118] CMD main-hide
+[1792434130119] CHECK reason=main-hide -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434130626] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434131638] CMD main-focus
+[1792434131643] CHECK reason=main-focus -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434131643] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434132650] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434133662] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434134422] CMD overlay-move 300 400
+[1792434134423] CHECK reason=moved -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434134678] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434135694] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434136714] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434137224] CMD overlay-toggle-exclusion off
+[1792434137224] CHECK reason=toggle-exclusion -> sharingType before=0 after=1 want=1 ok=true level=1000 visible=true winnum=921
+[1792434137735] CHECK reason=watchdog -> sharingType before=1 after=1 want=1 ok=true level=1000 visible=true winnum=921
+[1792434138751] CHECK reason=watchdog -> sharingType before=1 after=1 want=1 ok=true level=1000 visible=true winnum=921
+[1792434139767] CHECK reason=watchdog -> sharingType before=1 after=1 want=1 ok=true level=1000 visible=true winnum=921
+[1792434140276] CMD overlay-toggle-exclusion on
+[1792434140276] CHECK reason=toggle-exclusion -> sharingType before=1 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434140785] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434141799] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434142812] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434143066] CMD overlay-hide
+[1792434143066] overlay hidden (panic/hide)
+[1792434143830] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=false winnum=921
+[1792434144843] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=false winnum=921
+[1792434145858] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=false winnum=921
+[1792434146112] CMD overlay-show
+[1792434146113] after_show collectionBehavior=337 mask=0x8084
+[1792434146113] CHECK reason=show -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434146874] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434147887] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434148897] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434149247] after_show collectionBehavior=337 mask=0x8084
+[1792434149247] CHECK reason=space-change -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434149913] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434150930] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434151948] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434152957] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434153970] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434154987] CMD overlay-toggle-exclusion off
+[1792434154987] CHECK reason=toggle-exclusion -> sharingType before=0 after=1 want=1 ok=true level=1000 visible=true winnum=921
+[1792434154987] CHECK reason=watchdog -> sharingType before=1 after=1 want=1 ok=true level=1000 visible=true winnum=921
+[1792434156004] CHECK reason=watchdog -> sharingType before=1 after=1 want=1 ok=true level=1000 visible=true winnum=921
+[1792434157016] CHECK reason=watchdog -> sharingType before=1 after=1 want=1 ok=true level=1000 visible=true winnum=921
+[1792434157527] CMD overlay-toggle-exclusion on
+[1792434157527] CHECK reason=toggle-exclusion -> sharingType before=1 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434158037] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921
+[1792434159049] CMD quit
+[1792434159049] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=921

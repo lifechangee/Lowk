@@ -1,0 +1,777 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lowk · Макеты v3</title><style>
+:root{--pg:#09090a;--bg:#111113;--side:#0d0d0f;--panel:#17171a;--line:#27272b;--tx:#ececee;--tx2:#8e8e96;--tx3:#5e5e66;--hv:rgba(255,255,255,.05);--sel:rgba(255,255,255,.085);--ac:#8ba6c4;--acbg:rgba(139,166,196,.15);--acfg:#0b1118;--rec:#ff4d4f;--live:#46d37a;--move:#ffc24a;--me:#ececee;--sys:#8e8e96;--warn:#c4c4ca;--warnbg:rgba(255,255,255,.04);--sh:0 30px 80px rgba(0,0,0,.5)}
+
+*{box-sizing:border-box}html,body{height:100%;margin:0}body{background:var(--pg);color:var(--tx);font:14px/20px -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;display:flex;flex-direction:column}
+.bar{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.logo{font-weight:650;letter-spacing:-.01em;display:flex;gap:8px;align-items:center}.logo i{width:16px;height:16px;border:1.5px solid var(--tx2);border-radius:4px}
+.g{display:flex;gap:4px;align-items:center;flex-wrap:wrap}.gl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-right:4px}
+button{font:inherit;color:var(--tx);background:transparent;border:1px solid var(--line);border-radius:8px;height:32px;padding:0 12px;cursor:pointer}button:hover{border-color:var(--tx3)}
+button.on{background:var(--ac);color:var(--acfg);border-color:var(--ac);font-weight:600}
+main{flex:1;min-height:0;display:flex}section{flex:1;display:flex;flex-direction:column;min-width:0}section[hidden]{display:none}
+.card{padding:8px 16px;background:var(--side);border-bottom:1px solid var(--line)}
+.cols{display:grid;grid-template-columns:1fr 2fr;gap:4px 24px;font-size:12px;line-height:16px;color:var(--tx2)}.cols b{color:var(--tx)}.cols p{margin:0}
+iframe{flex:1;width:100%;border:0;background:var(--bg);min-height:0}
+</style></head><body><div class="bar"><span class="logo"><i></i>Lowk · макеты v3</span><div class="g"><span class="gl">1. Оверлей</span><button data-t="ov">A · Верхняя панель</button></div><div class="g"><span class="gl">2. Главное окно</span><button data-t="mn">Главная и рабочее пространство</button></div><div class="g"><span class="gl">3. Первый запуск</span><button data-t="ob">Пошаговая настройка</button></div></div><main><section id="p-ov" hidden><div class="card"><div class="cols"><div><b>Оверлей · A</b><p>Вариант A. Прозрачность управляет всем оверлеем целиком.</p></div><div><b>Что пробовать</b><p>Ползунок «Прозрачность» (0, 60, 90%), три фона и живая смена. Нажмите I и откройте шаблоны на каждом фоне. Зажмите Alt/Option и тяните оверлей.</p></div></div></div><iframe data-i="ov" srcdoc="&lt;!doctype html&gt;&lt;html lang=&quot;ru&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;&lt;title&gt;Оверлей&lt;/title&gt;&lt;style&gt;
+:root{--pg:#09090a;--bg:#111113;--side:#0d0d0f;--panel:#17171a;--line:#27272b;--tx:#ececee;--tx2:#8e8e96;--tx3:#5e5e66;--hv:rgba(255,255,255,.05);--sel:rgba(255,255,255,.085);--ac:#8ba6c4;--acbg:rgba(139,166,196,.15);--acfg:#0b1118;--rec:#ff4d4f;--live:#46d37a;--move:#ffc24a;--me:#ececee;--sys:#8e8e96;--warn:#c4c4ca;--warnbg:rgba(255,255,255,.04);--sh:0 30px 80px rgba(0,0,0,.5)}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/20px -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1360px;margin:0 auto;padding:24px 24px 64px}
+.bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-bottom:24px;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3)}
+.seg{display:flex;background:var(--side);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{all:unset;cursor:pointer;padding:4px 12px;border-radius:6px;font-size:12px;line-height:20px;color:var(--tx2)}
+.seg button.on{background:var(--ac);color:var(--acfg);font-weight:600}
+.btn{all:unset;cursor:pointer;padding:4px 12px;line-height:20px;border-radius:8px;font-size:12px;background:var(--hv);border:1px solid var(--line);color:var(--tx);user-select:none}
+.btn:hover{border-color:var(--tx3)}.btn.act{background:var(--move);color:#1a1200;border-color:var(--move);font-weight:600}
+.bar kbd{font:600 10px/16px ui-monospace,Menlo,monospace;padding:0 4px;border-radius:4px;border:1px solid var(--line);color:var(--tx2);margin-left:-8px}
+.sp{flex:1}.tip{font-size:12px;line-height:16px;color:var(--tx2);width:100%}
+.stage{display:flex;flex-wrap:wrap;gap:24px}
+.sw{width:640px;max-width:100%}.sw.hide{display:none}
+.cap{display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:16px;color:var(--tx2);margin-bottom:8px}
+.cap b{color:var(--tx);font-weight:600}.read{font:11px/16px ui-monospace,Menlo,monospace;text-align:right}
+.scene{position:relative;width:640px;height:480px;max-width:100%;border-radius:12px;overflow:hidden;border:1px solid #2a2b33}
+.bg{position:absolute;inset:0;transition:opacity 1.2s}
+.layer{opacity:0}.layer.on{opacity:1}
+.bg-ide{background:#1b1c21;color:#c9cbd6;font:12.5px/1.7 ui-monospace,Menlo,monospace;display:flex}
+.ide-side{width:128px;background:#16171b;border-right:1px solid #26272e;padding:12px;color:#7d8090;font-size:12px;line-height:2}
+.ide-side b{color:#c9cbd6;font-weight:500}.ide-main{flex:1}
+.ide-tabs{display:flex;background:#16171b;border-bottom:1px solid #26272e;font-size:12px}
+.ide-tabs span{padding:8px 16px;color:#7d8090}.ide-tabs .on{background:#1b1c21;color:#e3e4ea;border-top:2px solid #6d8cff}
+.bg-ide pre{margin:0;padding:12px 16px;font:inherit;white-space:pre;overflow:hidden}
+.k{color:#c58af9}.f{color:#7ab7ff}.s{color:#9ad48b}.c{color:#5d6070}.n{color:#f2a76b}
+.bg-doc{background:#e9eaee;display:flex;justify-content:center;padding:16px 0 0}
+.doc-page{width:504px;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.12);padding:32px 40px;color:#23242a;font-family:Georgia,serif}
+.doc-page small{font:600 10px sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8b8e99}
+.doc-page h2{font-size:22px;margin:8px 0 12px;font-weight:600}
+.doc-page p{font-size:12.5px;line-height:1.65;margin:0 0 12px;color:#3a3b42}
+.doc-page table{border-collapse:collapse;width:100%;font:12px sans-serif;margin-top:8px}
+.doc-page td,.doc-page th{border-bottom:1px solid #e3e4e8;padding:8px 4px;text-align:left}.doc-page th{color:#8b8e99;font-weight:500}
+.bg-slide{background:radial-gradient(900px 500px at 15% 10%,#ff8a5c 0,transparent 55%),radial-gradient(700px 500px at 90% 90%,#2dd4bf 0,transparent 55%),linear-gradient(135deg,#7c3aed,#be185d);color:#fff;padding:200px 40px 0}
+.bg-slide h2{font:700 40px/1.1 sans-serif;letter-spacing:-.03em;margin:0 0 8px;max-width:420px}
+.bg-slide p{margin:0;font-size:14px;opacity:.9}
+.bars{position:absolute;right:40px;bottom:0;display:flex;gap:12px;align-items:flex-end;height:152px}
+.bars i{width:32px;background:rgba(255,255,255,.88);border-radius:6px 6px 0 0}
+
+/* ============ adaptive tokens: everything inside .ov uses ONLY these ============ */
+.scene[data-tone=dark]{--rgb:12,12,15;--fg:247,247,249;--inv:0,0,0;--int:94,224,138;--mv:255,194,74;--mrgb:26,26,31}
+.scene[data-tone=light]{--rgb:255,255,255;--fg:10,11,15;--inv:255,255,255;--int:14,130,62;--mv:166,96,0;--mrgb:252,252,253}
+.scene[data-tone=color]{--rgb:40,14,80;--fg:255,255,255;--inv:30,0,60;--int:90,255,150;--mv:255,214,102;--mrgb:48,22,90}
+.scene{--k:var(--kk,.4)}
+.ov{--bgc:rgba(var(--rgb),calc(var(--k)*.85));--bd:rgba(var(--fg),calc(.07 + var(--k)*.25));--ln:rgba(var(--fg),calc(.04 + var(--k)*.14));
+ --chip:rgba(var(--fg),calc(.05 + var(--k)*.13));--chipbd:rgba(var(--fg),calc(.08 + var(--k)*.22));--hov:rgba(var(--fg),calc(.06 + var(--k)*.12));
+ --tx:rgba(var(--fg),calc(.66 + var(--k)*.34));--tx2:rgba(var(--fg),calc(.5 + var(--k)*.22));--solid:rgba(var(--fg),calc(.7 + var(--k)*.3));
+ --on:rgb(var(--inv));--ts:0 0 6px rgba(var(--inv),calc(.95 - var(--k)*.25)),0 1px 2px rgba(var(--inv),.7);
+ --shd:0 8px 28px rgba(0,0,0,calc(var(--k)*.26));--menu:rgba(var(--mrgb),calc(.55 + var(--k)*.4));
+ --intc:rgba(var(--int),calc(.6 + var(--k)*.4));--mvc:rgb(var(--mv));--recc:rgba(255,77,79,calc(.6 + var(--k)*.4))}
+.ov{position:absolute;color:var(--tx);text-shadow:var(--ts);background:var(--bgc);border:1px solid var(--bd);box-shadow:var(--shd);font:13px/18px -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Inter,system-ui,sans-serif;transition:background-color .5s,border-color .5s,color .5s,box-shadow .5s,text-shadow .5s;cursor:default;user-select:none}
+.ov *{transition:color .5s,background-color .5s,border-color .5s,box-shadow .5s,opacity .5s;box-sizing:border-box}
+.ov svg{color:inherit}
+.ov.interactive{border-color:var(--intc);box-shadow:0 0 0 3px rgba(var(--int),calc(.05 + var(--k)*.16)),var(--shd)}
+html.moving .ov{cursor:grab;border-style:dashed;border-color:var(--mvc)}
+html.moving .ov.dragging{cursor:grabbing}
+.mvb{position:absolute;right:16px;bottom:-12px;display:none;font-size:11px;line-height:16px;font-weight:600;padding:4px 12px;border-radius:99px;background:var(--mvc);color:#1a1200;text-shadow:none;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:5;white-space:nowrap}
+html.moving .mvb{display:block}
+.ov kbd{font:600 10px/16px ui-monospace,Menlo,monospace;padding:0 4px;border-radius:4px;background:var(--chip);border:1px solid var(--chipbd);color:var(--tx2);white-space:nowrap;text-shadow:none}
+.rec{display:flex;align-items:center;gap:8px;font:600 12px/16px ui-monospace,Menlo,monospace}
+.rec i{width:8px;height:8px;border-radius:50%;background:var(--recc);animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,77,79,.5)}70%{box-shadow:0 0 0 7px rgba(255,77,79,0)}100%{box-shadow:0 0 0 0 rgba(255,77,79,0)}}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:999px;background:var(--chip);border:1px solid var(--chipbd);font-size:12px;line-height:16px;white-space:nowrap;color:var(--tx)}
+.tpl{position:relative;display:inline-flex;align-items:center;gap:8px;padding:4px 8px 4px 12px;border-radius:8px;background:var(--chip);border:1px solid var(--chipbd);font-size:12px;line-height:16px;font-weight:550;white-space:nowrap;color:var(--tx)}
+.tpl .caret-d{opacity:.8}
+.ov.interactive .tpl{border-color:var(--intc)}
+.menu{display:none;position:absolute;top:calc(100% + 8px);left:0;min-width:232px;padding:4px;border-radius:12px;background:var(--menu);border:1px solid var(--bd);box-shadow:0 16px 40px rgba(0,0,0,.32);z-index:20;text-shadow:none;color:var(--tx)}
+.tpl.open .menu{display:block}
+.menu div{padding:8px 8px 8px 12px;border-radius:8px;font-weight:450;display:flex;gap:8px;align-items:center;color:var(--tx)}
+.menu div:hover{background:var(--hov)}.menu div.sel{font-weight:650;background:var(--chip)}
+.menu div.sel:before{content:&quot;✓&quot;;width:12px;margin-left:-4px;color:var(--tx)}
+.menu div:not(.sel):before{content:&quot;&quot;;width:12px;margin-left:-4px}
+.menu div.new:after{content:&quot;новое&quot;;font-size:9px;line-height:14px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--chipbd);border-radius:99px;padding:0 8px;color:var(--tx2)}
+.menu small{color:var(--tx2);font-size:11px;margin-left:auto}
+.spk{font-size:10px;line-height:16px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-right:8px;padding:0 8px;border-radius:4px;display:inline-block;text-shadow:none}
+.spk.me{background:var(--solid);color:var(--on)}
+.spk.sys{border:1px solid var(--chipbd);color:var(--tx2);background:var(--chip)}
+.caret{display:inline-block;width:6px;height:12px;background:var(--tx);vertical-align:-2px;margin-left:2px;animation:bl 1s steps(2) infinite}
+@keyframes bl{50%{opacity:0}}
+.ans b{font-weight:650}
+.mode{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;font-size:11px;line-height:16px;color:var(--tx2)}
+.mode i{width:8px;height:8px;border-radius:50%;border:1.5px dashed var(--tx2)}
+.mode .m-int,.mode .m-move{display:none;font-weight:600}
+.ov.interactive .mode i{border:none;background:var(--intc);box-shadow:0 0 8px var(--intc)}
+.ov.interactive .m-int{display:inline;color:var(--intc)}.ov.interactive .m-pass{display:none}
+html.moving .mode i{border:none;background:var(--mvc);box-shadow:0 0 8px var(--mvc)}
+html.moving .m-move{display:inline;color:var(--mvc)}html.moving .m-pass,html.moving .m-int{display:none}
+.inp{display:none;align-items:center;gap:8px;border-top:1px solid var(--ln)}
+.ov.interactive .inp{display:flex}
+.inp input{all:unset;flex:1;font-size:13px;line-height:20px;color:var(--tx);caret-color:var(--intc);min-width:0;user-select:text;text-shadow:var(--ts)}
+.inp input::placeholder{color:var(--tx2)}
+.hints{display:flex;gap:12px;font-size:11px;line-height:16px;color:var(--tx2);align-items:center;flex-wrap:wrap}
+.hints span{display:inline-flex;gap:4px;align-items:center}
+.ov.interactive .h-pass{display:none}.h-int{display:none!important}.ov.interactive .h-int{display:inline-flex!important}
+.thumb{width:28px;height:20px;border-radius:4px;border:1px solid var(--chipbd);background:linear-gradient(135deg,#8a8a93,#4a4a52);opacity:calc(.5 + var(--k)*.5)}
+.thumb.t2{background:linear-gradient(135deg,#b4b4bb,#6a6a72)}.thumb.t3{background:linear-gradient(135deg,#6a6a72,#2e2e34)}
+.toast{position:absolute;left:50%;bottom:-36px;transform:translateX(-50%);font-size:11px;line-height:16px;padding:4px 12px;border-radius:99px;background:rgba(0,0,0,.72);color:#fff;opacity:0;transition:opacity .3s!important;pointer-events:none;text-shadow:none}
+.toast.on{opacity:1}
+.ovA{left:50%;top:16px;transform:translate(calc(-50% + var(--dx,0px)),var(--dy,0px));width:600px;height:384px;border-radius:16px;display:flex;flex-direction:column}
+.ovA .a-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--ln)}
+.ovA .div{width:1px;height:16px;background:var(--ln)}
+.ovA .a-sub{padding:8px 16px;height:56px;font-size:14px;line-height:20px;border-bottom:1px solid var(--ln);overflow:hidden;display:flex;align-items:center}
+.ovA .a-ans{padding:8px 16px;flex:1;overflow:hidden;font-size:13px;line-height:20px}
+.chain{display:flex;align-items:center;gap:8px;font-size:11px;line-height:16px;color:var(--tx2);margin-bottom:4px}
+.chain span{opacity:.6}.chain span.done{opacity:.85}.chain span.on{opacity:1;font-weight:700;color:var(--tx)}
+.chain em{font-style:normal;opacity:.5}.chain .mdl{margin-left:auto;opacity:.7;font-weight:400}
+.ovA .a-my{padding:8px 16px;border-top:1px dashed var(--bd);min-height:52px;font-size:12px;line-height:18px;display:flex;gap:8px;align-items:flex-start;background:var(--chip)}
+.a-my .t{font-size:10px;line-height:18px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tx2);white-space:nowrap;width:88px;flex:none}
+.a-my .t:before{content:&quot;↳ &quot;}
+.a-my .tx{flex:1;font-style:italic;color:var(--tx)}
+.ovA .a-foot{padding:8px 16px;border-top:1px solid var(--ln);display:flex;flex-direction:column;gap:4px;border-radius:0 0 16px 16px}
+.ovA .inp{padding:8px 16px}
+.shots-wrap{display:flex;gap:4px;align-items:center}
+@media(max-width:700px){.wrap{padding:16px}}
+&lt;/style&gt;&lt;/head&gt;&lt;body&gt;&lt;div class=&quot;wrap&quot;&gt;
+&lt;div class=&quot;bar&quot;&gt;&lt;span class=&quot;lbl&quot;&gt;Прозрачность&lt;/span&gt;&lt;input type=&quot;range&quot; id=&quot;tr&quot; min=&quot;0&quot; max=&quot;90&quot; value=&quot;60&quot; style=&quot;width:150px;accent-color:var(--ac)&quot;&gt;&lt;b id=&quot;trv&quot; style=&quot;font-size:12.5px;min-width:34px&quot;&gt;60%&lt;/b&gt;
+&lt;span class=&quot;lbl&quot; style=&quot;margin-left:8px&quot;&gt;Фон&lt;/span&gt;&lt;div class=&quot;seg&quot;&gt;&lt;button class=&quot;on&quot; data-mode-btn=&quot;all&quot;&gt;Три фона&lt;/button&gt;&lt;button data-mode-btn=&quot;live&quot;&gt;Живая смена&lt;/button&gt;&lt;button data-mode-btn=&quot;dark&quot;&gt;Тёмный&lt;/button&gt;&lt;button data-mode-btn=&quot;light&quot;&gt;Светлый&lt;/button&gt;&lt;button data-mode-btn=&quot;color&quot;&gt;Яркий&lt;/button&gt;&lt;/div&gt;
+&lt;span class=&quot;sp&quot;&gt;&lt;/span&gt;
+&lt;button class=&quot;btn&quot; id=&quot;bHold&quot;&gt;Имитировать удержание ⌥&lt;/button&gt;
+&lt;button class=&quot;btn&quot; id=&quot;bInt&quot;&gt;Сделать интерактивным&lt;/button&gt;&lt;kbd&gt;I&lt;/kbd&gt;
+&lt;button class=&quot;btn&quot; id=&quot;bAns&quot;&gt;Запросить ответ&lt;/button&gt;&lt;kbd&gt;↵&lt;/kbd&gt;
+&lt;button class=&quot;btn&quot; id=&quot;bShot&quot;&gt;Скриншот&lt;/button&gt;&lt;kbd&gt;S&lt;/kbd&gt;
+&lt;span class=&quot;tip&quot;&gt;Ползунок «Прозрачность» делает прозрачным весь оверлей целиком: фон, рамку, чипы, меню. Попробуйте: зажмите клавишу Alt/Option (или кнопку «Имитировать удержание») и тяните оверлей. Отпустили, и он снова сквозной. В меню шаблона (нужен интерактивный режим) выберите «Дополни мой ответ».&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;stage&quot;&gt;&lt;div class=&quot;sw hide&quot; id=&quot;live&quot; data-k=&quot;live&quot;&gt;&lt;div class=&quot;cap&quot;&gt;&lt;b&gt;Живая смена фона: оверлей подстраивается&lt;/b&gt;&lt;span class=&quot;read&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;scene&quot; data-tone=&quot;dark&quot;&gt;&lt;div class=&quot;bg bg-ide layer&quot;&gt;&lt;div class=&quot;ide-side&quot;&gt;&lt;b&gt;▾ src&lt;/b&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;report.ts&lt;br&gt;&amp;nbsp;&amp;nbsp;api.ts&lt;br&gt;&amp;nbsp;&amp;nbsp;margin.ts&lt;br&gt;&lt;b&gt;▾ tests&lt;/b&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;report.spec.ts&lt;br&gt;package.json&lt;/div&gt;&lt;div class=&quot;ide-main&quot;&gt;&lt;div class=&quot;ide-tabs&quot;&gt;&lt;span class=&quot;on&quot;&gt;report.ts&lt;/span&gt;&lt;span&gt;api.ts&lt;/span&gt;&lt;span&gt;margin.ts&lt;/span&gt;&lt;/div&gt;&lt;pre&gt;&lt;span class=&quot;c&quot;&gt;// Считаем EBITDA margin по сегментам&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;export async function&lt;/span&gt; &lt;span class=&quot;f&quot;&gt;buildReport&lt;/span&gt;(ctx: Ctx) {
+  &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; rows = &lt;span class=&quot;k&quot;&gt;await&lt;/span&gt; ctx.db.&lt;span class=&quot;f&quot;&gt;query&lt;/span&gt;(&lt;span class=&quot;s&quot;&gt;`
+    SELECT segment, revenue, opex, one_off
+    FROM finance_q WHERE quarter = $1`&lt;/span&gt;, [ctx.q])
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; rows.&lt;span class=&quot;f&quot;&gt;map&lt;/span&gt;(r =&amp;gt; ({
+    segment: r.segment,
+    margin: (r.revenue - r.opex + r.one_off) / r.revenue,
+    cac: &lt;span class=&quot;f&quot;&gt;calcCac&lt;/span&gt;(r, ctx.partners),
+    &lt;span class=&quot;c&quot;&gt;// TODO: вынести partner-канал в отдельную метрику&lt;/span&gt;
+    flags: r.one_off &amp;gt; &lt;span class=&quot;n&quot;&gt;0&lt;/span&gt; ? [&lt;span class=&quot;s&quot;&gt;&#x27;one-off&#x27;&lt;/span&gt;] : [],
+  }))
+}
+&lt;span class=&quot;k&quot;&gt;export const&lt;/span&gt; &lt;span class=&quot;f&quot;&gt;fmt&lt;/span&gt; = (x: number) =&amp;gt; (x * &lt;span class=&quot;n&quot;&gt;100&lt;/span&gt;).&lt;span class=&quot;f&quot;&gt;toFixed&lt;/span&gt;(&lt;span class=&quot;n&quot;&gt;1&lt;/span&gt;) + &lt;span class=&quot;s&quot;&gt;&#x27;%&#x27;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;export function&lt;/span&gt; &lt;span class=&quot;f&quot;&gt;calcCac&lt;/span&gt;(r: Row, p: Partner[]) {
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; r.spend / Math.&lt;span class=&quot;f&quot;&gt;max&lt;/span&gt;(&lt;span class=&quot;n&quot;&gt;1&lt;/span&gt;, r.newCustomers)
+}
+&lt;span class=&quot;c&quot;&gt;// ...ещё 120 строк&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;export default&lt;/span&gt; &lt;span class=&quot;f&quot;&gt;buildReport&lt;/span&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;bg bg-doc layer&quot;&gt;&lt;div class=&quot;doc-page&quot;&gt;&lt;small&gt;Q3 2026 · Финансовый отчёт&lt;/small&gt;&lt;h2&gt;Результаты третьего квартала&lt;/h2&gt;
+&lt;p&gt;Выручка сегмента B2B выросла на 18% к предыдущему кварталу и достигла 412 млн ₽. Рост обеспечен расширением базы корпоративных клиентов и запуском партнёрского канала продаж.&lt;/p&gt;
+&lt;p&gt;Операционные расходы остались на уровне плана; разовые затраты на миграцию CRM учтены отдельной строкой и не входят в базовую оценку маржинальности.&lt;/p&gt;
+&lt;p&gt;Основные риски четвёртого квартала связаны с сезонным ростом стоимости привлечения клиентов и задержками интеграции.&lt;/p&gt;
+&lt;table&gt;&lt;tr&gt;&lt;th&gt;Показатель&lt;/th&gt;&lt;th&gt;Q2&lt;/th&gt;&lt;th&gt;Q3&lt;/th&gt;&lt;th&gt;Δ&lt;/th&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Выручка, млн ₽&lt;/td&gt;&lt;td&gt;349&lt;/td&gt;&lt;td&gt;412&lt;/td&gt;&lt;td&gt;+18%&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;EBITDA margin&lt;/td&gt;&lt;td&gt;21,3%&lt;/td&gt;&lt;td&gt;23,4%&lt;/td&gt;&lt;td&gt;+2,1 п.п.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;CAC, тыс. ₽&lt;/td&gt;&lt;td&gt;86&lt;/td&gt;&lt;td&gt;77&lt;/td&gt;&lt;td&gt;−11%&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;bg bg-slide layer&quot;&gt;&lt;h2&gt;Выручка +38% год к году&lt;/h2&gt;&lt;p&gt;Q3 2026 · итоги и приоритеты на Q4&lt;/p&gt;&lt;div class=&quot;bars&quot;&gt;&lt;i style=&quot;height:50px&quot;&gt;&lt;/i&gt;&lt;i style=&quot;height:72px&quot;&gt;&lt;/i&gt;&lt;i style=&quot;height:96px&quot;&gt;&lt;/i&gt;&lt;i style=&quot;height:128px&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;ov ovA&quot;&gt;
+&lt;div class=&quot;a-head&quot;&gt;&lt;div class=&quot;rec&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;span data-timer&gt;00:47:12&lt;/span&gt;&lt;/div&gt;&lt;span class=&quot;div&quot;&gt;&lt;/span&gt;&lt;div class=&quot;tpl&quot;&gt;&lt;span class=&quot;tl&quot;&gt;Кратко ответить&lt;/span&gt;&lt;svg width=&quot;9&quot; height=&quot;9&quot; viewBox=&quot;0 0 10 10&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot;&gt;&lt;path d=&quot;M2 3.5 5 6.5 8 3.5&quot;/&gt;&lt;/svg&gt;&lt;div class=&quot;menu&quot;&gt;&lt;div data-n=&quot;Кратко ответить&quot; class=&quot;sel&quot;&gt;Кратко ответить&lt;small&gt;⌥1&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Дополни мой ответ&quot; class=&quot; new&quot;&gt;Дополни мой ответ&lt;small&gt;⌥2&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Что сказать?&quot; class=&quot;&quot;&gt;Что сказать?&lt;small&gt;⌥3&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Фактчек&quot; class=&quot;&quot;&gt;Фактчек&lt;small&gt;⌥4&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Follow-up вопросы&quot; class=&quot;&quot;&gt;Follow-up вопросы&lt;small&gt;⌥5&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Рекап за 5 минут&quot; class=&quot;&quot;&gt;Рекап за 5 минут&lt;small&gt;⌥6&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;span style=&quot;flex:1&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;chip&quot;&gt;&lt;svg width=&quot;13&quot; height=&quot;13&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot;&gt;&lt;path d=&quot;M2 5V3.5A1.5 1.5 0 0 1 3.5 2H5M11 2h1.5A1.5 1.5 0 0 1 14 3.5V5M14 11v1.5a1.5 1.5 0 0 1-1.5 1.5H11M5 14H3.5A1.5 1.5 0 0 1 2 12.5V11&quot;/&gt;&lt;circle cx=&quot;8&quot; cy=&quot;8&quot; r=&quot;2&quot;/&gt;&lt;/svg&gt;&lt;span class=&quot;shots-wrap&quot; data-thumbs&gt;&lt;/span&gt;&lt;span&gt;&lt;span data-shotcount&gt;2&lt;/span&gt; прикреплено&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;mode&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;span class=&quot;m-pass&quot;&gt;сквозной&lt;/span&gt;&lt;span class=&quot;m-int&quot;&gt;ввод&lt;/span&gt;&lt;span class=&quot;m-move&quot;&gt;перемещение&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;a-sub&quot; data-sub=&quot;1&quot;&gt;&lt;/div&gt;
+&lt;div class=&quot;a-ans ans&quot;&gt;&lt;div class=&quot;chain&quot;&gt;&lt;span&gt;Вопрос&lt;/span&gt;&lt;em&gt;›&lt;/em&gt;&lt;span&gt;Подсказка ИИ&lt;/span&gt;&lt;em&gt;›&lt;/em&gt;&lt;span&gt;Мой ответ&lt;/span&gt;&lt;b class=&quot;mdl&quot; style=&quot;font-weight:400&quot;&gt;DeepSeek V4.1 Flash&lt;/b&gt;&lt;/div&gt;&lt;div data-stream&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;a-my&quot;&gt;&lt;span class=&quot;t&quot;&gt;Мой ответ&lt;/span&gt;&lt;span class=&quot;tx&quot; data-my&gt;&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;inp&quot;&gt;&lt;input placeholder=&quot;Спросить Lowk о звонке…&quot;&gt;&lt;kbd&gt;↵&lt;/kbd&gt;&lt;kbd&gt;Esc&lt;/kbd&gt;&lt;/div&gt;
+&lt;div class=&quot;a-foot&quot;&gt;&lt;div class=&quot;hints&quot;&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ Space&lt;/kbd&gt; интерактивный режим&lt;/span&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ ↵&lt;/kbd&gt; ответ&lt;/span&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ S&lt;/kbd&gt; скриншот&lt;/span&gt;&lt;span class=&quot;h-int&quot;&gt;&lt;kbd&gt;Esc&lt;/kbd&gt; вернуть сквозной режим&lt;/span&gt;&lt;span class=&quot;h-int&quot;&gt;&lt;kbd&gt;↵&lt;/kbd&gt; отправить&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;hints&quot;&gt;&lt;span&gt;Удерживайте &lt;kbd&gt;⌥&lt;/kbd&gt; / боковую кнопку мыши — перетащить&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;mvb&quot;&gt;Перетаскивание · отпустите ⌥ — снова сквозной режим&lt;/div&gt;
+&lt;div class=&quot;toast&quot;&gt;Скриншот добавлен&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;sw&quot; id=&quot;sc-dark&quot; data-k=&quot;dark&quot;&gt;&lt;div class=&quot;cap&quot;&gt;&lt;b&gt;Тёмный фон · редактор кода&lt;/b&gt;&lt;span class=&quot;read&quot;&gt;L≈0.09 → светлый текст, тёмный тон&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;scene&quot; data-tone=&quot;dark&quot;&gt;&lt;div class=&quot;bg bg-ide&quot;&gt;&lt;div class=&quot;ide-side&quot;&gt;&lt;b&gt;▾ src&lt;/b&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;report.ts&lt;br&gt;&amp;nbsp;&amp;nbsp;api.ts&lt;br&gt;&amp;nbsp;&amp;nbsp;margin.ts&lt;br&gt;&lt;b&gt;▾ tests&lt;/b&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;report.spec.ts&lt;br&gt;package.json&lt;/div&gt;&lt;div class=&quot;ide-main&quot;&gt;&lt;div class=&quot;ide-tabs&quot;&gt;&lt;span class=&quot;on&quot;&gt;report.ts&lt;/span&gt;&lt;span&gt;api.ts&lt;/span&gt;&lt;span&gt;margin.ts&lt;/span&gt;&lt;/div&gt;&lt;pre&gt;&lt;span class=&quot;c&quot;&gt;// Считаем EBITDA margin по сегментам&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;export async function&lt;/span&gt; &lt;span class=&quot;f&quot;&gt;buildReport&lt;/span&gt;(ctx: Ctx) {
+  &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; rows = &lt;span class=&quot;k&quot;&gt;await&lt;/span&gt; ctx.db.&lt;span class=&quot;f&quot;&gt;query&lt;/span&gt;(&lt;span class=&quot;s&quot;&gt;`
+    SELECT segment, revenue, opex, one_off
+    FROM finance_q WHERE quarter = $1`&lt;/span&gt;, [ctx.q])
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; rows.&lt;span class=&quot;f&quot;&gt;map&lt;/span&gt;(r =&amp;gt; ({
+    segment: r.segment,
+    margin: (r.revenue - r.opex + r.one_off) / r.revenue,
+    cac: &lt;span class=&quot;f&quot;&gt;calcCac&lt;/span&gt;(r, ctx.partners),
+    &lt;span class=&quot;c&quot;&gt;// TODO: вынести partner-канал в отдельную метрику&lt;/span&gt;
+    flags: r.one_off &amp;gt; &lt;span class=&quot;n&quot;&gt;0&lt;/span&gt; ? [&lt;span class=&quot;s&quot;&gt;&#x27;one-off&#x27;&lt;/span&gt;] : [],
+  }))
+}
+&lt;span class=&quot;k&quot;&gt;export const&lt;/span&gt; &lt;span class=&quot;f&quot;&gt;fmt&lt;/span&gt; = (x: number) =&amp;gt; (x * &lt;span class=&quot;n&quot;&gt;100&lt;/span&gt;).&lt;span class=&quot;f&quot;&gt;toFixed&lt;/span&gt;(&lt;span class=&quot;n&quot;&gt;1&lt;/span&gt;) + &lt;span class=&quot;s&quot;&gt;&#x27;%&#x27;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;export function&lt;/span&gt; &lt;span class=&quot;f&quot;&gt;calcCac&lt;/span&gt;(r: Row, p: Partner[]) {
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; r.spend / Math.&lt;span class=&quot;f&quot;&gt;max&lt;/span&gt;(&lt;span class=&quot;n&quot;&gt;1&lt;/span&gt;, r.newCustomers)
+}
+&lt;span class=&quot;c&quot;&gt;// ...ещё 120 строк&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;export default&lt;/span&gt; &lt;span class=&quot;f&quot;&gt;buildReport&lt;/span&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;ov ovA&quot;&gt;
+&lt;div class=&quot;a-head&quot;&gt;&lt;div class=&quot;rec&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;span data-timer&gt;00:47:12&lt;/span&gt;&lt;/div&gt;&lt;span class=&quot;div&quot;&gt;&lt;/span&gt;&lt;div class=&quot;tpl&quot;&gt;&lt;span class=&quot;tl&quot;&gt;Кратко ответить&lt;/span&gt;&lt;svg width=&quot;9&quot; height=&quot;9&quot; viewBox=&quot;0 0 10 10&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot;&gt;&lt;path d=&quot;M2 3.5 5 6.5 8 3.5&quot;/&gt;&lt;/svg&gt;&lt;div class=&quot;menu&quot;&gt;&lt;div data-n=&quot;Кратко ответить&quot; class=&quot;sel&quot;&gt;Кратко ответить&lt;small&gt;⌥1&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Дополни мой ответ&quot; class=&quot; new&quot;&gt;Дополни мой ответ&lt;small&gt;⌥2&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Что сказать?&quot; class=&quot;&quot;&gt;Что сказать?&lt;small&gt;⌥3&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Фактчек&quot; class=&quot;&quot;&gt;Фактчек&lt;small&gt;⌥4&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Follow-up вопросы&quot; class=&quot;&quot;&gt;Follow-up вопросы&lt;small&gt;⌥5&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Рекап за 5 минут&quot; class=&quot;&quot;&gt;Рекап за 5 минут&lt;small&gt;⌥6&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;span style=&quot;flex:1&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;chip&quot;&gt;&lt;svg width=&quot;13&quot; height=&quot;13&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot;&gt;&lt;path d=&quot;M2 5V3.5A1.5 1.5 0 0 1 3.5 2H5M11 2h1.5A1.5 1.5 0 0 1 14 3.5V5M14 11v1.5a1.5 1.5 0 0 1-1.5 1.5H11M5 14H3.5A1.5 1.5 0 0 1 2 12.5V11&quot;/&gt;&lt;circle cx=&quot;8&quot; cy=&quot;8&quot; r=&quot;2&quot;/&gt;&lt;/svg&gt;&lt;span class=&quot;shots-wrap&quot; data-thumbs&gt;&lt;/span&gt;&lt;span&gt;&lt;span data-shotcount&gt;2&lt;/span&gt; прикреплено&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;mode&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;span class=&quot;m-pass&quot;&gt;сквозной&lt;/span&gt;&lt;span class=&quot;m-int&quot;&gt;ввод&lt;/span&gt;&lt;span class=&quot;m-move&quot;&gt;перемещение&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;a-sub&quot; data-sub=&quot;1&quot;&gt;&lt;/div&gt;
+&lt;div class=&quot;a-ans ans&quot;&gt;&lt;div class=&quot;chain&quot;&gt;&lt;span&gt;Вопрос&lt;/span&gt;&lt;em&gt;›&lt;/em&gt;&lt;span&gt;Подсказка ИИ&lt;/span&gt;&lt;em&gt;›&lt;/em&gt;&lt;span&gt;Мой ответ&lt;/span&gt;&lt;b class=&quot;mdl&quot; style=&quot;font-weight:400&quot;&gt;DeepSeek V4.1 Flash&lt;/b&gt;&lt;/div&gt;&lt;div data-stream&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;a-my&quot;&gt;&lt;span class=&quot;t&quot;&gt;Мой ответ&lt;/span&gt;&lt;span class=&quot;tx&quot; data-my&gt;&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;inp&quot;&gt;&lt;input placeholder=&quot;Спросить Lowk о звонке…&quot;&gt;&lt;kbd&gt;↵&lt;/kbd&gt;&lt;kbd&gt;Esc&lt;/kbd&gt;&lt;/div&gt;
+&lt;div class=&quot;a-foot&quot;&gt;&lt;div class=&quot;hints&quot;&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ Space&lt;/kbd&gt; интерактивный режим&lt;/span&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ ↵&lt;/kbd&gt; ответ&lt;/span&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ S&lt;/kbd&gt; скриншот&lt;/span&gt;&lt;span class=&quot;h-int&quot;&gt;&lt;kbd&gt;Esc&lt;/kbd&gt; вернуть сквозной режим&lt;/span&gt;&lt;span class=&quot;h-int&quot;&gt;&lt;kbd&gt;↵&lt;/kbd&gt; отправить&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;hints&quot;&gt;&lt;span&gt;Удерживайте &lt;kbd&gt;⌥&lt;/kbd&gt; / боковую кнопку мыши — перетащить&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;mvb&quot;&gt;Перетаскивание · отпустите ⌥ — снова сквозной режим&lt;/div&gt;
+&lt;div class=&quot;toast&quot;&gt;Скриншот добавлен&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;sw&quot; id=&quot;sc-light&quot; data-k=&quot;light&quot;&gt;&lt;div class=&quot;cap&quot;&gt;&lt;b&gt;Светлый фон · документ&lt;/b&gt;&lt;span class=&quot;read&quot;&gt;L≈0.94 → тёмный текст, светлый тон&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;scene&quot; data-tone=&quot;light&quot;&gt;&lt;div class=&quot;bg bg-doc&quot;&gt;&lt;div class=&quot;doc-page&quot;&gt;&lt;small&gt;Q3 2026 · Финансовый отчёт&lt;/small&gt;&lt;h2&gt;Результаты третьего квартала&lt;/h2&gt;
+&lt;p&gt;Выручка сегмента B2B выросла на 18% к предыдущему кварталу и достигла 412 млн ₽. Рост обеспечен расширением базы корпоративных клиентов и запуском партнёрского канала продаж.&lt;/p&gt;
+&lt;p&gt;Операционные расходы остались на уровне плана; разовые затраты на миграцию CRM учтены отдельной строкой и не входят в базовую оценку маржинальности.&lt;/p&gt;
+&lt;p&gt;Основные риски четвёртого квартала связаны с сезонным ростом стоимости привлечения клиентов и задержками интеграции.&lt;/p&gt;
+&lt;table&gt;&lt;tr&gt;&lt;th&gt;Показатель&lt;/th&gt;&lt;th&gt;Q2&lt;/th&gt;&lt;th&gt;Q3&lt;/th&gt;&lt;th&gt;Δ&lt;/th&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Выручка, млн ₽&lt;/td&gt;&lt;td&gt;349&lt;/td&gt;&lt;td&gt;412&lt;/td&gt;&lt;td&gt;+18%&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;EBITDA margin&lt;/td&gt;&lt;td&gt;21,3%&lt;/td&gt;&lt;td&gt;23,4%&lt;/td&gt;&lt;td&gt;+2,1 п.п.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;CAC, тыс. ₽&lt;/td&gt;&lt;td&gt;86&lt;/td&gt;&lt;td&gt;77&lt;/td&gt;&lt;td&gt;−11%&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;ov ovA&quot;&gt;
+&lt;div class=&quot;a-head&quot;&gt;&lt;div class=&quot;rec&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;span data-timer&gt;00:47:12&lt;/span&gt;&lt;/div&gt;&lt;span class=&quot;div&quot;&gt;&lt;/span&gt;&lt;div class=&quot;tpl&quot;&gt;&lt;span class=&quot;tl&quot;&gt;Кратко ответить&lt;/span&gt;&lt;svg width=&quot;9&quot; height=&quot;9&quot; viewBox=&quot;0 0 10 10&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot;&gt;&lt;path d=&quot;M2 3.5 5 6.5 8 3.5&quot;/&gt;&lt;/svg&gt;&lt;div class=&quot;menu&quot;&gt;&lt;div data-n=&quot;Кратко ответить&quot; class=&quot;sel&quot;&gt;Кратко ответить&lt;small&gt;⌥1&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Дополни мой ответ&quot; class=&quot; new&quot;&gt;Дополни мой ответ&lt;small&gt;⌥2&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Что сказать?&quot; class=&quot;&quot;&gt;Что сказать?&lt;small&gt;⌥3&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Фактчек&quot; class=&quot;&quot;&gt;Фактчек&lt;small&gt;⌥4&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Follow-up вопросы&quot; class=&quot;&quot;&gt;Follow-up вопросы&lt;small&gt;⌥5&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Рекап за 5 минут&quot; class=&quot;&quot;&gt;Рекап за 5 минут&lt;small&gt;⌥6&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;span style=&quot;flex:1&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;chip&quot;&gt;&lt;svg width=&quot;13&quot; height=&quot;13&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot;&gt;&lt;path d=&quot;M2 5V3.5A1.5 1.5 0 0 1 3.5 2H5M11 2h1.5A1.5 1.5 0 0 1 14 3.5V5M14 11v1.5a1.5 1.5 0 0 1-1.5 1.5H11M5 14H3.5A1.5 1.5 0 0 1 2 12.5V11&quot;/&gt;&lt;circle cx=&quot;8&quot; cy=&quot;8&quot; r=&quot;2&quot;/&gt;&lt;/svg&gt;&lt;span class=&quot;shots-wrap&quot; data-thumbs&gt;&lt;/span&gt;&lt;span&gt;&lt;span data-shotcount&gt;2&lt;/span&gt; прикреплено&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;mode&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;span class=&quot;m-pass&quot;&gt;сквозной&lt;/span&gt;&lt;span class=&quot;m-int&quot;&gt;ввод&lt;/span&gt;&lt;span class=&quot;m-move&quot;&gt;перемещение&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;a-sub&quot; data-sub=&quot;1&quot;&gt;&lt;/div&gt;
+&lt;div class=&quot;a-ans ans&quot;&gt;&lt;div class=&quot;chain&quot;&gt;&lt;span&gt;Вопрос&lt;/span&gt;&lt;em&gt;›&lt;/em&gt;&lt;span&gt;Подсказка ИИ&lt;/span&gt;&lt;em&gt;›&lt;/em&gt;&lt;span&gt;Мой ответ&lt;/span&gt;&lt;b class=&quot;mdl&quot; style=&quot;font-weight:400&quot;&gt;DeepSeek V4.1 Flash&lt;/b&gt;&lt;/div&gt;&lt;div data-stream&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;a-my&quot;&gt;&lt;span class=&quot;t&quot;&gt;Мой ответ&lt;/span&gt;&lt;span class=&quot;tx&quot; data-my&gt;&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;inp&quot;&gt;&lt;input placeholder=&quot;Спросить Lowk о звонке…&quot;&gt;&lt;kbd&gt;↵&lt;/kbd&gt;&lt;kbd&gt;Esc&lt;/kbd&gt;&lt;/div&gt;
+&lt;div class=&quot;a-foot&quot;&gt;&lt;div class=&quot;hints&quot;&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ Space&lt;/kbd&gt; интерактивный режим&lt;/span&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ ↵&lt;/kbd&gt; ответ&lt;/span&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ S&lt;/kbd&gt; скриншот&lt;/span&gt;&lt;span class=&quot;h-int&quot;&gt;&lt;kbd&gt;Esc&lt;/kbd&gt; вернуть сквозной режим&lt;/span&gt;&lt;span class=&quot;h-int&quot;&gt;&lt;kbd&gt;↵&lt;/kbd&gt; отправить&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;hints&quot;&gt;&lt;span&gt;Удерживайте &lt;kbd&gt;⌥&lt;/kbd&gt; / боковую кнопку мыши — перетащить&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;mvb&quot;&gt;Перетаскивание · отпустите ⌥ — снова сквозной режим&lt;/div&gt;
+&lt;div class=&quot;toast&quot;&gt;Скриншот добавлен&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;sw&quot; id=&quot;sc-color&quot; data-k=&quot;color&quot;&gt;&lt;div class=&quot;cap&quot;&gt;&lt;b&gt;Яркий фон · слайд&lt;/b&gt;&lt;span class=&quot;read&quot;&gt;L≈0.41 · пурпур → тонировка, белый текст&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;scene&quot; data-tone=&quot;color&quot;&gt;&lt;div class=&quot;bg bg-slide&quot;&gt;&lt;h2&gt;Выручка +38% год к году&lt;/h2&gt;&lt;p&gt;Q3 2026 · итоги и приоритеты на Q4&lt;/p&gt;&lt;div class=&quot;bars&quot;&gt;&lt;i style=&quot;height:50px&quot;&gt;&lt;/i&gt;&lt;i style=&quot;height:72px&quot;&gt;&lt;/i&gt;&lt;i style=&quot;height:96px&quot;&gt;&lt;/i&gt;&lt;i style=&quot;height:128px&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;ov ovA&quot;&gt;
+&lt;div class=&quot;a-head&quot;&gt;&lt;div class=&quot;rec&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;span data-timer&gt;00:47:12&lt;/span&gt;&lt;/div&gt;&lt;span class=&quot;div&quot;&gt;&lt;/span&gt;&lt;div class=&quot;tpl&quot;&gt;&lt;span class=&quot;tl&quot;&gt;Кратко ответить&lt;/span&gt;&lt;svg width=&quot;9&quot; height=&quot;9&quot; viewBox=&quot;0 0 10 10&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot;&gt;&lt;path d=&quot;M2 3.5 5 6.5 8 3.5&quot;/&gt;&lt;/svg&gt;&lt;div class=&quot;menu&quot;&gt;&lt;div data-n=&quot;Кратко ответить&quot; class=&quot;sel&quot;&gt;Кратко ответить&lt;small&gt;⌥1&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Дополни мой ответ&quot; class=&quot; new&quot;&gt;Дополни мой ответ&lt;small&gt;⌥2&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Что сказать?&quot; class=&quot;&quot;&gt;Что сказать?&lt;small&gt;⌥3&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Фактчек&quot; class=&quot;&quot;&gt;Фактчек&lt;small&gt;⌥4&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Follow-up вопросы&quot; class=&quot;&quot;&gt;Follow-up вопросы&lt;small&gt;⌥5&lt;/small&gt;&lt;/div&gt;&lt;div data-n=&quot;Рекап за 5 минут&quot; class=&quot;&quot;&gt;Рекап за 5 минут&lt;small&gt;⌥6&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;span style=&quot;flex:1&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;chip&quot;&gt;&lt;svg width=&quot;13&quot; height=&quot;13&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot;&gt;&lt;path d=&quot;M2 5V3.5A1.5 1.5 0 0 1 3.5 2H5M11 2h1.5A1.5 1.5 0 0 1 14 3.5V5M14 11v1.5a1.5 1.5 0 0 1-1.5 1.5H11M5 14H3.5A1.5 1.5 0 0 1 2 12.5V11&quot;/&gt;&lt;circle cx=&quot;8&quot; cy=&quot;8&quot; r=&quot;2&quot;/&gt;&lt;/svg&gt;&lt;span class=&quot;shots-wrap&quot; data-thumbs&gt;&lt;/span&gt;&lt;span&gt;&lt;span data-shotcount&gt;2&lt;/span&gt; прикреплено&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;mode&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;span class=&quot;m-pass&quot;&gt;сквозной&lt;/span&gt;&lt;span class=&quot;m-int&quot;&gt;ввод&lt;/span&gt;&lt;span class=&quot;m-move&quot;&gt;перемещение&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;a-sub&quot; data-sub=&quot;1&quot;&gt;&lt;/div&gt;
+&lt;div class=&quot;a-ans ans&quot;&gt;&lt;div class=&quot;chain&quot;&gt;&lt;span&gt;Вопрос&lt;/span&gt;&lt;em&gt;›&lt;/em&gt;&lt;span&gt;Подсказка ИИ&lt;/span&gt;&lt;em&gt;›&lt;/em&gt;&lt;span&gt;Мой ответ&lt;/span&gt;&lt;b class=&quot;mdl&quot; style=&quot;font-weight:400&quot;&gt;DeepSeek V4.1 Flash&lt;/b&gt;&lt;/div&gt;&lt;div data-stream&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;a-my&quot;&gt;&lt;span class=&quot;t&quot;&gt;Мой ответ&lt;/span&gt;&lt;span class=&quot;tx&quot; data-my&gt;&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;inp&quot;&gt;&lt;input placeholder=&quot;Спросить Lowk о звонке…&quot;&gt;&lt;kbd&gt;↵&lt;/kbd&gt;&lt;kbd&gt;Esc&lt;/kbd&gt;&lt;/div&gt;
+&lt;div class=&quot;a-foot&quot;&gt;&lt;div class=&quot;hints&quot;&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ Space&lt;/kbd&gt; интерактивный режим&lt;/span&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ ↵&lt;/kbd&gt; ответ&lt;/span&gt;&lt;span class=&quot;h-pass&quot;&gt;&lt;kbd&gt;⌥ S&lt;/kbd&gt; скриншот&lt;/span&gt;&lt;span class=&quot;h-int&quot;&gt;&lt;kbd&gt;Esc&lt;/kbd&gt; вернуть сквозной режим&lt;/span&gt;&lt;span class=&quot;h-int&quot;&gt;&lt;kbd&gt;↵&lt;/kbd&gt; отправить&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;hints&quot;&gt;&lt;span&gt;Удерживайте &lt;kbd&gt;⌥&lt;/kbd&gt; / боковую кнопку мыши — перетащить&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;mvb&quot;&gt;Перетаскивание · отпустите ⌥ — снова сквозной режим&lt;/div&gt;
+&lt;div class=&quot;toast&quot;&gt;Скриншот добавлен&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;script&gt;
+const SUBS=[{w:&#x27;sys&#x27;,t:&#x27;А какой у вас сейчас EBITDA margin по сегменту B2B?&#x27;},{w:&#x27;me&#x27;,t:&#x27;Секунду, сверюсь с цифрами за квартал.&#x27;},{w:&#x27;sys&#x27;,t:&#x27;И как это соотносится с планом на Q4, если смотреть без one-off?&#x27;},{w:&#x27;me&#x27;,t:&#x27;Сейчас покажу, мы как раз это считали.&#x27;}];
+const TPLS={
+ &#x27;Кратко ответить&#x27;:{a:&quot;**EBITDA margin по B2B — 23,4%** за Q3 (+2,1 п.п. к Q2). Драйвер: CAC −11% после запуска partner-канала. Без разовых расходов на миграцию CRM — около 25%.&quot;,my:&quot;Если коротко, около двадцати трёх процентов, плюс два пункта к прошлому кварталу.&quot;},
+ &#x27;Дополни мой ответ&#x27;:{pre:1,a:&quot;**Добавь к сказанному:** точная цифра 23,4% (+2,1 п.п. к Q2); рост за счёт CAC −11% после partner-канала; без one-off на миграцию CRM маржа около 25%.&quot;,my:&quot;Маржа сейчас около двадцати трёх процентов.&quot;},
+ &#x27;Что сказать?&#x27;:{a:&quot;**Скажи:** маржа 23,4%, рост на 2,1 п.п. за счёт partner-канала. Предложи показать слайд с динамикой по кварталам.&quot;,my:&quot;Да, сейчас покажу слайд с динамикой по кварталам.&quot;},
+ &#x27;Фактчек&#x27;:{a:&quot;**Проверено:** 23,4% совпадает с финмоделью (лист «B2B», Q3). Цифра 25% верна только без one-off.&quot;,my:&quot;Подтверждаю, это совпадает с нашей моделью.&quot;},
+ &#x27;Follow-up вопросы&#x27;:{a:&quot;**Уточни у них:** 1) план на Q4 считают с one-off или без? 2) Какой целевой CAC для partner-канала?&quot;,my:&quot;Хочу уточнить, как вы считаете план на четвёртый квартал.&quot;},
+ &#x27;Рекап за 5 минут&#x27;:{a:&quot;**Коротко:** цель Q4 — рост выше 30% без роста CAC, ставка на partner-канал, маржа B2B 23,4%.&quot;,my:&quot;Подведу итог: растём за счёт партнёров.&quot;}};
+let cur=&#x27;Кратко ответить&#x27;;
+const SPK={me:&#x27;&lt;span class=&quot;spk me&quot;&gt;Я&lt;/span&gt;&#x27;,sys:&#x27;&lt;span class=&quot;spk sys&quot;&gt;Система&lt;/span&gt;&#x27;};
+let si=0,sk=0,hold=0;
+function renderSubs(){document.querySelectorAll(&#x27;[data-sub]&#x27;).forEach(el=&gt;{const L=SUBS[si%SUBS.length];const w=L.t.split(&#x27; &#x27;);const shown=w.slice(0,sk).join(&#x27; &#x27;);el.innerHTML=&#x27;&lt;div&gt;&#x27;+SPK[L.w]+&#x27;&lt;span&gt;&#x27;+shown+&#x27;&lt;/span&gt;&#x27;+(sk&lt;w.length?&#x27;&lt;span class=&quot;caret&quot;&gt;&lt;/span&gt;&#x27;:&#x27;&#x27;)+&#x27;&lt;/div&gt;&#x27;;});}
+setInterval(()=&gt;{const w=SUBS[si%SUBS.length].t.split(&#x27; &#x27;);if(sk&lt;w.length)sk++;else{hold++;if(hold&gt;14){hold=0;sk=0;si++;}}renderSubs();},210);renderSubs();
+function fmt(s){const c=(s.match(/\*\*/g)||[]).length;if(c%2)s+=&#x27;**&#x27;;return s.replace(/\*\*(.+?)\*\*/g,&#x27;&lt;b&gt;$1&lt;/b&gt;&#x27;);}
+function setChain(n){document.querySelectorAll(&#x27;.chain&#x27;).forEach(c=&gt;c.querySelectorAll(&#x27;span&#x27;).forEach((s,i)=&gt;{s.className=i+1&lt;n?&#x27;done&#x27;:(i+1===n?&#x27;on&#x27;:&#x27;&#x27;)}));}
+function setMy(t,typing){document.querySelectorAll(&#x27;[data-my]&#x27;).forEach(e=&gt;e.innerHTML=t?&#x27;«&#x27;+t+(typing?&#x27;&lt;span class=&quot;caret&quot;&gt;&lt;/span&gt;&#x27;:&#x27;&#x27;)+(typing?&#x27;&#x27;:&#x27;»&#x27;):&#x27;&lt;span style=&quot;opacity:.5;font-style:normal&quot;&gt;появится, когда вы ответите в микрофон…&lt;/span&gt;&#x27;);}
+let at=null,mt=null;
+function stream(){
+ clearInterval(at);clearInterval(mt);const T=TPLS[cur],aw=T.a.split(&#x27; &#x27;),mw=T.my.split(&#x27; &#x27;);let ai=0;
+ setMy(T.pre?T.my:&#x27;&#x27;);setChain(2);
+ document.querySelectorAll(&#x27;[data-stream]&#x27;).forEach(e=&gt;e.innerHTML=&#x27;&#x27;);
+ at=setInterval(()=&gt;{ai++;const done=ai&gt;=aw.length;
+  document.querySelectorAll(&#x27;[data-stream]&#x27;).forEach(el=&gt;{el.innerHTML=fmt(aw.slice(0,ai).join(&#x27; &#x27;))+(done?&#x27;&#x27;:&#x27;&lt;span class=&quot;caret&quot;&gt;&lt;/span&gt;&#x27;);});
+  if(done){clearInterval(at);if(T.pre){setChain(3);return;}let k=0;setChain(3);mt=setInterval(()=&gt;{k++;setMy(mw.slice(0,k).join(&#x27; &#x27;),k&lt;mw.length);if(k&gt;=mw.length)clearInterval(mt);},230);}
+ },85);
+}
+stream();
+let sec=47*60+12;setInterval(()=&gt;{sec++;const t=[Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(x=&gt;String(x).padStart(2,&#x27;0&#x27;)).join(&#x27;:&#x27;);document.querySelectorAll(&#x27;[data-timer]&#x27;).forEach(e=&gt;e.textContent=t);},1000);
+let interactive=false;
+function setInteractive(v){interactive=v;document.querySelectorAll(&#x27;.ov&#x27;).forEach(o=&gt;o.classList.toggle(&#x27;interactive&#x27;,v));
+ if(!v)document.querySelectorAll(&#x27;.tpl.open&#x27;).forEach(t=&gt;t.classList.remove(&#x27;open&#x27;));
+ document.getElementById(&#x27;bInt&#x27;).textContent=v?&#x27;Вернуть сквозной режим&#x27;:&#x27;Сделать интерактивным&#x27;;
+ if(v){setMoving(false);const i=document.querySelector(&#x27;.sw:not(.hide) .scene .inp input&#x27;);i&amp;&amp;setTimeout(()=&gt;i.focus(),50);}}
+let shots=2;
+function setShots(){document.querySelectorAll(&#x27;[data-shotcount]&#x27;).forEach(e=&gt;e.textContent=shots);document.querySelectorAll(&#x27;[data-thumbs]&#x27;).forEach(w=&gt;{w.innerHTML=&#x27;&#x27;;for(let i=0;i&lt;Math.min(shots,3);i++){const d=document.createElement(&#x27;i&#x27;);d.className=&#x27;thumb t&#x27;+(i+1);w.appendChild(d);}});}
+setShots();
+/* hold-to-move */
+let moving=false;
+function setMoving(v){if(v&amp;&amp;interactive)return;moving=v;document.documentElement.classList.toggle(&#x27;moving&#x27;,v);document.getElementById(&#x27;bHold&#x27;).classList.toggle(&#x27;act&#x27;,v);document.getElementById(&#x27;bHold&#x27;).textContent=v?&#x27;Удерживается ⌥ — тяните оверлей&#x27;:&#x27;Имитировать удержание ⌥&#x27;;}
+document.getElementById(&#x27;bHold&#x27;).onclick=()=&gt;setMoving(!moving);
+document.addEventListener(&#x27;keydown&#x27;,e=&gt;{if(e.key===&#x27;Alt&#x27;){e.preventDefault();setMoving(true);}});
+document.addEventListener(&#x27;keyup&#x27;,e=&gt;{if(e.key===&#x27;Alt&#x27;)setMoving(false);});
+window.addEventListener(&#x27;blur&#x27;,()=&gt;setMoving(false));
+document.addEventListener(&#x27;mousedown&#x27;,e=&gt;{if(e.button&gt;=3){e.preventDefault();setMoving(true);}});
+document.addEventListener(&#x27;mouseup&#x27;,e=&gt;{if(e.button&gt;=3)setMoving(false);});
+let drag=null;
+document.addEventListener(&#x27;pointerdown&#x27;,e=&gt;{if(!moving)return;const o=e.target.closest(&#x27;.ov&#x27;);if(!o)return;const sc=o.closest(&#x27;.scene&#x27;);drag={o,sc,x:e.clientX,y:e.clientY,dx:parseFloat(o.style.getPropertyValue(&#x27;--dx&#x27;))||0,dy:parseFloat(o.style.getPropertyValue(&#x27;--dy&#x27;))||0};o.classList.add(&#x27;dragging&#x27;);o.setPointerCapture(e.pointerId);e.preventDefault();});
+document.addEventListener(&#x27;pointermove&#x27;,e=&gt;{if(!drag)return;const {o,sc}=drag;const mx=(sc.clientWidth-o.offsetWidth)/2,top0=16;let dx=drag.dx+e.clientX-drag.x,dy=drag.dy+e.clientY-drag.y;dx=Math.max(-mx,Math.min(mx,dx));dy=Math.max(-top0,Math.min(sc.clientHeight-top0-o.offsetHeight,dy));o.style.setProperty(&#x27;--dx&#x27;,dx+&#x27;px&#x27;);o.style.setProperty(&#x27;--dy&#x27;,dy+&#x27;px&#x27;);});
+document.addEventListener(&#x27;pointerup&#x27;,()=&gt;{if(drag){drag.o.classList.remove(&#x27;dragging&#x27;);drag=null;}});
+document.getElementById(&#x27;bInt&#x27;).onclick=()=&gt;setInteractive(!interactive);
+document.getElementById(&#x27;bAns&#x27;).onclick=stream;
+document.getElementById(&#x27;bShot&#x27;).onclick=()=&gt;{shots=shots&gt;=4?1:shots+1;setShots();document.querySelectorAll(&#x27;.toast&#x27;).forEach(t=&gt;{t.classList.add(&#x27;on&#x27;);setTimeout(()=&gt;t.classList.remove(&#x27;on&#x27;),1100)});};
+document.addEventListener(&#x27;keydown&#x27;,e=&gt;{const typing=e.target.tagName===&#x27;INPUT&#x27;;if(e.key===&#x27;Escape&#x27;&amp;&amp;interactive)setInteractive(false);
+ if(typing){if(e.key===&#x27;Enter&#x27;&amp;&amp;e.target.value){e.target.value=&#x27;&#x27;;stream();}return;}
+ if(e.key===&#x27;i&#x27;||e.key===&#x27;I&#x27;||e.key===&#x27;ш&#x27;)setInteractive(!interactive);if(e.key===&#x27;Enter&#x27;)stream();if(e.key===&#x27;s&#x27;||e.key===&#x27;S&#x27;)document.getElementById(&#x27;bShot&#x27;).click();});
+document.querySelectorAll(&#x27;.tpl&#x27;).forEach(t=&gt;t.addEventListener(&#x27;click&#x27;,e=&gt;{if(!interactive)return;const it=e.target.closest(&#x27;.menu div&#x27;);
+ if(it){cur=it.dataset.n;document.querySelectorAll(&#x27;.tpl&#x27;).forEach(x=&gt;{x.querySelector(&#x27;.tl&#x27;).textContent=cur;x.querySelectorAll(&#x27;.menu div&#x27;).forEach(y=&gt;y.classList.toggle(&#x27;sel&#x27;,y.dataset.n===cur));x.classList.remove(&#x27;open&#x27;)});stream();return;}
+ t.classList.toggle(&#x27;open&#x27;);}));
+/* modes + material */
+document.querySelectorAll(&#x27;[data-mode-btn]&#x27;).forEach(b=&gt;b.onclick=()=&gt;{document.querySelectorAll(&#x27;[data-mode-btn]&#x27;).forEach(x=&gt;x.classList.toggle(&#x27;on&#x27;,x===b));const m=b.dataset.modeBtn;
+ document.querySelectorAll(&#x27;.sw&#x27;).forEach(s=&gt;s.classList.toggle(&#x27;hide&#x27;,m===&#x27;live&#x27;?s.id!==&#x27;live&#x27;:(m===&#x27;all&#x27;?s.id===&#x27;live&#x27;:s.dataset.k!==m)));});
+function setTr(v,fromParent){document.getElementById(&#x27;tr&#x27;).value=v;document.getElementById(&#x27;trv&#x27;).textContent=v+&#x27;%&#x27;;document.documentElement.style.setProperty(&#x27;--kk&#x27;,(1-v/100).toFixed(3));if(!fromParent)parent.postMessage({lowkT:+v},&#x27;*&#x27;);}
+document.getElementById(&#x27;tr&#x27;).oninput=e=&gt;setTr(e.target.value);setTr(60,true);
+addEventListener(&#x27;message&#x27;,e=&gt;{if(e.data&amp;&amp;e.data.lowk&amp;&amp;e.data.transp!=null)setTr(e.data.transp,true)});
+const TONES=[[&#x27;dark&#x27;,&#x27;L≈0.09 → светлые элементы на тёмном&#x27;],[&#x27;light&#x27;,&#x27;L≈0.94 → тёмные элементы на светлом&#x27;],[&#x27;color&#x27;,&#x27;L≈0.41, пурпур → тонировка в цвет фона, белые элементы&#x27;]];
+let ti=0;function liveStep(){const sc=document.querySelector(&#x27;#live .scene&#x27;);const [tone,txt]=TONES[ti%3];sc.dataset.tone=tone;document.querySelectorAll(&#x27;#live .layer&#x27;).forEach((l,i)=&gt;l.classList.toggle(&#x27;on&#x27;,i===ti%3));document.querySelector(&#x27;#live .read&#x27;).textContent=txt;ti++;}
+liveStep();setInterval(liveStep,4800);
+&lt;/script&gt;&lt;script&gt;addEventListener(&#x27;message&#x27;,function(e){});&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;"></iframe></section><section id="p-mn" hidden><div class="card"><div class="cols"><div><b>Главное окно</b><p>Главный экран с «Новый созвон», затем рабочее пространство из трёх панелей.</p></div><div><b>Что пробовать</b><p>Нажмите «Начать запись»: появится плашка записи. Откройте папку, затем вернитесь через логотип или «Библиотека». ⌘K: поиск.</p></div></div></div><iframe data-i="mn" srcdoc="&lt;!doctype html&gt;&lt;html lang=&quot;ru&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;&lt;title&gt;Главное окно&lt;/title&gt;&lt;style&gt;
+:root{--pg:#09090a;--bg:#111113;--side:#0d0d0f;--panel:#17171a;--line:#27272b;--tx:#ececee;--tx2:#8e8e96;--tx3:#5e5e66;--hv:rgba(255,255,255,.05);--sel:rgba(255,255,255,.085);--ac:#8ba6c4;--acbg:rgba(139,166,196,.15);--acfg:#0b1118;--rec:#ff4d4f;--live:#46d37a;--move:#ffc24a;--me:#ececee;--sys:#8e8e96;--warn:#c4c4ca;--warnbg:rgba(255,255,255,.04);--sh:0 30px 80px rgba(0,0,0,.5)}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--pg);font:14px/20px -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Inter,system-ui,sans-serif;color:var(--tx);-webkit-font-smoothing:antialiased}
+button,select,input,textarea{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none;cursor:pointer}
+.win{height:calc(100vh - 24px);min-height:640px;margin:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;display:grid;grid-template-rows:48px 1fr;overflow:hidden;position:relative}
+.tb{display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--side);border-bottom:1px solid var(--line);min-width:0}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.wm{all:unset;cursor:pointer;display:inline-flex;gap:8px;align-items:center;height:32px;padding:0 8px;border-radius:8px;font-weight:650;font-size:14px;letter-spacing:-.01em}
+.wm:hover{background:var(--hv)}.wm i{width:16px;height:16px;border:1.5px solid var(--tx2);border-radius:4px;display:block}
+.crumb{display:flex;gap:8px;align-items:center;color:var(--tx2);font-size:13px;white-space:nowrap;overflow:hidden;min-width:0}
+.crumb a:hover{color:var(--tx)}.crumb b{color:var(--tx);font-weight:550;overflow:hidden;text-overflow:ellipsis}
+.crumb .s{color:var(--tx3)}
+.sp{flex:1}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;gap:8px;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);font-size:13px;font-weight:500;color:var(--tx);background:var(--panel);white-space:nowrap}
+.btn:hover{border-color:var(--tx3)}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:var(--acfg);font-weight:600}.btn.pri:hover{filter:brightness(1.08)}
+.btn.lg{height:44px;padding:0 24px;font-size:14px;border-radius:12px}
+.btn.stop{border-color:rgba(255,77,79,.5);color:#ff8f90}
+.btn.ghost{background:transparent}
+kbd{font:600 10px/16px ui-monospace,Menlo,monospace;padding:0 4px;border-radius:4px;border:1px solid var(--line);color:var(--tx2);background:var(--bg)}
+.btn.pri kbd{background:rgba(0,0,0,.12);border-color:rgba(0,0,0,.2);color:var(--acfg)}
+.rdot{width:8px;height:8px;border-radius:50%;background:var(--rec);flex:none}
+.rdot.p{animation:pl 1.6s infinite}@keyframes pl{0%{box-shadow:0 0 0 0 rgba(255,77,79,.5)}70%{box-shadow:0 0 0 7px rgba(255,77,79,0)}100%{box-shadow:0 0 0 0 rgba(255,77,79,0)}}
+.recpill{display:none;align-items:center;gap:8px;height:32px;padding:0 4px 0 12px;border-radius:8px;border:1px solid rgba(255,77,79,.4);background:rgba(255,77,79,.08);font-size:13px;white-space:nowrap}
+.recpill .t{font:600 12px/16px ui-monospace,Menlo,monospace}.recpill .m{color:var(--tx2);font-size:12px}
+.recpill .btn{height:24px;padding:0 8px;font-size:12px}
+.isrec .recpill{display:inline-flex}.isrec #tbnew{display:none}
+.view{display:none;min-height:0}.view.on{display:block}
+#ws.on{display:grid;grid-template-columns:264px 1fr 304px}
+/* home */
+#home{overflow:auto}
+.hin{max-width:960px;margin:0 auto;padding:32px 32px 64px}
+h1{font-size:28px;line-height:36px;letter-spacing:-.025em;margin:0;font-weight:650}
+.lead{color:var(--tx2);margin:4px 0 24px}
+.nc{border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:24px;display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap;margin-bottom:24px;transition:border-color .3s,box-shadow .3s}
+.nc.flash{border-color:var(--ac);box-shadow:0 0 0 4px var(--acbg)}
+.nc .ttl{width:100%;display:flex;justify-content:space-between;align-items:center}
+.nc h2{margin:0;font-size:16px;line-height:24px;font-weight:600}.nc .ttl small{color:var(--tx2);font-size:12px}
+.fld{display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px}
+.fld label{font-size:11px;line-height:16px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);font-weight:600}
+.sel{appearance:none;-webkit-appearance:none;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg) url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; width=&#x27;10&#x27; height=&#x27;10&#x27; viewBox=&#x27;0 0 10 10&#x27; fill=&#x27;none&#x27; stroke=&#x27;%238e8e96&#x27; stroke-width=&#x27;1.6&#x27; stroke-linecap=&#x27;round&#x27;%3E%3Cpath d=&#x27;M2 3.5 5 6.5 8 3.5&#x27;/%3E%3C/svg%3E&quot;) no-repeat right 16px center;padding:0 40px 0 16px;font-size:14px;cursor:pointer;width:100%;outline:none}
+.sel:focus,.sel:hover{border-color:var(--ac)}
+.nc-rec{display:none;width:100%;align-items:center;gap:24px;flex-wrap:wrap}
+.isrec .nc-rec{display:flex}.isrec .nc-form{display:none}
+.nc-form{display:contents}
+.bigt{font:600 28px/36px ui-monospace,Menlo,monospace;letter-spacing:-.02em}
+.sbar{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);color:var(--tx2);cursor:pointer;margin-bottom:32px}
+.sbar:hover{border-color:var(--tx3)}.sbar span{flex:1}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 12px}
+.sec h3{margin:0;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);font-weight:600}
+.sec a{font-size:12px;color:var(--tx2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:16px;margin-bottom:32px}
+.fc{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:16px;cursor:pointer;display:flex;flex-direction:column;gap:8px;min-height:136px;transition:border-color .15s,transform .15s}
+.fc:hover{border-color:var(--tx3);transform:translateY(-1px)}
+.fc .ic{width:32px;height:32px;border-radius:8px;background:var(--hv);border:1px solid var(--line);display:grid;place-items:center;font-weight:650;font-size:13px;color:var(--tx2)}
+.fc h4{margin:0;font-size:14px;line-height:20px;font-weight:600}.fc small{color:var(--tx2);font-size:12px;line-height:16px}
+.fc .tgs{margin-top:auto;display:flex;gap:4px;flex-wrap:wrap}
+.fc.new{border-style:dashed;background:transparent;align-items:center;justify-content:center;color:var(--tx3)}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:99px;background:var(--hv);border:1px solid var(--line);color:var(--tx2);font-size:11px}
+.tag.ac{background:var(--acbg);border-color:transparent;color:var(--ac)}
+.tbl{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+.tr{display:grid;grid-template-columns:1fr 112px 96px 128px;gap:16px;align-items:center;padding:12px 16px;border-top:1px solid var(--line);cursor:pointer}
+.tr:first-child{border-top:none}.tr:hover{background:var(--hv)}
+.tr b{font-weight:550;display:block}.tr small{display:block;color:var(--tx2);font-size:12px;line-height:16px}
+.tr .st{font-size:12px;color:var(--tx2)}.tr .st.ok{color:var(--ac)}
+.tr.livec b{display:flex;gap:8px;align-items:center}
+/* workspace */
+.col{min-height:0;overflow:auto}
+.left{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.right{background:var(--side);border-left:1px solid var(--line)}
+.lt-top{padding:12px;display:flex;flex-direction:column;gap:8px}
+.lt-top .btn{width:100%;justify-content:flex-start}
+.back{color:var(--tx2)}
+.search{height:32px;padding:0 12px;border-radius:8px;background:var(--hv);border:1px solid var(--line);display:flex;gap:8px;align-items:center;color:var(--tx2);cursor:pointer;font-size:13px}
+.search:hover{border-color:var(--tx3)}.search span{flex:1}
+.tree{padding:0 8px;flex:1;overflow:auto}
+.f{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:8px;cursor:pointer;font-weight:500}
+.f:hover,.c:hover{background:var(--hv)}
+.f .ch{width:8px;color:var(--tx3);font-size:8px;transition:transform .15s}.f.open .ch{transform:rotate(90deg)}
+.f svg{color:var(--tx2);flex:none}.f .n{margin-left:auto;color:var(--tx3);font-size:12px;font-weight:400}
+.f.cur{background:var(--hv)}
+.kids{display:none;margin:0 0 8px 16px;border-left:1px solid var(--line);padding-left:8px}.f.open+.kids{display:block}
+.c{display:block;padding:4px 8px;border-radius:8px;cursor:pointer;color:var(--tx2);line-height:20px}
+.c small{display:block;color:var(--tx3);font-size:11px;line-height:16px}
+.c.on{background:var(--sel);color:var(--tx)}
+.c.livei b{display:flex;gap:8px;align-items:center;font-weight:500;color:var(--tx)}
+.lt{padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:4px}
+.h6{width:100%;margin:0 0 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);font-weight:600}
+.foot{padding:8px 16px;border-top:1px solid var(--line);display:flex;gap:16px;color:var(--tx2);font-size:12px;align-items:center;height:40px}
+.foot span{cursor:pointer}.foot span:hover{color:var(--tx)}
+.ctr{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.cin{max-width:768px;width:100%;margin:0 auto;padding:0 32px}
+.chead{padding-top:24px;padding-bottom:16px}
+.chead .row1{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.chead h1{font-size:24px;line-height:32px}
+.meta{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;color:var(--tx2);font-size:12px;line-height:20px;margin-top:4px}
+.meta .d{width:3px;height:3px;border-radius:50%;background:var(--tx3)}
+.tabsbar{border-bottom:1px solid var(--line);flex:none}
+.tabsbar .cin{display:flex;align-items:center;gap:0;height:44px}
+.tabsbar .tabs{display:flex;gap:4px;height:100%}
+.tabsbar .tab{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;height:44px;padding:0 12px;color:var(--tx2);font-size:13px;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabsbar .tab:hover{color:var(--tx)}.tabsbar .tab.on{color:var(--tx);border-color:var(--ac);font-weight:550}
+.tabsbar .tools{margin-left:auto;display:flex;gap:8px}
+.tabsbar .btn{height:28px;padding:0 12px;font-size:12px}.btn.on{border-color:var(--ac);color:var(--ac)}
+.doc{flex:1;overflow:auto;padding:24px 0 64px}
+.tp{display:none}.tp.on{display:block}
+.ln{display:grid;grid-template-columns:56px 72px 1fr;gap:12px;padding:4px 0}
+.ts{font:500 12px/20px ui-monospace,Menlo,monospace;color:var(--tx3)}
+.sp-me{font-size:12px;font-weight:700;color:var(--tx)}.sp-sys{font-size:12px;font-weight:600;color:var(--tx2)}
+.ln.sys .tx{color:var(--tx2)}
+.ind{margin-left:140px}
+.qa{margin-top:8px;margin-bottom:8px;border:1px solid var(--line);border-left:2px solid var(--ac);border-radius:4px 12px 12px 4px;background:var(--panel);padding:12px 16px}
+.qa .q{font-size:11px;line-height:16px;color:var(--ac);font-weight:600;letter-spacing:.03em;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.qa p{margin:0 0 4px}
+.qa .mine{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);font-size:13px}
+.qa .mine .q{color:var(--tx2);margin-bottom:4px}.qa .mine i{color:var(--tx)}
+.shot{margin-top:8px;margin-bottom:8px;max-width:420px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.shot .im,.shots2 .im{background:linear-gradient(135deg,#3a3d44,#1d1e22);color:#fff;font-weight:650;position:relative}
+.shot .im{height:152px;padding:16px;font-size:20px;line-height:24px}
+.shot .cp{padding:8px 12px;font-size:12px;line-height:16px;color:var(--tx2);display:flex;gap:8px;align-items:center}
+.shot .im i{position:absolute;bottom:0;width:20px;background:rgba(255,255,255,.7);border-radius:4px 4px 0 0}
+.shots2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.shots2 .sh{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.shots2 .im{height:152px;padding:16px;font-size:20px;line-height:24px}.shots2 .cp{padding:8px 12px;font-size:12px;line-height:16px;color:var(--tx2)}
+.sumbox{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:16px}
+.sumbox ul{margin:8px 0 0;padding-left:16px}.sumbox li{margin:4px 0}
+.chain3{position:relative;margin:0 0 24px 4px;padding-left:24px}
+.chain3:before{content:&quot;&quot;;position:absolute;left:3px;top:8px;bottom:8px;width:1px;background:var(--line)}
+.chain3 .st{position:relative;margin-bottom:12px}
+.chain3 .st:before{content:&quot;&quot;;position:absolute;left:-25px;top:4px;width:8px;height:8px;border-radius:50%;background:var(--bg);border:1.5px solid var(--tx3)}
+.chain3 .st.ai:before{background:var(--ac);border-color:var(--ac)}.chain3 .st.mine:before{border-color:var(--tx)}
+.chain3 .lab{font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);font-weight:600;margin-bottom:4px;display:flex;gap:8px;align-items:center}
+.chain3 .lab .tag{text-transform:none;letter-spacing:0;font-weight:500}
+.chain3 .box{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 12px}
+.chain3 .mine .box{background:transparent;border-style:dashed;font-style:italic}
+.chain3 .q .box{background:transparent;border:none;padding:0;color:var(--tx2)}
+pre.md{font:12px/20px ui-monospace,Menlo,monospace;color:var(--tx2);white-space:pre-wrap;margin:0}pre.md b{color:var(--ac);font-weight:500}
+.livebar{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid rgba(255,77,79,.35);background:rgba(255,77,79,.06);border-radius:12px;margin-bottom:16px}
+.livebar .t{font:600 14px/20px ui-monospace,Menlo,monospace}.livebar span.m{color:var(--tx2);font-size:12px}
+.fadein{animation:fi .4s}@keyframes fi{from{opacity:0;transform:translateY(4px)}}
+/* right */
+.rh{display:flex;padding:8px 12px;gap:4px;border-bottom:1px solid var(--line)}
+.rh button{all:unset;cursor:pointer;height:28px;padding:0 12px;border-radius:8px;color:var(--tx2);font-size:13px;display:inline-flex;align-items:center}.rh button.on{background:var(--sel);color:var(--tx)}
+.pane{display:none;padding:16px 16px 32px}.pane.on{display:block}
+.pane h4{margin:0;font-size:16px;line-height:24px;font-weight:600}
+.sub{color:var(--tx2);font-size:12px;line-height:16px;margin:0 0 16px}
+.blk{margin-bottom:24px}
+.inst{width:100%;min-height:112px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;color:var(--tx);resize:none;outline:none;line-height:20px;font-size:13px}
+.inst:focus{border-color:var(--ac)}
+.cnt{display:flex;justify-content:space-between;color:var(--tx3);font-size:11px;line-height:16px;margin-top:4px}
+.doc-i{display:flex;gap:12px;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-bottom:8px}
+.ext{font:700 10px/16px sans-serif;padding:0 4px;border-radius:4px;background:var(--hv);color:var(--tx2);letter-spacing:.04em;width:36px;text-align:center}
+.doc-i div{flex:1;min-width:0;line-height:16px}.doc-i div b{font-weight:500;display:block;font-size:13px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.doc-i small{color:var(--tx3);font-size:11px}
+.ok{color:var(--ac);font-size:12px}
+.drop{border:1px dashed var(--line);border-radius:8px;padding:12px;text-align:center;color:var(--tx3);font-size:12px}
+.row{display:flex;justify-content:space-between;align-items:center;min-height:40px;border-bottom:1px solid var(--line);font-size:13px;gap:16px}
+.row&gt;span:first-child{color:var(--tx2)}
+.tg{width:32px;height:20px;border-radius:99px;background:var(--hv);border:1px solid var(--line);position:relative;cursor:pointer;flex:none}
+.tg:after{content:&quot;&quot;;position:absolute;left:3px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--tx3);transition:.15s}
+.tg.on{background:var(--ac);border-color:var(--ac)}.tg.on:after{left:15px;background:var(--bg)}
+.outl a{display:block;padding:4px 0;color:var(--tx2);font-size:13px}.outl a:hover{color:var(--tx)}
+/* palette / settings */
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;justify-content:center;padding-top:96px;z-index:10}
+.ov.on{display:flex}
+.pal{width:600px;max-height:480px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh);overflow:hidden;align-self:flex-start}
+.pal input{all:unset;display:block;width:100%;box-sizing:border-box;padding:16px 24px;font-size:16px;border-bottom:1px solid var(--line);color:var(--tx)}
+.pal .res{padding:8px;max-height:360px;overflow:auto}
+.pal .g{font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);padding:8px 8px 4px;font-weight:600}
+.pal .it{padding:8px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column}
+.pal .it:hover{background:var(--sel)}.pal .it small{color:var(--tx2);font-size:12px;line-height:16px}
+.pal mark{background:var(--acbg);color:var(--ac);border-radius:3px;padding:0 1px}
+.pal .ft{padding:8px 16px;border-top:1px solid var(--line);color:var(--tx3);font-size:11px;display:flex;gap:16px}
+@media(max-width:1180px){#ws.on{grid-template-columns:232px 1fr}.right{display:none}}
+&lt;/style&gt;&lt;/head&gt;&lt;body&gt;
+&lt;div class=&quot;win&quot; id=&quot;win&quot;&gt;&lt;div class=&quot;tb&quot;&gt;&lt;div class=&quot;lights&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;&lt;button class=&quot;wm&quot; data-home title=&quot;На главную&quot;&gt;&lt;i&gt;&lt;/i&gt;Lowk&lt;/button&gt;&lt;div class=&quot;crumb&quot; id=&quot;crumb&quot;&gt;&lt;b&gt;Библиотека&lt;/b&gt;&lt;/div&gt;&lt;span class=&quot;sp&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;recpill&quot;&gt;&lt;span class=&quot;rdot p&quot;&gt;&lt;/span&gt;&lt;span class=&quot;t&quot; data-rt&gt;00:00:00&lt;/span&gt;&lt;span class=&quot;m&quot; id=&quot;recm&quot;&gt;Acme Corp · Zoom&lt;/span&gt;&lt;button class=&quot;btn&quot; id=&quot;tbopen&quot;&gt;Открыть&lt;/button&gt;&lt;button class=&quot;btn stop&quot; id=&quot;tbstop&quot;&gt;Стоп&lt;/button&gt;&lt;/span&gt;
+&lt;button class=&quot;btn pri&quot; id=&quot;tbnew&quot;&gt;&lt;span class=&quot;rdot&quot; style=&quot;background:var(--acfg)&quot;&gt;&lt;/span&gt;Новый созвон&lt;kbd&gt;⌥ R&lt;/kbd&gt;&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;view on&quot; id=&quot;home&quot;&gt;&lt;div class=&quot;hin&quot;&gt;
+&lt;h1&gt;Добрый день&lt;/h1&gt;&lt;p class=&quot;lead&quot;&gt;48 созвонов в 4 папках. Последний: сегодня, 1 ч 12 мин.&lt;/p&gt;
+&lt;div class=&quot;nc&quot; id=&quot;nc&quot;&gt;&lt;div class=&quot;ttl&quot;&gt;&lt;h2 id=&quot;nct&quot;&gt;Новый созвон&lt;/h2&gt;&lt;small id=&quot;ncs&quot;&gt;Запись стартует по кнопке или по ⌥ R&lt;/small&gt;&lt;/div&gt;
+ &lt;div class=&quot;nc-form&quot;&gt;&lt;div class=&quot;fld&quot;&gt;&lt;label&gt;Папка&lt;/label&gt;&lt;select class=&quot;sel&quot; id=&quot;selF&quot;&gt;&lt;option&gt;Acme Corp&lt;/option&gt;&lt;option&gt;Nova Bank&lt;/option&gt;&lt;option&gt;Собеседования&lt;/option&gt;&lt;option&gt;Личное&lt;/option&gt;&lt;option&gt;Без папки&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
+ &lt;div class=&quot;fld&quot;&gt;&lt;label&gt;Источник звука&lt;/label&gt;&lt;select class=&quot;sel&quot; id=&quot;selS&quot;&gt;&lt;option&gt;Только Zoom (рекомендуем)&lt;/option&gt;&lt;option&gt;Только Google Meet (Chrome)&lt;/option&gt;&lt;option&gt;Весь звук системы&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
+ &lt;button class=&quot;btn pri lg&quot; id=&quot;startBtn&quot;&gt;&lt;span class=&quot;rdot&quot; style=&quot;background:var(--acfg)&quot;&gt;&lt;/span&gt;Начать запись&lt;kbd&gt;⌥ R&lt;/kbd&gt;&lt;/button&gt;&lt;/div&gt;
+ &lt;div class=&quot;nc-rec&quot;&gt;&lt;span class=&quot;rdot p&quot; style=&quot;align-self:center&quot;&gt;&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;bigt&quot; data-rt&gt;00:00:00&lt;/div&gt;&lt;div style=&quot;color:var(--tx2);font-size:12px&quot; id=&quot;recinfo&quot;&gt;Acme Corp · Zoom&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;sp&quot;&gt;&lt;/span&gt;&lt;button class=&quot;btn lg&quot; id=&quot;openLive&quot;&gt;Открыть созвон&lt;/button&gt;&lt;button class=&quot;btn lg stop&quot; id=&quot;stopBtn&quot;&gt;Остановить&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;sbar&quot; id=&quot;hop&quot;&gt;&lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot;&gt;&lt;circle cx=&quot;7&quot; cy=&quot;7&quot; r=&quot;4.5&quot;/&gt;&lt;path d=&quot;m10.5 10.5 3 3&quot;/&gt;&lt;/svg&gt;&lt;span&gt;Искать по всем созвонам, документам и скриншотам&lt;/span&gt;&lt;kbd&gt;⌘K&lt;/kbd&gt;&lt;/div&gt;
+&lt;div class=&quot;sec&quot;&gt;&lt;h3&gt;Папки&lt;/h3&gt;&lt;a&gt;По активности ▾&lt;/a&gt;&lt;/div&gt;&lt;div class=&quot;grid&quot;&gt;&lt;div class=&quot;fc&quot; data-folder=&quot;Acme Corp&quot;&gt;&lt;div class=&quot;ic&quot;&gt;A&lt;/div&gt;&lt;h4&gt;Acme Corp&lt;/h4&gt;&lt;small&gt;12 созвонов · 3 документа&lt;br&gt;последний: сегодня&lt;/small&gt;&lt;div class=&quot;tgs&quot;&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;продажи&lt;/span&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;финтех&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;fc&quot; data-folder=&quot;Nova Bank&quot;&gt;&lt;div class=&quot;ic&quot;&gt;N&lt;/div&gt;&lt;h4&gt;Nova Bank&lt;/h4&gt;&lt;small&gt;7 созвонов · 2 документа&lt;br&gt;последний: 14 окт&lt;/small&gt;&lt;div class=&quot;tgs&quot;&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;интеграция&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;fc&quot; data-folder=&quot;Собеседования&quot;&gt;&lt;div class=&quot;ic&quot;&gt;С&lt;/div&gt;&lt;h4&gt;Собеседования&lt;/h4&gt;&lt;small&gt;24 созвона · 0 документов&lt;br&gt;последний: 16 окт&lt;/small&gt;&lt;div class=&quot;tgs&quot;&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;hiring&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;fc&quot; data-folder=&quot;Личное&quot;&gt;&lt;div class=&quot;ic&quot;&gt;Л&lt;/div&gt;&lt;h4&gt;Личное&lt;/h4&gt;&lt;small&gt;3 созвона&lt;br&gt;последний: 2 окт&lt;/small&gt;&lt;div class=&quot;tgs&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;fc new&quot;&gt;+ Новая папка&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;sec&quot;&gt;&lt;h3&gt;Недавние созвоны&lt;/h3&gt;&lt;/div&gt;
+&lt;div class=&quot;tbl&quot;&gt;&lt;div id=&quot;liveRow&quot; class=&quot;tr livec&quot; style=&quot;display:none&quot; data-live&gt;&lt;div&gt;&lt;b&gt;&lt;span class=&quot;rdot p&quot;&gt;&lt;/span&gt;Новый созвон&lt;/b&gt;&lt;small id=&quot;liveRowF&quot;&gt;Acme Corp · идёт запись&lt;/small&gt;&lt;/div&gt;&lt;span data-rt&gt;00:00:00&lt;/span&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;st&quot;&gt;Запись…&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;tr&quot; data-call=&quot;Acme Corp|Квартальное планирование Q4&quot;&gt;&lt;div&gt;&lt;b&gt;Квартальное планирование Q4&lt;/b&gt;&lt;small&gt;Acme Corp · партнёрский канал, EBITDA&lt;/small&gt;&lt;/div&gt;&lt;span&gt;Сегодня, 15:00&lt;/span&gt;&lt;span&gt;1 ч 12 мин&lt;/span&gt;&lt;span class=&quot;st&quot;&gt;Нет саммари&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;tr&quot; data-call=&quot;Собеседования|Backend, Иван К.&quot;&gt;&lt;div&gt;&lt;b&gt;Backend, Иван К.&lt;/b&gt;&lt;small&gt;Собеседования · системный дизайн, Kafka&lt;/small&gt;&lt;/div&gt;&lt;span&gt;16 окт&lt;/span&gt;&lt;span&gt;58 мин&lt;/span&gt;&lt;span class=&quot;st ok&quot;&gt;Саммари готово&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;tr&quot; data-call=&quot;Nova Bank|Kickoff интеграции&quot;&gt;&lt;div&gt;&lt;b&gt;Kickoff интеграции&lt;/b&gt;&lt;small&gt;Nova Bank · sandbox, сроки, безопасность&lt;/small&gt;&lt;/div&gt;&lt;span&gt;14 окт&lt;/span&gt;&lt;span&gt;1 ч 02 мин&lt;/span&gt;&lt;span class=&quot;st ok&quot;&gt;Саммари готово&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;view&quot; id=&quot;ws&quot;&gt;&lt;aside class=&quot;col left&quot;&gt;&lt;div class=&quot;lt-top&quot;&gt;&lt;a class=&quot;btn ghost back&quot; data-home&gt;← Библиотека&lt;/a&gt;&lt;button class=&quot;btn pri&quot; id=&quot;wsNew&quot;&gt;&lt;span class=&quot;rdot&quot; style=&quot;background:var(--acfg)&quot;&gt;&lt;/span&gt;Новый созвон&lt;/button&gt;&lt;div class=&quot;search&quot; id=&quot;op&quot;&gt;&lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot;&gt;&lt;circle cx=&quot;7&quot; cy=&quot;7&quot; r=&quot;4.5&quot;/&gt;&lt;path d=&quot;m10.5 10.5 3 3&quot;/&gt;&lt;/svg&gt;&lt;span&gt;Поиск&lt;/span&gt;&lt;kbd&gt;⌘K&lt;/kbd&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;tree&quot;&gt;&lt;div class=&quot;f&quot; data-tf=&quot;Acme Corp&quot;&gt;&lt;span class=&quot;ch&quot;&gt;▶&lt;/span&gt;&lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;&gt;&lt;path d=&quot;M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z&quot;/&gt;&lt;/svg&gt;Acme Corp&lt;span class=&quot;n&quot;&gt;12&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;kids&quot;&gt;&lt;a class=&quot;c livei&quot; id=&quot;liveItem&quot; data-live style=&quot;display:none&quot;&gt;&lt;b&gt;&lt;span class=&quot;rdot p&quot;&gt;&lt;/span&gt;Новый созвон&lt;/b&gt;&lt;small&gt;идёт запись&lt;/small&gt;&lt;/a&gt;&lt;a class=&quot;c on&quot; data-call=&quot;Acme Corp|Квартальное планирование Q4&quot;&gt;Квартальное планирование Q4&lt;small&gt;19 окт · 1 ч 12 мин&lt;/small&gt;&lt;/a&gt;&lt;a class=&quot;c&quot; data-call=&quot;Acme Corp|Демо для CFO&quot;&gt;Демо для CFO&lt;small&gt;17 окт · 48 мин&lt;/small&gt;&lt;/a&gt;&lt;a class=&quot;c&quot; data-call=&quot;Acme Corp|Weekly sync&quot;&gt;Weekly sync&lt;small&gt;12 окт · 31 мин&lt;/small&gt;&lt;/a&gt;&lt;a class=&quot;c&quot; data-call=&quot;Acme Corp|Обсуждение договора&quot;&gt;Обсуждение договора&lt;small&gt;9 окт · 55 мин&lt;/small&gt;&lt;/a&gt;&lt;/div&gt;&lt;div class=&quot;f&quot; data-tf=&quot;Nova Bank&quot;&gt;&lt;span class=&quot;ch&quot;&gt;▶&lt;/span&gt;&lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;&gt;&lt;path d=&quot;M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z&quot;/&gt;&lt;/svg&gt;Nova Bank&lt;span class=&quot;n&quot;&gt;7&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;kids&quot;&gt;&lt;a class=&quot;c&quot; data-call=&quot;Nova Bank|Kickoff интеграции&quot;&gt;Kickoff интеграции&lt;small&gt;14 окт · 1 ч 02 мин&lt;/small&gt;&lt;/a&gt;&lt;a class=&quot;c&quot; data-call=&quot;Nova Bank|Ретро спринта 4&quot;&gt;Ретро спринта 4&lt;small&gt;10 окт · 40 мин&lt;/small&gt;&lt;/a&gt;&lt;/div&gt;&lt;div class=&quot;f&quot; data-tf=&quot;Собеседования&quot;&gt;&lt;span class=&quot;ch&quot;&gt;▶&lt;/span&gt;&lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;&gt;&lt;path d=&quot;M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z&quot;/&gt;&lt;/svg&gt;Собеседования&lt;span class=&quot;n&quot;&gt;24&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;kids&quot;&gt;&lt;a class=&quot;c&quot; data-call=&quot;Собеседования|Backend, Иван К.&quot;&gt;Backend, Иван К.&lt;small&gt;16 окт · 58 мин&lt;/small&gt;&lt;/a&gt;&lt;a class=&quot;c&quot; data-call=&quot;Собеседования|Product, Мария Л.&quot;&gt;Product, Мария Л.&lt;small&gt;15 окт · 44 мин&lt;/small&gt;&lt;/a&gt;&lt;/div&gt;&lt;div class=&quot;f&quot; data-tf=&quot;Личное&quot;&gt;&lt;span class=&quot;ch&quot;&gt;▶&lt;/span&gt;&lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.5&quot;&gt;&lt;path d=&quot;M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z&quot;/&gt;&lt;/svg&gt;Личное&lt;span class=&quot;n&quot;&gt;3&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;kids&quot;&gt;&lt;a class=&quot;c&quot; data-call=&quot;Личное|Консультация, налоги&quot;&gt;Консультация, налоги&lt;small&gt;2 окт · 25 мин&lt;/small&gt;&lt;/a&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;lt&quot;&gt;&lt;div class=&quot;h6&quot;&gt;Теги&lt;/div&gt;&lt;span class=&quot;tag ac&quot;&gt;#&amp;nbsp;продажи · 9&lt;/span&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;финансы · 6&lt;/span&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;hiring · 24&lt;/span&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;договор · 4&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;foot&quot;&gt;&lt;span&gt;+ Папка&lt;/span&gt;&lt;span class=&quot;sp&quot;&gt;&lt;/span&gt;&lt;span id=&quot;opset&quot;&gt;Настройки&lt;/span&gt;&lt;/div&gt;&lt;/aside&gt;&lt;main class=&quot;col ctr&quot;&gt;
+&lt;div id=&quot;callpage&quot; style=&quot;display:flex;flex-direction:column;min-height:0;flex:1&quot;&gt;
+&lt;div class=&quot;cin chead&quot;&gt;&lt;div class=&quot;row1&quot;&gt;&lt;div&gt;&lt;h1 id=&quot;ttl&quot;&gt;Квартальное планирование Q4&lt;/h1&gt;&lt;div class=&quot;meta&quot;&gt;&lt;span&gt;19 окт 2026&lt;/span&gt;&lt;i class=&quot;d&quot;&gt;&lt;/i&gt;&lt;span&gt;1 ч 12 мин&lt;/span&gt;&lt;i class=&quot;d&quot;&gt;&lt;/i&gt;&lt;span&gt;Zoom&lt;/span&gt;&lt;i class=&quot;d&quot;&gt;&lt;/i&gt;&lt;span&gt;RU + EN&lt;/span&gt;&lt;i class=&quot;d&quot;&gt;&lt;/i&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;продажи&lt;/span&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;финансы&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;button class=&quot;btn pri&quot; id=&quot;sumb&quot;&gt;Саммари&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;tabsbar&quot;&gt;&lt;div class=&quot;cin&quot;&gt;&lt;div class=&quot;tabs&quot;&gt;&lt;button class=&quot;tab on&quot; data-t=&quot;t1&quot;&gt;Транскрипт&lt;/button&gt;&lt;button class=&quot;tab&quot; data-t=&quot;t2&quot;&gt;Саммари&lt;/button&gt;&lt;button class=&quot;tab&quot; data-t=&quot;t3&quot;&gt;Вопросы к AI · 3&lt;/button&gt;&lt;button class=&quot;tab&quot; data-t=&quot;t4&quot;&gt;Скриншоты · 2&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;tools&quot;&gt;&lt;button class=&quot;btn&quot; id=&quot;mdb&quot;&gt;Исходник .md&lt;/button&gt;&lt;button class=&quot;btn&quot;&gt;Экспорт&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;doc&quot;&gt;&lt;div class=&quot;cin&quot;&gt;
+&lt;div class=&quot;tp on&quot; id=&quot;t1&quot;&gt;
+ &lt;div class=&quot;ln sys&quot;&gt;&lt;span class=&quot;ts&quot;&gt;00:00:12&lt;/span&gt;&lt;span class=&quot;sp-sys&quot;&gt;Система&lt;/span&gt;&lt;span class=&quot;tx&quot;&gt;Всем привет, давайте начнём. Сегодня хотим обсудить цели на Q4 и бюджет на маркетинг.&lt;/span&gt;&lt;/div&gt;
+ &lt;div class=&quot;ln me&quot;&gt;&lt;span class=&quot;ts&quot;&gt;00:00:21&lt;/span&gt;&lt;span class=&quot;sp-me&quot;&gt;Я&lt;/span&gt;&lt;span class=&quot;tx&quot;&gt;Привет! Да, у меня подготовлены цифры по пайплайну и по conversion rate.&lt;/span&gt;&lt;/div&gt;
+ &lt;div class=&quot;ln sys&quot;&gt;&lt;span class=&quot;ts&quot;&gt;00:04:50&lt;/span&gt;&lt;span class=&quot;sp-sys&quot;&gt;Система&lt;/span&gt;&lt;span class=&quot;tx&quot;&gt;Нам важно удержать темпы роста выше 30%, при этом не раздувать CAC.&lt;/span&gt;&lt;/div&gt;
+ &lt;div class=&quot;ln me&quot;&gt;&lt;span class=&quot;ts&quot;&gt;00:05:02&lt;/span&gt;&lt;span class=&quot;sp-me&quot;&gt;Я&lt;/span&gt;&lt;span class=&quot;tx&quot;&gt;Понял. Тогда предлагаю сделать ставку на partner-канал, он дешевле на 20–25%.&lt;/span&gt;&lt;/div&gt;
+ &lt;div class=&quot;ln sys&quot;&gt;&lt;span class=&quot;ts&quot;&gt;00:23:41&lt;/span&gt;&lt;span class=&quot;sp-sys&quot;&gt;Система&lt;/span&gt;&lt;span class=&quot;tx&quot;&gt;А какой у вас сейчас EBITDA margin по сегменту B2B?&lt;/span&gt;&lt;/div&gt;
+ &lt;div class=&quot;qa ind&quot;&gt;&lt;div class=&quot;q&quot;&gt;&lt;svg width=&quot;12&quot; height=&quot;12&quot; viewBox=&quot;0 0 16 16&quot; fill=&quot;currentColor&quot;&gt;&lt;path d=&quot;M8 1l1.8 4.2L14 7l-4.2 1.8L8 13l-1.8-4.2L2 7l4.2-1.8z&quot;/&gt;&lt;/svg&gt;Подсказка ИИ · Кратко ответить · 00:23:44&lt;/div&gt;
+  &lt;p&gt;&lt;b&gt;EBITDA margin по B2B — 23,4%&lt;/b&gt; за Q3 (+2,1 п.п. к Q2). Драйвер: CAC −11% после запуска partner-канала.&lt;/p&gt;
+  &lt;div class=&quot;mine&quot;&gt;&lt;div class=&quot;q&quot;&gt;Мой ответ · 00:23:52&lt;/div&gt;&lt;i&gt;«Если коротко, около двадцати трёх процентов, плюс два пункта к прошлому кварталу.»&lt;/i&gt;&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;ln me&quot;&gt;&lt;span class=&quot;ts&quot;&gt;00:24:10&lt;/span&gt;&lt;span class=&quot;sp-me&quot;&gt;Я&lt;/span&gt;&lt;span class=&quot;tx&quot;&gt;Сейчас покажу слайд, мы как раз это считали.&lt;/span&gt;&lt;/div&gt;
+ &lt;div class=&quot;shot ind&quot;&gt;&lt;div class=&quot;im&quot;&gt;Выручка +38% год к году&lt;i style=&quot;right:112px;height:40px&quot;&gt;&lt;/i&gt;&lt;i style=&quot;right:84px;height:64px&quot;&gt;&lt;/i&gt;&lt;i style=&quot;right:56px;height:88px&quot;&gt;&lt;/i&gt;&lt;i style=&quot;right:28px;height:116px&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;div class=&quot;cp&quot;&gt;&lt;span class=&quot;tag&quot;&gt;скриншот&lt;/span&gt;00:24:10 · весь экран · слайд 7 из 18&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;ln sys&quot;&gt;&lt;span class=&quot;ts&quot;&gt;00:24:33&lt;/span&gt;&lt;span class=&quot;sp-sys&quot;&gt;Система&lt;/span&gt;&lt;span class=&quot;tx&quot;&gt;Отлично, это совпадает с нашей моделью. Давайте перейдём к бюджету на партнёров.&lt;/span&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;tp&quot; id=&quot;t2&quot;&gt;&lt;div class=&quot;sumbox&quot;&gt;&lt;div class=&quot;h6&quot;&gt;Саммари&lt;/div&gt;&lt;div id=&quot;sumtx&quot; style=&quot;color:var(--tx2)&quot;&gt;Саммари ещё не создано. Нажмите «Саммари» сверху, когда созвон закончится.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;tp&quot; id=&quot;t3&quot;&gt;
+ &lt;div class=&quot;chain3&quot;&gt;&lt;div class=&quot;st q&quot;&gt;&lt;div class=&quot;lab&quot;&gt;Вопрос · 00:23:41 · Система&lt;/div&gt;&lt;div class=&quot;box&quot;&gt;А какой у вас сейчас EBITDA margin по сегменту B2B?&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;st ai&quot;&gt;&lt;div class=&quot;lab&quot;&gt;Подсказка ИИ &lt;span class=&quot;tag&quot;&gt;Кратко ответить&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;box&quot;&gt;&lt;b&gt;EBITDA margin по B2B — 23,4%&lt;/b&gt; за Q3 (+2,1 п.п. к Q2). Драйвер: CAC −11% после запуска partner-канала.&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;st mine&quot;&gt;&lt;div class=&quot;lab&quot;&gt;Мой ответ · 00:23:52&lt;/div&gt;&lt;div class=&quot;box&quot;&gt;«Если коротко, около двадцати трёх процентов, плюс два пункта к прошлому кварталу.»&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;chain3&quot;&gt;&lt;div class=&quot;st q&quot;&gt;&lt;div class=&quot;lab&quot;&gt;Вопрос · 00:41:10 · Система&lt;/div&gt;&lt;div class=&quot;box&quot;&gt;И как объясните рост CAC в сентябре?&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;st ai&quot;&gt;&lt;div class=&quot;lab&quot;&gt;Подсказка ИИ &lt;span class=&quot;tag&quot;&gt;Дополни мой ответ&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;box&quot;&gt;&lt;b&gt;Добавь:&lt;/b&gt; сентябрьский всплеск — разовая закупка на конференцию; без неё CAC ниже августовского на 6%.&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;st mine&quot;&gt;&lt;div class=&quot;lab&quot;&gt;Мой ответ · 00:41:03&lt;/div&gt;&lt;div class=&quot;box&quot;&gt;«Там была разовая история с конференцией.»&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;chain3&quot;&gt;&lt;div class=&quot;st q&quot;&gt;&lt;div class=&quot;lab&quot;&gt;Вопрос · 00:58:20 · Система&lt;/div&gt;&lt;div class=&quot;box&quot;&gt;Какой срок интеграции вы можете гарантировать?&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;st ai&quot;&gt;&lt;div class=&quot;lab&quot;&gt;Подсказка ИИ &lt;span class=&quot;tag&quot;&gt;Что сказать?&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;box&quot;&gt;Не обещай жёстких сроков: назови 6–8 недель при условии, что sandbox будет доступен на следующей неделе.&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;st mine&quot;&gt;&lt;div class=&quot;lab&quot;&gt;Мой ответ · 00:58:31&lt;/div&gt;&lt;div class=&quot;box&quot;&gt;«Ориентируемся на шесть-восемь недель, если успеем со sandbox.»&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;tp&quot; id=&quot;t4&quot;&gt;&lt;div class=&quot;shots2&quot;&gt;&lt;div class=&quot;sh&quot;&gt;&lt;div class=&quot;im&quot;&gt;Выручка +38% год к году&lt;/div&gt;&lt;div class=&quot;cp&quot;&gt;00:24:10 · слайд 7 из 18 · весь экран&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;sh&quot;&gt;&lt;div class=&quot;im&quot;&gt;План на Q4: 3 приоритета&lt;/div&gt;&lt;div class=&quot;cp&quot;&gt;00:52:31 · слайд 12 из 18 · весь экран&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;tp&quot; id=&quot;tmd&quot;&gt;&lt;pre class=&quot;md&quot;&gt;&lt;b&gt;---&lt;/b&gt;
+title: Квартальное планирование Q4
+date: 2026-10-19
+tags: [продажи, финансы]
+&lt;b&gt;---&lt;/b&gt;
+
+**[00:23:41] Система:** А какой у вас сейчас EBITDA margin по сегменту B2B?
+
+&lt;b&gt;&amp;gt; [!ai] Подсказка · Кратко ответить · 00:23:44&lt;/b&gt;
+&amp;gt; **EBITDA margin по B2B — 23,4%** за Q3…
+&lt;b&gt;&amp;gt; [!me] Мой ответ · 00:23:52&lt;/b&gt;
+&amp;gt; Если коротко, около двадцати трёх процентов…
+
+&lt;b&gt;![скриншот 00:24:10](./assets/q4-planning/shot-0001.png)&lt;/b&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div id=&quot;livepage&quot; style=&quot;display:none;flex-direction:column;min-height:0;flex:1&quot;&gt;&lt;div class=&quot;cin chead&quot;&gt;&lt;div class=&quot;row1&quot;&gt;&lt;div&gt;&lt;h1&gt;Новый созвон&lt;/h1&gt;&lt;div class=&quot;meta&quot;&gt;&lt;span id=&quot;liveMeta&quot;&gt;Acme Corp · Zoom&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;doc&quot;&gt;&lt;div class=&quot;cin&quot;&gt;&lt;div class=&quot;livebar&quot;&gt;&lt;span class=&quot;rdot p&quot;&gt;&lt;/span&gt;&lt;span class=&quot;t&quot; data-rt&gt;00:00:00&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;Идёт запись. Оверлей показывает субтитры и ответы.&lt;/span&gt;&lt;span class=&quot;sp&quot;&gt;&lt;/span&gt;&lt;button class=&quot;btn stop&quot; data-stop&gt;Остановить&lt;/button&gt;&lt;/div&gt;&lt;div id=&quot;livelines&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/main&gt;&lt;aside class=&quot;col right&quot;&gt;&lt;div class=&quot;rh&quot;&gt;&lt;button class=&quot;on&quot; data-p=&quot;p1&quot;&gt;Папка&lt;/button&gt;&lt;button data-p=&quot;p2&quot;&gt;Созвон&lt;/button&gt;&lt;/div&gt;
+&lt;div class=&quot;pane on&quot; id=&quot;p1&quot;&gt;&lt;h4 id=&quot;rfold&quot;&gt;Acme Corp&lt;/h4&gt;&lt;div class=&quot;sub&quot;&gt;Настройки папки. Применяются ко всем её созвонам.&lt;/div&gt;
+ &lt;div class=&quot;blk&quot;&gt;&lt;div class=&quot;h6&quot;&gt;Инструкции&lt;/div&gt;&lt;textarea class=&quot;inst&quot; id=&quot;ins&quot;&gt;Клиент — финтех, общение на «вы». Отвечай кратко, цифры приводи с единицами измерения. Термины оставляй на английском (EBITDA, CAC). Не обещай сроков без подтверждения.&lt;/textarea&gt;&lt;div class=&quot;cnt&quot;&gt;&lt;span&gt;Идут в нейронку по релевантности&lt;/span&gt;&lt;span id=&quot;cc&quot;&gt;0 / 500&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;blk&quot;&gt;&lt;div class=&quot;h6&quot;&gt;Документы · 3&lt;/div&gt;
+  &lt;div class=&quot;doc-i&quot;&gt;&lt;span class=&quot;ext&quot;&gt;PDF&lt;/span&gt;&lt;div&gt;&lt;b&gt;Договор-2026.pdf&lt;/b&gt;&lt;small&gt;24 стр. · конвертирован в .md&lt;/small&gt;&lt;/div&gt;&lt;span class=&quot;ok&quot;&gt;✓&lt;/span&gt;&lt;/div&gt;
+  &lt;div class=&quot;doc-i&quot;&gt;&lt;span class=&quot;ext&quot;&gt;DOCX&lt;/span&gt;&lt;div&gt;&lt;b&gt;Бриф на кампанию.docx&lt;/b&gt;&lt;small&gt;6 стр.&lt;/small&gt;&lt;/div&gt;&lt;span class=&quot;ok&quot;&gt;✓&lt;/span&gt;&lt;/div&gt;
+  &lt;div class=&quot;doc-i&quot;&gt;&lt;span class=&quot;ext&quot;&gt;MD&lt;/span&gt;&lt;div&gt;&lt;b&gt;Прайс.md&lt;/b&gt;&lt;small&gt;индексируется…&lt;/small&gt;&lt;/div&gt;&lt;span style=&quot;color:var(--tx3)&quot;&gt;◌&lt;/span&gt;&lt;/div&gt;
+  &lt;div class=&quot;drop&quot;&gt;Перетащите PDF, DOCX, TXT или MD&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;blk&quot;&gt;&lt;div class=&quot;h6&quot;&gt;Теги папки&lt;/div&gt;&lt;div style=&quot;display:flex;gap:4px;flex-wrap:wrap&quot;&gt;&lt;span class=&quot;tag ac&quot;&gt;#&amp;nbsp;продажи&lt;/span&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;финтех&lt;/span&gt;&lt;span class=&quot;tag&quot;&gt;#&amp;nbsp;ключевой клиент&lt;/span&gt;&lt;span class=&quot;tag&quot; style=&quot;border-style:dashed&quot;&gt;+ тег&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;blk&quot;&gt;&lt;div class=&quot;h6&quot;&gt;Хранение&lt;/div&gt;&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Папка на диске&lt;/span&gt;&lt;span style=&quot;font:12px ui-monospace,Menlo,monospace&quot;&gt;~/Lowk/Acme Corp&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;pane&quot; id=&quot;p2&quot;&gt;&lt;h4&gt;Свойства созвона&lt;/h4&gt;&lt;div class=&quot;sub&quot;&gt;Квартальное планирование Q4&lt;/div&gt;
+ &lt;div class=&quot;blk outl&quot;&gt;&lt;div class=&quot;h6&quot;&gt;Структура&lt;/div&gt;&lt;a&gt;Транскрипт&lt;/a&gt;&lt;a&gt;Вопросы к AI · 3&lt;/a&gt;&lt;a&gt;Скриншоты · 2&lt;/a&gt;&lt;a&gt;Саммари&lt;/a&gt;&lt;/div&gt;
+ &lt;div class=&quot;blk&quot;&gt;&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Источник звука&lt;/span&gt;&lt;span&gt;Zoom&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Языки&lt;/span&gt;&lt;span&gt;RU + EN&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Распознавание&lt;/span&gt;&lt;span&gt;Whisper, локально&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Модель ответов&lt;/span&gt;&lt;span&gt;DeepSeek V4.1 Flash&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Хранить аудио&lt;/span&gt;&lt;span class=&quot;tg&quot; id=&quot;tg&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/aside&gt;&lt;/div&gt;&lt;div class=&quot;ov&quot; id=&quot;ovl&quot;&gt;&lt;div class=&quot;pal&quot;&gt;&lt;input id=&quot;q&quot; placeholder=&quot;Поиск по звонкам, транскриптам и документам…&quot; autocomplete=&quot;off&quot;&gt;&lt;div class=&quot;res&quot; id=&quot;res&quot;&gt;&lt;/div&gt;&lt;div class=&quot;ft&quot;&gt;&lt;span&gt;↑↓ выбрать&lt;/span&gt;&lt;span&gt;↵ открыть&lt;/span&gt;&lt;span&gt;Esc закрыть&lt;/span&gt;&lt;span style=&quot;margin-left:auto&quot;&gt;поиск по смыслу: локально&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;ov&quot; id=&quot;setm&quot;&gt;&lt;div class=&quot;pal&quot; style=&quot;padding:24px;width:480px&quot;&gt;&lt;div style=&quot;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px&quot;&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Настройки · Оверлей&lt;/b&gt;&lt;a id=&quot;setx&quot; style=&quot;color:var(--tx2)&quot;&gt;Закрыть&lt;/a&gt;&lt;/div&gt;
+&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Прозрачность оверлея&lt;/span&gt;&lt;span style=&quot;display:flex;gap:12px;align-items:center&quot;&gt;&lt;input type=&quot;range&quot; id=&quot;str&quot; min=&quot;0&quot; max=&quot;90&quot; value=&quot;60&quot; style=&quot;width:144px;accent-color:var(--ac)&quot;&gt;&lt;b id=&quot;strv&quot; style=&quot;min-width:36px;text-align:right&quot;&gt;60%&lt;/b&gt;&lt;/span&gt;&lt;/div&gt;
+&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Размер текста&lt;/span&gt;&lt;span&gt;Средний&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Положение&lt;/span&gt;&lt;span&gt;Сверху по центру&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;row&quot;&gt;&lt;span&gt;Удержание для перемещения&lt;/span&gt;&lt;kbd&gt;⌥&lt;/kbd&gt;&lt;/div&gt;
+&lt;div class=&quot;sub&quot; style=&quot;margin:16px 0 0&quot;&gt;Прозрачность меняет оверлей целиком: фон, рамку, чипы и кнопки. Цвет текста подстраивается под фон под оверлеем.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;script&gt;
+const $=s=&gt;document.querySelector(s),$$=s=&gt;[...document.querySelectorAll(s)];
+const R={on:false,sec:0,folder:&#x27;Acme Corp&#x27;,src:&#x27;Zoom&#x27;,t:null,lt:null};
+let curFolder=&#x27;Acme Corp&#x27;,curCall=&#x27;Квартальное планирование Q4&#x27;;
+const fmtT=s=&gt;[Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(x=&gt;String(x).padStart(2,&#x27;0&#x27;)).join(&#x27;:&#x27;);
+function crumb(){const c=$(&#x27;#crumb&#x27;);
+ if(!$(&#x27;#ws&#x27;).classList.contains(&#x27;on&#x27;)){c.innerHTML=&#x27;&lt;b&gt;Библиотека&lt;/b&gt;&#x27;;return}
+ c.innerHTML=&#x27;&lt;a data-home&gt;Библиотека&lt;/a&gt;&lt;span class=&quot;s&quot;&gt;/&lt;/span&gt;&lt;a data-folder-link&gt;&#x27;+curFolder+&#x27;&lt;/a&gt;&lt;span class=&quot;s&quot;&gt;/&lt;/span&gt;&lt;b&gt;&#x27;+curCall+&#x27;&lt;/b&gt;&#x27;;}
+function view(v){$(&#x27;#home&#x27;).classList.toggle(&#x27;on&#x27;,v===&#x27;home&#x27;);$(&#x27;#ws&#x27;).classList.toggle(&#x27;on&#x27;,v===&#x27;ws&#x27;);crumb();}
+function openFolder(f){curFolder=f;$$(&#x27;.f&#x27;).forEach(x=&gt;{x.classList.toggle(&#x27;cur&#x27;,x.dataset.tf===f);if(x.dataset.tf===f)x.classList.add(&#x27;open&#x27;)});$(&#x27;#rfold&#x27;).textContent=f;
+ const first=$$(&#x27;.f[data-tf=&quot;&#x27;+f+&#x27;&quot;]&#x27;)[0].nextElementSibling.querySelector(&#x27;.c[data-call]&#x27;);view(&#x27;ws&#x27;);if(first)pickCall(first);}
+function pickCall(c){$$(&#x27;.c&#x27;).forEach(x=&gt;x.classList.remove(&#x27;on&#x27;));c.classList.add(&#x27;on&#x27;);const [f,t]=c.dataset.call.split(&#x27;|&#x27;);curFolder=f;curCall=t;$(&#x27;#ttl&#x27;).textContent=t;$(&#x27;#callpage&#x27;).style.display=&#x27;flex&#x27;;$(&#x27;#livepage&#x27;).style.display=&#x27;none&#x27;;$(&#x27;#rfold&#x27;).textContent=f;
+ $$(&#x27;.f&#x27;).forEach(x=&gt;x.classList.toggle(&#x27;cur&#x27;,x.dataset.tf===f));view(&#x27;ws&#x27;);tab(&#x27;t1&#x27;);}
+document.addEventListener(&#x27;click&#x27;,e=&gt;{
+ if(e.target.closest(&#x27;[data-home]&#x27;)){view(&#x27;home&#x27;);return}
+ const fl=e.target.closest(&#x27;[data-folder-link]&#x27;);if(fl){openFolder(curFolder);return}
+ const fc=e.target.closest(&#x27;[data-folder]&#x27;);if(fc){openFolder(fc.dataset.folder);return}
+ const lv=e.target.closest(&#x27;[data-live]&#x27;);if(lv){openLive();return}
+ const cl=e.target.closest(&#x27;[data-call]&#x27;);if(cl){const m=$$(&#x27;.c[data-call=&quot;&#x27;+cl.dataset.call+&#x27;&quot;]&#x27;)[0];if(m){pickCall(m)}return}
+ const f=e.target.closest(&#x27;.f[data-tf]&#x27;);if(f){f.classList.toggle(&#x27;open&#x27;);return}
+ if(e.target.closest(&#x27;[data-stop]&#x27;)){stopRec()}
+});
+/* recording */
+const LS=[[&#x27;sys&#x27;,&#x27;А какой у вас сейчас EBITDA margin по сегменту B2B?&#x27;],[&#x27;me&#x27;,&#x27;Секунду, сверюсь с цифрами за квартал.&#x27;],[&#x27;sys&#x27;,&#x27;И как это соотносится с планом на Q4?&#x27;],[&#x27;me&#x27;,&#x27;Сейчас покажу, мы как раз это считали.&#x27;]];
+function startRec(){if(R.on)return;R.on=true;R.sec=0;R.folder=$(&#x27;#selF&#x27;).value;R.src=$(&#x27;#selS&#x27;).value.split(&#x27; (&#x27;)[0];
+ document.body.classList.add(&#x27;isrec&#x27;);$(&#x27;#recinfo&#x27;).textContent=R.folder+&#x27; · &#x27;+R.src;$(&#x27;#recm&#x27;).textContent=R.folder+&#x27; · &#x27;+R.src;$(&#x27;#liveMeta&#x27;).textContent=R.folder+&#x27; · &#x27;+R.src;$(&#x27;#liveRowF&#x27;).textContent=R.folder+&#x27; · идёт запись&#x27;;
+ $(&#x27;#nct&#x27;).textContent=&#x27;Идёт запись&#x27;;$(&#x27;#ncs&#x27;).textContent=&#x27;Субтитры и ответы показывает оверлей&#x27;;
+ $$(&#x27;[data-live]&#x27;).forEach(x=&gt;x.style.display=&#x27;&#x27;);$(&#x27;#liveRow&#x27;).style.display=&#x27;grid&#x27;;
+ R.t=setInterval(()=&gt;{R.sec++;$$(&#x27;[data-rt]&#x27;).forEach(x=&gt;x.textContent=fmtT(R.sec))},1000);$$(&#x27;[data-rt]&#x27;).forEach(x=&gt;x.textContent=&#x27;00:00:00&#x27;);
+ let i=0;$(&#x27;#livelines&#x27;).innerHTML=&#x27;&#x27;;R.lt=setInterval(()=&gt;{const [w,t]=LS[i%4];i++;const d=document.createElement(&#x27;div&#x27;);d.className=&#x27;ln fadein &#x27;+w;d.innerHTML=&#x27;&lt;span class=&quot;ts&quot;&gt;&#x27;+fmtT(R.sec)+&#x27;&lt;/span&gt;&lt;span class=&quot;sp-&#x27;+w+&#x27;&quot;&gt;&#x27;+(w===&#x27;me&#x27;?&#x27;Я&#x27;:&#x27;Система&#x27;)+&#x27;&lt;/span&gt;&lt;span class=&quot;tx&quot;&gt;&#x27;+t+&#x27;&lt;/span&gt;&#x27;;$(&#x27;#livelines&#x27;).appendChild(d);d.scrollIntoView({block:&#x27;nearest&#x27;})},2600);}
+function stopRec(){if(!R.on)return;R.on=false;clearInterval(R.t);clearInterval(R.lt);document.body.classList.remove(&#x27;isrec&#x27;);$(&#x27;#nct&#x27;).textContent=&#x27;Новый созвон&#x27;;$(&#x27;#ncs&#x27;).textContent=&#x27;Запись стартует по кнопке или по ⌥ R&#x27;;
+ $$(&#x27;[data-live]&#x27;).forEach(x=&gt;x.style.display=&#x27;none&#x27;);$(&#x27;#liveRow&#x27;).style.display=&#x27;none&#x27;;if($(&#x27;#livepage&#x27;).style.display!==&#x27;none&#x27;){$(&#x27;#callpage&#x27;).style.display=&#x27;flex&#x27;;$(&#x27;#livepage&#x27;).style.display=&#x27;none&#x27;}}
+function openLive(){$$(&#x27;.c&#x27;).forEach(x=&gt;x.classList.remove(&#x27;on&#x27;));$(&#x27;#liveItem&#x27;).classList.add(&#x27;on&#x27;);curFolder=R.folder;curCall=&#x27;Новый созвон · идёт запись&#x27;;$(&#x27;#callpage&#x27;).style.display=&#x27;none&#x27;;$(&#x27;#livepage&#x27;).style.display=&#x27;flex&#x27;;view(&#x27;ws&#x27;);}
+function goNew(){view(&#x27;home&#x27;);const n=$(&#x27;#nc&#x27;);n.classList.add(&#x27;flash&#x27;);setTimeout(()=&gt;n.classList.remove(&#x27;flash&#x27;),1400);$(&#x27;#home&#x27;).scrollTo({top:0,behavior:&#x27;smooth&#x27;})}
+$(&#x27;#startBtn&#x27;).onclick=startRec;$(&#x27;#stopBtn&#x27;).onclick=stopRec;$(&#x27;#openLive&#x27;).onclick=openLive;$(&#x27;#tbnew&#x27;).onclick=goNew;$(&#x27;#wsNew&#x27;).onclick=goNew;$(&#x27;#tbstop&#x27;).onclick=stopRec;$(&#x27;#tbopen&#x27;).onclick=openLive;
+/* call page */
+let md=false;
+function tab(id){md=false;$(&#x27;#mdb&#x27;).classList.remove(&#x27;on&#x27;);$$(&#x27;.tabsbar .tab&#x27;).forEach(x=&gt;x.classList.toggle(&#x27;on&#x27;,x.dataset.t===id));$$(&#x27;.tp&#x27;).forEach(t=&gt;t.classList.toggle(&#x27;on&#x27;,t.id===id))}
+$$(&#x27;.tabsbar .tab&#x27;).forEach(b=&gt;b.onclick=()=&gt;tab(b.dataset.t));
+$(&#x27;#mdb&#x27;).onclick=()=&gt;{md=!md;$(&#x27;#mdb&#x27;).classList.toggle(&#x27;on&#x27;,md);$$(&#x27;.tabsbar .tab&#x27;).forEach(x=&gt;x.classList.toggle(&#x27;on&#x27;,false));$$(&#x27;.tp&#x27;).forEach(t=&gt;t.classList.toggle(&#x27;on&#x27;,md?t.id===&#x27;tmd&#x27;:false));if(!md)tab(&#x27;t1&#x27;)}
+$$(&#x27;.rh button&#x27;).forEach(b=&gt;b.onclick=()=&gt;{$$(&#x27;.rh button&#x27;).forEach(x=&gt;x.classList.toggle(&#x27;on&#x27;,x===b));$$(&#x27;.pane&#x27;).forEach(p=&gt;p.classList.toggle(&#x27;on&#x27;,p.id===b.dataset.p))});
+$(&#x27;#tg&#x27;).onclick=e=&gt;e.target.classList.toggle(&#x27;on&#x27;);
+const ins=$(&#x27;#ins&#x27;),cc=$(&#x27;#cc&#x27;);const upd=()=&gt;cc.textContent=ins.value.length+&#x27; / 500&#x27;;ins.oninput=upd;upd();
+$(&#x27;#sumb&#x27;).onclick=()=&gt;{tab(&#x27;t2&#x27;);const t=$(&#x27;#sumtx&#x27;);t.style.color=&#x27;var(--tx2)&#x27;;t.textContent=&#x27;Собираю саммари из транскрипта, вопросов и скриншотов…&#x27;;setTimeout(()=&gt;{t.style.color=&#x27;var(--tx)&#x27;;t.innerHTML=&#x27;&lt;ul&gt;&lt;li&gt;Цель Q4: рост выручки выше 30% без роста CAC; ставка на partner-канал (дешевле на 20–25%).&lt;/li&gt;&lt;li&gt;EBITDA margin B2B за Q3: 23,4% (около 25% без one-off миграции CRM).&lt;/li&gt;&lt;li&gt;Следующий шаг: обсудить бюджет на партнёров.&lt;/li&gt;&lt;/ul&gt;&#x27;},1300)};
+/* search + settings */
+const DATA=[[&#x27;Созвоны&#x27;,&#x27;Квартальное планирование Q4&#x27;,&#x27;…а какой у вас сейчас EBITDA margin по сегменту B2B? — 00:23:41&#x27;],[&#x27;Созвоны&#x27;,&#x27;Демо для CFO&#x27;,&#x27;…обсуждали EBITDA и окупаемость пилота — 00:14:09&#x27;],[&#x27;Созвоны&#x27;,&#x27;Kickoff интеграции&#x27;,&#x27;…договорились про sandbox и сроки интеграции — 00:31:55&#x27;],[&#x27;Созвоны&#x27;,&#x27;Weekly sync&#x27;,&#x27;…блокеры по договору и согласованию — 00:09:12&#x27;],[&#x27;Документы&#x27;,&#x27;Договор-2026.pdf&#x27;,&#x27;стр. 12 · Условия оплаты и сроки согласования&#x27;],[&#x27;Документы&#x27;,&#x27;Бриф на кампанию.docx&#x27;,&#x27;стр. 3 · Целевая аудитория, KPI и CAC&#x27;],[&#x27;Документы&#x27;,&#x27;Прайс.md&#x27;,&#x27;Тарифы, скидки партнёрам&#x27;]];
+function draw(t){const r=$(&#x27;#res&#x27;);const q=t.trim().toLowerCase();let g=&#x27;&#x27;,h=&#x27;&#x27;;DATA.forEach(d=&gt;{if(q&amp;&amp;!(d[1]+&#x27; &#x27;+d[2]).toLowerCase().includes(q))return;if(d[0]!==g){g=d[0];h+=&#x27;&lt;div class=&quot;g&quot;&gt;&#x27;+g+&#x27;&lt;/div&gt;&#x27;}
+ let a=d[1],b=d[2];if(q){const rx=new RegExp(&#x27;(&#x27;+q.replace(/[.*+?^${}()|[\]\\]/g,&#x27;\\$&amp;&#x27;)+&#x27;)&#x27;,&#x27;ig&#x27;);a=a.replace(rx,&#x27;&lt;mark&gt;$1&lt;/mark&gt;&#x27;);b=b.replace(rx,&#x27;&lt;mark&gt;$1&lt;/mark&gt;&#x27;)}h+=&#x27;&lt;div class=&quot;it&quot;&gt;&lt;span&gt;&#x27;+a+&#x27;&lt;/span&gt;&lt;small&gt;&#x27;+b+&#x27;&lt;/small&gt;&lt;/div&gt;&#x27;});r.innerHTML=h||&#x27;&lt;div class=&quot;g&quot;&gt;Ничего не найдено&lt;/div&gt;&#x27;}
+const openPal=()=&gt;{$(&#x27;#ovl&#x27;).classList.add(&#x27;on&#x27;);$(&#x27;#q&#x27;).value=&#x27;&#x27;;draw(&#x27;&#x27;);$(&#x27;#q&#x27;).focus()};
+$(&#x27;#op&#x27;).onclick=openPal;$(&#x27;#hop&#x27;).onclick=openPal;$(&#x27;#q&#x27;).oninput=e=&gt;draw(e.target.value);
+$(&#x27;#ovl&#x27;).onclick=e=&gt;{if(e.target.id===&#x27;ovl&#x27;)$(&#x27;#ovl&#x27;).classList.remove(&#x27;on&#x27;)};
+$(&#x27;#opset&#x27;).onclick=()=&gt;$(&#x27;#setm&#x27;).classList.add(&#x27;on&#x27;);$(&#x27;#setx&#x27;).onclick=()=&gt;$(&#x27;#setm&#x27;).classList.remove(&#x27;on&#x27;);$(&#x27;#setm&#x27;).onclick=e=&gt;{if(e.target.id===&#x27;setm&#x27;)$(&#x27;#setm&#x27;).classList.remove(&#x27;on&#x27;)};
+$(&#x27;#str&#x27;).oninput=e=&gt;{$(&#x27;#strv&#x27;).textContent=e.target.value+&#x27;%&#x27;;parent.postMessage({lowkT:+e.target.value},&#x27;*&#x27;)};
+addEventListener(&#x27;message&#x27;,e=&gt;{if(e.data&amp;&amp;e.data.lowk&amp;&amp;e.data.transp!=null){$(&#x27;#str&#x27;).value=e.data.transp;$(&#x27;#strv&#x27;).textContent=e.data.transp+&#x27;%&#x27;}});
+document.addEventListener(&#x27;keydown&#x27;,e=&gt;{if((e.metaKey||e.ctrlKey)&amp;&amp;e.key===&#x27;k&#x27;){e.preventDefault();openPal()}if(e.key===&#x27;Escape&#x27;){$(&#x27;#ovl&#x27;).classList.remove(&#x27;on&#x27;);$(&#x27;#setm&#x27;).classList.remove(&#x27;on&#x27;)}});
+view(&#x27;home&#x27;);
+&lt;/script&gt;&lt;script&gt;addEventListener(&#x27;message&#x27;,function(e){});&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;"></iframe></section><section id="p-ob" hidden><div class="card"><div class="cols"><div><b>Первый запуск</b><p>Онбординг в акценте синего.</p></div><div><b>Что пробовать</b><p>Все 8 шагов, «Пропустить» везде. Клавиши можно переназначить.</p></div></div></div><iframe data-i="ob" srcdoc="&lt;!doctype html&gt;&lt;html lang=&quot;ru&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;&lt;title&gt;Первый запуск&lt;/title&gt;&lt;style&gt;
+:root{--pg:#09090a;--bg:#111113;--side:#0d0d0f;--panel:#17171a;--line:#27272b;--tx:#ececee;--tx2:#8e8e96;--tx3:#5e5e66;--hv:rgba(255,255,255,.05);--sel:rgba(255,255,255,.085);--ac:#8ba6c4;--acbg:rgba(139,166,196,.15);--acfg:#0b1118;--rec:#ff4d4f;--live:#46d37a;--move:#ffc24a;--me:#ececee;--sys:#8e8e96;--warn:#c4c4ca;--warnbg:rgba(255,255,255,.04);--sh:0 30px 80px rgba(0,0,0,.5)}
+
+body{font-family:-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Inter,system-ui,sans-serif}*{box-sizing:border-box}
+body{margin:0;background:var(--pg);font:14px/1.55 Inter,-apple-system,&quot;Segoe UI&quot;,system-ui,sans-serif;color:var(--tx);-webkit-font-smoothing:antialiased}
+.top{max-width:980px;margin:0 auto;padding:16px 24px 0;display:flex;gap:14px;color:var(--tx2);font-size:12.5px;align-items:center}
+.top a{color:inherit;text-decoration:none}.top b{color:var(--tx)}.top .sp{flex:1}
+.win{max-width:980px;height:min(660px,calc(100vh - 28px));margin:14px auto;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:grid;grid-template-columns:240px 1fr;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.rail{background:var(--side);border-right:1px solid var(--line);padding:18px 16px;display:flex;flex-direction:column}
+.lights{display:flex;gap:8px;padding:0 4px 22px}.lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.logo{display:flex;gap:9px;align-items:center;font-weight:650;font-size:16px;padding:0 4px 24px}
+.logo i{width:20px;height:20px;border:1.5px solid var(--tx2);border-radius:6px;display:block}
+.st{display:flex;gap:11px;align-items:center;padding:7px 6px;border-radius:8px;color:var(--tx3);font-size:13px;cursor:pointer}
+.st:hover{color:var(--tx2)}
+.st .d{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:10.5px;font-weight:600;flex:none}
+.st.on{color:var(--tx);font-weight:500}.st.on .d{border-color:var(--ac);color:var(--ac)}
+.st.done .d{background:var(--ac);border-color:var(--ac);color:var(--acfg)}.st.done{color:var(--tx2)}
+.rail .sp{flex:1}
+.rail small{color:var(--tx3);font-size:11.5px;line-height:1.4;padding:0 4px}
+.body{display:flex;flex-direction:column;min-width:0}
+.step{display:none;flex:1;padding:40px 48px 12px;overflow:auto;animation:in .3s}
+.step.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ac);font-weight:600;margin-bottom:10px}
+h1{font-size:28px;letter-spacing:-.03em;margin:0 0 8px;font-weight:650;line-height:1.15}
+.lead{color:var(--tx2);margin:0 0 24px;max-width:560px}
+.nav{display:flex;align-items:center;gap:10px;padding:16px 48px 22px;border-top:1px solid var(--line)}
+.nav .sp{flex:1}
+.btn{all:unset;cursor:pointer;padding:9px 18px;border-radius:10px;border:1px solid var(--line);font-size:13.5px;font-weight:500;background:var(--panel)}
+.btn:hover{border-color:var(--tx3)}
+.btn.pri{background:var(--ac);color:var(--acfg);border-color:var(--ac);font-weight:600}
+.btn.pri[disabled],.btn.off{opacity:.35;pointer-events:none}
+.skip{all:unset;cursor:pointer;color:var(--tx2);font-size:13px;padding:9px 6px}.skip:hover{color:var(--tx)}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:16px 18px}
+.opt{display:flex;gap:14px;align-items:flex-start;border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:15px 16px;cursor:pointer;margin-bottom:10px;transition:.15s}
+.opt:hover{border-color:var(--tx3)}
+.opt.on{border-color:var(--ac);background:var(--acbg)}
+.rd{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--tx3);flex:none;margin-top:2px;position:relative}
+.opt.on .rd{border-color:var(--ac)}.opt.on .rd:after{content:&quot;&quot;;position:absolute;inset:3px;border-radius:50%;background:var(--ac)}
+.opt b{display:block;font-weight:600}.opt small{color:var(--tx2);font-size:12.5px}
+.opt .badge{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:99px;background:var(--acbg);color:var(--ac);font-weight:600;white-space:nowrap;align-self:flex-start}
+.warn{display:flex;gap:14px;padding:16px 18px;border-radius:14px;background:var(--warnbg);border:1px solid var(--line);margin-bottom:18px}
+.warn svg{flex:none;color:var(--warn);margin-top:2px}
+.warn p{margin:0 0 8px;color:var(--tx)}.warn p:last-child{margin:0;color:var(--tx2);font-size:13px}
+.chk{display:flex;gap:11px;align-items:center;cursor:pointer;margin-top:6px}
+.bx{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--tx3);display:grid;place-items:center;color:transparent;font-size:12px;flex:none}
+.chk.on .bx{background:var(--ac);border-color:var(--ac);color:var(--acfg)}
+.apps{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 12px}
+.app{display:flex;gap:10px;align-items:center;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:13px;cursor:pointer;background:var(--panel)}
+.app.on{border-color:var(--ac)}
+.ai{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:11px}
+.note{font-size:12.5px;color:var(--tx2);display:flex;gap:8px}
+.perm{display:flex;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:10px}
+.perm .ic{width:36px;height:36px;border-radius:10px;background:var(--hv,rgba(255,255,255,.05));display:grid;place-items:center;color:var(--tx2);flex:none;border:1px solid var(--line)}
+.perm div.t{flex:1}.perm b{display:block;font-weight:600}.perm small{color:var(--tx2);font-size:12.5px}
+.pill{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--acbg);color:var(--ac);font-weight:600}
+.hw{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.hw div{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--panel)}
+.hw small{display:block;color:var(--tx3);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.hw b{font-weight:550;font-size:13px}
+.scan{height:4px;border-radius:99px;background:var(--line);overflow:hidden;margin-bottom:18px}
+.scan i{display:block;height:100%;width:0;background:var(--ac);transition:width 1.4s}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.two .opt{flex-direction:column;gap:8px;margin:0}
+.two .opt .top2{display:flex;justify-content:space-between;width:100%}
+.in{display:flex;gap:8px;align-items:center;border:1px solid var(--line);background:var(--panel);border-radius:11px;padding:4px 4px 4px 14px;margin-bottom:8px}
+.in:focus-within{border-color:var(--ac)}
+.in input{all:unset;flex:1;font:13px &quot;JetBrains Mono&quot;,ui-monospace,monospace;color:var(--tx)}
+.in input::placeholder{color:var(--tx3);font-family:Inter}
+.in .btn{padding:7px 14px}
+.hk{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.hk span.l{flex:1}.hk small{display:block;color:var(--tx3);font-size:12px}
+.key{font:600 12px &quot;JetBrains Mono&quot;,ui-monospace,monospace;padding:6px 11px;border-radius:8px;border:1px solid var(--line);background:var(--panel);min-width:110px;text-align:center;cursor:pointer;color:var(--tx)}
+.key:hover{border-color:var(--tx3)}
+.key.rec{border-color:var(--ac);color:var(--ac);animation:bl 1.2s infinite}
+@keyframes bl{50%{box-shadow:0 0 0 4px var(--acbg)}}
+.key.m{color:var(--tx)}
+.fin{text-align:center;padding-top:40px}
+.fin .big{width:56px;height:56px;border:2px solid var(--tx2);border-radius:16px;margin:0 auto 22px}
+.sum{display:inline-block;text-align:left;margin-top:14px;min-width:360px}
+.sum div{display:flex;justify-content:space-between;gap:30px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}.sum div span:first-child{color:var(--tx2)}
+@media(max-width:860px){.win{grid-template-columns:1fr;height:auto}.rail{display:none}.step{padding:28px 22px}.two,.hw{grid-template-columns:1fr 1fr}}
+&lt;/style&gt;&lt;/head&gt;&lt;body&gt;
+&lt;div class=&quot;win&quot;&gt;
+ &lt;aside class=&quot;rail&quot;&gt;&lt;div class=&quot;lights&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;&lt;div class=&quot;logo&quot;&gt;&lt;i&gt;&lt;/i&gt;Lowk&lt;/div&gt;&lt;div id=&quot;rl&quot;&gt;&lt;/div&gt;&lt;div class=&quot;sp&quot;&gt;&lt;/div&gt;&lt;small&gt;Всё можно изменить позже в настройках. Данные остаются на вашем компьютере, телеметрии нет.&lt;/small&gt;&lt;/aside&gt;
+ &lt;div class=&quot;body&quot;&gt;
+  &lt;!-- 1 --&gt;
+  &lt;section class=&quot;step on&quot;&gt;&lt;div class=&quot;eyebrow&quot;&gt;Шаг 1 из 8 · Язык&lt;/div&gt;&lt;h1&gt;Привет! Давайте быстро настроим Lowk&lt;/h1&gt;&lt;p class=&quot;lead&quot;&gt;Это займёт около двух минут. Каждый шаг можно пропустить.&lt;/p&gt;
+   &lt;div class=&quot;opt on&quot; data-grp=&quot;lang&quot;&gt;&lt;span class=&quot;rd&quot;&gt;&lt;/span&gt;&lt;div&gt;&lt;b&gt;Русский&lt;/b&gt;&lt;small&gt;определён по языку системы&lt;/small&gt;&lt;/div&gt;&lt;span class=&quot;badge&quot;&gt;Авто&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;opt&quot; data-grp=&quot;lang&quot;&gt;&lt;span class=&quot;rd&quot;&gt;&lt;/span&gt;&lt;div&gt;&lt;b&gt;English&lt;/b&gt;&lt;small&gt;Interface language&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
+   &lt;p class=&quot;note&quot; style=&quot;margin-top:16px&quot;&gt;Язык интерфейса не влияет на распознавание: речь на русском, английском и смешанная распознаётся автоматически.&lt;/p&gt;&lt;/section&gt;
+  &lt;!-- 2 --&gt;
+  &lt;section class=&quot;step&quot;&gt;&lt;div class=&quot;eyebrow&quot;&gt;Шаг 2 из 8 · Важно&lt;/div&gt;&lt;h1&gt;Запись разговоров и закон&lt;/h1&gt;&lt;p class=&quot;lead&quot;&gt;Lowk записывает звук созвонов. Прежде чем начать, прочитайте это.&lt;/p&gt;
+   &lt;div class=&quot;warn&quot;&gt;&lt;svg width=&quot;22&quot; height=&quot;22&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.8&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;&lt;path d=&quot;M12 3 2 20h20z&quot;/&gt;&lt;path d=&quot;M12 10v4M12 17.5v.01&quot;/&gt;&lt;/svg&gt;&lt;div&gt;&lt;p&gt;Во многих странах и штатах запись разговора без согласия всех участников запрещена или требует уведомления.&lt;/p&gt;&lt;p&gt;Вы сами отвечаете за соблюдение законов вашей страны и правил вашей компании. Предупреждайте участников, что ведёте запись.&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;
+   &lt;div class=&quot;chk&quot; id=&quot;legal&quot;&gt;&lt;span class=&quot;bx&quot;&gt;✓&lt;/span&gt;&lt;span&gt;Я понимаю и беру ответственность на себя&lt;/span&gt;&lt;/div&gt;&lt;/section&gt;
+  &lt;!-- 3 --&gt;
+  &lt;section class=&quot;step&quot;&gt;&lt;div class=&quot;eyebrow&quot;&gt;Шаг 3 из 8 · Захват звука&lt;/div&gt;&lt;h1&gt;Что записывать по умолчанию?&lt;/h1&gt;&lt;p class=&quot;lead&quot;&gt;Это можно переключить прямо перед записью.&lt;/p&gt;
+   &lt;div class=&quot;opt on&quot; data-grp=&quot;cap&quot;&gt;&lt;span class=&quot;rd&quot;&gt;&lt;/span&gt;&lt;div&gt;&lt;b&gt;Одно приложение&lt;/b&gt;&lt;small&gt;Только звук созвона. YouTube или музыка рядом не попадут в транскрипт.&lt;/small&gt;&lt;/div&gt;&lt;span class=&quot;badge&quot;&gt;Рекомендуем&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;apps&quot; id=&quot;apps&quot;&gt;&lt;div class=&quot;app on&quot;&gt;&lt;span class=&quot;ai&quot; style=&quot;background:#3a3a42&quot;&gt;Z&lt;/span&gt;Zoom&lt;/div&gt;&lt;div class=&quot;app&quot;&gt;&lt;span class=&quot;ai&quot; style=&quot;background:#3a3a42&quot;&gt;T&lt;/span&gt;Microsoft Teams&lt;/div&gt;&lt;div class=&quot;app&quot;&gt;&lt;span class=&quot;ai&quot; style=&quot;background:#3a3a42&quot;&gt;M&lt;/span&gt;Google Meet (Chrome)&lt;/div&gt;&lt;div class=&quot;app&quot;&gt;&lt;span class=&quot;ai&quot; style=&quot;background:#3a3a42&quot;&gt;+&lt;/span&gt;Другое…&lt;/div&gt;&lt;/div&gt;
+   &lt;div class=&quot;opt&quot; data-grp=&quot;cap&quot;&gt;&lt;span class=&quot;rd&quot;&gt;&lt;/span&gt;&lt;div&gt;&lt;b&gt;Весь звук системы&lt;/b&gt;&lt;small&gt;Всё, что играет на компьютере. Нужно для Windows 10, там запись одного приложения недоступна.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
+   &lt;p class=&quot;note&quot;&gt;Ваш микрофон записывается всегда и помечается как «Я». Остальной звук — как «Система».&lt;/p&gt;&lt;/section&gt;
+  &lt;!-- 4 --&gt;
+  &lt;section class=&quot;step&quot;&gt;&lt;div class=&quot;eyebrow&quot;&gt;Шаг 4 из 8 · Разрешения&lt;/div&gt;&lt;h1&gt;Разрешите Lowk слышать звук&lt;/h1&gt;&lt;p class=&quot;lead&quot;&gt;macOS попросит три разрешения. Мы ничего не отправляем без вашего ведома.&lt;/p&gt;
+   &lt;div class=&quot;perm&quot;&gt;&lt;span class=&quot;ic&quot;&gt;&lt;svg width=&quot;18&quot; height=&quot;18&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.7&quot;&gt;&lt;rect x=&quot;3&quot; y=&quot;4&quot; width=&quot;18&quot; height=&quot;13&quot; rx=&quot;2&quot;/&gt;&lt;path d=&quot;M8 21h8&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;&lt;div class=&quot;t&quot;&gt;&lt;b&gt;Запись экрана и системного звука&lt;/b&gt;&lt;small&gt;Чтобы слышать собеседников и делать скриншоты&lt;/small&gt;&lt;/div&gt;&lt;span class=&quot;btn pm&quot;&gt;Открыть настройки&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;perm&quot;&gt;&lt;span class=&quot;ic&quot;&gt;&lt;svg width=&quot;18&quot; height=&quot;18&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.7&quot;&gt;&lt;rect x=&quot;9&quot; y=&quot;3&quot; width=&quot;6&quot; height=&quot;12&quot; rx=&quot;3&quot;/&gt;&lt;path d=&quot;M5 11a7 7 0 0 0 14 0M12 18v3&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;&lt;div class=&quot;t&quot;&gt;&lt;b&gt;Микрофон&lt;/b&gt;&lt;small&gt;Чтобы записывать вашу речь&lt;/small&gt;&lt;/div&gt;&lt;span class=&quot;btn pm&quot;&gt;Разрешить&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;perm&quot;&gt;&lt;span class=&quot;ic&quot;&gt;&lt;svg width=&quot;18&quot; height=&quot;18&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.7&quot;&gt;&lt;rect x=&quot;3&quot; y=&quot;6&quot; width=&quot;18&quot; height=&quot;12&quot; rx=&quot;2&quot;/&gt;&lt;path d=&quot;M7 10h.01M11 10h.01M15 10h.01M7 14h10&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;&lt;div class=&quot;t&quot;&gt;&lt;b&gt;Универсальный доступ&lt;/b&gt;&lt;small&gt;Для горячих клавиш и кнопок мыши, когда Lowk не в фокусе&lt;/small&gt;&lt;/div&gt;&lt;span class=&quot;btn pm&quot;&gt;Открыть настройки&lt;/span&gt;&lt;/div&gt;
+   &lt;p class=&quot;note&quot;&gt;На Windows 10/11 этот шаг не нужен, разрешения запрашивает сама система.&lt;/p&gt;&lt;/section&gt;
+  &lt;!-- 5 --&gt;
+  &lt;section class=&quot;step&quot;&gt;&lt;div class=&quot;eyebrow&quot;&gt;Шаг 5 из 8 · Ваш компьютер&lt;/div&gt;&lt;h1&gt;Проверяем, что потянет железо&lt;/h1&gt;&lt;p class=&quot;lead&quot;&gt;Lowk подберёт, где считать распознавание и ответы: на вашем компьютере или в облаке.&lt;/p&gt;
+   &lt;div class=&quot;scan&quot;&gt;&lt;i id=&quot;scan&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+   &lt;div class=&quot;hw&quot;&gt;&lt;div&gt;&lt;small&gt;Чип&lt;/small&gt;&lt;b&gt;Apple M4&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;small&gt;Память&lt;/small&gt;&lt;b&gt;24 ГБ&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;small&gt;Диск&lt;/small&gt;&lt;b&gt;512 ГБ · 310 свободно&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;small&gt;ОС&lt;/small&gt;&lt;b&gt;macOS 27.0.1&lt;/b&gt;&lt;/div&gt;&lt;/div&gt;
+   &lt;div class=&quot;two&quot;&gt;&lt;div class=&quot;opt on&quot; data-grp=&quot;eng&quot;&gt;&lt;div class=&quot;top2&quot;&gt;&lt;b&gt;Локально&lt;/b&gt;&lt;span class=&quot;badge&quot;&gt;Подходит&lt;/span&gt;&lt;/div&gt;&lt;small&gt;Whisper Large V3 Turbo прямо на вашем компьютере. Бесплатно, офлайн, звук не покидает устройство. Скачать 1,6 ГБ.&lt;/small&gt;&lt;/div&gt;
+   &lt;div class=&quot;opt&quot; data-grp=&quot;eng&quot;&gt;&lt;div class=&quot;top2&quot;&gt;&lt;b&gt;Облако&lt;/b&gt;&lt;/div&gt;&lt;small&gt;Быстрее старт и меньше нагрузка на ноутбук. Нужен API-ключ, звук отправляется провайдеру.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
+   &lt;p class=&quot;note&quot; style=&quot;margin-top:14px&quot;&gt;Для ответов нейронки по умолчанию используется облачная DeepSeek V4.1 Flash. Локальную модель можно включить в настройках.&lt;/p&gt;&lt;/section&gt;
+  &lt;!-- 6 --&gt;
+  &lt;section class=&quot;step&quot;&gt;&lt;div class=&quot;eyebrow&quot;&gt;Шаг 6 из 8 · Ключ OpenRouter&lt;/div&gt;&lt;h1&gt;Подключите нейронку&lt;/h1&gt;&lt;p class=&quot;lead&quot;&gt;Lowk работает с вашим ключом (BYOK): вы платите провайдеру напрямую, без наценки.&lt;/p&gt;
+   &lt;div class=&quot;in&quot;&gt;&lt;input id=&quot;key&quot; type=&quot;password&quot; placeholder=&quot;sk-or-v1-…&quot;&gt;&lt;span class=&quot;btn&quot; id=&quot;chk&quot;&gt;Проверить&lt;/span&gt;&lt;/div&gt;
+   &lt;p class=&quot;note&quot; id=&quot;keyn&quot;&gt;Ключ хранится в Keychain (macOS) или Диспетчере учётных данных (Windows) и не лежит в файлах.&lt;/p&gt;
+   &lt;div class=&quot;card&quot; style=&quot;margin-top:18px&quot;&gt;&lt;b&gt;Нет ключа?&lt;/b&gt;&lt;p style=&quot;margin:4px 0 10px;color:var(--tx2);font-size:13px&quot;&gt;Создайте его на openrouter.ai за минуту: хватит пополнить баланс на несколько долларов. Обычный созвон стоит копейки.&lt;/p&gt;&lt;span class=&quot;btn&quot;&gt;Открыть openrouter.ai&lt;/span&gt;&lt;/div&gt;&lt;/section&gt;
+  &lt;!-- 7 --&gt;
+  &lt;section class=&quot;step&quot;&gt;&lt;div class=&quot;eyebrow&quot;&gt;Шаг 7 из 8 · Горячие клавиши&lt;/div&gt;&lt;h1&gt;Управление без мыши&lt;/h1&gt;&lt;p class=&quot;lead&quot;&gt;Нажмите на поле и введите новую комбинацию. Можно использовать боковые кнопки мыши.&lt;/p&gt;
+   &lt;div class=&quot;hk&quot;&gt;&lt;span class=&quot;l&quot;&gt;Ответить нейронкой&lt;small&gt;отправить новое с прошлого запроса&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;key&quot;&gt;⌥ ↵&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;hk&quot;&gt;&lt;span class=&quot;l&quot;&gt;Скриншот экрана&lt;small&gt;весь активный монитор, можно несколько&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;key&quot;&gt;⌥ S&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;hk&quot;&gt;&lt;span class=&quot;l&quot;&gt;Скриншот области&lt;/span&gt;&lt;span class=&quot;key&quot;&gt;⌥ ⇧ S&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;hk&quot;&gt;&lt;span class=&quot;l&quot;&gt;Сделать оверлей интерактивным&lt;small&gt;клики и ввод текста&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;key&quot;&gt;⌥ Space&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;hk&quot;&gt;&lt;span class=&quot;l&quot;&gt;Начать / остановить запись&lt;/span&gt;&lt;span class=&quot;key&quot;&gt;⌥ R&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;hk&quot;&gt;&lt;span class=&quot;l&quot;&gt;Переместить оверлей&lt;small&gt;удерживайте клавишу или боковую кнопку, ввод не включается&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;key&quot;&gt;Удерживать ⌥&lt;/span&gt;&lt;/div&gt;
+   &lt;div class=&quot;hk&quot;&gt;&lt;span class=&quot;l&quot;&gt;Шаблон ответа&lt;small&gt;переключить следующий&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;key m&quot;&gt;Мышь 5 (боковая)&lt;/span&gt;&lt;/div&gt;
+   &lt;p class=&quot;note&quot; style=&quot;margin-top:10px&quot;&gt;Нажмите на любую клавишу или кнопку мыши, чтобы изменить. Нажмите Esc, чтобы отменить.&lt;/p&gt;&lt;/section&gt;
+  &lt;!-- 8 --&gt;
+  &lt;section class=&quot;step&quot;&gt;&lt;div class=&quot;fin&quot;&gt;&lt;div class=&quot;big&quot;&gt;&lt;/div&gt;&lt;h1&gt;Всё готово&lt;/h1&gt;&lt;p class=&quot;lead&quot; style=&quot;margin:0 auto&quot;&gt;Откройте созвон и нажмите &lt;b style=&quot;color:var(--tx)&quot;&gt;⌥ R&lt;/b&gt;, чтобы начать запись.&lt;/p&gt;&lt;div class=&quot;sum card&quot; id=&quot;sum&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+  &lt;div class=&quot;nav&quot;&gt;&lt;button class=&quot;btn&quot; id=&quot;bk&quot;&gt;Назад&lt;/button&gt;&lt;span class=&quot;sp&quot;&gt;&lt;/span&gt;&lt;button class=&quot;skip&quot; id=&quot;sk&quot;&gt;Пропустить&lt;/button&gt;&lt;button class=&quot;btn pri&quot; id=&quot;nx&quot;&gt;Продолжить&lt;/button&gt;&lt;/div&gt;
+ &lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+const $=s=&gt;document.querySelector(s),$$=s=&gt;[...document.querySelectorAll(s)];
+const names=[&#x27;Язык&#x27;,&#x27;Законность записи&#x27;,&#x27;Захват звука&#x27;,&#x27;Разрешения&#x27;,&#x27;Железо&#x27;,&#x27;API-ключ&#x27;,&#x27;Горячие клавиши&#x27;,&#x27;Готово&#x27;];
+const steps=$$(&#x27;.step&#x27;);let cur=0;const skipped=new Set();
+function rail(){$(&#x27;#rl&#x27;).innerHTML=names.map((n,i)=&gt;&#x27;&lt;div class=&quot;st &#x27;+(i===cur?&#x27;on&#x27;:i&lt;cur?&#x27;done&#x27;:&#x27;&#x27;)+&#x27;&quot; data-i=&quot;&#x27;+i+&#x27;&quot;&gt;&lt;span class=&quot;d&quot;&gt;&#x27;+(i&lt;cur?&#x27;✓&#x27;:i+1)+&#x27;&lt;/span&gt;&#x27;+n+&#x27;&lt;/div&gt;&#x27;).join(&#x27;&#x27;);
+ $$(&#x27;.st&#x27;).forEach(s=&gt;s.onclick=()=&gt;{if(+s.dataset.i&lt;=cur)show(+s.dataset.i)})}
+function show(i){cur=i;steps.forEach((s,j)=&gt;s.classList.toggle(&#x27;on&#x27;,j===i));rail();
+ $(&#x27;#bk&#x27;).style.visibility=i?&#x27;visible&#x27;:&#x27;hidden&#x27;;$(&#x27;#sk&#x27;).style.display=(i===0||i===1||i===7)?&#x27;none&#x27;:&#x27;&#x27;;$(&#x27;#nx&#x27;).textContent=i===7?&#x27;Начать работу&#x27;:(i===6?&#x27;Готово&#x27;:&#x27;Продолжить&#x27;);
+ $(&#x27;#nx&#x27;).classList.toggle(&#x27;off&#x27;,i===1&amp;&amp;!$(&#x27;#legal&#x27;).classList.contains(&#x27;on&#x27;));
+ if(i===4){$(&#x27;#scan&#x27;).style.width=&#x27;0&#x27;;setTimeout(()=&gt;$(&#x27;#scan&#x27;).style.width=&#x27;100%&#x27;,50)}
+ if(i===7){const g=(k,d)=&gt;skipped.has(k)?&#x27;&lt;span style=&quot;color:var(--tx3)&quot;&gt;пропущено&lt;/span&gt;&#x27;:d;$(&#x27;#sum&#x27;).innerHTML=&#x27;&lt;div&gt;&lt;span&gt;Язык&lt;/span&gt;&lt;span&gt;Русский&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;Захват&lt;/span&gt;&lt;span&gt;Zoom&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;Распознавание&lt;/span&gt;&lt;span&gt;Локально, Whisper V3 Turbo&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;Ответы&lt;/span&gt;&lt;span&gt;&#x27;+g(5,&#x27;DeepSeek V4.1 Flash&#x27;)+&#x27;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;Ключ OpenRouter&lt;/span&gt;&lt;span&gt;&#x27;+g(5,$(&#x27;#keyn&#x27;).dataset.ok?&#x27;сохранён в Keychain&#x27;:&#x27;не указан&#x27;)+&#x27;&lt;/span&gt;&lt;/div&gt;&#x27;}}
+$(&#x27;#nx&#x27;).onclick=()=&gt;{if(cur&lt;7)show(cur+1)};$(&#x27;#bk&#x27;).onclick=()=&gt;show(cur-1);$(&#x27;#sk&#x27;).onclick=()=&gt;{skipped.add(cur);show(cur+1)};
+$(&#x27;#legal&#x27;).onclick=e=&gt;{e.currentTarget.classList.toggle(&#x27;on&#x27;);$(&#x27;#nx&#x27;).classList.toggle(&#x27;off&#x27;,!e.currentTarget.classList.contains(&#x27;on&#x27;))};
+document.addEventListener(&#x27;click&#x27;,e=&gt;{const o=e.target.closest(&#x27;.opt[data-grp]&#x27;);if(o){$$(&#x27;.opt[data-grp=&quot;&#x27;+o.dataset.grp+&#x27;&quot;]&#x27;).forEach(x=&gt;x.classList.toggle(&#x27;on&#x27;,x===o))}
+ const a=e.target.closest(&#x27;.app&#x27;);if(a){$$(&#x27;.app&#x27;).forEach(x=&gt;x.classList.toggle(&#x27;on&#x27;,x===a))}
+ const p=e.target.closest(&#x27;.pm&#x27;);if(p){p.className=&#x27;pill&#x27;;p.textContent=&#x27;✓ Разрешено&#x27;}});
+$(&#x27;#chk&#x27;).onclick=()=&gt;{const n=$(&#x27;#keyn&#x27;);if(!$(&#x27;#key&#x27;).value){$(&#x27;#key&#x27;).value=&#x27;sk-or-v1-demo-key-0000&#x27;;}n.dataset.ok=1;n.innerHTML=&#x27;&lt;span class=&quot;pill&quot;&gt;✓ Ключ работает&lt;/span&gt; Баланс: 4,20 $ · модель DeepSeek V4.1 Flash доступна&#x27;;};
+let rec=null;
+function stop(){if(rec){rec.classList.remove(&#x27;rec&#x27;);rec.textContent=rec.dataset.old;rec=null}}
+$$(&#x27;.key&#x27;).forEach(k=&gt;k.onclick=e=&gt;{e.stopPropagation();stop();rec=k;k.dataset.old=k.textContent;k.classList.add(&#x27;rec&#x27;);k.textContent=&#x27;Нажмите клавишу или кнопку мыши…&#x27;});
+document.addEventListener(&#x27;keydown&#x27;,e=&gt;{if(!rec)return;e.preventDefault();if(e.key===&#x27;Escape&#x27;){stop();return}
+ if([&#x27;Shift&#x27;,&#x27;Alt&#x27;,&#x27;Control&#x27;,&#x27;Meta&#x27;].includes(e.key))return;
+ const m=(e.metaKey?&#x27;⌘ &#x27;:&#x27;&#x27;)+(e.ctrlKey?&#x27;Ctrl &#x27;:&#x27;&#x27;)+(e.altKey?&#x27;⌥ &#x27;:&#x27;&#x27;)+(e.shiftKey?&#x27;⇧ &#x27;:&#x27;&#x27;);const kk=e.key===&#x27; &#x27;?&#x27;Space&#x27;:e.key===&#x27;Enter&#x27;?&#x27;↵&#x27;:e.key.toUpperCase();rec.dataset.old=m+kk;rec.classList.remove(&#x27;m&#x27;);stop()});
+document.addEventListener(&#x27;mousedown&#x27;,e=&gt;{if(!rec||e.button&lt;3)return;e.preventDefault();rec.dataset.old=&#x27;Мышь &#x27;+(e.button+1)+&#x27; (боковая)&#x27;;rec.classList.add(&#x27;m&#x27;);stop()});
+document.addEventListener(&#x27;contextmenu&#x27;,e=&gt;{if(rec)e.preventDefault()});
+show(0);
+&lt;/script&gt;&lt;script&gt;addEventListener(&#x27;message&#x27;,function(e){});&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;"></iframe></section></main>
+<script>
+var tr=60;
+addEventListener('message',function(e){if(e.data&&e.data.lowkT!=null){tr=e.data.lowkT;document.querySelectorAll('iframe').forEach(function(f){f.contentWindow.postMessage({lowk:1,transp:tr},'*')})}});
+document.querySelectorAll('iframe').forEach(function(f){f.addEventListener('load',function(){f.contentWindow.postMessage({lowk:1,transp:tr},'*')})});
+document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){document.querySelectorAll('[data-t]').forEach(function(x){x.classList.toggle('on',x===b)});document.querySelectorAll('main section').forEach(function(s){s.hidden=s.id!=='p-'+b.dataset.t})}});
+document.querySelector('[data-t=ov]').click();
+</script></body></html>

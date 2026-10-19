@@ -1,0 +1,53 @@
+[1792440991544] overlay class NSKVONotifying_TaoWindow -> NSPanel
+[1792440991554] CHECK reason=setup -> sharingType before=1 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440991554] after_show collectionBehavior=337 mask=0x8084
+[1792440991554] CHECK reason=initial-show -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440991556] setup complete
+[1792440991808] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440992812] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440993823] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440994835] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440995343] CMD main-focus
+[1792440995347] CHECK reason=main-focus -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440995849] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440996857] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440997868] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440998886] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792440999900] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441000915] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441001932] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441002945] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441003957] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441004976] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441005993] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441007009] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441008026] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441009043] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441010059] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441011076] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441012089] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441013108] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441014126] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441015143] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441016158] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441017176] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441018188] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441019207] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441020224] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441021242] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441022258] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441023274] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441024294] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441025308] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441026322] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441027332] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441028345] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441029360] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441030378] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441031398] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441032411] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441033423] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441034443] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441035461] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441036478] CHECK reason=watchdog -> sharingType before=0 after=0 want=0 ok=true level=1000 visible=true winnum=1440
+[1792441036985] CMD quit
