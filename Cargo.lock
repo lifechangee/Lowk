@@ -2242,6 +2242,7 @@ name = "lowk-input"
 version = "0.0.1"
 dependencies = [
  "lowk-types",
+ "windows",
 ]
 
 [[package]]
