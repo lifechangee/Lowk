@@ -1,11 +1,41 @@
 <script lang="ts">
   import '../lib/tokens.css';
-  import { t } from '../lib/i18n';
+  import { onMount } from 'svelte';
+  import { commands } from '../lib/ipc';
+  import { resolveLang, setLang } from '../lib/i18n';
+  import { OverlayStore } from './store.svelte';
+  import { TauriSource } from './tauri';
+  import Overlay from './Overlay.svelte';
+
+  const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+  const store = new OverlayStore();
+  store.isMac = /mac/i.test(navigator.platform);
+  const source = new TauriSource();
+  // Dev harness (mock demo + test backgrounds) is tree-shaken from release builds.
+  const dev = import.meta.env.DEV && !inTauri ? import('./DevStage.svelte') : null;
+
+  onMount(() => {
+    if (!inTauri) return;
+    source.start(store);
+    void commands
+      .localeGet()
+      .then((l) => {
+        store.lang = resolveLang('auto', l);
+        setLang(store.lang);
+      })
+      .catch(() => {});
+    return () => source.stop();
+  });
 </script>
 
-<!-- WP9 replaces this skeleton. Overlay components must use only adaptive tokens. -->
-<div class="ov lbl">{t('overlay.mode.passive')}</div>
+{#if dev}
+  {#await dev then m}
+    <m.default />
+  {/await}
+{:else}
+  <div class="root"><Overlay {store} {source} /></div>
+{/if}
 
 <style>
-  .ov { padding: var(--s2) var(--s3); border-radius: var(--r); background: rgba(0, 0, 0, 0.5); color: #fff; }
+  .root { position: fixed; inset: 0; }
 </style>
