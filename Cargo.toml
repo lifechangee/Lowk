@@ -1,0 +1,149 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/lowk-types",
+    "crates/lowk-platform",
+    "crates/lowk-audio",
+    "crates/lowk-stt",
+    "crates/lowk-store",
+    "crates/lowk-index",
+    "crates/lowk-ingest",
+    "crates/lowk-capture",
+    "crates/lowk-llm",
+    "crates/lowk-stealth",
+    "crates/lowk-input",
+    "crates/lowk-session",
+    "crates/lowk-app",
+    "tools/xtask",
+]
+default-members = [
+    "crates/lowk-types",
+    "crates/lowk-platform",
+    "crates/lowk-audio",
+    "crates/lowk-stt",
+    "crates/lowk-store",
+    "crates/lowk-index",
+    "crates/lowk-ingest",
+    "crates/lowk-capture",
+    "crates/lowk-llm",
+    "crates/lowk-stealth",
+    "crates/lowk-input",
+    "crates/lowk-session",
+    "crates/lowk-app",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.85"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/lowk-app/lowk"
+authors = ["Lowk contributors"]
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+# ---------------------------------------------------------------------------
+# Shared dependencies. Crates add `dep.workspace = true` in their own manifest.
+# Versions verified against crates.io on 2026-10-20. Pre-declared for every
+# dependency named in docs/ARCHITECTURE.md; unused entries cost nothing.
+# ---------------------------------------------------------------------------
+[workspace.dependencies]
+# internal
+lowk-types = { path = "crates/lowk-types" }
+lowk-platform = { path = "crates/lowk-platform" }
+lowk-audio = { path = "crates/lowk-audio" }
+lowk-stt = { path = "crates/lowk-stt" }
+lowk-store = { path = "crates/lowk-store" }
+lowk-index = { path = "crates/lowk-index" }
+lowk-ingest = { path = "crates/lowk-ingest" }
+lowk-capture = { path = "crates/lowk-capture" }
+lowk-llm = { path = "crates/lowk-llm" }
+lowk-stealth = { path = "crates/lowk-stealth" }
+lowk-input = { path = "crates/lowk-input" }
+lowk-session = { path = "crates/lowk-session" }
+
+# core / utility
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+toml = "1.1"
+yaml-rust2 = "0.13"
+ulid = { version = "3.0", features = ["serde"] }
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+tempfile = "3.27"
+blake3 = "1.8"
+bytes = "1.12"
+parking_lot = "0.12"
+crossbeam-channel = "0.5"
+futures = "0.3"
+time = "0.3"
+secrecy = "0.10"
+image = { version = "0.25", default-features = false }
+notify = "8.2"
+
+# async / network
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio-tungstenite = "0.30"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "stream"] }
+eventsource-stream = "0.2"
+
+# IPC / bindings (pre-release crates are pinned exactly)
+specta = { version = "=2.0.0-rc.25", features = ["derive", "serde_json"] }
+specta-typescript = "=0.0.12"
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+
+# tauri (only lowk-app may depend on these)
+tauri = { version = "2.12", features = ["macos-private-api"] }
+tauri-build = "2.7"
+tauri-plugin-global-shortcut = "2.4"
+tauri-plugin-single-instance = "2.5"
+tauri-plugin-updater = "2.14"
+raw-window-handle = "0.6"
+
+# platform
+sysinfo = "0.39"
+keyring = "4.2"
+directories = "6.0"
+sys-locale = "0.3"
+windows = "0.62"
+objc2 = "0.6"
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"
+block2 = "0.6"
+core-graphics = "0.25"
+# tauri-nspanel is a git dependency pinned by rev; added by WP2 (lowk-stealth)
+
+# audio
+cidre = "0.29"
+wasapi = "0.26"
+cpal = "0.18"
+ringbuf = "0.5"
+rubato = "5.0"
+webrtc-audio-processing = "2.1"
+
+# stt
+ort = "=2.0.0-rc.15"
+whisper-rs = "0.16"
+
+# store / index / ingest / capture
+rusqlite = { version = "0.40", features = ["bundled"] }
+sqlite-vec = "0.1"
+rust-stemmers = "1.2"
+pdf_oxide = "0.3"
+pdf-inspector = "1.25"
+pdfium-render = "0.9"
+anydoc = "0.2"
+screencapturekit = "11.0"

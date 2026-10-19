@@ -1,0 +1,59 @@
+# cargo-deny configuration. AGPL-3.0-or-later project (docs/ARCHITECTURE.md 12.2).
+# Changes to this file need architect review (CODEOWNERS).
+
+[graph]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+]
+
+[advisories]
+version = 2
+# Unmaintained transitive deps of Tauri/specta; revisit on dependency bumps.
+ignore = [
+    { id = "RUSTSEC-2024-0436", reason = "paste: unmaintained, transitive (tauri/specta); no safe upgrade" },
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: unmaintained, transitive (tauri Linux deps); no safe upgrade" },
+]
+
+[licenses]
+version = 2
+# Allowed: permissive + file-level copyleft (MPL). Denied by omission:
+# GPL-2.0-only (AGPLv3-incompatible), SSPL, BUSL, non-commercial, unknown.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "CC0-1.0",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "AGPL-3.0-or-later",
+    "BSL-1.0",
+    "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+# Dependency rules of section 1.2 (feature crates never depend on each other) are
+# checked by `cargo xtask check-deps`; only lowk-app may use tauri.
+deny = [
+    { crate = "openssl", reason = "use rustls; keeps builds portable and light" },
+    { crate = "openssl-sys", reason = "use rustls" },
+    { crate = "rdev", reason = "own input backends (section 8.2)" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# tauri-nspanel is pinned by rev; WP2 adds its git URL here.
+allow-git = []

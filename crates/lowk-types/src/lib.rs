@@ -1,0 +1,93 @@
+//! `lowk-types`: the contract crate.
+//!
+//! Every type that crosses a crate or IPC boundary lives here, with `serde` and
+//! `specta::Type` derives. Changes are architect-gated (see CODEOWNERS): this
+//! crate is the seam that lets many engineers work in parallel.
+//!
+//! Rules: no business logic, no OS code, no `tauri` dependency. Small `Fake*` /
+//! `Noop*` helpers live in [`fakes`] so dependents can merge independently.
+
+pub mod bind;
+pub mod error;
+pub mod event;
+pub mod fakes;
+pub mod hw;
+pub mod ids;
+pub mod llm;
+pub mod overlay;
+pub mod perm;
+pub mod session;
+pub mod settings;
+pub mod store;
+pub mod stt;
+pub mod time;
+pub mod traits;
+
+pub use bind::*;
+pub use error::*;
+pub use event::*;
+pub use hw::*;
+pub use ids::*;
+pub use llm::*;
+pub use overlay::*;
+pub use perm::*;
+pub use session::*;
+pub use settings::*;
+pub use store::*;
+pub use stt::*;
+pub use time::*;
+pub use traits::*;
+
+/// Crate-wide result alias; errors are [`AppError`] (code + params, never prose).
+pub type Result<T, E = AppError> = std::result::Result<T, E>;
+
+/// Every DTO that must appear in the generated TypeScript bindings is
+/// registered here once so `cargo xtask bindings` cannot miss one.
+pub fn register_types(types: &mut specta::Types) {
+    types.register_mut::<AppEvent>();
+    types.register_mut::<Settings>();
+    types.register_mut::<SettingsPatch>();
+    types.register_mut::<AppError>();
+    types.register_mut::<ErrorCode>();
+    types.register_mut::<SessionSnapshot>();
+    types.register_mut::<StartOpts>();
+    types.register_mut::<FolderMeta>();
+    types.register_mut::<CallMeta>();
+    types.register_mut::<NewFolder>();
+    types.register_mut::<NewCall>();
+    types.register_mut::<CallEntry>();
+    types.register_mut::<Tone>();
+    types.register_mut::<SelfTestReport>();
+    types.register_mut::<BindReport>();
+    types.register_mut::<BindSpec>();
+    types.register_mut::<HwInfo>();
+    types.register_mut::<EngineDescriptor>();
+    types.register_mut::<RetrievalQuery>();
+    types.register_mut::<ContextChunk>();
+    types.register_mut::<AskRequest>();
+    types.register_mut::<AudioApp>();
+    types.register_mut::<DeviceInfo>();
+}
+
+/// Tauri event names (backend -> UI), one per [`AppEvent`] variant plus the
+/// high-rate streams that bypass the bus. `lowk-app` and the UI both use these.
+pub mod events {
+    pub const STT_SEGMENT: &str = "stt://segment";
+    pub const SESSION_STATE: &str = "session://state";
+    pub const AUDIO_LEVEL: &str = "audio://level";
+    pub const LLM_START: &str = "llm://start";
+    pub const LLM_DELTA: &str = "llm://delta";
+    pub const LLM_DONE: &str = "llm://done";
+    pub const LLM_ERROR: &str = "llm://error";
+    pub const OVERLAY_MODE: &str = "overlay://mode";
+    pub const OVERLAY_TONE: &str = "overlay://tone";
+    pub const STEALTH_STATUS: &str = "stealth://status";
+    pub const QUEUE_CHANGED: &str = "queue://changed";
+    pub const PERM_CHANGED: &str = "perm://changed";
+    pub const BIND_EVENT: &str = "bind://event";
+    pub const STORE_CHANGED: &str = "store://changed";
+    pub const ENGINE_PROGRESS: &str = "engine://progress";
+}
+
+#[cfg(test)]
+mod tests;

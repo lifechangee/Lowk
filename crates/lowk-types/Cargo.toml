@@ -1,0 +1,19 @@
+[package]
+name = "lowk-types"
+description = "Lowk contract crate: ids, time, events, DTOs, settings schema, error codes, trait definitions. No logic, no OS code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+specta.workspace = true
+specta-typescript.workspace = true
+ulid.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
