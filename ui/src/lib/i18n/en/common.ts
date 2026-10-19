@@ -1,7 +1,27 @@
+// Generic strings shared by every window. Keys: `common.*`.
 export const common = {
   'app.name': 'Lowk',
   'common.ok': 'OK',
   'common.cancel': 'Cancel',
   'common.skip': 'Skip',
+  'common.back': 'Back',
+  'common.next': 'Continue',
+  'common.done': 'Done',
+  'common.close': 'Close',
+  'common.save': 'Save',
+  'common.search': 'Search',
+  'common.open': 'Open',
+  'common.stop': 'Stop',
+  'common.start': 'Start',
+  'common.retry': 'Retry',
+  'common.loading': 'Loading…',
+  'common.copy': 'Copy',
+  'common.export': 'Export',
+  'common.settings': 'Settings',
   'common.items': '{n} items',
+  // English uses only one/other; few/many mirror other so both languages share one key set.
+  'common.items.one': '{n} item',
+  'common.items.few': '{n} items',
+  'common.items.many': '{n} items',
+  'common.items.other': '{n} items',
 } as const;
