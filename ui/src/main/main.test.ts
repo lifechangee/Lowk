@@ -1,0 +1,77 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { en, ru } from '../lib/i18n';
+import dict from './i18n-keys.todo.json';
+import { mergePatch } from './api/mock';
+import { bindWarnings, defaultBinds, formatTrigger, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
+import { parse } from './router.svelte';
+
+const names = { middle: 'Wheel', back: 'Back', forward: 'Forward', other: (n: number) => `Btn ${n}` };
+
+describe('own i18n keys', () => {
+  it('ru and en have identical key sets and no empty values', () => {
+    expect(Object.keys(dict.en).sort()).toEqual(Object.keys(dict.ru).sort());
+    for (const lang of [dict.ru, dict.en]) for (const v of Object.values(lang)) expect(v.trim()).not.toBe('');
+  });
+  it('has the same placeholders in both languages', () => {
+    const ph = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join();
+    for (const k of Object.keys(dict.ru) as (keyof typeof dict.ru)[]) expect(ph(dict.en[k])).toBe(ph(dict.ru[k]));
+  });
+  it('does not shadow keys of the shared dictionary', () => {
+    for (const k of Object.keys(dict.ru)) expect(k in ru || k in en).toBe(false);
+  });
+  it('every literal tm(...) key used in sources exists', () => {
+    const all = new Set([...Object.keys(dict.ru), ...Object.keys(ru)]);
+    const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
+    const missing: string[] = [];
+    for (const f of walk(new URL('.', import.meta.url).pathname).filter((x) => /\.(svelte|ts)$/.test(x) && !x.endsWith('.test.ts'))) {
+      for (const m of readFileSync(f, 'utf8').matchAll(/\btm\('([\w.]+)'/g)) if (!all.has(m[1]!)) missing.push(`${f}: ${m[1]}`);
+    }
+    expect(missing).toEqual([]);
+  });
+});
+
+describe('binds', () => {
+  it('formats mac and windows triggers', () => {
+    const mac = defaultBinds('macos');
+    expect(formatTrigger(mac[0]!.trigger, 'macos', names)).toEqual(['⌘', '↵']);
+    expect(formatTrigger(mac[1]!.trigger, 'macos', names)).toEqual(['⇧', '⌘', 'S']);
+    const win = defaultBinds('windows');
+    expect(formatTrigger(win[1]!.trigger, 'windows', names)).toEqual(['Ctrl', 'Shift', 'S']);
+    expect(formatTrigger(win.at(-1)!.trigger, 'windows', names)).toEqual(['Alt']);
+  });
+  it('records keys, ignores bare modifiers, maps mouse side buttons', () => {
+    const e = { code: 'KeyR', metaKey: true, ctrlKey: false, altKey: false, shiftKey: true };
+    expect(triggerFromKeyEvent(e)).toEqual({ kind: 'combo', mods: { meta: true, shift: true }, key: 'KeyR' });
+    expect(triggerFromKeyEvent({ ...e, code: 'ShiftLeft' })).toBeNull();
+    expect(triggerFromMouse(0, {})).toBeNull();
+    expect(triggerFromMouse(3, {})).toEqual({ kind: 'mouse', button: { kind: 'back' }, mods: {} });
+    expect(triggerFromMouse(4, {})).toEqual({ kind: 'mouse', button: { kind: 'forward' }, mods: {} });
+    expect(triggerFromMouse(5, {})).toEqual({ kind: 'mouse', button: { kind: 'other', n: 6 }, mods: {} });
+  });
+  it('replaces, clears and warns', () => {
+    const b = defaultBinds('macos');
+    const next = withBind(b, 'ask', { kind: 'mouse', button: { kind: 'forward' }, mods: {} });
+    expect(next.find((x) => x.action === 'ask')?.swallow).toBe(true);
+    expect(withBind(b, 'ask', null).some((x) => x.action === 'ask')).toBe(false);
+    expect(bindWarnings(b[0]!, b, 'macos')).toContain('global_enter');
+    expect(bindWarnings(b[1]!, b, 'macos')).toContain('save_as');
+    const dup = [...b, { action: 'cancel_answer' as const, trigger: b[0]!.trigger }];
+    expect(bindWarnings(dup.at(-1)!, dup, 'macos')).toContain('duplicate');
+    expect(triggerEquals(b[0]!.trigger, b[0]!.trigger)).toBe(true);
+  });
+});
+
+describe('infra', () => {
+  it('merge patch', () => {
+    expect(mergePatch({ a: { b: 1, c: 2 }, d: [1] }, { a: { b: 5 }, d: [2, 3] })).toEqual({ a: { b: 5, c: 2 }, d: [2, 3] });
+  });
+  it('router parse', () => {
+    expect(parse('#/call/abc')).toEqual({ name: 'call', id: 'abc' });
+    expect(parse('#/folder/sys%3Atrash')).toEqual({ name: 'folder', id: 'sys:trash' });
+    expect(parse('#/settings/nope')).toEqual({ name: 'settings', page: 'general' });
+    expect(parse('#/onboarding/99')).toEqual({ name: 'onboarding', step: 7 });
+    expect(parse('')).toEqual({ name: 'home' });
+  });
+});

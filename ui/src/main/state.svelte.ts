@@ -1,0 +1,115 @@
+// View state for the main window. No business logic: everything goes through `api`.
+import { locale } from '../lib/i18n/locale.svelte';
+import type { LangSetting } from '../lib/i18n';
+import type { CallMeta, FolderMeta, Settings, Target } from '../lib/ipc';
+import { api, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type FolderKey, type LiveLine } from './api';
+import { mergePatch } from './api/mock';
+import { hrefs, router } from './router.svelte';
+
+class Library {
+  folders = $state<FolderMeta[]>([]);
+  calls = $state<CallMeta[]>([]);
+  summarized = $state<string[]>([]);
+  loaded = $state(false);
+
+  async reload(): Promise<void> {
+    const s = await api.libraryList();
+    this.folders = s.folders;
+    this.calls = s.calls;
+    this.summarized = s.summarized;
+    this.loaded = true;
+  }
+  live = $derived(this.calls.find((c) => c.ended === null && !c.deleted) ?? null);
+  active = $derived(this.calls.filter((c) => !c.deleted));
+  trashed = $derived(this.calls.filter((c) => c.deleted));
+  recent = $derived([...this.active].sort((a, b) => b.started.localeCompare(a.started)));
+  unsorted = $derived(this.active.filter((c) => c.folder.kind === 'unsorted'));
+  tags = $derived.by(() => {
+    const m = new Map<string, number>();
+    for (const c of this.active) for (const t of c.tags) m.set(t, (m.get(t) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  });
+  callsIn(key: FolderKey): CallMeta[] {
+    if (key === SYS_TRASH) return this.trashed;
+    return this.active.filter((c) => folderKey(c.folder) === key).sort((a, b) => b.started.localeCompare(a.started));
+  }
+  call(id: string): CallMeta | undefined { return this.calls.find((c) => c.id === id); }
+  folder(key: FolderKey): FolderMeta | undefined { return this.folders.find((f) => folderKey(f.id) === key); }
+  lastActivity(key: FolderKey): string | null { return this.callsIn(key)[0]?.started ?? null; }
+}
+export const library = new Library();
+
+class Prefs {
+  value = $state<Settings>({});
+  loaded = $state(false);
+
+  async load(): Promise<void> {
+    this.value = await api.settingsGet();
+    this.loaded = true;
+    locale.setSetting((this.value.ui?.language ?? 'auto') as LangSetting);
+  }
+  /** Optimistic JSON-merge-patch update. */
+  async patch(patch: unknown): Promise<void> {
+    this.value = mergePatch(this.value, patch);
+    if ((patch as Settings).ui?.language) locale.setSetting((patch as Settings).ui!.language as LangSetting);
+    try { this.value = await api.settingsPatch(patch); } catch { /* keep optimistic value; backend reports via toast in WP6 */ }
+  }
+}
+export const prefs = new Prefs();
+
+class Session {
+  phase = $state<'idle' | 'recording'>('idle');
+  startedAt = $state(0);
+  now = $state(Date.now());
+  folder = $state<FolderKey | null>(null);
+  sourceLabel = $state('');
+  callId = $state<string | null>(null);
+  lines = $state<(LiveLine & { at_s: number })[]>([]);
+  elapsed = $derived(this.phase === 'recording' ? Math.max(0, Math.floor((this.now - this.startedAt) / 1000)) : 0);
+  #tick: ReturnType<typeof setInterval> | null = null;
+  #off: (() => void) | null = null;
+
+  async start(folder: FolderKey | null, target: Target | null, sourceLabel: string): Promise<void> {
+    if (this.phase === 'recording') return;
+    const st = await api.sessionStart({ title: null, folder: folder && folder !== SYS_UNSORTED ? folderRef(folder) : null, system: target, mic: null, demo: true });
+    this.phase = 'recording';
+    this.callId = st.call;
+    this.folder = folder ?? SYS_UNSORTED;
+    this.sourceLabel = sourceLabel;
+    this.startedAt = Date.now();
+    this.now = this.startedAt;
+    this.lines = [];
+    this.#tick = setInterval(() => (this.now = Date.now()), 1000);
+    this.#off = api.onLiveLine((l) => this.lines.push({ ...l, at_s: this.elapsed }));
+    await library.reload();
+  }
+  async stop(): Promise<void> {
+    if (this.phase !== 'recording') return;
+    this.#off?.();
+    if (this.#tick) clearInterval(this.#tick);
+    this.phase = 'idle';
+    await api.sessionStop();
+    await library.reload();
+  }
+}
+export const session = new Session();
+
+class Ui {
+  paletteOpen = $state(false);
+  /** Briefly highlights the «Новый созвон» card after a jump from another screen. */
+  flashNew = $state(false);
+  callTab = $state<'transcript' | 'summary' | 'qa' | 'shots' | 'md'>('transcript');
+  newCall(): void {
+    router.go(hrefs.home);
+    this.flashNew = true;
+    setTimeout(() => (this.flashNew = false), 1400);
+  }
+  toast = $state<string | null>(null);
+  #timer: ReturnType<typeof setTimeout> | null = null;
+  notify(msg: string): void {
+    this.toast = msg;
+    if (this.#timer) clearTimeout(this.#timer);
+    this.#timer = setTimeout(() => (this.toast = null), 3200);
+  }
+}
+export const ui = new Ui();

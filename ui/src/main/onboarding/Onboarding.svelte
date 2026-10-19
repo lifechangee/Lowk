@@ -1,0 +1,246 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import type { AudioApp, HwInfo, UiLanguage } from '../../lib/ipc';
+  import Button from '../../lib/components/Button.svelte';
+  import Icon, { type IconName } from '../../lib/components/Icon.svelte';
+  import OptionCard from '../../lib/components/OptionCard.svelte';
+  import { api } from '../api';
+  import { bindFor, triggerText } from '../binds';
+  import type { Key } from '../../lib/i18n';
+  import { tm, type MKey } from '../i18n';
+  import { mouseNames } from '../names';
+  import { PERM_ORDER, perms } from '../permissions.svelte';
+  import { hrefs, router } from '../router.svelte';
+  import { prefs } from '../state.svelte';
+  import KeyCard from '../settings/KeyCard.svelte';
+  import BindEditor from '../settings/BindEditor.svelte';
+
+  let { step }: { step: number } = $props();
+  const TOTAL = 8;
+  const names: Key[] = ['onboarding.step.language', 'onboarding.step.legal', 'onboarding.step.capture', 'onboarding.step.permissions', 'onboarding.step.hardware', 'onboarding.step.apiKey', 'onboarding.step.hotkeys', 'onboarding.step.done'];
+  const os = api.platform();
+
+  let skipped = $state<Set<number>>(new Set());
+  let apps = $state<AudioApp[]>([]);
+  let hw = $state<HwInfo | null>(null);
+  let scanned = $state(false);
+  let captureMode = $state<'app' | 'system'>('app');
+  let appId = $state('');
+  let engineMode = $state<'local' | 'cloud'>('local');
+
+  onMount(async () => {
+    apps = await api.audioApps();
+    appId = apps[0]?.id ?? '';
+    perms.refresh();
+  });
+
+  const ack = $derived(prefs.value.onboarding?.recording_notice_ack ?? false);
+  const canNext = $derived(step !== 1 || ack);
+  const lang = $derived(prefs.value.ui?.language ?? 'auto');
+  const recBind = $derived(bindFor(prefs.value.binds, 'toggle_record'));
+  const recKey = $derived(recBind ? triggerText(recBind.trigger, os, mouseNames()) : '');
+
+  $effect(() => {
+    if (step === 4 && !hw) {
+      scanned = false;
+      api.hwProbe().then((h) => { hw = h; setTimeout(() => (scanned = true), 50); });
+    }
+  });
+
+  async function go(n: number) {
+    router.go(hrefs.onboarding(n));
+    await prefs.patch({ onboarding: { step: n } });
+  }
+  async function next() {
+    if (step === 2) await prefs.patch({ audio: { default_source: captureMode === 'app' && appId ? { kind: 'app', id: appId } : { kind: 'whole_system' } } });
+    if (step === 4) await prefs.patch({ stt: { engine: engineMode === 'local' ? 'whisper-large-v3-turbo' : 'soniox' } });
+    if (step < TOTAL - 1) await go(step + 1);
+  }
+  async function skip() { skipped = new Set([...skipped, step]); await go(step + 1); }
+  async function finish() {
+    await prefs.patch({ onboarding: { done: true, step: TOTAL } });
+    router.go(hrefs.home);
+  }
+
+  const permIcons: Record<string, IconName> = { microphone: 'mic', system_audio: 'monitor', screen_recording: 'eye', input_monitoring: 'keyboard', accessibility: 'shield' };
+  const shownPerms = $derived(PERM_ORDER.filter((k) => perms.state[k] !== 'not_applicable'));
+  const langOptions: { v: UiLanguage; title: Key | MKey; hint: Key | MKey }[] = [
+    { v: 'auto', title: 'settings.language.auto', hint: 'settings.language.autoHint' },
+    { v: 'ru', title: 'settings.language.ru', hint: 'm.ob.langRuHint' },
+    { v: 'en', title: 'settings.language.en', hint: 'm.ob.langEnHint' },
+  ];
+  const skippedLabel = (n: number) => (skipped.has(n) ? tm('onboarding.skipped') : null);
+</script>
+
+<div class="win">
+  <aside class="rail">
+    <div class="logo"><i></i>{tm('app.name')}</div>
+    <div class="steps">
+      {#each names as n, i (i)}
+        <button class="st" class:on={i === step} class:done={i < step} disabled={i > step} onclick={() => go(i)}>
+          <span class="d">{#if i < step}<Icon name="check" size={12} />{:else}{i + 1}{/if}</span><span class="lbl">{tm(n)}</span>
+        </button>
+      {/each}
+    </div>
+    <p class="fine">{tm('onboarding.welcomeHint')}</p>
+  </aside>
+
+  <div class="body">
+    <section class="step">
+      {#if step < 7}<div class="eyebrow lbl">{tm('onboarding.stepCounter', { n: step + 1, total: TOTAL })} · {tm(names[step]!)}</div>{/if}
+
+      {#if step === 0}
+        <h1>{tm('onboarding.welcome')}</h1>
+        <p class="lead">{tm('m.ob.twoMinutes')}</p>
+        {#each langOptions as o (o.v)}
+          <OptionCard selected={lang === o.v} title={tm(o.title)} hint={tm(o.hint)} badge={o.v === 'auto' ? tm('m.auto') : undefined} onselect={() => prefs.patch({ ui: { language: o.v } })} />
+        {/each}
+        <p class="note">{tm('onboarding.language.note')}</p>
+
+      {:else if step === 1}
+        <h1>{tm('onboarding.legal.title')}</h1>
+        <p class="lead">{tm('onboarding.legal.body1')}</p>
+        <div class="warn"><Icon name="alert" size={22} /><div><p>{tm('onboarding.legal.body2')}</p><p class="sec">{tm('onboarding.legal.body3')}</p></div></div>
+        <button class="chk" class:on={ack} role="checkbox" aria-checked={ack} onclick={() => prefs.patch({ onboarding: { recording_notice_ack: !ack } })}><span class="bx">{#if ack}<Icon name="check" size={12} />{/if}</span><span>{tm('onboarding.legal.ack')}</span></button>
+
+      {:else if step === 2}
+        <h1>{tm('onboarding.capture.title')}</h1>
+        <p class="lead">{tm('onboarding.capture.hint')}</p>
+        <OptionCard selected={captureMode === 'app'} title={tm('onboarding.capture.app')} hint={tm('onboarding.capture.appHint')} badge={tm('onboarding.capture.recommended')} onselect={() => (captureMode = 'app')} />
+        <div class="apps">
+          {#each apps as a (a.id)}
+            <button class="app" class:on={captureMode === 'app' && appId === a.id} onclick={() => { captureMode = 'app'; appId = a.id; }}><span class="ai">{a.name.slice(0, 1)}</span><span class="lbl">{a.name}</span></button>
+          {/each}
+          <button class="app"><span class="ai">+</span><span class="lbl">{tm('onboarding.capture.system')}</span></button>
+        </div>
+        <OptionCard selected={captureMode === 'system'} title={tm('m.sourceSystem')} hint={tm('onboarding.capture.systemHint')} onselect={() => (captureMode = 'system')} />
+        <p class="note">{tm('onboarding.capture.micNote')}</p>
+
+      {:else if step === 3}
+        <h1>{tm('onboarding.permissions.title')}</h1>
+        <p class="lead">{tm('onboarding.permissions.body')}</p>
+        {#each shownPerms as k (k)}
+          <div class="perm">
+            <span class="ic"><Icon name={permIcons[k]!} size={18} /></span>
+            <div class="t"><b class="lbl">{tm(`m.perm.${k}` as MKey)}</b><small class="lbl">{tm(`m.perm.${k}.why` as MKey)}</small></div>
+            {#if perms.state[k] === 'granted'}<span class="pill lbl"><Icon name="check" size={12} />{tm('onboarding.permissions.granted')}</span>
+            {:else}<Button size="sm" onclick={() => perms.request(k)}>{tm('onboarding.permissions.allow')}</Button>{/if}
+          </div>
+        {/each}
+        <div class="all"><Button variant="primary" icon="shield" onclick={() => perms.requestAll()}>{tm('m.ob.allowAll')}</Button></div>
+        <p class="note">{tm('onboarding.permissions.windowsNote')}</p>
+
+      {:else if step === 4}
+        <h1>{tm('onboarding.hardware.title')}</h1>
+        <p class="lead">{tm('onboarding.hardware.body')}</p>
+        <div class="scan"><i style:width={scanned ? '100%' : '0'}></i></div>
+        <div class="hw">
+          <div><small>{tm('m.hw.chip')}</small><b class="lbl">{hw?.chip ?? '…'}</b></div>
+          <div><small>{tm('m.hw.ram')}</small><b class="lbl">{hw?.ram_gb ? `${hw.ram_gb} GB` : '…'}</b></div>
+          <div><small>{tm('m.hw.disk')}</small><b class="lbl">{hw?.free_disk_gb ? tm('m.hw.free', { n: hw.free_disk_gb }) : '…'}</b></div>
+          <div><small>{tm('m.hw.os')}</small><b class="lbl">{hw?.os_version ?? '…'}</b></div>
+        </div>
+        <div class="two">
+          <OptionCard selected={engineMode === 'local'} title={tm('onboarding.hardware.local')} hint={tm('onboarding.hardware.localDesc', { size: '1.6 GB' })} badge={tm('onboarding.hardware.localFit')} onselect={() => (engineMode = 'local')} />
+          <OptionCard selected={engineMode === 'cloud'} title={tm('onboarding.hardware.cloud')} hint={tm('onboarding.hardware.cloudDesc')} onselect={() => (engineMode = 'cloud')} />
+        </div>
+        <p class="note">{tm('onboarding.hardware.defaultModel', { model: 'DeepSeek V4.1 Flash' })}</p>
+
+      {:else if step === 5}
+        <h1>{tm('onboarding.apiKey.title')}</h1>
+        <p class="lead">{tm('onboarding.apiKey.body')}</p>
+        <KeyCard provider="openrouter" title={tm('settings.apiKey')} placeholder="sk-or-v1-…" />
+        <div class="card"><b>{tm('onboarding.apiKey.noKey')}</b><p>{tm('onboarding.apiKey.noKeyHint')}</p><Button icon="external" onclick={() => window.open('https://openrouter.ai/keys', '_blank', 'noopener')}>{tm('onboarding.apiKey.openSite')}</Button></div>
+
+      {:else if step === 6}
+        <h1>{tm('onboarding.hotkeys.title')}</h1>
+        <p class="lead">{tm('onboarding.hotkeys.hint')}</p>
+        <BindEditor actions={['ask', 'screenshot', 'screenshot_area', 'toggle_interactive', 'toggle_record', 'move_hold', 'next_template']} showReset={false} />
+
+      {:else}
+        <div class="fin">
+          <div class="big"><Icon name="check" size={28} /></div>
+          <h1>{tm('onboarding.done.title')}</h1>
+          <p class="lead centered">{tm('onboarding.done.body', { key: recKey })}</p>
+          <div class="sum card">
+            <div><span>{tm('settings.language')}</span><span class="lbl">{tm(lang === 'auto' ? 'settings.language.auto' : lang === 'ru' ? 'settings.language.ru' : 'settings.language.en')}</span></div>
+            <div><span>{tm('m.ob.capture')}</span><span class="lbl">{skippedLabel(2) ?? (captureMode === 'app' ? (apps.find((a) => a.id === appId)?.name ?? '') : tm('m.sourceSystemShort'))}</span></div>
+            <div><span>{tm('settings.stt')}</span><span class="lbl">{skippedLabel(4) ?? (engineMode === 'local' ? tm('settings.stt.local') : 'Soniox')}</span></div>
+            <div><span>{tm('settings.answers')}</span><span class="lbl">{skippedLabel(5) ?? 'DeepSeek V4.1 Flash'}</span></div>
+            <div><span>{tm('settings.apiKey')}</span><span class="lbl">{skippedLabel(5) ?? tm('settings.apiKey.stored')}</span></div>
+          </div>
+        </div>
+      {/if}
+    </section>
+
+    <div class="nav">
+      <Button disabled={step === 0} onclick={() => go(step - 1)}>{tm('common.back')}</Button>
+      <span class="sp"></span>
+      {#if step >= 2 && step <= 6}<button class="skip" onclick={skip}>{tm('common.skip')}</button>{/if}
+      {#if step < 7}<Button variant="primary" disabled={!canNext} onclick={next}>{step === 6 ? tm('common.done') : tm('common.next')}</Button>
+      {:else}<Button variant="primary" onclick={finish}>{tm('onboarding.finish')}</Button>{/if}
+    </div>
+  </div>
+</div>
+
+<style>
+  .win { max-width: 980px; height: min(680px, calc(100vh - 32px)); margin: var(--s4) auto; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-xl); overflow: hidden; display: grid; grid-template-columns: 240px minmax(0, 1fr); box-shadow: var(--sh); }
+  .rail { background: var(--side); border-right: 1px solid var(--line); padding: var(--s6) var(--s4); display: flex; flex-direction: column; min-width: 0; }
+  .logo { display: flex; gap: var(--s2); align-items: center; font-weight: 650; font-size: 16px; padding: 0 var(--s1) var(--s6); }
+  .logo i { width: 20px; height: 20px; border: 1.5px solid var(--tx2); border-radius: var(--r-sm); display: block; }
+  .steps { flex: 1; }
+  .st { all: unset; box-sizing: border-box; width: 100%; display: flex; gap: var(--s3); align-items: center; padding: var(--s2) var(--s2); border-radius: var(--r); color: var(--tx3); font-size: 13px; cursor: pointer; }
+  .st:disabled { cursor: default; }
+  .st:not(:disabled):hover { color: var(--tx2); }
+  .d { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 11px; font-weight: 600; flex: none; }
+  .on { color: var(--tx); font-weight: 500; }
+  .on .d { border-color: var(--ac); color: var(--ac); }
+  .done { color: var(--tx2); }
+  .done .d { background: var(--ac); border-color: var(--ac); color: var(--acfg); }
+  .fine { color: var(--tx3); font-size: 11px; line-height: 16px; margin: 0; padding: 0 var(--s1); }
+  .body { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .step { flex: 1; padding: var(--s10) var(--s12) var(--s3); overflow: auto; animation: in 0.3s; }
+  @keyframes in { from { opacity: 0; transform: translateY(6px); } }
+  .eyebrow { font: 600 var(--fs-xs) var(--font); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ac); margin-bottom: var(--s2); }
+  h1 { font-size: 28px; line-height: 36px; letter-spacing: -0.03em; margin: 0 0 var(--s2); font-weight: 650; }
+  .lead { color: var(--tx2); margin: 0 0 var(--s6); max-width: 560px; }
+  .centered { margin-left: auto; margin-right: auto; }
+  .note { font-size: 12px; line-height: 16px; color: var(--tx2); margin: var(--s4) 0 0; }
+  .nav { display: flex; align-items: center; gap: var(--s3); padding: var(--s4) var(--s12) var(--s5); border-top: 1px solid var(--line); }
+  .sp { flex: 1; }
+  .skip { all: unset; cursor: pointer; color: var(--tx2); font-size: 13px; padding: var(--s2) var(--s2); }
+  .skip:hover { color: var(--tx); }
+  .warn { display: flex; gap: var(--s4); padding: var(--s4); border-radius: var(--r-lg); background: var(--warnbg); border: 1px solid var(--line); margin-bottom: var(--s4); color: var(--warn); }
+  .warn p { margin: 0 0 var(--s2); color: var(--tx); }
+  .warn p.sec { margin: 0; color: var(--tx2); font-size: 13px; }
+  .chk { all: unset; display: flex; gap: var(--s3); align-items: center; cursor: pointer; margin-top: var(--s2); }
+  .bx { width: 20px; height: 20px; border-radius: var(--r-sm); border: 1.5px solid var(--tx3); display: grid; place-items: center; flex: none; color: var(--acfg); }
+  .chk.on .bx { background: var(--ac); border-color: var(--ac); }
+  .apps { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin: var(--s1) 0 var(--s3); }
+  .app { all: unset; box-sizing: border-box; display: flex; gap: var(--s3); align-items: center; padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: var(--r-lg); font-size: 13px; cursor: pointer; background: var(--panel); min-width: 0; }
+  .app.on { border-color: var(--ac); }
+  .ai { width: 24px; height: 24px; border-radius: var(--r); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 11px; background: #3a3a42; flex: none; }
+  .perm { display: flex; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); margin-bottom: var(--s2); }
+  .ic { width: 36px; height: 36px; border-radius: var(--r-lg); background: var(--hv); display: grid; place-items: center; color: var(--tx2); flex: none; border: 1px solid var(--line); }
+  .t { flex: 1; min-width: 0; }
+  .t b { display: block; font-weight: 600; }
+  .t small { display: block; color: var(--tx2); font-size: 12px; }
+  .pill { display: inline-flex; align-items: center; gap: var(--s1); font-size: 12px; height: 20px; padding: 0 var(--s3); border-radius: 99px; background: var(--acbg); color: var(--ac); font-weight: 600; max-width: 40%; }
+  .all { margin-top: var(--s3); }
+  .scan { height: 4px; border-radius: 99px; background: var(--line); overflow: hidden; margin-bottom: var(--s4); }
+  .scan i { display: block; height: 100%; background: var(--ac); transition: width 1.4s; }
+  .hw { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); margin-bottom: var(--s4); }
+  .hw div { border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3); background: var(--panel); min-width: 0; }
+  .hw small { display: block; color: var(--tx3); font: 600 var(--fs-xs) var(--font); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: var(--s1); }
+  .hw b { font-weight: 550; font-size: 13px; display: block; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+  .card { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-lg); padding: var(--s4); margin-top: var(--s4); }
+  .card p { margin: var(--s1) 0 var(--s3); color: var(--tx2); font-size: 13px; }
+  .fin { text-align: center; padding-top: var(--s10); }
+  .big { width: 56px; height: 56px; border: 2px solid var(--tx2); border-radius: var(--r-xl); margin: 0 auto var(--s5); display: grid; place-items: center; color: var(--ac); }
+  .sum { display: inline-block; text-align: left; min-width: 360px; max-width: 100%; }
+  .sum div { display: flex; justify-content: space-between; gap: var(--s6); padding: var(--s2) 0; border-bottom: 1px solid var(--line); font-size: 13px; min-width: 0; }
+  .sum div:last-child { border-bottom: none; }
+  .sum div span:first-child { color: var(--tx2); flex: none; }
+  @media (max-width: 860px) { .win { grid-template-columns: 1fr; height: auto; } .rail { display: none; } .step { padding: var(--s6) var(--s5); } .hw, .two { grid-template-columns: 1fr 1fr; } .nav { padding: var(--s4) var(--s5); } }
+</style>
