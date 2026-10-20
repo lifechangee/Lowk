@@ -11,6 +11,7 @@ export const main = {
   'main.stopRecording': 'Stop',
   'main.recordingNow': 'Recording',
   'main.recordingSource': '{folder} · {source}',
+  'main.sttLoading': 'Loading the speech model… Recording has started; nothing you say is lost.',
   'main.liveNotice': 'Recording. The overlay shows captions and answers.',
   'main.openCall': 'Open call',
   'main.searchPlaceholder': 'Search all calls, documents and screenshots',

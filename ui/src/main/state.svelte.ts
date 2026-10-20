@@ -101,6 +101,8 @@ class Session {
   sourceLabel = $state('');
   callId = $state<string | null>(null);
   lines = $state<(LiveLine & { at_s: number })[]>([]);
+  /** The local speech model is still loading (`stt://loading`). */
+  sttLoading = $state(false);
   elapsed = $derived(this.phase === 'recording' ? Math.max(0, Math.floor((this.now - this.startedAt) / 1000)) : 0);
   #tick: ReturnType<typeof setInterval> | null = null;
   #off: (() => void) | null = null;
@@ -198,6 +200,7 @@ export function attachEvents(): void {
   let t: ReturnType<typeof setTimeout> | undefined;
   void on(EVENTS.storeChanged, () => { clearTimeout(t); t = setTimeout(() => void library.reload(), 300); });
   void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; locale.setSetting((s.ui?.language ?? 'auto') as LangSetting); });
-  void on<SessionState>(EVENTS.sessionState, (s) => session.sync(s));
+  void on<SessionState>(EVENTS.sessionState, (s) => { if (s.phase === 'idle') session.sttLoading = false; session.sync(s); });
+  void on<{ loading: boolean }>(EVENTS.sttLoading, (e) => (session.sttLoading = e.loading));
   void on<{ route?: string }>(EVENTS.sessionEnded, () => { void library.reload().then(() => { router.go(hrefs.home); }); });
 }

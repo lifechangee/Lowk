@@ -35,3 +35,6 @@ docs/qa/report.html
 docs/qa/shots/
 docs/qa/real/
 ui/e2e/baselines/
+
+# staged STT worker sidecar (tools/build-worker.sh)
+/crates/lowk-app/binaries/

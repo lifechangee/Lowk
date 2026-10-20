@@ -87,6 +87,8 @@ pub fn register_types(types: &mut specta::Types) {
 pub mod events {
     pub const STT_SEGMENT: &str = "stt://segment";
     pub const STT_ERROR: &str = "stt://error";
+    /// Payload `{ "loading": bool }`: the local engine is loading its model.
+    pub const STT_LOADING: &str = "stt://loading";
     pub const QA_MY_ANSWER: &str = "qa://my-answer";
     pub const SESSION_STATE: &str = "session://state";
     /// A recording ended (any path); payload `{ "route": "home" }`. The app has just

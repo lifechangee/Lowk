@@ -56,6 +56,7 @@ export const overlay = {
   'overlay.hint.move': 'Hold {key} to drag · {type} to type',
   'overlay.move.badge': 'Moving · release {key} to return to click-through',
   'overlay.toast.shot': 'Screenshot added',
+  'overlay.sttLoading': 'Loading the speech model… Nothing you say is lost.',
   'overlay.sttRestarting': 'Speech engine restarting…',
   'overlay.sttFailed': 'Speech engine stopped. Check Settings > Providers.',
   'overlay.waiting': 'Listening…',

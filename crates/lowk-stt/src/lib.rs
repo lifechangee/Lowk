@@ -48,6 +48,11 @@ pub trait SttEngine: Send {
     fn stats(&self) -> Option<StreamDiag> {
         None
     }
+    /// False while the engine is still loading its model (local sidecars: seconds on a cold
+    /// start). Audio pushed meanwhile is queued, not lost.
+    fn is_ready(&self) -> bool {
+        true
+    }
 }
 
 pub trait SttEngineFactory: Send + Sync {
@@ -72,6 +77,10 @@ pub trait SttEngineFactory: Send + Sync {
     }
     fn license_url(&self) -> String {
         String::new()
+    }
+    /// False when the program that runs the engine cannot be found (local sidecars).
+    fn runtime_available(&self) -> bool {
+        true
     }
 }
 
@@ -137,6 +146,7 @@ impl EngineRegistry {
                     recommended: rec.as_deref() == Some(d.id.as_str()),
                     needs_key: f.needs_key(),
                     license_url: f.license_url(),
+                    runtime_missing: !f.runtime_available(),
                     descriptor: d,
                 }
             })

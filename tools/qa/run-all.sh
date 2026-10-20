@@ -9,6 +9,12 @@ echo "== 1/4 qa guard";            tools/qa/check-no-qa-release.sh || RC=1
 echo "== 2/4 ui visual + layout";  pnpm --dir ui exec playwright test --update-snapshots=missing || RC=1
 if [ "$(uname)" = "Darwin" ] && [ -z "${QA_SKIP_APP:-}" ]; then
   echo "== 3/4 real app (qa build)"; node tools/qa/app-qa.mjs || RC=1
+  if [ -d "$HOME/Library/Application Support/Lowk/models/nemotron-local" ] && [ -x workers/lowk-stt-worker/target/release/lowk-stt-worker ]; then
+    echo "== 3b/4 real app, speech: cold-start loading state, bundled worker, warm-up (needs: just build)"
+    node tools/qa/m1-e2e.mjs --stage loading,bundle,warmup || RC=1
+  else
+    echo "== 3b/4 real app, speech: skipped (needs the local model in ~/Library/Application Support/Lowk/models and tools/build-worker.sh)"
+  fi
 else
   echo "== 3/4 real app: skipped (needs macOS; QA_SKIP_APP set?)"
 fi

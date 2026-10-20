@@ -82,6 +82,124 @@ impl Corrector for LazyCorrector {
     }
 }
 
+/// Percentage of memory still free (macOS `kern.memorystatus_level`); 100 where unknown.
+fn free_memory_pct() -> u32 {
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(o) = std::process::Command::new("/usr/sbin/sysctl")
+            .args(["-n", "kern.memorystatus_level"])
+            .output()
+        {
+            if let Ok(v) = String::from_utf8_lossy(&o.stdout).trim().parse::<u32>() {
+                return v;
+            }
+        }
+    }
+    100
+}
+
+/// Below this much free memory (percent) the background warm-up is cancelled / not started.
+const WARM_MIN_FREE_PCT: u32 = 25;
+
+/// Runs one `warm` worker at background priority; kills it when memory gets tight or the
+/// app is quitting. Returns false when cancelled.
+fn run_warm(exe: &std::path::Path, args: Vec<String>, stop: &AtomicBool) -> bool {
+    let spec = SidecarSpec {
+        exe: exe.to_path_buf(),
+        args,
+        nice: 19,
+    };
+    let Ok(mut child) = lowk_stt::sidecar::spawn_worker(&spec) else {
+        return true;
+    };
+    lowk_stt::sidecar::drain_stderr(&mut child, "warm");
+    // stdout is tiny (one line); dropping the pipe is fine
+    let t0 = std::time::Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) | Err(_) => return true,
+            Ok(None) => {}
+        }
+        if stop.load(Ordering::Relaxed)
+            || free_memory_pct() < WARM_MIN_FREE_PCT
+            || t0.elapsed().as_secs() > 120
+        {
+            let _ = child.kill();
+            let _ = child.wait();
+            return false;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+}
+
+impl AppState {
+    /// Cold-start fix: shortly after launch, load the installed local engine once at background
+    /// priority so the model sits in the OS file cache and the GPU pipelines are compiled; the
+    /// first Record then starts in well under a second instead of up to ~15 s. Memory-friendly
+    /// (the process exits right after loading) and cancelled under memory pressure.
+    pub fn spawn_engine_warmup(self: &Arc<Self>) {
+        if std::env::var_os("LOWK_NO_WARMUP").is_some() {
+            return;
+        }
+        let st = self.clone();
+        let _ = std::thread::Builder::new()
+            .name("lowk-warmup".into())
+            .spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                let Some(id) = st.effective_engine() else { return };
+                if id != local::NEMOTRON_ID || !st.engine_ready() {
+                    return;
+                }
+                if st.session.state().phase != SessionPhase::Idle {
+                    return; // a call is starting: its own workers load the model
+                }
+                if free_memory_pct() < WARM_MIN_FREE_PCT {
+                    tracing::info!("engine warm-up skipped: memory pressure");
+                    return;
+                }
+                let (Some(store), Some(exe)) = (ModelStore::default_location(), local::find_worker()) else {
+                    return;
+                };
+                let stop = AtomicBool::new(false);
+                let t0 = std::time::Instant::now();
+                let ok = run_warm(
+                    &exe,
+                    vec![
+                        "warm".into(),
+                        "--model".into(),
+                        store
+                            .path(local::NEMOTRON_ID, local::NEMOTRON_FILE)
+                            .to_string_lossy()
+                            .into_owned(),
+                        "--vad".into(),
+                        store
+                            .path(local::NEMOTRON_ID, local::SILERO_FILE)
+                            .to_string_lossy()
+                            .into_owned(),
+                        "--right".into(),
+                        local::LocalTuning::default().right.to_string(),
+                    ],
+                    &stop,
+                );
+                if ok && st.settings.get().stt.background_correction && local::whisper_installed(&store) {
+                    run_warm(
+                        &exe,
+                        vec![
+                            "warm".into(),
+                            "--model".into(),
+                            store
+                                .path(local::WHISPER_ID, local::WHISPER_FILE)
+                                .to_string_lossy()
+                                .into_owned(),
+                        ],
+                        &stop,
+                    );
+                }
+                tracing::info!(ms = t0.elapsed().as_millis() as u64, ok, "engine warm-up done");
+            });
+    }
+}
+
 /// `AudioBackend` over the boxed per-OS backend (the session wants a sized `Mutex<dyn _>`).
 pub struct DynBackend(pub Box<dyn lowk_audio::AudioBackend>);
 impl lowk_audio::AudioBackend for DynBackend {

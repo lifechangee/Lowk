@@ -159,6 +159,11 @@ export type AppEvent = { type: "stt"; data: SttEvent } | { type: "session"; data
 { type: "my_answer"; data: QaUpdate } | 
 /**  An STT engine failed (isolated per stream). */
 { type: "stt_error"; data: SttError } | 
+/**
+ *  The local speech engine is loading its model (true) / is ready (false). Audio captured
+ *  meanwhile is buffered and transcribed once it is.
+ */
+{ type: "stt_loading"; data: boolean } | 
 /**  Model download / verification progress. */
 { type: "engine_progress"; data: EngineProgress };
 
@@ -328,6 +333,8 @@ export type EngineInfo = {
 	needs_key: boolean,
 	/**  Link shown with the licence text before any download. */
 	license_url: string,
+	/**  The helper program that runs the engine is missing (local engines; damaged install). */
+	runtime_missing: boolean,
 };
 
 export type EngineKind = "local" | "cloud";

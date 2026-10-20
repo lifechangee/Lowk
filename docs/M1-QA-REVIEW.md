@@ -46,8 +46,8 @@ Also found and fixed: live page duplicated lines when correction re-emitted an u
 `just qa` real-app (first run, all PASS): G1 size presets overlay+main, G2 pill drag + remembered position, G3 picker (presets, no ids), G5 no duplicate button/popover, G6 per-template ask ⌘⇧↵, hold-⌃ 20x clickable with 0 absent frames, G7 queue per monitor with own windows excluded. Not machine-verified: installed-apps list contents in "Other…" (real list not inspected), **⌘⇧I typing with real keystrokes** (not run: no keystroke injection), G4 grant prompt. Re-run after screen wake for the SCK-dependent ones.
 
 ## 5. Remaining issues
-* HIGH: worker `lowk-stt-worker` has no distribution; with models installed but no worker the record bind still silently plays the demo. Card cannot show it.
-* HIGH: cold start (model load not signalled, up to ~15 s of backlog on the first call after boot).
+* ~~HIGH: worker distribution~~ FIXED: bundled as a Tauri sidecar (`just build`), card shows `runtime_missing` (DECISIONS-M1 §8).
+* ~~HIGH: cold start~~ FIXED: background warm-up after launch + «Загружаем модель распознавания…» state in overlay and main window; audio is buffered (DECISIONS-M1 §8).
 * MED: p95 word-to-screen ~1.4 s (target 1 s); correction adds latency at R=6.
 * MED: `installed()` checks file size only; a same-size corrupt model is "ready".
 * MED: a crash loses finals pending correction (journal waits for the better text, a few seconds).

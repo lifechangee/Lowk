@@ -146,10 +146,6 @@ impl SidecarEngine {
             lang_arg: Mutex::new(None),
         }
     }
-
-    pub fn is_ready(&self) -> bool {
-        self.shared.ready.load(Ordering::Relaxed)
-    }
 }
 
 /// `["ru","en"]` -> `auto`; `["ru"]` -> `ru-RU`.
@@ -252,6 +248,10 @@ impl SttEngine for SidecarEngine {
 
     fn stats(&self) -> Option<StreamDiag> {
         Some(self.shared.stats.diag(self.stream))
+    }
+
+    fn is_ready(&self) -> bool {
+        self.shared.ready.load(Ordering::Relaxed)
     }
 }
 
@@ -500,6 +500,69 @@ mod tests {
         assert!(evs[0].utt >= 1_000_000);
         assert_eq!(sink.errors.lock().unwrap().len(), 1);
         assert!(sink.errors.lock().unwrap()[0].recoverable);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn not_ready_while_the_worker_loads_and_audio_is_queued() {
+        // A shell "worker" that needs 1.2 s to load: not ready until then; the audio pushed
+        // meanwhile is still delivered afterwards (it waits in the pipe, nothing is dropped).
+        let dir = std::env::temp_dir().join(format!("lowk-sidecar-load-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let script = dir.join("w.sh");
+        let got = dir.join("got");
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nsleep 1.2\necho '{{\"ev\":\"ready\"}}'\ncat > {}\n",
+                got.display()
+            ),
+        )
+        .unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let desc = EngineDescriptor {
+            id: "t".into(),
+            name: "t".into(),
+            kind: EngineKind::Local,
+            languages: vec![],
+            streaming: StreamingMode::Native,
+            size_mb: 0,
+            license: "".into(),
+        };
+        let mut e = SidecarEngine::new(
+            desc,
+            Stream::Me,
+            SidecarSpec {
+                exe: script,
+                args: vec![],
+                nice: 0,
+            },
+            0,
+        );
+        let cfg = SttConfig {
+            stream: Stream::Me,
+            langs: vec![],
+            vocab_hints: vec![],
+        };
+        e.start(&cfg, arc_sink()).unwrap();
+        assert!(!e.is_ready());
+        e.push(&Frame16k {
+            stream: Stream::Me,
+            t_mono_ns: 1,
+            pcm: vec![0.1; 320],
+        })
+        .unwrap();
+        let t0 = Instant::now();
+        while !e.is_ready() && t0.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(e.is_ready());
+        assert!(t0.elapsed() > Duration::from_millis(500), "was ready too early");
+        e.stop().unwrap();
+        let n = std::fs::metadata(&got).map(|m| m.len()).unwrap_or(0);
+        assert!(n > 320 * 2, "queued audio reached the worker: {n} bytes");
         let _ = std::fs::remove_dir_all(dir);
     }
 }

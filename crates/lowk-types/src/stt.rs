@@ -170,6 +170,8 @@ pub struct EngineInfo {
     pub needs_key: bool,
     /// Link shown with the licence text before any download.
     pub license_url: String,
+    /// The helper program that runs the engine is missing (local engines; damaged install).
+    pub runtime_missing: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]

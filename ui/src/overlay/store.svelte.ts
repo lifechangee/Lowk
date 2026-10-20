@@ -60,6 +60,8 @@ export class OverlayStore {
   sub = $state<SubLine | null>(null);
   /** Engine failure of a stream (`stt://error`); cleared by the next transcript event. */
   sttError = $state<{ recoverable: boolean } | null>(null);
+  /** The local speech model is still loading (`stt://loading`); audio is buffered and transcribed once it is up. */
+  sttLoading = $state(false);
   /** Highest utterance id seen per stream: a lower one is a background correction of the past. */
   #maxUtt: Record<string, number> = {};
   answer = $state('');

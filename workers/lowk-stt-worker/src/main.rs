@@ -11,6 +11,10 @@
 //! usage: lowk-stt-worker stream  --model X.gguf --vad V.gguf [--lang auto|ru-RU] [--right 6]
 //!                                [--chunk-ms 160] [--hang-ms 480] [--max-utt-s 25]
 //!        lowk-stt-worker correct --model W.gguf [--threads N]
+//!        lowk-stt-worker warm    --model X.gguf [--vad V.gguf]   (load, warm up, exit: fills the OS
+//!                                file cache and the GPU pipeline cache before the first call)
+//!        lowk-stt-worker --version
+//! QA only: `LOWK_QA_LOAD_DELAY_MS` delays the `ready` event of `stream` (simulates a cold load).
 use serde_json::{json, Value};
 use std::collections::VecDeque;
 use std::io::{BufReader, Read, Write};
@@ -161,6 +165,9 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
 
     let asr = Model::load(&model)?;
     let vad = Model::load(&vad_path)?;
+    if let Some(ms) = std::env::var("LOWK_QA_LOAD_DELAY_MS").ok().and_then(|v| v.parse::<u64>().ok()) {
+        std::thread::sleep(std::time::Duration::from_millis(ms));
+    }
     let mut asr_s = asr.session()?;
     let mut vad_s = vad.vad_session()?;
     let run = RunOptions {
@@ -331,9 +338,40 @@ fn run_correct(a: &[String]) -> Result<(), BoxErr> {
     Ok(())
 }
 
+/// Loads the model(s) once and exits.
+fn run_warm(a: &[String]) -> Result<(), BoxErr> {
+    let model = arg(a, "--model").ok_or("--model")?;
+    let asr = Model::load(&model)?;
+    if arg(a, "--vad").is_some() {
+        // same warm-up as `stream`: compiles the GPU pipelines
+        let right: i32 = arg(a, "--right").and_then(|s| s.parse().ok()).unwrap_or(3);
+        let mut s = asr.session()?;
+        let run = RunOptions::default();
+        let so = StreamOptions {
+            family: Some(StreamExtension::ParakeetStream(ParakeetStreamOptions {
+                att_context_right: Some(right),
+            })),
+            ..Default::default()
+        };
+        let mut st = s.stream(&run, &so)?;
+        let z = vec![0.0f32; 2560];
+        for _ in 0..6 {
+            st.feed(&z)?;
+        }
+        st.finalize()?;
+    }
+    emit(json!({"ev":"ready","backend":asr.backend()}));
+    Ok(())
+}
+
 fn main() {
     let a: Vec<String> = std::env::args().collect();
+    if a.get(1).map(String::as_str) == Some("--version") {
+        println!("lowk-stt-worker {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
     let r = match a.get(1).map(String::as_str) {
+        Some("warm") => run_warm(&a),
         Some("stream") => run_stream(&a),
         Some("correct") => run_correct(&a),
         _ => Err("usage: lowk-stt-worker <stream|correct> --model ...".into()),

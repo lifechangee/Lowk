@@ -37,3 +37,11 @@ test('engine card: cancel returns to the install button', async ({ page }) => {
   await card.getByRole('button', { name: 'Cancel' }).click();
   await expect(card.getByRole('button', { name: /Download|Try again/ })).toBeVisible({ timeout: 5000 });
 });
+
+test('engine card: model installed but the speech component missing says so (no silent demo)', async ({ page }) => {
+  const card = await openCard(page, '&runtime=missing');
+  await card.getByRole('button', { name: /Download/ }).click();
+  await expect(card).toContainText('Installed', { timeout: 5000 });
+  await expect(card.getByTestId('engine-runtime-missing')).toContainText('speech component');
+  await expect(card).not.toContainText('transcribed on this computer');
+});

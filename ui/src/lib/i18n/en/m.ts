@@ -140,6 +140,7 @@ export const m = {
   'm.engine.retry': 'Try again (resumes)',
   'm.engine.license': 'License {license}',
   'm.engine.ready': 'Ready: calls are transcribed on this computer.',
+  'm.engine.runtimeMissing': 'The model is installed, but the speech component (lowk-stt-worker) is missing. Reinstall the app; until then recording plays the demo.',
   'm.engine.errChecksum': 'The file failed its integrity check and was removed. Try again.',
   'm.engine.errNetwork': 'Connection lost. Try again: the download resumes.',
   'm.engine.errGeneric': 'Download failed. Try again.',

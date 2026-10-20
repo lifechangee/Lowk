@@ -179,6 +179,7 @@ export class MockBackend implements Backend {
       recommended: d.id === 'whisper-large-v3-turbo',
       needs_key: d.kind === 'cloud',
       license_url: 'https://openmdw.ai/license/1-1/',
+      runtime_missing: d.kind === 'local' && typeof location !== 'undefined' && /[?&]runtime=missing\b/.test(location.search),
     }));
   }
   async engineInstall(id: string): Promise<void> {

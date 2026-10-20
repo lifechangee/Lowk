@@ -64,6 +64,8 @@
         {#if error !== null}<span class="msg lbl err" role="alert">{reason(error)}</span>{/if}
       </div>
       <p class="note">{tm('m.engine.license', { license: info.descriptor.license })} · {info.license_url}</p>
+    {:else if info.runtime_missing}
+      <p class="note msg err" role="alert" data-testid="engine-runtime-missing">{tm('m.engine.runtimeMissing')}</p>
     {:else}
       <p class="note">{tm('m.engine.ready')}</p>
     {/if}

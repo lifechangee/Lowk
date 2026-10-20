@@ -24,6 +24,9 @@ pub enum AppEvent {
     MyAnswer(QaUpdate),
     /// An STT engine failed (isolated per stream).
     SttError(SttError),
+    /// The local speech engine is loading its model (true) / is ready (false). Audio captured
+    /// meanwhile is buffered and transcribed once it is.
+    SttLoading(bool),
     /// Model download / verification progress.
     EngineProgress(EngineProgress),
 }
@@ -49,6 +52,7 @@ impl AppEvent {
             AppEvent::Level(_) => AUDIO_LEVEL,
             AppEvent::MyAnswer(_) => QA_MY_ANSWER,
             AppEvent::SttError(_) => STT_ERROR,
+            AppEvent::SttLoading(_) => STT_LOADING,
             AppEvent::EngineProgress(_) => ENGINE_PROGRESS,
         }
     }

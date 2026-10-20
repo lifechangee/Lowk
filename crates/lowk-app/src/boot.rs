@@ -155,6 +155,7 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
 
     // ---- settings side effects ----
     spawn_settings_watcher(state.clone());
+    state.spawn_engine_warmup();
 
     // ---- vault ----
     if s.onboarding.done {

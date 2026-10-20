@@ -70,7 +70,7 @@
   {#if route.name === 'onboarding'}
     <Onboarding step={route.step} />
   {:else}
-    <div class="app">
+    <div class="app" class:ld={session.phase === 'recording' && session.sttLoading}>
       <header class="tb">
         <a class="wm" href={hrefs.home} title={tm('m.toLibrary')}><i></i><span class="lbl">{tm('app.name')}</span></a>
         <nav class="crumb" aria-label="breadcrumb">
@@ -95,6 +95,9 @@
           <NewCallPopover folderHint={route.name === 'folder' ? route.id : route.name === 'call' ? (library.call(route.id)?.deleted ? null : folderKey(library.call(route.id)?.folder ?? { kind: 'unsorted' })) : null} onclose={() => (ui.newCallOpen = false)} />
         {/if}
       </header>
+      {#if session.phase === 'recording' && session.sttLoading}
+        <div class="loadbar lbl" role="status" data-testid="stt-loading"><i class="spin"></i>{tm('main.sttLoading')}</div>
+      {/if}
       <div class="content">
         {#if route.name === 'home'}<Home flash={ui.flashNew} />
         {:else if route.name === 'settings'}<SettingsView page={route.page} />
@@ -111,6 +114,10 @@
 {/if}
 
 <style>
+  .loadbar { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) var(--s4); background: var(--acbg); color: var(--ac); font-size: 12px; line-height: 20px; }
+  .loadbar .spin { width: 10px; height: 10px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; animation: ldspin 0.9s linear infinite; flex: none; }
+  @keyframes ldspin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .loadbar .spin { animation: none; } }
   :global(body) { overflow: hidden; }
   :global(html.dnd-on), :global(html.dnd-on *) { user-select: none; -webkit-user-select: none; cursor: grabbing !important; }
   :global(html.dnd-on [data-drop]) { outline: 1px dashed var(--tx3); outline-offset: -1px; }
@@ -134,6 +141,7 @@
   .crumb { flex: 0 1 auto; }
   .gear { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r); color: var(--tx2); flex: none; }
   .gear:hover { background: var(--hv); color: var(--tx); }
+  .app.ld { grid-template-rows: 48px auto minmax(0, 1fr); }
   .content { min-height: 0; min-width: 0; overflow: hidden; }
   .toast { position: fixed; bottom: var(--s6); left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r); padding: var(--s2) var(--s4); font-size: 13px; box-shadow: var(--sh); z-index: 60; max-width: calc(100% - 32px); }
 </style>

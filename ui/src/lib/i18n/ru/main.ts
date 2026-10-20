@@ -11,6 +11,7 @@ export const main = {
   'main.stopRecording': 'Остановить',
   'main.recordingNow': 'Идёт запись',
   'main.recordingSource': '{folder} · {source}',
+  'main.sttLoading': 'Загружаем модель распознавания… Запись уже идёт, звук не пропадёт.',
   'main.liveNotice': 'Идёт запись. Оверлей показывает субтитры и ответы.',
   'main.openCall': 'Открыть созвон',
   'main.searchPlaceholder': 'Искать по всем созвонам, документам и скриншотам',

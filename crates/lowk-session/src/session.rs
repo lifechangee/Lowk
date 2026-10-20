@@ -69,6 +69,8 @@ struct Core {
     pending_q: HashMap<QaId, String>,
     last_meta: Option<CallMeta>,
     stt_errors: Vec<SttError>,
+    /// A local engine is still loading its model (mirrors `AppEvent::SttLoading`).
+    stt_loading: bool,
 }
 
 impl Core {
@@ -98,6 +100,7 @@ impl Core {
             pending_q: HashMap::new(),
             last_meta: None,
             stt_errors: vec![],
+            stt_loading: false,
         }
     }
 
@@ -252,6 +255,10 @@ impl Session {
             self.inner.snapshot_diag(&e);
         }
         self.inner.core().last_diag.clone()
+    }
+    /// True while a local engine is still loading its model.
+    pub fn stt_loading(&self) -> bool {
+        self.inner.core().stt_loading
     }
     pub fn stt_errors(&self) -> Vec<SttError> {
         self.inner.core().stt_errors.clone()
@@ -600,6 +607,7 @@ impl Inner {
         }
         let engines: Engines = Arc::new(engines);
         self.core().engines = Some(engines.clone());
+        self.watch_engine_loading(&engines);
 
         // Background correction (engine #2): local engines only, never required.
         let local = self
@@ -665,6 +673,42 @@ impl Inner {
         )?;
         self.core().capture = Some(handle);
         Ok(id)
+    }
+
+    /// Publishes `AppEvent::SttLoading` while a local engine is still loading its model (a cold
+    /// start takes seconds). Captured audio is queued by the engine meanwhile, so nothing is lost
+    /// and the subtitles start the moment the model is up. Ends with the session.
+    fn watch_engine_loading(self: &Arc<Self>, engines: &Engines) {
+        if engines.values().all(|e| e.lock().unwrap().is_ready()) {
+            return;
+        }
+        let me = Arc::downgrade(self);
+        let engines = Arc::downgrade(engines);
+        let spawned = std::thread::Builder::new()
+            .name("lowk-stt-loading".into())
+            .spawn(move || {
+                let mut shown = false;
+                loop {
+                    let (Some(i), Some(es)) = (me.upgrade(), engines.upgrade()) else {
+                        break;
+                    };
+                    let alive = i.core().engines.as_ref().is_some_and(|c| Arc::ptr_eq(c, &es));
+                    let loading = alive && !es.values().all(|e| e.lock().unwrap().is_ready());
+                    if loading != shown {
+                        shown = loading;
+                        i.core().stt_loading = loading;
+                        i.bus.emit(AppEvent::SttLoading(loading));
+                    }
+                    if !alive {
+                        break;
+                    }
+                    drop((i, es));
+                    std::thread::sleep(std::time::Duration::from_millis(150));
+                }
+            });
+        if let Err(e) = spawned {
+            tracing::warn!(?e, "cannot watch engine loading");
+        }
     }
 
     /// Stops capture, then flushes and stops the engines. The recorder stays

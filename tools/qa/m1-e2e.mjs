@@ -2,13 +2,18 @@
 // M1 end-to-end QA in the REAL app (macOS, `qa` build). NO sound is ever played: the System and Me
 // streams are fed from files (LOWK_QA_SYSTEM_FILE / LOWK_QA_ME_FILE, qa builds only).
 //
-//   node tools/qa/m1-e2e.mjs [--no-build] [--stage live|noengine|install]
+//   node tools/qa/m1-e2e.mjs [--no-build] [--stage live|noengine|install|loading|bundle|warmup]
 //
 // live      : record from files with the owner's local model; live subtitles in the overlay, finals in the
 //             call .md, background correction, Ask on a partial, "Мой ответ" closes only on the next Ask,
 //             stop -> main window home.
 // noengine  : HOME points at an empty dir (no model, no worker): the record bind must say why it plays the demo.
 // install   : same empty HOME, drive the real download card: progress, cancel, resume, corrupt file.
+// loading   : cold start: the worker needs LOWK_QA_LOAD_DELAY_MS to load its model. Record shows the
+//             «Загружаем модель распознавания…» state in the overlay AND the main window, subtitles start the moment
+//             the model is up, and the audio captured meanwhile is transcribed (journal timestamps from second 0).
+// bundle    : the built Lowk.app carries the worker (Contents/MacOS, runs); a qa binary laid out like a bundle
+//             (worker only next to the executable, no env, dev fallback off) starts a REAL session and gets subtitles.
 // Output: docs/qa/m1/results.json + PNG + copies of the call .md.
 import { spawn, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, truncateSync, writeFileSync } from 'node:fs';
@@ -23,7 +28,7 @@ const bin = join(targetDir, 'debug', 'lowk');
 const cap = join(tmpdir(), 'lowk-qa-cap');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const arg = (k) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : undefined; };
-const stages = (arg('--stage') ?? 'live,noengine,install').split(',');
+const stages = (arg('--stage') ?? 'live,noengine,install,loading,bundle,warmup').split(',');
 const checks = [];
 const add = (c) => { checks.push(c); console.log(`${c.ok ? 'PASS' : 'FAIL'}  ${c.name}  ${c.detail ?? ''}`); };
 
@@ -42,7 +47,7 @@ const worker = join(root, 'workers/lowk-stt-worker/target/release/lowk-stt-worke
 const audio = join(root, 'spikes/stt-bench/audio');
 
 /** Starts one QA instance. `home` overrides $HOME (app data, models, keychain lookups). */
-async function launch({ home, env = {}, settings = '' }) {
+async function launch({ home, env = {}, settings = '', exe = bin }) {
   const work = mkdtempSync(join(tmpdir(), 'lowk-m1-'));
   const data = join(work, 'data');
   mkdirSync(data, { recursive: true });
@@ -50,8 +55,9 @@ async function launch({ home, env = {}, settings = '' }) {
   const port = 19000 + Math.floor(Math.random() * 900);
   const token = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
   const penv = { ...env0, LOWK_QA_MULTI: '1', LOWK_DATA_DIR: data, LOWK_QA_PORT: String(port), LOWK_QA_TOKEN: token, ...env };
+  for (const k of Object.keys(penv)) if (penv[k] === null) delete penv[k]; // null = unset
   if (home) penv.HOME = home;
-  const app = spawn(bin, [], { env: penv, stdio: ['ignore', 'ignore', 'ignore'] });
+  const app = spawn(exe, [], { env: penv, stdio: ['ignore', 'ignore', 'ignore'] });
   const cmd = async (line) => (await fetch(`http://127.0.0.1:${port}/cmd`, { method: 'POST', headers: { 'X-Lowk-Qa-Token': token }, body: line })).text();
   const ev = async (win, expr) => {
     const t = await cmd(`eval ${win} ${expr}`);
@@ -275,13 +281,115 @@ async function stageInstall() {
   } finally { await a.kill(); rmSync(home, { recursive: true, force: true }); }
 }
 
+/** Waits for the first overlay subtitle; returns ms since `t0` (null on timeout). Also records the loading text. */
+async function watchStart(a, t0, maxMs) {
+  const probe = `(()=>{const q=s=>document.querySelector(s);const l=q('[data-testid=stt-loading]');const sub=q('.sub .txt');const w=q('.sub .wait');return {loading:l?l.innerText:null,sub:sub?sub.innerText:null,wait:w?w.innerText:null}})()`;
+  const seen = { loadingAt: null, loadingText: null, subAt: null, loadingAfterSub: false, mainLoading: null };
+  while (Date.now() - t0 < maxMs) {
+    const s = await a.ev('overlay', probe).catch(() => null);
+    const t = Date.now() - t0;
+    seen.last = s;
+    if (s?.loading && seen.loadingAt === null) { seen.loadingAt = t; seen.loadingText = s.loading; }
+    if (s?.loading && seen.mainLoading === null) {
+      seen.mainLoading = await a.ev('main', `(()=>{const l=document.querySelector('[data-testid=stt-loading]');return l?l.innerText:null})()`).catch(() => null);
+    }
+    if (s?.sub && seen.subAt === null) { seen.subAt = t; }
+    if (s?.sub && s?.loading) seen.loadingAfterSub = true;
+    if (seen.subAt !== null) break;
+    await sleep(100);
+  }
+  return seen;
+}
+const fileEnv = () => ({ LOWK_QA_SYSTEM_FILE: join(audio, '03_them_q.m4a'), LOWK_QA_ME_FILE: join(audio, '03_me_q.m4a') });
+const nemotronSettings = '[stt]\nengine = "nemotron-local"\nlanguages = ["ru", "en"]\nbackground_correction = false\n';
+
+async function stageLoading() {
+  const DELAY = 6000;
+  const a = await launch({ env: { ...fileEnv(), LOWK_STT_WORKER: worker, LOWK_QA_LOAD_DELAY_MS: String(DELAY), LOWK_NO_WARMUP: '1' }, settings: nemotronSettings });
+  try {
+    await a.cmd('nav #/');
+    await sleep(1200);
+    await a.cmd('exclusion off');
+    const t0 = Date.now();
+    await a.cmd('bind toggle_record down'); await a.cmd('bind toggle_record up');
+    const seen = await watchStart(a, t0, 30_000);
+    const main = seen.mainLoading;
+    const shot = await a.shot('overlay', 'loading-overlay.png');
+    add({ name: 'cold start: Record before the model is ready shows «Загружаем модель распознавания…» in the overlay (not a silent «Слушаю…»)', ok: seen.loadingAt !== null && seen.loadingAt < 4000 && /Загружаем|Loading the speech/.test(seen.loadingText ?? ''), detail: `loading text after ${seen.loadingAt} ms: "${seen.loadingText}"`, shots: shot ? [shot] : [] });
+    add({ name: 'cold start: the main window shows the same loading state while recording', ok: !!main && /Загружаем|Loading the speech/.test(main), detail: JSON.stringify(main) });
+    add({ name: 'cold start: subtitles start when the model is ready (not before), and the loading text is gone', ok: seen.subAt !== null && seen.subAt >= DELAY - 1500 && seen.subAt < DELAY + 12_000 && !seen.loadingAfterSub, detail: `first subtitle after ${seen.subAt} ms (model delay ${DELAY} ms)` });
+    // finish the recording and read the journal
+    await sleep(5000);
+    await a.cmd('bind toggle_record down'); await a.cmd('bind toggle_record up');
+    await sleep(4000);
+    const mds = findMd(a.vault);
+    const md = mds.length ? readFileSync(mds[0], 'utf8') : '';
+    const stamps = [...md.matchAll(/^\[(\d\d):(\d\d):(\d\d)\] \*\*/gm)].map((m) => +m[1] * 3600 + +m[2] * 60 + +m[3]);
+    add({ name: 'cold start: audio captured while the model loaded is buffered and transcribed (journal has lines stamped from the first seconds, not only after the load)', ok: stamps.length > 0 && Math.min(...stamps) < DELAY / 1000 - 1, detail: `${stamps.length} journal lines; earliest stamp ${Math.min(...stamps)} s; model ready at ~${DELAY / 1000} s` });
+  } finally { await a.kill(); }
+}
+
+async function stageBundle() {
+  // 1) the product: the app bundle built by `just build`
+  const app = join(root, 'target/release/bundle/macos/Lowk.app/Contents/MacOS');
+  const bw = join(app, 'lowk-stt-worker');
+  if (existsSync(bw)) {
+    const v = spawnSync(bw, ['--version'], { encoding: 'utf8' });
+    add({ name: 'bundle: Lowk.app ships the STT worker next to the executable and it runs', ok: v.status === 0 && /lowk-stt-worker/.test(v.stdout) && existsSync(join(app, 'lowk')), detail: `${(statSync(bw).size / 1048576).toFixed(1)} MB; ${v.stdout.trim()}` });
+  } else {
+    add({ name: 'bundle: Lowk.app ships the STT worker next to the executable and it runs', ok: false, detail: `missing ${bw} (run: just build)` });
+  }
+  // 2) the lookup: a qa binary laid out like the bundle, worker ONLY beside the executable, no env hints
+  const lay = mkdtempSync(join(tmpdir(), 'lowk-bundle-'));
+  const mac = join(lay, 'Lowk.app/Contents/MacOS');
+  mkdirSync(mac, { recursive: true });
+  copyFileSync(bin, join(mac, 'lowk'));
+  copyFileSync(existsSync(bw) ? bw : worker, join(mac, 'lowk-stt-worker'));
+  spawnSync('chmod', ['+x', join(mac, 'lowk'), join(mac, 'lowk-stt-worker')]);
+  const a = await launch({ exe: join(mac, 'lowk'), env: { ...fileEnv(), LOWK_STT_WORKER: null, LOWK_NO_DEV_WORKER: '1', LOWK_NO_WARMUP: '1' }, settings: nemotronSettings });
+  try {
+    await a.cmd('nav #/settings/providers');
+    await sleep(1200);
+    const card = await a.ev('main', `(()=>{const c=document.querySelector('[data-testid=engine-card]');return c?c.innerText:null})()`);
+    const missing = await a.ev('main', `!!document.querySelector('[data-testid=engine-runtime-missing]')`);
+    add({ name: 'bundle: the engine card finds the bundled worker (no «component missing» warning)', ok: !!card && missing === false, detail: JSON.stringify(card)?.slice(0, 160) });
+    await a.cmd('nav #/');
+    await sleep(800);
+    await a.cmd('exclusion off');
+    const t0 = Date.now();
+    await a.cmd('bind toggle_record down'); await a.cmd('bind toggle_record up');
+    const seen = await watchStart(a, t0, 40_000);
+    const st = JSON.parse(await a.ev('overlay', `JSON.stringify(await window.__TAURI_INTERNALS__.invoke('session_state'))`));
+    add({ name: 'bundle: a session started from the bundle layout is REAL (not the demo) and live subtitles arrive from the bundled worker', ok: st.phase === 'recording' && st.demo === false && seen.subAt !== null, detail: `demo=${st.demo}; first subtitle after ${seen.subAt} ms; last overlay state ${JSON.stringify(seen.last)}` });
+    await a.cmd('bind toggle_record down'); await a.cmd('bind toggle_record up');
+    await sleep(2500);
+  } finally { await a.kill(); rmSync(lay, { recursive: true, force: true }); }
+}
+
+async function stageWarmup() {
+  // The installed engine is loaded once in the background right after launch (low priority), so the first Record is fast.
+  const a = await launch({ env: { ...fileEnv(), LOWK_STT_WORKER: worker }, settings: nemotronSettings });
+  try {
+    let seen = null;
+    for (let i = 0; i < 80 && !seen; i++) {
+      const r = spawnSync('ps', ['-axo', 'pid=,nice=,command='], { encoding: 'utf8' }).stdout.split('\n').find((l) => /^\d+\s+\d+\s+\S*lowk-stt-worker warm --model/.test(l.trim()));
+      if (r) seen = r.trim();
+      else await sleep(250);
+    }
+    add({ name: 'warm-up: shortly after launch the installed engine is preloaded by a background-priority worker', ok: !!seen, detail: seen ? seen.slice(0, 120) : 'no warm worker seen within 20 s' });
+  } finally { await a.kill(); }
+}
+
 try {
   if (stages.includes('live')) await stageLive();
   if (stages.includes('noengine')) await stageNoEngine();
   if (stages.includes('install')) await stageInstall();
+  if (stages.includes('loading')) await stageLoading();
+  if (stages.includes('bundle')) await stageBundle();
+  if (stages.includes('warmup')) await stageWarmup();
 } catch (e) {
   add({ name: 'm1-e2e harness error', ok: false, detail: String(e?.stack ?? e).slice(0, 400) });
 }
-writeFileSync(join(out, 'results.json'), JSON.stringify(checks, null, 1));
+writeFileSync(join(out, arg('--stage') ? `results-${stages.join('+')}.json` : 'results.json'), JSON.stringify(checks, null, 1));
 console.log(`m1-e2e: ${checks.filter((c) => c.ok).length}/${checks.length} passed`);
 process.exit(checks.every((c) => c.ok) ? 0 : 1);

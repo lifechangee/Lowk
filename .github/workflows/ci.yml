@@ -36,6 +36,10 @@ jobs:
               - 'crates/lowk-capture/**'
               - 'crates/lowk-app/**'
               - 'crates/lowk-types/**'
+              - 'crates/lowk-stt/**'
+              - 'crates/lowk-session/**'
+              - 'workers/**'
+              - 'tools/build-worker.sh'
               - 'ui/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
@@ -119,6 +123,20 @@ jobs:
         run: |
           cargo xtask bindings
           git diff --exit-code -- ui/src/lib/ipc/bindings.ts
+      # The STT worker (ggml + Metal, needs CMake) is staged as the Tauri sidecar and must end up
+      # inside the .app next to the executable, where `find_worker` looks first.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli@2
+      - name: app bundle with the STT worker
+        run: |
+          tools/build-worker.sh
+          cd crates/lowk-app && cargo tauri build --config tauri.bundle.conf.json --bundles app
+          cd ../..
+          APP=target/release/bundle/macos/Lowk.app/Contents/MacOS
+          ls -l "$APP"
+          test -x "$APP/lowk-stt-worker"
+          "$APP/lowk-stt-worker" --version
 
   # Windows: compile + clippy + tests that need no desktop. Runtime/stealth
   # probe testing is deferred until PC access (see probe-win below).
@@ -143,6 +161,10 @@ jobs:
       - run: pnpm --dir ui build
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      # Compile-check of the STT worker (ggml CPU build; Vulkan/CUDA stay optional features).
+      - name: stt worker builds
+        shell: bash
+        run: cargo build --release --manifest-path workers/lowk-stt-worker/Cargo.toml --no-default-features
 
   # Disabled until the owner has Windows PC access (docs/ARCHITECTURE.md 11).
   probe-win:

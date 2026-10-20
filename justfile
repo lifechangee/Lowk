@@ -12,9 +12,14 @@ setup:
 dev: setup
     cd crates/lowk-app && cargo tauri dev
 
-# Production build of the app (no installer bundle in M0).
-build: setup
-    cd crates/lowk-app && cargo tauri build --no-bundle
+# Build the local speech worker and stage it as the Tauri sidecar (needs CMake; Metal on macOS).
+worker:
+    tools/build-worker.sh
+
+# Production build: the app bundle (macOS: target/release/bundle/macos/Lowk.app) with the
+# STT worker inside (externalBin, Contents/MacOS/lowk-stt-worker). Models are downloaded on demand.
+build: setup worker
+    cd crates/lowk-app && cargo tauri build --config tauri.bundle.conf.json --bundles app
 
 # Regenerate the typed IPC bindings (ui/src/lib/ipc/bindings.ts).
 bindings:

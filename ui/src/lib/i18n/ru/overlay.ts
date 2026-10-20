@@ -56,6 +56,7 @@ export const overlay = {
   'overlay.hint.move': 'Удерживайте {key}: перетащить · {type}: ввод текста',
   'overlay.move.badge': 'Перемещение · отпустите {key}, и снова сквозной режим',
   'overlay.toast.shot': 'Скриншот добавлен',
+  'overlay.sttLoading': 'Загружаем модель распознавания… Звук не пропадёт.',
   'overlay.sttRestarting': 'Перезапуск распознавания…',
   'overlay.sttFailed': 'Распознавание остановилось. Проверьте Настройки > Провайдеры.',
   'overlay.waiting': 'Слушаю…',

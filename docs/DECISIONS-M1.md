@@ -91,7 +91,30 @@ scripted demo (`LOWK_DEMO=1` forces it).
 ## 7. Not done
 
 Windows runtime untested (compile-checked; worker `vulkan`/`cuda` features unbuilt); worker
-distribution (GitHub Releases + pinned hash) is still manual (`LOWK_STT_WORKER`, next to the
-app, or `<app data>/engines/`); `hw_bench` stays a stub; no forced-alignment latency metric.
+`hw_bench` stays a stub; no forced-alignment latency metric.
 
 Known CI note: `just ci-cross` currently fails in `lowk-capture` (unused variable on Linux, clippy on `win.rs`), code merged from main and outside this work; the STT crates are clean on both targets.
+
+## 8. Worker distribution and cold start (M1 QA fixes)
+
+* **Worker is bundled**, not downloaded: 8.2 MB on macOS/Metal (the whole `Lowk.app` is 19 MB), so
+  there is no pinned-hash download to maintain and no "models but no worker" state. `just build` =
+  `tools/build-worker.sh` (builds the worker for the host triple, stages
+  `crates/lowk-app/binaries/lowk-stt-worker-<triple>`) + `cargo tauri build --config
+  tauri.bundle.conf.json --bundles app` (`externalBin`). The plain `tauri.conf.json` has no
+  `externalBin`, so `cargo clippy/test` and `just dev` never need the staged file. Lookup order
+  (`find_worker`): `LOWK_STT_WORKER`, next to the executable (= inside the bundle), `<app data>/engines/`,
+  and in debug builds the in-repo build (`LOWK_NO_DEV_WORKER=1` disables that, QA uses it to prove the
+  bundled lookup). Vulkan/CUDA stay optional worker features. CI (macOS) builds the bundle and runs the
+  bundled worker; the Windows job compile-checks the CPU worker. If the worker is still missing the
+  engine card says so (`EngineInfo.runtime_missing`).
+* **Cold start**: the worker loads the model after Record (up to ~15 s on a cold disk cache, measured 17 s
+  when the machine is busy). Two fixes. (1) `SidecarEngine::is_ready` + a session watcher publish
+  `stt://loading {loading}`; the overlay shows «Загружаем модель распознавания…» (instead of «Слушаю…») and
+  the main window a banner; subtitles start the moment the worker reports `ready`. Audio captured
+  meanwhile waits in the engine queue (20 s) and the worker pipe and is transcribed after the load (the
+  journal keeps the original timestamps). (2) 5 s after launch the app runs `lowk-stt-worker warm` once
+  (live model + Silero, then Whisper if correction is on) at nice 19 / background QoS: it fills the OS file
+  cache and compiles the GPU pipelines, then exits (no idle RAM). It is not started, or is killed, when
+  free memory drops below 25 % (`kern.memorystatus_level`, macOS; elsewhere no pressure signal yet) and is
+  skipped while a call is running. `LOWK_NO_WARMUP=1` disables it.

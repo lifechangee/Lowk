@@ -21,7 +21,7 @@
   </div>
   <div class="doc" bind:this={box}>
     <div class="cin">
-      <div class="livebar"><RecDot pulse /><span class="t">{clock(session.elapsed)}</span><span class="m lbl">{tm('main.liveNotice')}</span><span class="sp"></span><Button variant="stop" icon="stop" onclick={() => session.stop()}>{tm('main.stopRecording')}</Button></div>
+      <div class="livebar"><RecDot pulse /><span class="t">{clock(session.elapsed)}</span><span class="m lbl">{session.sttLoading ? tm('main.sttLoading') : tm('main.liveNotice')}</span><span class="sp"></span><Button variant="stop" icon="stop" onclick={() => session.stop()}>{tm('main.stopRecording')}</Button></div>
       {#each session.lines as l, i (i)}
         <div class="ln" class:sys={l.speaker === 'system'}><span class="ts">{clock(l.at_s)}</span><span class={l.speaker === 'me' ? 'sp-me' : 'sp-sys'}>{l.speaker === 'me' ? tm('main.speakerMe') : tm('main.speakerSystem')}</span><span class="tx">{l.text}</span></div>
       {/each}

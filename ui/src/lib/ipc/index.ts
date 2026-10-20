@@ -18,6 +18,7 @@ export const EVENTS = {
   storeChanged: 'store://changed',
   settingsChanged: 'settings://changed',
   sttError: 'stt://error',
+  sttLoading: 'stt://loading',
   engineProgress: 'engine://progress',
   myAnswer: 'qa://my-answer',
 } as const;

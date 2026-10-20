@@ -75,7 +75,8 @@ pub fn find_worker() -> Option<PathBuf> {
     if let Some(d) = lowk_platform::dirs::engines() {
         c.push(d.join(name));
     }
-    if cfg!(debug_assertions) {
+    // (`LOWK_NO_DEV_WORKER=1` turns the in-repo fallback off: QA proves the bundled lookup.)
+    if cfg!(debug_assertions) && std::env::var_os("LOWK_NO_DEV_WORKER").is_none() {
         c.push(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("../../workers/lowk-stt-worker/target/release")
@@ -214,6 +215,10 @@ impl SttEngineFactory for NemotronFactory {
 
     fn license_url(&self) -> String {
         NEMOTRON_LICENSE_URL.into()
+    }
+
+    fn runtime_available(&self) -> bool {
+        self.worker.as_ref().is_some_and(|p| p.exists()) || find_worker().is_some()
     }
 }
 

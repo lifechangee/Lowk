@@ -33,6 +33,7 @@ export class TauriSource implements OverlaySource {
         else u();
       });
     add(on<SttEvent>(EVENTS.sttSegment, (e) => store.applyStt(e)));
+    add(on<{ loading: boolean }>(EVENTS.sttLoading, (e) => (store.sttLoading = e.loading)));
     for (const n of ['start', 'delta', 'done', 'error'] as const) {
       add(on<{ recoverable: boolean }>(EVENTS.sttError, (e) => (store.sttError = { recoverable: e.recoverable })));
     add(on<Omit<LlmEvent, 'type'>>(`llm://${n}`, (e) => store.applyLlm({ ...e, type: n } as LlmEvent)));
@@ -65,6 +66,7 @@ export class TauriSource implements OverlaySource {
       store.reset();
       quiet(commands.queueClear());
     }
+    if (e.phase === 'idle') store.sttLoading = false;
     store.phase = e.phase;
   }
 
