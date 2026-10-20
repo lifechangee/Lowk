@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-overlay-tone"
+description = "Enables the overlay_tone command without any pre-configured scope."
+commands.allow = ["overlay_tone"]
+
+[[permission]]
+identifier = "deny-overlay-tone"
+description = "Denies the overlay_tone command without any pre-configured scope."
+commands.deny = ["overlay_tone"]

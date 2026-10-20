@@ -17,12 +17,26 @@ path = "src/main.rs"
 
 [dependencies]
 lowk-types.workspace = true
+lowk-platform.workspace = true
+lowk-store.workspace = true
+lowk-stealth.workspace = true
+lowk-input.workspace = true
+lowk-session.workspace = true
+lowk-audio.workspace = true
+lowk-stt.workspace = true
+lowk-capture.workspace = true
+parking_lot.workspace = true
+raw-window-handle.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 specta.workspace = true
 specta-typescript.workspace = true
 tauri-specta.workspace = true
 tauri.workspace = true
+tauri-plugin-global-shortcut.workspace = true
+tauri-plugin-single-instance.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [build-dependencies]
 tauri-build.workspace = true

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-llm-ask"
+description = "Enables the llm_ask command without any pre-configured scope."
+commands.allow = ["llm_ask"]
+
+[[permission]]
+identifier = "deny-llm-ask"
+description = "Denies the llm_ask command without any pre-configured scope."
+commands.deny = ["llm_ask"]

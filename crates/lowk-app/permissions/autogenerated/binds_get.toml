@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-binds-get"
+description = "Enables the binds_get command without any pre-configured scope."
+commands.allow = ["binds_get"]
+
+[[permission]]
+identifier = "deny-binds-get"
+description = "Denies the binds_get command without any pre-configured scope."
+commands.deny = ["binds_get"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-overlay-escape"
+description = "Enables the overlay_escape command without any pre-configured scope."
+commands.allow = ["overlay_escape"]
+
+[[permission]]
+identifier = "deny-overlay-escape"
+description = "Denies the overlay_escape command without any pre-configured scope."
+commands.deny = ["overlay_escape"]

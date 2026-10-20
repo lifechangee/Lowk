@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-call-delete"
+description = "Enables the call_delete command without any pre-configured scope."
+commands.allow = ["call_delete"]
+
+[[permission]]
+identifier = "deny-call-delete"
+description = "Denies the call_delete command without any pre-configured scope."
+commands.deny = ["call_delete"]

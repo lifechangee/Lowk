@@ -1,11 +1,32 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "overlay",
-  "description": "Overlay window: read-only commands + events. No core:window permissions; Rust owns every window operation.",
-  "windows": ["overlay"],
+  "description": "Overlay and pill windows: overlay_* plus the few read/ask commands they need. No core:window permissions; Rust owns every window operation.",
+  "windows": [
+    "overlay",
+    "pill"
+  ],
   "permissions": [
     "core:event:default",
     "allow-settings-get",
-    "allow-locale-get"
+    "allow-locale-get",
+    "allow-session-state",
+    "allow-session-snapshot",
+    "allow-session-start",
+    "allow-session-stop",
+    "allow-overlay-input-submit",
+    "allow-overlay-set-mode",
+    "allow-overlay-escape",
+    "allow-overlay-drag-start",
+    "allow-overlay-drag-to",
+    "allow-overlay-drag-end",
+    "allow-overlay-tone",
+    "allow-llm-ask",
+    "allow-llm-cancel",
+    "allow-llm-set-template",
+    "allow-capture-screenshot",
+    "allow-queue-clear",
+    "allow-binds-get",
+    "allow-main-open"
   ]
 }

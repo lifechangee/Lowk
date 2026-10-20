@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-call-set-tags"
+description = "Enables the call_set_tags command without any pre-configured scope."
+commands.allow = ["call_set_tags"]
+
+[[permission]]
+identifier = "deny-call-set-tags"
+description = "Denies the call_set_tags command without any pre-configured scope."
+commands.deny = ["call_set_tags"]

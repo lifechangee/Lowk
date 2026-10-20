@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-llm-set-template"
+description = "Enables the llm_set_template command without any pre-configured scope."
+commands.allow = ["llm_set_template"]
+
+[[permission]]
+identifier = "deny-llm-set-template"
+description = "Denies the llm_set_template command without any pre-configured scope."
+commands.deny = ["llm_set_template"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stealth-status"
+description = "Enables the stealth_status command without any pre-configured scope."
+commands.allow = ["stealth_status"]
+
+[[permission]]
+identifier = "deny-stealth-status"
+description = "Denies the stealth_status command without any pre-configured scope."
+commands.deny = ["stealth_status"]

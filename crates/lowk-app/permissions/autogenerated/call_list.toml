@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-call-list"
+description = "Enables the call_list command without any pre-configured scope."
+commands.allow = ["call_list"]
+
+[[permission]]
+identifier = "deny-call-list"
+description = "Denies the call_list command without any pre-configured scope."
+commands.deny = ["call_list"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-binds-set"
+description = "Enables the binds_set command without any pre-configured scope."
+commands.allow = ["binds_set"]
+
+[[permission]]
+identifier = "deny-binds-set"
+description = "Denies the binds_set command without any pre-configured scope."
+commands.deny = ["binds_set"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-main-open"
+description = "Enables the main_open command without any pre-configured scope."
+commands.allow = ["main_open"]
+
+[[permission]]
+identifier = "deny-main-open"
+description = "Denies the main_open command without any pre-configured scope."
+commands.deny = ["main_open"]

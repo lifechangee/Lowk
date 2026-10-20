@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-call-get-md"
+description = "Enables the call_get_md command without any pre-configured scope."
+commands.allow = ["call_get_md"]
+
+[[permission]]
+identifier = "deny-call-get-md"
+description = "Denies the call_get_md command without any pre-configured scope."
+commands.deny = ["call_get_md"]

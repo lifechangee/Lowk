@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stealth-selftest"
+description = "Enables the stealth_selftest command without any pre-configured scope."
+commands.allow = ["stealth_selftest"]
+
+[[permission]]
+identifier = "deny-stealth-selftest"
+description = "Denies the stealth_selftest command without any pre-configured scope."
+commands.deny = ["stealth_selftest"]

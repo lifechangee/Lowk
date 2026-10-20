@@ -1,9 +1,21 @@
-//! Lowk Tauri shell. No business logic lives here.
+//! Lowk Tauri shell: windows, capabilities, command/event glue, input wiring,
+//! single instance, updater skeleton. The only crate that knows Tauri; the
+//! business logic lives in the feature crates.
+mod actions;
+mod boot;
+mod callstore;
+mod capture;
+mod combo;
 mod commands;
+mod emitter;
+mod mainthread;
+#[cfg(debug_assertions)]
+mod probe;
+mod state;
+mod visibility;
+mod windows;
 
-use lowk_types::fakes::MemSettingsStore;
-use std::sync::Arc;
-use tauri::Manager;
+use tauri::RunEvent;
 
 /// The single source of truth for IPC: commands + exported DTO types.
 pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
@@ -21,18 +33,43 @@ pub fn export_bindings(path: &std::path::Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
+fn init_tracing() {
+    use tracing_subscriber::EnvFilter;
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_writer(std::io::stderr)
+        .try_init();
+}
+
 pub fn run() {
+    init_tracing();
     let builder = specta_builder();
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        // Must be the first plugin: a second launch focuses the running app.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            windows::open_main(app);
+        }))
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(combo::on_shortcut)
+                .build(),
+        )
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
-            // M0 placeholder: WP4 replaces this with the file-backed store.
-            let store: commands::settings::Store = Arc::new(MemSettingsStore::default());
-            app.manage(store);
-            // No stealth logic yet (WP2). The overlay stays hidden; main is shown.
-            Ok(())
+            boot::setup(app)
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Lowk");
+        .on_window_event(windows::on_window_event)
+        .build(tauri::generate_context!())
+        .expect("error while building Lowk");
+
+    app.run(|handle, event| match event {
+        // The hidden overlay keeps the app alive; only an explicit exit quits.
+        RunEvent::ExitRequested { api, code, .. } if code.is_none() => api.prevent_exit(),
+        #[cfg(target_os = "macos")]
+        RunEvent::Reopen { .. } => windows::open_main(handle),
+        _ => {
+            let _ = handle;
+        }
+    });
 }
