@@ -62,7 +62,9 @@ impl Matcher {
         if !exact.is_empty() || m == Mods::NONE {
             return exact;
         }
-        let sub = |a: Mods, b: Mods| (!a.ctrl || b.ctrl) && (!a.alt || b.alt) && (!a.shift || b.shift) && (!a.meta || b.meta);
+        let sub = |a: Mods, b: Mods| {
+            (!a.ctrl || b.ctrl) && (!a.alt || b.alt) && (!a.shift || b.shift) && (!a.meta || b.meta)
+        };
         let cover: Vec<usize> = (0..self.binds.len())
             .filter(only)
             .filter(|&i| sub(mods_of(i), m))
@@ -77,7 +79,10 @@ impl Matcher {
             }
         });
         if union == m {
-            if let Some(&mv) = cover.iter().find(|&&i| self.binds[i].action == ActionId::MoveHold) {
+            if let Some(&mv) = cover
+                .iter()
+                .find(|&&i| self.binds[i].action == ActionId::MoveHold)
+            {
                 return vec![mv];
             }
         }
@@ -308,12 +313,18 @@ mod tests {
         let o = x.handle(Raw::Mods(both));
         assert_eq!(
             o.events,
-            vec![(ActionId::ClickHold, Phase::Up), (ActionId::MoveHold, Phase::Down)]
+            vec![
+                (ActionId::ClickHold, Phase::Up),
+                (ActionId::MoveHold, Phase::Down)
+            ]
         );
         let o = x.handle(Raw::Mods(Mods::CTRL));
         assert_eq!(
             o.events,
-            vec![(ActionId::MoveHold, Phase::Up), (ActionId::ClickHold, Phase::Down)]
+            vec![
+                (ActionId::MoveHold, Phase::Up),
+                (ActionId::ClickHold, Phase::Down)
+            ]
         );
         let o = x.handle(Raw::Mods(Mods::NONE));
         assert_eq!(o.events, vec![(ActionId::ClickHold, Phase::Up)]);

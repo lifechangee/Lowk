@@ -175,16 +175,31 @@ fn run(st: &Shared, line: &str) -> String {
             let Ok(action) = serde_json::from_str::<lowk_types::ActionId>(&format!("\"{a}\"")) else {
                 return format!("unknown action {a}");
             };
-            let phase = if p == "down" { lowk_types::Phase::Down } else { lowk_types::Phase::Up };
-            crate::actions::dispatch(st, lowk_types::BindEvent { action, phase, t_mono_ns: 0 });
+            let phase = if p == "down" {
+                lowk_types::Phase::Down
+            } else {
+                lowk_types::Phase::Up
+            };
+            crate::actions::dispatch(
+                st,
+                lowk_types::BindEvent {
+                    action,
+                    phase,
+                    t_mono_ns: 0,
+                },
+            );
             "ok".into()
         }
         // G6: overlay mode + the native click-through flag.
         "hover-state" => match st.stealth() {
             Ok(s) => format!(
                 "{{\"mode\":\"{}\",\"ignores_mouse\":{}}}",
-                serde_json::to_string(&s.controller.mode()).unwrap_or_default().trim_matches('"'),
-                s.overlay.ignores_mouse().map_or("null".to_string(), |b| b.to_string())
+                serde_json::to_string(&s.controller.mode())
+                    .unwrap_or_default()
+                    .trim_matches('"'),
+                s.overlay
+                    .ignores_mouse()
+                    .map_or("null".to_string(), |b| b.to_string())
             ),
             Err(e) => e.to_string(),
         },
@@ -203,9 +218,18 @@ fn run(st: &Shared, line: &str) -> String {
         },
         // G7: same path as the screenshot bind; replies with `[[w,h,png_bytes],..]` of the queue.
         "screenshot" => match crate::commands::capture::capture_into_queue(st) {
-            Ok(_) => format!("{:?}", crate::commands::capture::queue_png_sizes(st)),
+            Ok(_) => {
+                serde_json::to_string(&crate::commands::capture::queue_png_sizes(st)).unwrap_or_default()
+            }
             Err(e) => format!("error: {e}"),
         },
+        "queue-png" => {
+            crate::commands::capture::queue_png_b64(st, rest.parse().unwrap_or(0)).unwrap_or_default()
+        }
+        "queue-clear" => {
+            crate::commands::capture::clear_queue(st);
+            "ok".into()
+        }
         "opacity" => crate::probe::run(
             st,
             &format!("settings-patch {{\"overlay\":{{\"opacity\":{rest}}}}}"),

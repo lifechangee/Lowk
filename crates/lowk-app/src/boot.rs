@@ -206,9 +206,9 @@ fn on_settings(st: &Shared, old: &Settings, new: &Settings) {
     }
     // G2: choosing another edge re-docks the pill (forget the dragged position).
     if old.overlay.pill_edge != new.overlay.pill_edge && !new.overlay.pill_positions.is_empty() {
-        let _ = st
-            .settings
-            .patch(SettingsPatch(serde_json::json!({ "overlay": { "pill_positions": {} } })));
+        let _ = st.settings.patch(SettingsPatch(
+            serde_json::json!({ "overlay": { "pill_positions": {} } }),
+        ));
     }
     if old.overlay.visibility != new.overlay.visibility || old.overlay.pill_edge != new.overlay.pill_edge {
         let st2 = st.clone();

@@ -4,16 +4,16 @@
 //! runtime is verified on a Windows machine later (docs/DECISIONS-M0.md).
 use crate::DisplayShot;
 use lowk_types::{AppError, ErrorCode, Result};
+use windows::core::BOOL;
 use windows::Win32::Foundation::{HWND, LPARAM, RECT};
 use windows::Win32::Graphics::Gdi::{
     BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, EnumDisplayMonitors, GetDC,
-    GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, CAPTUREBLT, DIB_RGB_COLORS, HDC,
-    HMONITOR, SRCCOPY,
+    GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, CAPTUREBLT, DIB_RGB_COLORS,
+    HDC, HMONITOR, SRCCOPY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowDisplayAffinity, SetWindowDisplayAffinity, WINDOW_DISPLAY_AFFINITY, WDA_EXCLUDEFROMCAPTURE,
+    GetWindowDisplayAffinity, SetWindowDisplayAffinity, WDA_EXCLUDEFROMCAPTURE, WINDOW_DISPLAY_AFFINITY,
 };
-use windows::core::BOOL;
 
 fn fail(what: &str) -> AppError {
     AppError::new(ErrorCode::Unknown).with_detail(format!("screenshot: {what}"))
@@ -65,14 +65,28 @@ fn grab_all(max_edge: u32) -> Result<Vec<DisplayShot>> {
 fn grab_one(r: RECT, max_edge: u32) -> Result<DisplayShot> {
     let (sw, sh) = ((r.right - r.left).max(1), (r.bottom - r.top).max(1));
     let k = (f64::from(max_edge) / f64::from(sw.max(sh))).min(1.0);
-    let (w, h) = (((f64::from(sw) * k) as i32).max(1), ((f64::from(sh) * k) as i32).max(1));
+    let (w, h) = (
+        ((f64::from(sw) * k) as i32).max(1),
+        ((f64::from(sh) * k) as i32).max(1),
+    );
     // SAFETY: plain GDI; every handle is released on all paths below.
     unsafe {
         let screen = GetDC(None);
         let mem = CreateCompatibleDC(Some(screen));
         let bmp = CreateCompatibleBitmap(screen, sw, sh);
         let old = SelectObject(mem, bmp.into());
-        let ok = BitBlt(mem, 0, 0, sw, sh, Some(screen), r.left, r.top, SRCCOPY | CAPTUREBLT).is_ok();
+        let ok = BitBlt(
+            mem,
+            0,
+            0,
+            sw,
+            sh,
+            Some(screen),
+            r.left,
+            r.top,
+            SRCCOPY | CAPTUREBLT,
+        )
+        .is_ok();
         let mut bi = BITMAPINFO::default();
         bi.bmiHeader = BITMAPINFOHEADER {
             biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
@@ -85,7 +99,15 @@ fn grab_one(r: RECT, max_edge: u32) -> Result<DisplayShot> {
         };
         let mut bgra = vec![0u8; (sw * sh * 4) as usize];
         let lines = if ok {
-            GetDIBits(mem, bmp, 0, sh as u32, Some(bgra.as_mut_ptr().cast()), &mut bi, DIB_RGB_COLORS)
+            GetDIBits(
+                mem,
+                bmp,
+                0,
+                sh as u32,
+                Some(bgra.as_mut_ptr().cast()),
+                &mut bi,
+                DIB_RGB_COLORS,
+            )
         } else {
             0
         };

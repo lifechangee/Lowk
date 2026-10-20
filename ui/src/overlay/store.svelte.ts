@@ -2,6 +2,7 @@
 // No business logic: it only folds events into what the components render.
 import type { LlmEvent, OverlayMode, OverlayVisibility, PillEdge, SessionPhase, SttEvent, Template, ToneKind } from '../lib/ipc/bindings';
 import type { Lang } from '../lib/i18n';
+import { keyLabels, type KeyLabels } from './keys';
 import { GRID_COLS, GRID_ROWS, PRESETS, kFromTransparency, parseGrid, toneToVars, type ToneEvent, type ToneVars } from './tone';
 
 /** An LLM event as it arrives; `seq` is the per-request delta counter the backend adds (optional). */
@@ -42,6 +43,9 @@ export class OverlayStore {
   visibility = $state<OverlayVisibility>('recording_only');
   pillEdge = $state<PillEdge>('right');
   isMac = $state(true);
+  /** Real bind labels from `settings.binds` (empty string = unbound); defaults until settings arrive. */
+  keysOverride = $state<Partial<KeyLabels> | null>(null);
+  keys = $derived<KeyLabels>({ ...keyLabels(this.isMac), ...this.keysOverride });
   /** `true` in the pill window, `false` in the overlay window; `null` = decided by `visibility` (dev stage). */
   pillWindow = $state<boolean | null>(null);
   /** The backend owns the «Мой ответ» text (`qa://my-answer`); do not accumulate it locally. */
@@ -143,12 +147,13 @@ export class OverlayStore {
 
   setMode(m: OverlayMode): void {
     this.mode = m;
-    if (m !== 'interactive') this.menuOpen = false;
+    if (m !== 'interactive' && m !== 'hover') this.menuOpen = false;
   }
 
   setQueue(shots: number, thumbs: string[] = []): void {
     this.shots = shots;
     this.thumbs = thumbs.slice(-3);
+    if (shots === 0) this.thumbs = [];
   }
 
   flash(msg: string): void {

@@ -117,7 +117,7 @@ export function lintInPage(opts: LintOpts): Issue[] {
       const a = texts[i]!, b = texts[j]!;
       if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
       const pop = '.menu, [role=menu], [role=dialog], [role=listbox], .modal, .pop';
-      if (!!a.el.closest(pop) !== !!b.el.closest(pop)) continue; // popovers legitimately cover content
+      if (a.el.closest(pop) !== b.el.closest(pop)) continue; // popovers legitimately cover content
       const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
       const h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
       if (w > 2 && h > 3) out.push({ rule: 'text-overlap', sel: `${name(a.el)}  <>  ${name(b.el)}`, msg: `text boxes overlap ${Math.round(w)}x${Math.round(h)}px`, rect: rectOf(a.r) });

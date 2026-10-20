@@ -16,7 +16,7 @@ export interface MainState {
   hash: string;
   query?: string;
   /** After load: interactions */
-  act?: 'tab-summary' | 'tab-qa' | 'tab-shots' | 'search' | 'recording' | 'move-menu' | 'drag';
+  act?: 'tab-summary' | 'tab-qa' | 'tab-shots' | 'search' | 'recording' | 'move-menu' | 'drag' | 'new-call-popover' | 'source-picker' | 'source-other';
   mockup: 'mn' | 'ob';
 }
 
@@ -34,6 +34,9 @@ export const MAIN_STATES: MainState[] = [
   { id: 'call-shots', title: 'Call: screenshots tab', hash: `#/call/${CALL1}`, act: 'tab-shots', mockup: 'mn' },
   { id: 'call-longtitle', title: 'Call with a very long title', hash: `#/call/${CALL11}`, mockup: 'mn' },
   ...(['general', 'hotkeys', 'appearance', 'providers', 'storage', 'permissions'] as const).map((p) => ({ id: `settings-${p}`, title: `Settings: ${p}`, hash: `#/settings/${p}`, mockup: 'mn' as const })),
+  { id: 'newcall-popover', title: 'G5: header «New call» popover (folder + source + Start)', hash: '#/settings/general', act: 'new-call-popover', mockup: 'mn' },
+  { id: 'source-picker', title: 'G3: source picker open (running apps, presets, Other…)', hash: '#/', act: 'source-picker', mockup: 'mn' },
+  { id: 'source-other', title: 'G3: «Other…» installed-apps list', hash: '#/', act: 'source-other', mockup: 'mn' },
   { id: 'search', title: 'Search palette (Cmd+K)', hash: '#/', act: 'search', mockup: 'mn' },
   ...Array.from({ length: 8 }, (_, i) => ({ id: `onboarding-${i}`, title: `Onboarding step ${i + 1}`, hash: `#/onboarding/${i}`, mockup: 'ob' as const })),
 ];
@@ -59,6 +62,7 @@ export const OVERLAY_STATES: OverlayState[] = [
   { id: 'passive', title: 'Passive (answer + «Мой ответ»)', q: { still: '1' }, full: true },
   { id: 'interactive-menu', title: 'Interactive, template menu open', q: { still: '1', mode: 'interactive', menu: '1' }, full: true },
   { id: 'interactive', title: 'Interactive (input row)', q: { still: '1', mode: 'interactive' }, full: false },
+  { id: 'hover', title: 'G6: hold-Ctrl clickable mode', q: { still: '1', mode: 'hover' }, full: false },
   { id: 'moving', title: 'Moving (hold-to-move)', q: { still: '1', mode: 'moving' }, full: false },
   { id: 'pill', title: 'Pill', q: { still: '1', view: 'pill' }, pill: true, full: false },
   { id: 'adaptive', title: 'Adaptive tone grid (dark left, light right, bright bottom)', q: { still: '1' }, full: false, bgs: ['split'] },

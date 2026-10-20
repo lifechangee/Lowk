@@ -377,7 +377,11 @@ impl PillCtl {
     }
     /// Like [`PillCtl::show`], but a remembered origin for the display (`lookup` gets its
     /// visible frame; G2) wins over the docked position. The origin is clamped to the display.
-    pub fn show_with(&self, edge: PillEdge, lookup: impl Fn(&Rect) -> Option<(f64, f64)> + Send + 'static) -> Result<()> {
+    pub fn show_with(
+        &self,
+        edge: PillEdge,
+        lookup: impl Fn(&Rect) -> Option<(f64, f64)> + Send + 'static,
+    ) -> Result<()> {
         let b = self.backend.clone();
         run_main_sync(&self.main, move || {
             let f = b.frame();

@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { OverlayStore } from './store.svelte';
   import { splitBold } from './store.svelte';
-  import { keyLabels } from './keys';
   import { ot } from './i18n';
 
   let { store }: { store: OverlayStore } = $props();
@@ -31,7 +30,7 @@
     {#if store.answerError}
       <span class="err">{ot('overlay.answer.error', lang)}</span>
     {:else if !store.hasAnswered}
-      <span class="empty">{ot('overlay.answer.empty', lang, { key: keyLabels(store.isMac).ask })}</span>
+      <span class="empty">{ot('overlay.answer.empty', lang, { key: store.keys.ask })}</span>
     {:else}
       {#each parts as p, i (i)}{#if p.bold}<b>{p.text}</b>{:else}{p.text}{/if}{/each}{#if store.streaming}<span class="caret"></span>{/if}
     {/if}

@@ -199,7 +199,11 @@ mod tests {
         // MoveHold goes to the hook: Active, Degraded(InputMonitoring) or Failed, never a combo.
         assert!(!matches!(mv.status, BindStatus::Conflict(_)));
         assert!(m.status().combo_adapter);
-        for e in rep.entries.iter().filter(|e| !matches!(e.action, ActionId::MoveHold | ActionId::ClickHold)) {
+        for e in rep
+            .entries
+            .iter()
+            .filter(|e| !matches!(e.action, ActionId::MoveHold | ActionId::ClickHold))
+        {
             assert_eq!(e.status, BindStatus::Active, "{:?}", e.action);
         }
     }

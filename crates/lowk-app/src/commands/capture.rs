@@ -85,5 +85,15 @@ pub fn queue_clear(st: State<'_, Shared>) -> Result<()> {
 #[cfg(feature = "qa")]
 /// QA hook: PNG sizes of the queued shots (for the real-app check; no pixels leave the process).
 pub fn queue_png_sizes(st: &AppState) -> Vec<(u32, u32, usize)> {
-    st.shots.lock().iter().map(|s| (s.width, s.height, s.png.len())).collect()
+    st.shots
+        .lock()
+        .iter()
+        .map(|s| (s.width, s.height, s.png.len()))
+        .collect()
+}
+
+#[cfg(feature = "qa")]
+/// QA hook: the i-th queued PNG, base64 (the real-app check decodes it and proves our windows are absent).
+pub fn queue_png_b64(st: &AppState, i: usize) -> Option<String> {
+    st.shots.lock().get(i).map(|s| lowk_capture::base64(&s.png))
 }

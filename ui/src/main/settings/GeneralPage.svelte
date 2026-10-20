@@ -1,24 +1,19 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import type { AudioApp, CaptureMonitors, UiLanguage } from '../../lib/ipc';
+  import type { CaptureMonitors, UiLanguage } from '../../lib/ipc';
   import Button from '../../lib/components/Button.svelte';
   import SettingRow from '../../lib/components/SettingRow.svelte';
   import Select from '../../lib/components/Select.svelte';
   import Toggle from '../../lib/components/Toggle.svelte';
-  import { api } from '../api';
   import { when } from '../fmt';
   import { tm } from '../i18n';
   import { hrefs, router } from '../router.svelte';
-  import { prefs } from '../state.svelte';
+  import { prefs, sources } from '../state.svelte';
   import { resolveSource } from '../source';
-
-  let apps = $state<AudioApp[]>([]);
-  onMount(async () => { apps = await api.audioApps(); });
+  import SourcePicker from '../SourcePicker.svelte';
 
   const s = $derived(prefs.value);
   const src = $derived(s.audio?.default_source);
-  const srcValue = $derived(resolveSource(src, apps, s.capture?.default_source));
-  const srcOptions = $derived([...apps.map((a) => ({ value: `app:${a.id}`, label: tm('m.sourceOnly', { app: a.name }) })), { value: 'system', label: tm('m.sourceSystem') }]);
+  const srcValue = $derived(resolveSource(src, sources.running, s.capture?.default_source));
 </script>
 
 <h2>{tm('m.set.general')}</h2>
@@ -26,7 +21,7 @@
   <Select label={tm('settings.language')} value={s.ui?.language ?? 'auto'} options={[{ value: 'auto', label: tm('settings.language.auto') }, { value: 'ru', label: tm('settings.language.ru') }, { value: 'en', label: tm('settings.language.en') }]} onchange={(v) => prefs.patch({ ui: { language: v as UiLanguage } })} />
 </SettingRow>
 <SettingRow label={tm('m.defaultSource')} hint={tm('m.defaultSourceHint')}>
-  <Select label={tm('m.defaultSource')} value={srcValue} options={srcOptions} onchange={(v) => prefs.patch({ capture: { default_source: v.startsWith('app:') ? 'one_app' : 'whole_system' }, audio: { default_source: v.startsWith('app:') ? { kind: 'app', id: v.slice(4) } : { kind: 'whole_system' } } })} />
+  <div class="srcw"><SourcePicker size="md" label={tm('m.defaultSource')} value={srcValue} onchange={(v) => prefs.patch({ capture: { default_source: v.startsWith('app:') ? 'one_app' : 'whole_system' }, audio: { default_source: v.startsWith('app:') ? { kind: 'app', id: v.slice(4) } : { kind: 'whole_system' } } })} /></div>
 </SettingRow>
 <SettingRow label={tm('settings.keepAudio')} hint={tm('m.keepAudioHint')}>
   <Toggle checked={s.audio?.keep_audio ?? false} label={tm('settings.keepAudio')} onchange={(v) => prefs.patch({ audio: { keep_audio: v } })} />
@@ -51,4 +46,5 @@
 <style>
   h2 { font: 600 var(--fs-lg) var(--font); margin: 0 0 var(--s2); }
   .gap { margin-top: var(--s8); }
+  .srcw { width: 280px; max-width: 100%; }
 </style>
