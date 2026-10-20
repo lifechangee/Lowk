@@ -90,6 +90,7 @@
   border-color: var(--intc);
   box-shadow: 0 0 0 3px rgba(var(--int), calc(0.05 + var(--k) * 0.16)), var(--shd);
 }
+.ov.hover { border-color: var(--intc); }
 .ov.moving { border-style: dashed; border-color: var(--mvc); }
 
 .ov kbd {
@@ -123,7 +124,7 @@
   all: unset; box-sizing: border-box; width: 24px; height: 24px; border-radius: 8px; flex: none; display: inline-flex; align-items: center; justify-content: center;
   background: var(--chip); border: 1px solid var(--chipbd); color: var(--recs); text-shadow: none; cursor: inherit;
 }
-.ov.interactive .stop { cursor: pointer; }
+.ov.interactive .stop, .ov.hover .stop { cursor: pointer; }
 .stop:hover, .stop:focus-visible { background: var(--hov); }
 .stop:focus-visible { outline: 2px solid var(--intc); outline-offset: 1px; }
 .rec.off { color: var(--tx2); font-family: var(--font); font-weight: 500; }
@@ -145,6 +146,13 @@
   background: linear-gradient(135deg, rgba(var(--fg), 0.55), rgba(var(--fg), 0.2));
   opacity: calc(0.5 + var(--k) * 0.5);
 }
+img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
+.clr {
+  all: unset; box-sizing: border-box; width: 16px; height: 16px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--tx2); cursor: inherit; text-shadow: none;
+}
+.ov.interactive .clr, .ov.hover .clr { cursor: pointer; }
+.clr:hover, .clr:focus-visible { background: var(--hov); color: var(--tx); }
 .thumb.t1 { filter: brightness(0.85); }
 .thumb.t2 { filter: brightness(1.1); }
 
@@ -155,7 +163,7 @@
   background: var(--chip); border: 1px solid var(--chipbd); font-size: 12px; line-height: 16px; font-weight: 550; color: var(--tx);
   text-shadow: none;
 }
-.ov.interactive .tpl { border-color: var(--intc); cursor: pointer; }
+.ov.interactive .tpl, .ov.hover .tpl { border-color: var(--intc); cursor: pointer; }
 .tpl:focus-visible { outline: 2px solid var(--intc); outline-offset: 1px; }
 .tpl .caret-d { opacity: 0.8; flex: none; }
 .menu {
@@ -179,7 +187,8 @@
 
 .mode { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; line-height: 16px; color: var(--tx2); flex: 0 1 auto; min-width: 0; max-width: 128px; }
 .mode i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px dashed var(--tx2); flex: none; }
-.ov.interactive .mode { color: var(--intc); font-weight: 600; }
+.ov.interactive .mode, .ov.hover .mode { color: var(--intc); font-weight: 600; }
+.ov.hover .mode i { border: none; background: var(--intc); }
 .ov.interactive .mode i { border: none; background: var(--intc); box-shadow: 0 0 8px var(--intc); }
 .ov.moving .mode { color: var(--mvc); font-weight: 600; }
 .ov.moving .mode i { border: none; background: var(--mvc); box-shadow: 0 0 8px var(--mvc); }

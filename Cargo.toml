@@ -92,6 +92,7 @@ futures = "0.3"
 time = "0.3"
 secrecy = "0.10"
 image = { version = "0.25", default-features = false }
+png = "0.18"
 notify = "8.2"
 
 # async / network

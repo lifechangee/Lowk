@@ -51,6 +51,11 @@ pub fn display_for(p: (f64, f64), displays: &[Rect]) -> Option<Rect> {
         .copied()
 }
 
+/// Stable per-display key (`x,y,WxH` of the visible frame) for remembered positions.
+pub fn display_key(d: &Rect) -> String {
+    format!("{:.0},{:.0},{:.0}x{:.0}", d.x, d.y, d.w, d.h)
+}
+
 /// Keep a `size` window fully inside the visible frame of the display under
 /// `cursor`. With no displays the origin is returned unchanged. A window larger
 /// than the display is pinned to the display's top-left.
@@ -133,6 +138,13 @@ mod tests {
             clamp_origin((50.0, 60.0), (10.0, 10.0), (10.0, 10.0), &[]),
             (50.0, 60.0)
         );
+    }
+
+    #[test]
+    fn display_key_is_stable_and_distinct() {
+        let a = r(0.0, 25.0, 1512.0, 957.0);
+        assert_eq!(display_key(&a), "0,25,1512x957");
+        assert_ne!(display_key(&a), display_key(&r(1512.0, 0.0, 1920.0, 1080.0)));
     }
 
     #[test]

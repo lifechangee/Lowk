@@ -46,6 +46,10 @@ pub trait WindowBackend: Send + Sync {
     fn display_frames(&self) -> Vec<Rect>;
     /// True while the window is the key window / foreground (for blur detection).
     fn is_key(&self) -> bool;
+    /// Native `ignoresMouseEvents` / click-through state, when the backend can read it (QA).
+    fn ignores_mouse(&self) -> Option<bool> {
+        None
+    }
 }
 
 pub fn unavailable(detail: impl Into<String>) -> AppError {
@@ -165,6 +169,12 @@ pub mod fake {
         }
         fn is_key(&self) -> bool {
             self.0.lock().interaction == Some(Interaction::Interactive)
+        }
+        fn ignores_mouse(&self) -> Option<bool> {
+            Some(!matches!(
+                self.0.lock().interaction,
+                Some(Interaction::Interactive | Interaction::Hover)
+            ))
         }
     }
 }

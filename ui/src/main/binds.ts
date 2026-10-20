@@ -1,8 +1,9 @@
 // Pure helpers for the bind editor: formatting, recording, defaults, conflict warnings.
 import type { ActionId, BindSpec, MouseBtn, Mods, Os, Trigger } from '../lib/ipc';
 
-export const ACTIONS_PRIMARY: ActionId[] = ['ask', 'screenshot', 'screenshot_area', 'toggle_interactive', 'toggle_overlay', 'panic_hide', 'toggle_record', 'move_hold'];
-export const ACTIONS_EXTRA: ActionId[] = ['next_template', 'prev_template', 'cancel_answer', 'clear_shots', 'toggle_main'];
+export const ACTIONS_PRIMARY: ActionId[] = ['ask_brief', 'ask_complement', 'screenshot', 'screenshot_area', 'click_hold', 'toggle_interactive', 'toggle_overlay', 'panic_hide', 'toggle_record', 'move_hold'];
+/** G6: one bind per template; `ask` (the template picked in the overlay chip) stays assignable. */
+export const ACTIONS_EXTRA: ActionId[] = ['ask', 'ask_say', 'ask_factcheck', 'ask_followup', 'ask_recap', 'next_template', 'prev_template', 'cancel_answer', 'clear_shots', 'toggle_main'];
 export const ALL_ACTIONS: ActionId[] = [...ACTIONS_PRIMARY, ...ACTIONS_EXTRA];
 
 const combo = (key: string, mods: Mods): Trigger => ({ kind: 'combo', mods, key });
@@ -12,13 +13,15 @@ export function defaultBinds(os: Os): BindSpec[] {
   const m: Mods = os === 'macos' ? { meta: true } : { ctrl: true };
   const ms: Mods = { ...m, shift: true };
   return [
-    { action: 'ask', trigger: combo('Enter', m) },
+    { action: 'ask_brief', trigger: combo('Enter', m) },
+    { action: 'ask_complement', trigger: combo('Enter', ms) },
     { action: 'screenshot', trigger: combo('KeyS', ms) },
     { action: 'screenshot_area', trigger: combo('KeyA', ms) },
     { action: 'toggle_interactive', trigger: combo('KeyI', ms) },
     { action: 'toggle_overlay', trigger: combo('Backslash', m) },
     { action: 'toggle_record', trigger: combo('KeyR', ms) },
     { action: 'move_hold', trigger: { kind: 'modifier_only', mods: { alt: true } } },
+    { action: 'click_hold', trigger: { kind: 'modifier_only', mods: { ctrl: true } } },
   ];
 }
 

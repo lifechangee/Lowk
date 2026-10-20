@@ -20,13 +20,12 @@ test('F6 interface text size scales the main window live', async ({ page }) => {
   await page.goto('/main.html?lang=en#/settings/appearance');
   await page.waitForSelector('.tb');
   const before = (await page.locator('.tb').boundingBox())!.height;
-  const slider = page.getByRole('slider', { name: 'Interface text size' });
-  await slider.fill('20');
+  await page.getByRole('radiogroup', { name: 'Interface text size' }).locator('[data-size=xl]').click(); // G1: presets
   await page.waitForTimeout(150);
   const after = (await page.locator('.tb').boundingBox())!.height;
-  expect(after / before).toBeGreaterThan(1.3);
+  expect(after / before).toBeGreaterThan(1.25);
   const zoom = await page.evaluate(() => document.getElementById('app')!.style.zoom);
-  expect(Number(zoom)).toBeCloseTo(20 / 14, 2);
+  expect(Number(zoom)).toBeCloseTo(18 / 14, 2);
   // the window layout still fills the viewport exactly: no page scroll, nothing hangs below.
   const m = await page.evaluate(() => ({ sh: document.documentElement.scrollHeight, ih: innerHeight, sw: document.documentElement.scrollWidth, iw: innerWidth }));
   expect(m.sh).toBeLessThanOrEqual(m.ih);

@@ -228,6 +228,11 @@ impl WindowBackend for Win {
                     return Err(unavailable("overlay could not become key window"));
                 }
             }
+            Interaction::Hover => {
+                // Mouse events only: never key, never activates (the app below keeps focus).
+                CAN_KEY.lock().remove(&key);
+                self.win.setIgnoresMouseEvents(false);
+            }
             Interaction::Passive => {
                 CAN_KEY.lock().remove(&key);
                 self.win.setIgnoresMouseEvents(true);
@@ -287,6 +292,10 @@ impl WindowBackend for Win {
 
     fn is_key(&self) -> bool {
         self.win.isKeyWindow()
+    }
+
+    fn ignores_mouse(&self) -> Option<bool> {
+        Some(self.win.ignoresMouseEvents())
     }
 }
 

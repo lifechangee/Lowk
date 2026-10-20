@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import type { AudioApp, Target } from '../../lib/ipc';
+  import type { Target } from '../../lib/ipc';
   import Button from '../../lib/components/Button.svelte';
   import Kbd from '../../lib/components/Kbd.svelte';
   import RecDot from '../../lib/components/RecDot.svelte';
@@ -10,30 +9,22 @@
   import { clock } from '../fmt';
   import { tm } from '../i18n';
   import { hrefs, router } from '../router.svelte';
-  import { library, prefs, session } from '../state.svelte';
+  import { library, prefs, session, sources } from '../state.svelte';
   import { mouseNames } from '../names';
-  import { resolveSource } from '../source';
+  import { nameFromId, resolveSource } from '../source';
+  import SourcePicker from '../SourcePicker.svelte';
 
   let { flash = false }: { flash?: boolean } = $props();
 
-  let apps = $state<AudioApp[]>([]);
   let folder = $state<string>(SYS_UNSORTED);
-  let source = $state<string>('system');
+  // F12: the onboarding choice (stored default) wins; nothing stored yet = the first app playing audio.
+  let chosen = $state<string | null>(null);
+  const source = $derived(chosen ?? resolveSource(prefs.value.audio?.default_source, sources.running, prefs.value.capture?.default_source));
   const os = api.platform();
-
-  onMount(async () => {
-    apps = await api.audioApps();
-    // F12: the onboarding choice (stored default) wins; nothing stored yet = the recommended single app.
-    source = resolveSource(prefs.value.audio?.default_source, apps, prefs.value.capture?.default_source);
-  });
 
   const folderOptions = $derived([
     ...library.folders.map((f) => ({ value: folderKey(f.id), label: f.title })),
     { value: SYS_UNSORTED, label: tm('m.noFolder') },
-  ]);
-  const sourceOptions = $derived([
-    ...apps.map((a, i) => ({ value: `app:${a.id}`, label: tm(i === 0 ? 'm.sourceOnlyRecommended' : 'm.sourceOnly', { app: a.name }) })),
-    { value: 'system', label: tm('m.sourceSystem') },
   ]);
   const rec = $derived(bindFor(prefs.value.binds, 'toggle_record'));
   const recKey = $derived(rec ? triggerText(rec.trigger, os, mouseNames()) : '');
@@ -41,7 +32,7 @@
 
   async function start() {
     const target: Target = source.startsWith('app:') ? { kind: 'app', id: source.slice(4) } : { kind: 'whole_system' };
-    const label = source.startsWith('app:') ? (apps.find((a) => `app:${a.id}` === source)?.name ?? '') : tm('m.sourceSystemShort');
+    const label = source.startsWith('app:') ? (sources.find(source.slice(4))?.name ?? nameFromId(source.slice(4))) : tm('m.sourceSystemShort');
     await session.start(folder, target, label);
   }
 </script>
@@ -64,7 +55,7 @@
     </div>
   {:else}
     <div class="fld"><label for="nc-folder">{tm('m.folder')}</label><div id="nc-folder"><Select size="lg" label={tm('m.folder')} value={folder} options={folderOptions} onchange={(v) => (folder = v)} /></div></div>
-    <div class="fld"><label for="nc-src">{tm('m.audioSource')}</label><div id="nc-src"><Select size="lg" label={tm('m.audioSource')} value={source} options={sourceOptions} onchange={(v) => (source = v)} /></div></div>
+    <div class="fld"><label for="nc-src">{tm('m.audioSource')}</label><div id="nc-src"><SourcePicker label={tm('m.audioSource')} value={source} onchange={(v) => (chosen = v)} /></div></div>
     <Button variant="primary" size="lg" onclick={start}>
       <RecDot onprimary />
       {tm('main.startRecording')}

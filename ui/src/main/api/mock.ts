@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command WP6 has not wired yet. Mutations are real within the page's life.
-import type { AudioApp, BindReport, CallMeta, EngineDescriptor, FolderMeta, HwInfo, NewFolder, Os, PermKind, PermState, SessionState, Settings, StartOpts } from '../../lib/ipc';
+import type { BindReport, CallMeta, EngineDescriptor, FolderMeta, HwInfo, NewFolder, Os, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { LIVE_LINES, makeCalls, makeDetail, makeFolderDetail, makeFolders, summarizedIds } from './fixtures';
 import { folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type DocItem, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider } from './types';
@@ -149,14 +149,16 @@ export class MockBackend implements Backend {
     return hits.slice(0, 12);
   }
 
-  async audioApps(): Promise<AudioApp[]> {
-    // ?apps=none mirrors the real backend until lowk-audio lands (source_list returns []).
+  async sourceList(): Promise<SourceInfo[]> {
+    // ?apps=none mirrors a machine where nothing plays audio right now.
     if (typeof location !== 'undefined' && /[?&]apps=none\b/.test(location.search)) return [];
-    return [
-      { id: 'us.zoom.xos', name: 'Zoom', producing_audio: true, pids: [4121] },
-      { id: 'com.microsoft.teams2', name: 'Microsoft Teams', producing_audio: false, pids: [] },
-      { id: 'com.google.Chrome', name: 'Google Meet (Chrome)', producing_audio: false, pids: [] },
-    ];
+    const app = (id: string, name: string, producing: boolean, pid: number): SourceInfo => ({ id, name, bundle_id: id, pid, icon_png_b64: null, producing_audio: producing, kind: 'app' });
+    return [app('us.zoom.xos', 'Zoom', true, 4121), app('com.spotify.client', 'Spotify', true, 3310)];
+  }
+  async sourceListInstalled(): Promise<SourceInfo[]> {
+    await delay(60);
+    const names: [string, string][] = [['com.apple.Safari', 'Safari'], ['com.google.Chrome', 'Google Chrome'], ['org.mozilla.firefox', 'Firefox'], ['com.apple.Music', 'Music'], ['notion.id', 'Notion'], ['us.zoom.xos', 'Zoom'], ['com.spotify.client', 'Spotify'], ['com.microsoft.teams2', 'Microsoft Teams'], ['com.tinyspeck.slackmacgap', 'Slack'], ['org.videolan.vlc', 'VLC'], ['com.apple.QuickTimePlayerX', 'QuickTime Player'], ['com.loom.desktop', 'Loom']];
+    return names.map(([id, name]) => ({ id, name, bundle_id: id, pid: 0, icon_png_b64: null, producing_audio: false, kind: 'app' as const }));
   }
   async engines(): Promise<EngineDescriptor[]> {
     return [

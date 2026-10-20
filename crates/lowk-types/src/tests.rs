@@ -48,16 +48,29 @@ fn default_binds_per_os() {
     let find = |b: &[BindSpec], a| b.iter().find(|x| x.action == a).unwrap().trigger.clone();
     let mac = default_binds(Os::Macos);
     let win = default_binds(Os::Windows);
-    assert_eq!(mac.len(), 7);
+    assert_eq!(mac.len(), 9);
     assert_eq!(
-        find(&mac, ActionId::Ask),
+        find(&mac, ActionId::AskBrief),
         Trigger::Combo {
             mods: Mods::META,
             key: KeyCode::new("Enter")
         }
     );
     assert_eq!(
-        find(&win, ActionId::Ask),
+        find(&mac, ActionId::AskComplement),
+        Trigger::Combo {
+            mods: Mods::META_SHIFT,
+            key: KeyCode::new("Enter")
+        }
+    );
+    assert_eq!(
+        find(&mac, ActionId::ClickHold),
+        Trigger::ModifierOnly { mods: Mods::CTRL }
+    );
+    assert_eq!(ActionId::AskComplement.template_id(), Some("complement"));
+    assert_eq!(ActionId::Ask.template_id(), None);
+    assert_eq!(
+        find(&win, ActionId::AskBrief),
         Trigger::Combo {
             mods: Mods::CTRL,
             key: KeyCode::new("Enter")

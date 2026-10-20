@@ -44,7 +44,13 @@ pub fn apply(st: &AppState, phase: SessionPhase) {
                     let (pw, ph) = crate::windows::pill_size(ov.pill_edge);
                     let _ = w.set_size(tauri::LogicalSize::new(pw, ph));
                 }
-                if let Err(e) = p.show(ov.pill_edge) {
+                let saved = ov.pill_positions.clone();
+                let lookup = move |d: &Rect| {
+                    saved
+                        .get(&lowk_stealth::magnet::display_key(d))
+                        .map(|p| (p.x, p.y))
+                };
+                if let Err(e) = p.show_with(ov.pill_edge, lookup) {
                     tracing::error!(%e, "pill not shown (failed closed)");
                 }
             }

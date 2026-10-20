@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pill-drag-end"
+description = "Enables the pill_drag_end command without any pre-configured scope."
+commands.allow = ["pill_drag_end"]
+
+[[permission]]
+identifier = "deny-pill-drag-end"
+description = "Denies the pill_drag_end command without any pre-configured scope."
+commands.deny = ["pill_drag_end"]

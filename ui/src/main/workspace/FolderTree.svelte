@@ -21,7 +21,6 @@
 <aside class="left">
   <div class="top">
     <Button variant="ghost" block icon="arrow-left" onclick={() => router.go(hrefs.home)}>{tm('m.backLibrary')}</Button>
-    <Button variant="primary" block onclick={() => ui.newCall()}><RecDot onprimary />{tm('main.newCall')}</Button>
     <button class="search" onclick={() => (ui.paletteOpen = true)}><Icon name="search" size={14} /><span class="lbl">{tm('common.search')}</span><Kbd text={mod} /></button>
   </div>
 

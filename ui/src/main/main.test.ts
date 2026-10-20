@@ -6,7 +6,8 @@ import { mergePatch } from './api/mock';
 import { bindWarnings, defaultBinds, formatTrigger, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
 import { parse } from './router.svelte';
 import { greeting } from './fmt';
-import { resolveSource } from './source';
+import type { SourceInfo } from '../lib/ipc';
+import { nameFromId, presetInfo, presetsFor, resolveSource } from './source';
 
 const names = { middle: 'Wheel', back: 'Back', forward: 'Forward', other: (n: number) => `Btn ${n}` };
 
@@ -31,10 +32,10 @@ describe('binds', () => {
   it('formats mac and windows triggers', () => {
     const mac = defaultBinds('macos');
     expect(formatTrigger(mac[0]!.trigger, 'macos', names)).toEqual(['⌘', '↵']);
-    expect(formatTrigger(mac[1]!.trigger, 'macos', names)).toEqual(['⇧', '⌘', 'S']);
+    expect(formatTrigger(mac.find((x) => x.action === 'screenshot')!.trigger, 'macos', names)).toEqual(['⇧', '⌘', 'S']);
     const win = defaultBinds('windows');
-    expect(formatTrigger(win[1]!.trigger, 'windows', names)).toEqual(['Ctrl', 'Shift', 'S']);
-    expect(formatTrigger(win.at(-1)!.trigger, 'windows', names)).toEqual(['Alt']);
+    expect(formatTrigger(win.find((x) => x.action === 'screenshot')!.trigger, 'windows', names)).toEqual(['Ctrl', 'Shift', 'S']);
+    expect(formatTrigger(win.find((x) => x.action === 'move_hold')!.trigger, 'windows', names)).toEqual(['Alt']);
   });
   it('records keys, ignores bare modifiers, maps mouse side buttons', () => {
     const e = { code: 'KeyR', metaKey: true, ctrlKey: false, altKey: false, shiftKey: true };
@@ -50,11 +51,12 @@ describe('binds', () => {
     const next = withBind(b, 'ask', { kind: 'mouse', button: { kind: 'forward' }, mods: {} });
     expect(next.find((x) => x.action === 'ask')?.swallow).toBe(true);
     expect(withBind(b, 'ask', null).some((x) => x.action === 'ask')).toBe(false);
-    expect(bindWarnings(b[0]!, b, 'macos')).toContain('global_enter');
-    expect(bindWarnings(b[1]!, b, 'macos')).toContain('save_as');
-    const dup = [...b, { action: 'cancel_answer' as const, trigger: b[0]!.trigger }];
+    const at = (a: string) => b.find((x) => x.action === a)!;
+    expect(bindWarnings(at('ask_brief'), b, 'macos')).toContain('global_enter');
+    expect(bindWarnings(at('screenshot'), b, 'macos')).toContain('save_as');
+    const dup = [...b, { action: 'cancel_answer' as const, trigger: at('ask_brief').trigger }];
     expect(bindWarnings(dup.at(-1)!, dup, 'macos')).toContain('duplicate');
-    expect(triggerEquals(b[0]!.trigger, b[0]!.trigger)).toBe(true);
+    expect(triggerEquals(at('ask_brief').trigger, at('ask_brief').trigger)).toBe(true);
   });
 });
 
@@ -71,6 +73,16 @@ describe('infra', () => {
   });
 });
 
+describe('G6 default binds', () => {
+  it('binds the brief and complement templates and the hold keys', () => {
+    const b = defaultBinds('macos');
+    expect(b.find((x) => x.action === 'ask_brief')?.trigger).toMatchObject({ kind: 'combo', key: 'Enter', mods: { meta: true } });
+    expect(b.find((x) => x.action === 'ask_complement')?.trigger).toMatchObject({ kind: 'combo', key: 'Enter', mods: { meta: true, shift: true } });
+    expect(b.find((x) => x.action === 'click_hold')?.trigger).toEqual({ kind: 'modifier_only', mods: { ctrl: true } });
+    expect(b.find((x) => x.action === 'move_hold')?.trigger).toEqual({ kind: 'modifier_only', mods: { alt: true } });
+  });
+});
+
 describe('F7 default binds', () => {
   it('has no panic bind; backslash toggles the overlay', () => {
     for (const os of ['macos', 'windows'] as const) {
@@ -82,13 +94,35 @@ describe('F7 default binds', () => {
 });
 
 describe('F12 capture source default', () => {
-  const apps = [{ id: 'zoom', name: 'Zoom', producing_audio: true, pids: [] }, { id: 'teams', name: 'Teams', producing_audio: false, pids: [] }];
-  it('follows the stored choice, else the recommended app, else the whole system', () => {
+  const src = (id: string, name: string, producing: boolean): SourceInfo => ({ id, name, bundle_id: id, pid: 0, icon_png_b64: null, producing_audio: producing, kind: 'app' });
+  const apps = [src('zoom', 'Zoom', true), src('teams', 'Teams', false)];
+  it('follows the stored choice, else the first app playing audio, else the whole system', () => {
     expect(resolveSource({ kind: 'app', id: 'teams' }, apps)).toBe('app:teams');
     expect(resolveSource({ kind: 'whole_system' }, apps)).toBe('system');
     expect(resolveSource(null, apps)).toBe('app:zoom');
-    expect(resolveSource({ kind: 'app', id: 'gone' }, apps)).toBe('app:zoom');
+    expect(resolveSource({ kind: 'app', id: 'gone' }, apps)).toBe('app:gone'); // a stored choice need not be running
+    expect(resolveSource(null, [apps[1]!])).toBe('system');
     expect(resolveSource(null, [])).toBe('system');
+  });
+});
+
+describe('G3 source presets', () => {
+  const app = (id: string, name: string): SourceInfo => ({ id, name, bundle_id: id, pid: 1, icon_png_b64: null, producing_audio: true, kind: 'app' });
+  it('lists the seven presets (FaceTime only on macOS) and prefers the real running entry', () => {
+    expect(presetsFor('macos').map((p) => p.key)).toEqual(['zoom', 'meet', 'teams', 'discord', 'telegram', 'slack', 'facetime']);
+    expect(presetsFor('windows').map((p) => p.key)).not.toContain('facetime');
+    const zoom = presetsFor('macos')[0]!;
+    expect(presetInfo(zoom, 'macos', [app('us.zoom.xos', 'zoom.us')]).pid).toBe(1);
+    const stat = presetInfo(zoom, 'macos', []);
+    expect(stat).toMatchObject({ id: 'us.zoom.xos', name: 'Zoom', producing_audio: false });
+    expect(presetInfo(presetsFor('windows')[0]!, 'windows', []).id).toBe('Zoom.exe');
+    expect(presetInfo(presetsFor('macos')[1]!, 'macos', [app('com.google.Chrome', 'Google Chrome')]).name).toBe('Google Meet (Chrome)');
+  });
+});
+
+describe('G3 names', () => {
+  it('derives a display name from an id', () => {
+    expect(nameFromId('C:\\\\Apps\\\\Zoom.exe')).toBe('Zoom');
   });
 });
 
