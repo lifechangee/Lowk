@@ -59,5 +59,6 @@ export const overlay = {
   'overlay.template': 'Шаблон',
   'overlay.new': 'новое',
   'overlay.state.idle': 'Не записывается',
+  'overlay.action.stop': 'Остановить запись',
   'overlay.state.paused': 'Пауза',
 } as const;

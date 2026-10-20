@@ -36,7 +36,6 @@ test('F2b gaps between inline chips hold across the whole home screen', async ({
 });
 
 test('F11 overlay text keeps a legibility scrim over a worst-case busy background at any opacity', async ({ page }) => {
-  xfail('F11: unreadable over high-contrast content at the tested transparency');
   const bad: string[] = [];
   for (const t of [0, 60, 90]) {
     await page.goto(`/overlay.html?still=1&bg=dark&t=${t}&lang=en`);
@@ -50,7 +49,6 @@ test('F11 overlay text keeps a legibility scrim over a worst-case busy backgroun
 });
 
 test('F13 toast and move badge stay inside the real 384px overlay window', async ({ page }) => {
-  xfail('F13: yellow toast clipped at the bottom edge');
   await page.setViewportSize({ width: 600, height: 384 });
   await page.goto('/overlay.html?still=1&bg=dark&t=60&lang=en&bare=1');
   await page.waitForSelector('.frame');

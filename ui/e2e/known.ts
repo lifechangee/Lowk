@@ -16,8 +16,6 @@ export interface Known {
 export const KNOWN: Known[] = [
   // --- owner feedback (docs/M0-FEEDBACK.md) ---
   { fid: 'F2', rule: 'flex-gap', sel: /button\.btn > span\.lbl/ }, // dot / label / kbd touch in the primary button
-  { fid: 'F13', rule: 'overflow', sel: /div\.ov > div\.(toast|badge)/, state: /^overlay\// }, // toast + move badge hang below the 384px window
-  { fid: 'F11', rule: 'contrast', sel: /.*/, state: /^overlay\// }, // overlay text over busy/light content (< 3:1 at 60% opacity); see also the F11 worst-case test
   // --- new findings from the first QA run (not in the owner list; fix agents: see docs/QA.md) ---
   { fid: 'N1', rule: 'contrast', sel: /.*/, state: /^main\// }, // --tx3 / --tx2 text on --bg/--panel below 3:1
   { fid: 'N2', rule: 'text-overlap', sel: /div\.hd > h1\.lbl {2}<> {2}button\.btn > span\.lbl/ }, // long call title runs under the header button
