@@ -45,10 +45,10 @@ pub fn capture_all(own_windows: &[isize]) -> Result<Vec<CapturedShot>> {
     #[cfg(windows)]
     let raw = win::capture_displays(MAX_EDGE, own_windows)?;
     #[cfg(not(any(target_os = "macos", windows)))]
-    let raw: Vec<DisplayShot> = {
+    {
         let _ = own_windows;
-        return Err(AppError::new(ErrorCode::Unsupported));
-    };
+        Err(AppError::new(ErrorCode::Unsupported))
+    }
     #[cfg(any(target_os = "macos", windows))]
     {
         raw.into_iter()

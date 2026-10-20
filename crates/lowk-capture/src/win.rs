@@ -87,14 +87,16 @@ fn grab_one(r: RECT, max_edge: u32) -> Result<DisplayShot> {
             SRCCOPY | CAPTUREBLT,
         )
         .is_ok();
-        let mut bi = BITMAPINFO::default();
-        bi.bmiHeader = BITMAPINFOHEADER {
-            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-            biWidth: sw,
-            biHeight: -sh,
-            biPlanes: 1,
-            biBitCount: 32,
-            biCompression: BI_RGB.0,
+        let mut bi = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: sw,
+                biHeight: -sh,
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: BI_RGB.0,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let mut bgra = vec![0u8; (sw * sh * 4) as usize];
