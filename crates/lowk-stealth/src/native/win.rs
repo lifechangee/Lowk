@@ -211,6 +211,10 @@ impl WindowBackend for Win {
                         return Err(unavailable("overlay could not take the foreground"));
                     }
                 }
+                Interaction::Hover => {
+                    // Mouse events only: no longer transparent to hit-testing, still no-activate.
+                    self.set_ex((self.ex() | WS_EX_NOACTIVATE.0 as isize) & !(WS_EX_TRANSPARENT.0 as isize));
+                }
                 Interaction::Passive => {
                     self.set_ex(self.ex() | PASSIVE_EX | WS_EX_NOACTIVATE.0 as isize);
                     let prev = h(std::mem::take(&mut *self.prev_fg.lock()));

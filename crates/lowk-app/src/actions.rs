@@ -2,6 +2,7 @@
 //! of `lowk-input` (plugin combos + low-level hooks) and dispatches.
 use crate::state::AppState;
 use lowk_types::*;
+use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 
@@ -17,22 +18,68 @@ pub fn spawn(st: Arc<AppState>, rx: Receiver<BindEvent>) {
         .expect("spawn actions thread");
 }
 
-fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
+/// Ctrl must stay down this long before the overlay turns clickable (a Ctrl+C is not a hold).
+const HOVER_DELAY: std::time::Duration = std::time::Duration::from_millis(140);
+
+pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
     let down = ev.phase == Phase::Down;
     let r: Result<()> = (|| {
         match ev.action {
             ActionId::MoveHold => {
                 let stealth = st.stealth()?;
                 let cursor = st.input.lock().cursor();
-                stealth.controller.move_hold(ev.phase, cursor);
-                if !down {
-                    crate::commands::stealth::remember_position(st);
+                // The overlay when it is up, else the pill (G2). One magnet at a time.
+                let to_pill = st.pill_moving.load(Ordering::SeqCst) == 1
+                    || (!stealth.guard.is_visible(lowk_stealth::OVERLAY) && pill_up(stealth));
+                if !to_pill {
+                    stealth.controller.move_hold(ev.phase, cursor);
+                    if !down {
+                        crate::commands::stealth::remember_position(st);
+                    }
+                } else if let Some(p) = &stealth.pill {
+                    if down {
+                        st.pill_moving.store(1, Ordering::SeqCst);
+                        p.move_hold(Phase::Down, cursor);
+                    } else if st.pill_moving.swap(0, Ordering::SeqCst) == 1 {
+                        p.move_hold(Phase::Up, cursor);
+                        crate::commands::stealth::remember_pill_position(st);
+                    }
+                }
+            }
+            ActionId::ClickHold => {
+                let ctl = &st.stealth()?.overlay;
+                let gen = st.hover_gen.fetch_add(1, Ordering::SeqCst) + 1;
+                if down {
+                    let st2 = st.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(HOVER_DELAY);
+                        if st2.hover_gen.load(Ordering::SeqCst) == gen {
+                            if let Ok(s) = st2.stealth() {
+                                s.overlay.hover(Phase::Down);
+                            }
+                        }
+                    });
+                } else {
+                    ctl.hover(Phase::Up);
                 }
             }
             _ if !down => {}
             ActionId::ToggleRecord => crate::commands::session::toggle_record(st)?,
             ActionId::Ask => {
                 let template_id = st.template.lock().clone();
+                st.session.ask(AskRequest {
+                    template_id,
+                    typed_text: None,
+                })?;
+            }
+            ActionId::AskBrief
+            | ActionId::AskComplement
+            | ActionId::AskSay
+            | ActionId::AskFactcheck
+            | ActionId::AskFollowup
+            | ActionId::AskRecap => {
+                // G6: a fixed template per bind, no overlay mode switch needed.
+                let template_id = ev.action.template_id().unwrap_or("brief").to_string();
                 st.session.ask(AskRequest {
                     template_id,
                     typed_text: None,
@@ -68,6 +115,10 @@ fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
             tracing::warn!(action = ?ev.action, %e, "bind action failed");
         }
     }
+}
+
+fn pill_up(s: &lowk_stealth::Stealth) -> bool {
+    s.pill.as_ref().is_some_and(|p| p.is_visible())
 }
 
 fn cycle_template(st: &AppState, forward: bool) {

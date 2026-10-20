@@ -190,7 +190,7 @@ mod tests {
         let registered = reg.registered.clone();
         let mut m = InputManager::with_os(Os::Macos, Some(Box::new(reg)));
         let rep = m.set_binds(&default_binds(Os::Macos)).unwrap();
-        assert_eq!(registered.lock().unwrap().len(), 6);
+        assert_eq!(registered.lock().unwrap().len(), 7);
         let mv = rep
             .entries
             .iter()
@@ -199,7 +199,7 @@ mod tests {
         // MoveHold goes to the hook: Active, Degraded(InputMonitoring) or Failed, never a combo.
         assert!(!matches!(mv.status, BindStatus::Conflict(_)));
         assert!(m.status().combo_adapter);
-        for e in rep.entries.iter().filter(|e| e.action != ActionId::MoveHold) {
+        for e in rep.entries.iter().filter(|e| !matches!(e.action, ActionId::MoveHold | ActionId::ClickHold)) {
             assert_eq!(e.status, BindStatus::Active, "{:?}", e.action);
         }
     }
@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn refused_combo_falls_back_and_duplicates_conflict() {
         let reg = FakeRegistrar::default();
-        reg.refuse.lock().unwrap().push(ActionId::Ask);
+        reg.refuse.lock().unwrap().push(ActionId::AskBrief);
         let mut m = InputManager::with_os(Os::Windows, Some(Box::new(reg)));
         let mut binds = default_binds(Os::Windows);
         binds.push(binds[1].clone()); // same action twice
@@ -236,7 +236,7 @@ mod tests {
     fn without_adapter_everything_goes_to_hook() {
         let mut m = InputManager::with_os(Os::current(), None);
         let rep = m.set_binds(&default_binds(Os::current())).unwrap();
-        assert_eq!(rep.entries.len(), 7);
+        assert_eq!(rep.entries.len(), 9);
         assert!(!m.status().combo_adapter);
     }
 }

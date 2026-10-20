@@ -17,6 +17,7 @@
 //!   mode <passive|interactive|moving>  overlay mode (moving = hold-to-move down)
 //!   ... everything in probe.rs (overlay-show, demo-start, exclusion off, overlay-move, ...)
 use crate::state::Shared;
+use lowk_types::SettingsStore as _;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::time::{Duration, Instant};
@@ -164,6 +165,41 @@ fn run(st: &Shared, line: &str) -> String {
                     w.scale_factor().unwrap_or(1.0)
                 )
             }
+        },
+        // G6: feed a bind event through the real dispatcher: `bind <action_snake_case> <down|up>`.
+        "bind" => {
+            let mut it = rest.split_whitespace();
+            let (Some(a), Some(p)) = (it.next(), it.next()) else {
+                return "usage: bind <action> <down|up>".into();
+            };
+            let Ok(action) = serde_json::from_str::<lowk_types::ActionId>(&format!("\"{a}\"")) else {
+                return format!("unknown action {a}");
+            };
+            let phase = if p == "down" { lowk_types::Phase::Down } else { lowk_types::Phase::Up };
+            crate::actions::dispatch(st, lowk_types::BindEvent { action, phase, t_mono_ns: 0 });
+            "ok".into()
+        }
+        // G6: overlay mode + the native click-through flag.
+        "hover-state" => match st.stealth() {
+            Ok(s) => format!(
+                "{{\"mode\":\"{}\",\"ignores_mouse\":{}}}",
+                serde_json::to_string(&s.controller.mode()).unwrap_or_default().trim_matches('"'),
+                s.overlay.ignores_mouse().map_or("null".to_string(), |b| b.to_string())
+            ),
+            Err(e) => e.to_string(),
+        },
+        // G2: the pill's frame and the remembered positions.
+        "pill-state" => match st.stealth() {
+            Ok(s) => {
+                let f = s.pill.as_ref().map(|p| p.frame());
+                format!(
+                    "{{\"frame\":{},\"visible\":{},\"positions\":{}}}",
+                    serde_json::to_string(&f).unwrap_or_default(),
+                    s.pill.as_ref().is_some_and(|p| p.is_visible()),
+                    serde_json::to_string(&st.settings.get().overlay.pill_positions).unwrap_or_default()
+                )
+            }
+            Err(e) => e.to_string(),
         },
         // G7: same path as the screenshot bind; replies with `[[w,h,png_bytes],..]` of the queue.
         "screenshot" => match crate::commands::capture::capture_into_queue(st) {

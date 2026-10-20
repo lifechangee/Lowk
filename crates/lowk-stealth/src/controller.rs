@@ -139,6 +139,20 @@ impl OverlayCtl {
         Ok(())
     }
 
+    /// G6: hold-Ctrl down / up. Never hides or re-shows the window (flags only).
+    pub fn hover(&self, phase: Phase) {
+        let _ = self.input(match phase {
+            Phase::Down => ModeInput::HoverDown,
+            Phase::Up => ModeInput::HoverUp,
+        });
+    }
+
+    /// Native click-through state (QA readback).
+    pub fn ignores_mouse(&self) -> Option<bool> {
+        let b = self.backend.clone();
+        run_main_sync(&self.main, move || b.ignores_mouse())
+    }
+
     /// Escape pressed in the interactive overlay.
     pub fn escape(&self) {
         let _ = self.input(ModeInput::Escape);
@@ -262,6 +276,9 @@ impl OverlayController for OverlayCtl {
         if m == OverlayMode::Moving {
             return self.input(ModeInput::MoveDown);
         }
+        if m == OverlayMode::Hover {
+            return self.input(ModeInput::HoverDown);
+        }
         self.input(ModeInput::Set(m))
     }
 
@@ -338,6 +355,7 @@ pub struct PillCtl {
     guard: StealthGuard,
     main: Arc<dyn MainThread>,
     backend: Arc<dyn WindowBackend>,
+    follow: Mutex<Option<Follow>>,
 }
 
 impl PillCtl {
@@ -346,22 +364,96 @@ impl PillCtl {
         main: Arc<dyn MainThread>,
         backend: Arc<dyn WindowBackend>,
     ) -> Self {
-        Self { guard, main, backend }
+        Self {
+            guard,
+            main,
+            backend,
+            follow: Mutex::new(None),
+        }
     }
     /// Dock to `edge` of the primary display, then show (apply -> verify -> show).
     pub fn show(&self, edge: PillEdge) -> Result<()> {
+        self.show_with(edge, |_| None)
+    }
+    /// Like [`PillCtl::show`], but a remembered origin for the display (`lookup` gets its
+    /// visible frame; G2) wins over the docked position. The origin is clamped to the display.
+    pub fn show_with(&self, edge: PillEdge, lookup: impl Fn(&Rect) -> Option<(f64, f64)> + Send + 'static) -> Result<()> {
         let b = self.backend.clone();
         run_main_sync(&self.main, move || {
             let f = b.frame();
             if let Some(d) = b.display_frames().first().copied() {
-                let (x, y) = pill_origin(edge, (f.w, f.h), d);
+                let (x, y) = match lookup(&d) {
+                    Some(p) => crate::magnet::clamp_origin(p, (f.w, f.h), (p.0, p.1), &[d]),
+                    None => pill_origin(edge, (f.w, f.h), d),
+                };
                 b.set_origin(x, y);
             }
         });
         self.guard.show(PILL)
     }
     pub fn hide(&self) {
+        self.stop_follow();
         self.guard.hide(PILL)
+    }
+    pub fn is_visible(&self) -> bool {
+        self.guard.is_visible(PILL)
+    }
+    pub fn frame(&self) -> Rect {
+        let b = self.backend.clone();
+        run_main_sync(&self.main, move || b.frame())
+    }
+    pub fn display_frames(&self) -> Vec<Rect> {
+        let b = self.backend.clone();
+        run_main_sync(&self.main, move || b.display_frames())
+    }
+    /// Move to a global top-left origin, clamped to the display under the window's centre.
+    pub fn set_origin(&self, x: f64, y: f64) {
+        let b = self.backend.clone();
+        run_main_sync(&self.main, move || {
+            let f = b.frame();
+            let c = (x + f.w / 2.0, y + f.h / 2.0);
+            let (x, y) = crate::magnet::clamp_origin((x, y), (f.w, f.h), c, &b.display_frames());
+            b.set_origin(x, y);
+        });
+    }
+    fn stop_follow(&self) {
+        if let Some(f) = self.follow.lock().take() {
+            f.stop.store(true, Ordering::SeqCst);
+            let _ = f.handle.join();
+        }
+    }
+    /// G2: hold-to-move magnet for the pill (same mechanism as the overlay's).
+    pub fn move_hold(&self, phase: Phase, cursor: Arc<dyn CursorSource>) {
+        match phase {
+            Phase::Down => {
+                if self.follow.lock().is_some() || !self.guard.is_visible(PILL) {
+                    return;
+                }
+                let f = self.frame();
+                let magnet = Magnet::begin((f.x, f.y), (f.w, f.h), cursor.position());
+                let stop = Arc::new(AtomicBool::new(false));
+                let (stop2, main, backend) = (stop.clone(), self.main.clone(), self.backend.clone());
+                let handle = std::thread::Builder::new()
+                    .name("lowk-pill-magnet".into())
+                    .spawn(move || {
+                        while !stop2.load(Ordering::SeqCst) {
+                            std::thread::sleep(Duration::from_millis(8));
+                            let c = cursor.position();
+                            let backend = backend.clone();
+                            main.run(Box::new(move || {
+                                let (x, y) = magnet.target(c, &backend.display_frames());
+                                backend.set_origin(x, y);
+                            }));
+                        }
+                    })
+                    .expect("spawn pill magnet");
+                *self.follow.lock() = Some(Follow { stop, handle });
+            }
+            Phase::Up => {
+                self.stop_follow();
+                let _ = self.guard.apply(PILL);
+            }
+        }
     }
 }
 
@@ -425,6 +517,34 @@ mod tests {
         }
         assert_eq!((count(&fb, "hide"), count(&fb, "show")), (hides, shows));
         assert!(fb.0.lock().excluded);
+    }
+
+    /// G6: the hold toggles click-through without hide/show and without ever becoming key.
+    #[test]
+    fn hover_hold_toggles_click_through_without_flicker_or_focus() {
+        let (c, fb, sink) = setup();
+        c.show().unwrap();
+        let count = |fb: &FakeBackend, n: &str| fb.calls().iter().filter(|c| c.as_str() == n).count();
+        let (hides, shows) = (count(&fb, "hide"), count(&fb, "show"));
+        assert_eq!(c.ignores_mouse(), Some(true));
+        for _ in 0..10 {
+            c.hover(Phase::Down);
+            assert_eq!(c.mode(), OverlayMode::Hover);
+            assert_eq!(c.ignores_mouse(), Some(false));
+            assert!(fb.0.lock().excluded && fb.0.lock().visible);
+            c.hover(Phase::Up);
+            assert_eq!(c.mode(), OverlayMode::Passive);
+            assert_eq!(c.ignores_mouse(), Some(true));
+        }
+        assert_eq!((count(&fb, "hide"), count(&fb, "show")), (hides, shows));
+        let n = sink
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|e| matches!(e, AppEvent::Overlay(OverlayEvent::Mode(OverlayMode::Hover))))
+            .count();
+        assert_eq!(n, 10);
     }
 
     #[test]
@@ -508,6 +628,46 @@ mod tests {
         let r = c.selftest().unwrap();
         assert!(r.overlay_hidden);
         assert!(!r.main_visible);
+    }
+
+    fn pill_setup() -> (PillCtl, FakeBackend) {
+        let main: Arc<dyn MainThread> = Arc::new(InlineMainThread);
+        let guard = StealthGuard::new(main.clone());
+        let fb = FakeBackend::new();
+        guard
+            .protect_backend(PILL, WindowPolicy::PILL, Arc::new(fb.clone()))
+            .unwrap();
+        {
+            let mut s = fb.0.lock();
+            s.size = (22.0, 88.0);
+            s.displays = vec![Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 1000.0,
+                h: 800.0,
+            }];
+        }
+        (PillCtl::new(guard, main, Arc::new(fb.clone())), fb)
+    }
+
+    /// G2: the pill docks by default, honours a remembered origin (clamped), and the magnet moves it.
+    #[test]
+    fn pill_remembered_origin_and_magnet() {
+        let (p, fb) = pill_setup();
+        p.show(PillEdge::Right).unwrap();
+        assert_eq!(fb.0.lock().origin, (978.0, 356.0));
+        p.hide();
+        p.show_with(PillEdge::Right, |_| Some((300.0, 200.0))).unwrap();
+        assert_eq!(fb.0.lock().origin, (300.0, 200.0));
+        p.hide();
+        p.show_with(PillEdge::Right, |_| Some((5000.0, -50.0))).unwrap();
+        assert_eq!(fb.0.lock().origin, (978.0, 0.0), "clamped into the display");
+        let path = Arc::new(Path(Mutex::new(vec![(985.0, 10.0), (500.0, 400.0)])));
+        p.move_hold(Phase::Down, path);
+        std::thread::sleep(Duration::from_millis(80));
+        p.move_hold(Phase::Up, Arc::new(FixedCursor(0.0, 0.0)));
+        assert_eq!(fb.0.lock().origin, (493.0, 390.0));
+        assert!(fb.0.lock().excluded && fb.0.lock().visible);
     }
 
     #[test]

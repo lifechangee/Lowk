@@ -46,6 +46,44 @@ pub struct Matcher {
 }
 
 impl Matcher {
+    /// Modifier-only binds that hold for the modifier state `m`: those whose mods equal `m`; when
+    /// none does, a `MoveHold` bind wins if `m` is fully explained by modifier-only binds (G6:
+    /// holding Ctrl for click-through-off and then Alt must start the move, not drop both).
+    fn wanted_mod_only(&self, m: Mods) -> Vec<usize> {
+        let only = |i: &usize| matches!(self.binds[*i].trigger, Trigger::ModifierOnly { .. });
+        let mods_of = |i: usize| match &self.binds[i].trigger {
+            Trigger::ModifierOnly { mods } => *mods,
+            _ => Mods::NONE,
+        };
+        let exact: Vec<usize> = (0..self.binds.len())
+            .filter(only)
+            .filter(|&i| mods_of(i) == m)
+            .collect();
+        if !exact.is_empty() || m == Mods::NONE {
+            return exact;
+        }
+        let sub = |a: Mods, b: Mods| (!a.ctrl || b.ctrl) && (!a.alt || b.alt) && (!a.shift || b.shift) && (!a.meta || b.meta);
+        let cover: Vec<usize> = (0..self.binds.len())
+            .filter(only)
+            .filter(|&i| sub(mods_of(i), m))
+            .collect();
+        let union = cover.iter().fold(Mods::NONE, |u, &i| {
+            let x = mods_of(i);
+            Mods {
+                ctrl: u.ctrl || x.ctrl,
+                alt: u.alt || x.alt,
+                shift: u.shift || x.shift,
+                meta: u.meta || x.meta,
+            }
+        });
+        if union == m {
+            if let Some(&mv) = cover.iter().find(|&&i| self.binds[i].action == ActionId::MoveHold) {
+                return vec![mv];
+            }
+        }
+        vec![]
+    }
+
     /// Replace the table; returns `Up` events for anything held under the old one.
     pub fn set_binds(&mut self, binds: Vec<BindSpec>) -> Vec<(ActionId, Phase)> {
         let out = self.release_all();
@@ -127,18 +165,18 @@ impl Matcher {
                     return out;
                 }
                 self.mods = m;
+                let wanted = self.wanted_mod_only(m);
+                let wanted_t: Vec<Trigger> = wanted.iter().map(|&i| self.binds[i].trigger.clone()).collect();
                 self.end(&mut out, false, |b, h| match (h, &b.trigger) {
                     (Held::Key(_), Trigger::Combo { mods, .. }) => *mods != m,
-                    (Held::Mods, Trigger::ModifierOnly { mods }) => *mods != m,
+                    (Held::Mods, Trigger::ModifierOnly { .. }) => !wanted_t.contains(&b.trigger),
                     _ => false,
                 });
                 if self.keys_down.is_empty() && self.mouse_down == 0 && m != Mods::NONE {
-                    for i in 0..self.binds.len() {
-                        if let Trigger::ModifierOnly { mods } = &self.binds[i].trigger {
-                            if *mods == m && !self.is_active(i) {
-                                out.events.push((self.binds[i].action, Phase::Down));
-                                self.active.push((i, Held::Mods));
-                            }
+                    for i in wanted {
+                        if !self.is_active(i) {
+                            out.events.push((self.binds[i].action, Phase::Down));
+                            self.active.push((i, Held::Mods));
                         }
                     }
                 }
@@ -246,6 +284,43 @@ mod tests {
         assert!(!o.swallow);
         let o = x.handle(Raw::Mods(Mods::NONE));
         assert_eq!(o.events, vec![(ActionId::MoveHold, Phase::Up)]);
+    }
+
+    fn ctrl_hold() -> BindSpec {
+        BindSpec {
+            action: ActionId::ClickHold,
+            trigger: Trigger::ModifierOnly { mods: Mods::CTRL },
+            swallow: false,
+        }
+    }
+
+    /// G6: Ctrl alone = ClickHold; Alt added = the move wins; Alt released = ClickHold again.
+    #[test]
+    fn move_wins_over_click_hold() {
+        let mut x = m(vec![alt_hold(), ctrl_hold()]);
+        let o = x.handle(Raw::Mods(Mods::CTRL));
+        assert_eq!(o.events, vec![(ActionId::ClickHold, Phase::Down)]);
+        let both = Mods {
+            ctrl: true,
+            alt: true,
+            ..Mods::NONE
+        };
+        let o = x.handle(Raw::Mods(both));
+        assert_eq!(
+            o.events,
+            vec![(ActionId::ClickHold, Phase::Up), (ActionId::MoveHold, Phase::Down)]
+        );
+        let o = x.handle(Raw::Mods(Mods::CTRL));
+        assert_eq!(
+            o.events,
+            vec![(ActionId::MoveHold, Phase::Up), (ActionId::ClickHold, Phase::Down)]
+        );
+        let o = x.handle(Raw::Mods(Mods::NONE));
+        assert_eq!(o.events, vec![(ActionId::ClickHold, Phase::Up)]);
+        // Alt first, then Ctrl: the move keeps running.
+        x.handle(Raw::Mods(Mods::ALT));
+        let o = x.handle(Raw::Mods(both));
+        assert!(o.events.is_empty(), "{:?}", o.events);
     }
 
     #[test]

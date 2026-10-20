@@ -55,6 +55,12 @@ pub struct AppState {
     pub binds_report: Mutex<BindReport>,
     pub applied_binds: Mutex<Vec<BindSpec>>,
     pub drag_origin: Mutex<Option<(f64, f64)>>,
+    /// G2: pointer-drag origin of the pill window.
+    pub pill_drag_origin: Mutex<Option<(f64, f64)>>,
+    /// G6: generation counter that debounces the click-hold key (a quick Ctrl+C is not a hold).
+    /// 1 while the ⌥ magnet moves the pill (so its release is routed to the pill).
+    pub pill_moving: std::sync::atomic::AtomicU8,
+    pub hover_gen: std::sync::atomic::AtomicU64,
     /// Template chosen in the overlay chip (per run, not persisted).
     pub template: Mutex<String>,
     /// The user hid the overlay by hand (ToggleOverlay) during this recording.
@@ -87,6 +93,9 @@ impl AppState {
             binds_report: Mutex::new(BindReport::default()),
             applied_binds: Mutex::new(vec![]),
             drag_origin: Mutex::new(None),
+            pill_drag_origin: Mutex::new(None),
+            pill_moving: std::sync::atomic::AtomicU8::new(0),
+            hover_gen: std::sync::atomic::AtomicU64::new(0),
             template: Mutex::new(template),
             overlay_user_hidden: AtomicBool::new(false),
             shots: Mutex::new(vec![]),
