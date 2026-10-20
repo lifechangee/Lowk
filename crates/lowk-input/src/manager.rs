@@ -184,8 +184,17 @@ mod tests {
     use crate::combo::fake::FakeRegistrar;
     use lowk_types::{default_binds, Phase};
 
+    /// These tests start the real OS input hook (CGEventTap on macOS), which
+    /// traps on a headless CI runner with no desktop session.
+    fn no_desktop() -> bool {
+        cfg!(target_os = "macos") && std::env::var_os("CI").is_some()
+    }
+
     #[test]
     fn plain_combos_go_to_adapter_others_to_hook() {
+        if no_desktop() {
+            return;
+        }
         let reg = FakeRegistrar::default();
         let registered = reg.registered.clone();
         let mut m = InputManager::with_os(Os::Macos, Some(Box::new(reg)));
@@ -206,6 +215,9 @@ mod tests {
 
     #[test]
     fn refused_combo_falls_back_and_duplicates_conflict() {
+        if no_desktop() {
+            return;
+        }
         let reg = FakeRegistrar::default();
         reg.refuse.lock().unwrap().push(ActionId::Ask);
         let mut m = InputManager::with_os(Os::Windows, Some(Box::new(reg)));
@@ -234,6 +246,9 @@ mod tests {
 
     #[test]
     fn without_adapter_everything_goes_to_hook() {
+        if no_desktop() {
+            return;
+        }
         let mut m = InputManager::with_os(Os::current(), None);
         let rep = m.set_binds(&default_binds(Os::current())).unwrap();
         assert_eq!(rep.entries.len(), 7);
