@@ -60,3 +60,7 @@ Also found and fixed: live page duplicated lines when correction re-emitted an u
 3. Settings > Providers: download the model on a fresh profile; kill Wi-Fi mid-download and retry.
 4. ⌘⇧I typing in the overlay; ⌘⇧S screenshot with a real second display.
 5. First Record right after a reboot: watch for a delayed start.
+
+## M1 polish backlog
+- Engine install card shows 0.8 GB, but with Whisper correction the total download is ~1.4 GB — show the real total (or list both models).
+- Memory-pressure skip for warm-up exists on macOS only.
