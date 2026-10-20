@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stt-diagnostics"
+description = "Enables the stt_diagnostics command without any pre-configured scope."
+commands.allow = ["stt_diagnostics"]
+
+[[permission]]
+identifier = "deny-stt-diagnostics"
+description = "Denies the stt_diagnostics command without any pre-configured scope."
+commands.deny = ["stt_diagnostics"]

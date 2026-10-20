@@ -538,12 +538,16 @@ impl Inner {
         let engine_id = if o.demo {
             "demo".to_string()
         } else if settings.stt.engine.is_empty() {
-            self.deps
-                .stt
-                .available()
-                .first()
-                .map(|d| d.id.clone())
-                .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("no stt engine"))?
+            match &self.deps.default_engine {
+                Some(id) => id.clone(),
+                None => self
+                    .deps
+                    .stt
+                    .available()
+                    .first()
+                    .map(|d| d.id.clone())
+                    .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("no stt engine"))?,
+            }
         } else {
             settings.stt.engine.clone()
         };

@@ -132,6 +132,8 @@ pub struct SessionDeps {
     pub stt: Arc<EngineRegistry>,
     /// Background Whisper correction of finalized utterances (local engines); optional.
     pub corrector: Option<Arc<dyn Corrector>>,
+    /// Engine used when `settings.stt.engine` is empty (the hardware check's pick).
+    pub default_engine: Option<String>,
     pub hints: Arc<dyn HintGenerator>,
     pub demo_pace: DemoPace,
     /// Write demo calls to the store too (off by default; tests turn it on).
@@ -156,6 +158,7 @@ impl SessionDeps {
             audio: Arc::new(Mutex::new(NoopAudioBackend)),
             stt: Arc::new(reg),
             corrector: None,
+            default_engine: None,
             hints: Arc::new(StubHints::default()),
             demo_pace: DemoPace::Realtime(1.0),
             record_demo: false,

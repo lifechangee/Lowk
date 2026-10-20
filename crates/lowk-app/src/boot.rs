@@ -65,6 +65,13 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         emitter: emitter.clone(),
     });
     deps.record_demo = true; // M0: demo calls are real calls, so the library has content
+    // M1: real capture + local/cloud STT. Demo stays the fallback while no engine is ready.
+    deps.audio = Arc::new(std::sync::Mutex::new(crate::engines::DynBackend(lowk_audio::default_backend())));
+    let engines = Arc::new(crate::engines::registry());
+    deps.stt = engines.clone();
+    deps.corrector = Some(Arc::new(crate::engines::LazyCorrector::default()));
+    deps.default_engine =
+        engines.recommended(&lowk_platform::hw::probe_report(), &settings.get().stt.cloud_vendor);
     let session = Arc::new(Session::new(deps));
     session.add_sink(emitter.clone());
 
@@ -81,6 +88,7 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         session.clone(),
         input,
         emitter.clone(),
+        engines,
     ));
     app.manage(state.clone());
     session.add_sink(Arc::new(PhaseWatcher::new(Arc::downgrade(&state))));

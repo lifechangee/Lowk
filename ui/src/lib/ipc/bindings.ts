@@ -101,8 +101,25 @@ export const commands = {
 	sourceList: () => typedError<SourceInfo[], AppError>(__TAURI_INVOKE("source_list")),
 	/**  Installed apps (with icons), so a call app can be picked before it starts playing. */
 	sourceListInstalled: () => typedError<SourceInfo[], AppError>(__TAURI_INVOKE("source_list_installed")),
+	/**  Static descriptors of the registered engines. */
 	engineList: () => __TAURI_INVOKE<EngineDescriptor[]>("engine_list"),
+	/**
+	 *  Downloads an engine's models into app data (SHA-256 checked); progress arrives as
+	 *  `engine://progress`. Returns when the engine is ready or the download failed / was cancelled.
+	 */
 	engineInstall: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("engine_install", { id })),
+	/**  Engine picker rows: fitness for this machine, installed, recommended, needs a key. */
+	engineStatus: () => __TAURI_INVOKE<EngineInfo[]>("engine_status"),
+	engineInstallCancel: () => __TAURI_INVOKE<void>("engine_install_cancel"),
+	/**  Latency percentiles per stream (debug page). */
+	sttDiagnostics: () => __TAURI_INVOKE<{
+	engine: string,
+	lookahead_ms: number,
+	streams: StreamDiag[],
+	corrected: number,
+	correction_skipped: number,
+	correction_lag: Percentiles,
+} | null>("stt_diagnostics"),
 	/**  The scripted RU/EN demo call (also what the record bind plays in M0). */
 	demoStart: () => typedError<SessionState, AppError>(__TAURI_INVOKE("demo_start")),
 	llmAsk: (typedText: string | null) => typedError<Ulid, AppError>(__TAURI_INVOKE("llm_ask", { typedText })),

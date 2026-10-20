@@ -59,6 +59,9 @@ pub struct AppState {
     pub template: Mutex<String>,
     /// The user hid the overlay by hand (ToggleOverlay) during this recording.
     pub overlay_user_hidden: AtomicBool,
+    /// Speech engines (local sidecar + cloud) and the running model download, if any.
+    pub engines: Arc<lowk_stt::EngineRegistry>,
+    pub install_cancel: Mutex<Option<Arc<AtomicBool>>>,
     watcher_stop: Mutex<Option<Arc<AtomicBool>>>,
 }
 
@@ -70,6 +73,7 @@ impl AppState {
         session: Arc<Session>,
         input: InputManager,
         emitter: Arc<UiEmitter>,
+        engines: Arc<lowk_stt::EngineRegistry>,
     ) -> Self {
         let template = settings.get().llm.default_template;
         Self {
@@ -87,6 +91,8 @@ impl AppState {
             drag_origin: Mutex::new(None),
             template: Mutex::new(template),
             overlay_user_hidden: AtomicBool::new(false),
+            engines,
+            install_cancel: Mutex::new(None),
             watcher_stop: Mutex::new(None),
         }
     }
