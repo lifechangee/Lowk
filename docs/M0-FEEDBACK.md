@@ -19,3 +19,4 @@ Source: owner's hands-on test of `just dev` + screenshots. IDs are referenced by
 | F13 | Overlay | «Мой ответ» block/hint row overlap the bottom area; yellow toast bar clipped at the bottom edge | No overlap/clipping |
 
 Works well (keep): stealth is excellent; ⌥-hold magnet move works.
+| F14 | «Мой ответ» | Auto-closes on timeouts/System speech (lowk-session) | Closes ONLY on the next Ask by the user; remove auto-close rules |
