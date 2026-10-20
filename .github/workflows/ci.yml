@@ -94,8 +94,8 @@ jobs:
   test-macos:
     needs: changes
     if: needs.changes.outputs.os == 'true' || github.event_name != 'pull_request'
-    # macos-15: apple-metal (via screencapturekit) needs the Xcode 16 SDK (MTLLogState).
-    runs-on: macos-15
+    # macos-15: apple-metal (via screencapturekit) needs the macOS 26 SDK (MTLTensor, Xcode 26).
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
