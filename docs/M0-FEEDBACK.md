@@ -20,3 +20,15 @@ Source: owner's hands-on test of `just dev` + screenshots. IDs are referenced by
 
 Works well (keep): stealth is excellent; ⌥-hold magnet move works.
 | F14 | «Мой ответ» | Auto-closes on timeouts/System speech (lowk-session) | Closes ONLY on the next Ask by the user; remove auto-close rules |
+
+## Round 2 (owner hands-on, 2026-10-21)
+
+| ID | Area | Problem | Expected |
+|---|---|---|---|
+| G1 | Settings / text size | Overlay text size setting has no effect; main-window size slider "jumps" (CSS zoom rescales the slider under the cursor while dragging) | Replace slider with preset steps (e.g. S / M / L / XL segmented control with live preview), applied on click; separate controls for main and overlay; both actually work in the real app |
+| G2 | Pill | Pill is fixed in place and gets in the way | Pill movable (hold-⌥ magnet like the overlay + drag), position remembered per display |
+| G3 | Source picker | Custom source asks for an app identifier — friction, people don't know bundle ids | Picker = list of running apps currently producing audio (icon + name) + presets (Zoom, Google Meet/Chrome, Teams, Discord, Telegram, Slack, FaceTime) + «Другое…» chooses from installed apps; never type ids |
+| G4 | Permissions | «System audio» grant button does nothing (also in previous demo) | Pressing it triggers the real macOS prompt (start a short process tap), status updates; if denied, deep link to the right Settings pane with clear instructions |
+| G5 | Home | Header «Новый созвон» and card «Начать запись» duplicate; header button only highlights the card | On home: no duplicate (header button hidden or becomes the single primary). Elsewhere: header button opens a compact popover (folder + source + Start) |
+| G6 | Overlay interaction | Mode switching by key combo is too slow for changing template | DECISION PENDING (owner) |
+| G7 | Screenshots | Screenshot bind does nothing | Bind captures all monitors into the queue, overlay shows count + thumbnails, queue sent with next Ask (M3 wires LLM; capture+queue now) |
