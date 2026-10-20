@@ -1,6 +1,6 @@
 [package]
 name = "lowk-stt"
-description = "Lowk: lowk-stt crate (M0 stub)"
+description = "Lowk speech-to-text: engine traits, sidecar host, cloud adapters, model manager, correction"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,12 @@ publish = false
 
 [dependencies]
 lowk-types.workspace = true
+lowk-platform.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+sha2 = "0.11"
+tungstenite = { version = "0.30", features = ["rustls-tls-webpki-roots"] }
+ureq = "3.4"
 
 [lints]
 workspace = true

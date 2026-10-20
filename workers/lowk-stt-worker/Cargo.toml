@@ -1,0 +1,28 @@
+# Out-of-process STT worker (docs/ARCHITECTURE.md 1.3, docs/DECISIONS-M1.md).
+# NOT a workspace member on purpose: it compiles the ggml/Metal/Vulkan/CUDA C++ runtime
+# (needs CMake) which the default `cargo build` / CI must never require.
+# Build: `cargo build --release --manifest-path workers/lowk-stt-worker/Cargo.toml`
+[package]
+name = "lowk-stt-worker"
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.85"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[workspace]
+
+[dependencies]
+transcribe-cpp = { version = "0.4.0", default-features = false }
+serde_json = "1"
+
+[features]
+default = ["metal"]
+metal = ["transcribe-cpp/metal"]
+vulkan = ["transcribe-cpp/vulkan"]
+cuda = ["transcribe-cpp/cuda"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
