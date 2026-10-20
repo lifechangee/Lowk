@@ -19,6 +19,31 @@ pub enum ActionId {
     PrevTemplate,
     CancelAnswer,
     ClearShots,
+    /// G6: hold = the overlay is clickable without taking focus (default Ctrl).
+    ClickHold,
+    /// G6: ask with a fixed template, no overlay mode switch needed.
+    AskBrief,
+    AskComplement,
+    AskSay,
+    AskFactcheck,
+    AskFollowup,
+    AskRecap,
+}
+
+impl ActionId {
+    /// The template an `Ask*` action sends with (`None` for the others and for plain `Ask`,
+    /// which uses the template selected in the overlay chip).
+    pub fn template_id(self) -> Option<&'static str> {
+        Some(match self {
+            ActionId::AskBrief => "brief",
+            ActionId::AskComplement => "complement",
+            ActionId::AskSay => "say",
+            ActionId::AskFactcheck => "factcheck",
+            ActionId::AskFollowup => "followup",
+            ActionId::AskRecap => "recap",
+            _ => return None,
+        })
+    }
 }
 
 /// Modifier set. `meta` is Command on macOS and the Windows key on Windows.

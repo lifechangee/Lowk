@@ -89,20 +89,37 @@ impl ModelStore {
         fs::create_dir_all(self.dir(engine)).map_err(io_err)?;
         for s in specs {
             let dst = self.path(engine, &s.file);
-            if fs::metadata(&dst).map(|m| m.len() == s.size_bytes).unwrap_or(false) {
+            if fs::metadata(&dst)
+                .map(|m| m.len() == s.size_bytes)
+                .unwrap_or(false)
+            {
                 progress(&s.file, InstallPhase::Ready, s.size_bytes, s.size_bytes);
                 continue;
             }
             let part = dst.with_extension("part");
-            download(&s.url, &part, s.size_bytes, cancel, &mut |done| {
-                progress(&s.file, InstallPhase::Downloading, done, s.size_bytes)
-            })?;
+            // Network hiccups resume from the `.part` file instead of starting over.
+            let mut attempt = 0;
+            loop {
+                attempt += 1;
+                match download(&s.url, &part, s.size_bytes, cancel, &mut |done| {
+                    progress(&s.file, InstallPhase::Downloading, done, s.size_bytes)
+                }) {
+                    Ok(()) => break,
+                    Err(e) if e.code == ErrorCode::Network && attempt < 4 => {
+                        tracing::warn!(file = %s.file, attempt, "download interrupted; resuming");
+                        std::thread::sleep(Duration::from_secs(2));
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
             progress(&s.file, InstallPhase::Verifying, s.size_bytes, s.size_bytes);
             let got = sha256_file(&part).map_err(io_err)?;
             if got != s.sha256 {
                 let _ = fs::remove_file(&part);
                 tracing::warn!(file = %s.file, "checksum mismatch");
-                return Err(AppError::new(ErrorCode::DownloadFailed).with_param("reason", "checksum").with_detail(s.file.clone()));
+                return Err(AppError::new(ErrorCode::DownloadFailed)
+                    .with_param("reason", "checksum")
+                    .with_detail(s.file.clone()));
             }
             fs::rename(&part, &dst).map_err(io_err)?;
             progress(&s.file, InstallPhase::Ready, s.size_bytes, s.size_bytes);
@@ -145,7 +162,7 @@ fn download(
     let have = if have > expect { 0 } else { have };
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_connect(Some(Duration::from_secs(20)))
-        .timeout_recv_body(Some(Duration::from_secs(60)))
+        .timeout_recv_response(Some(Duration::from_secs(60)))
         .build()
         .into();
     let mut req = agent.get(url);
@@ -176,7 +193,9 @@ fn download(
         if cancel.load(Ordering::Relaxed) {
             return Err(AppError::new(ErrorCode::DownloadFailed).with_param("reason", "cancelled"));
         }
-        let n = r.read(&mut buf).map_err(|e| AppError::new(ErrorCode::Network).with_detail(e.to_string()))?;
+        let n = r
+            .read(&mut buf)
+            .map_err(|e| AppError::new(ErrorCode::Network).with_detail(e.to_string()))?;
         if n == 0 {
             break;
         }
@@ -230,7 +249,10 @@ mod tests {
                         body.len()
                     )
                 } else {
-                    format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", part.len())
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        part.len()
+                    )
                 };
                 let _ = s.write_all(head.as_bytes());
                 let _ = s.write_all(part);
@@ -263,8 +285,10 @@ mod tests {
         let specs = vec![spec(serve(body.clone(), 1), &body, None)];
         assert!(!st.installed("e", &specs));
         let mut phases = vec![];
-        st.install("e", &specs, &AtomicBool::new(false), &mut |_, p, _, _| phases.push(p))
-            .unwrap();
+        st.install("e", &specs, &AtomicBool::new(false), &mut |_, p, _, _| {
+            phases.push(p)
+        })
+        .unwrap();
         assert!(st.installed("e", &specs) && st.verify("e", &specs));
         assert_eq!(phases.last(), Some(&InstallPhase::Ready));
         assert!(phases.contains(&InstallPhase::Verifying));
@@ -278,7 +302,8 @@ mod tests {
         let specs = vec![spec(serve(body.clone(), 1), &body, None)];
         fs::create_dir_all(st.dir("e")).unwrap();
         fs::write(st.path("e", "m.part"), &body[..150_000]).unwrap();
-        st.install("e", &specs, &AtomicBool::new(false), &mut |_, _, _, _| {}).unwrap();
+        st.install("e", &specs, &AtomicBool::new(false), &mut |_, _, _, _| {})
+            .unwrap();
         assert!(st.verify("e", &specs));
         let _ = fs::remove_dir_all(st.root());
     }

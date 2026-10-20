@@ -8,6 +8,8 @@ export interface OverlaySource {
   /** Ask bind or header action. */
   ask(): void;
   screenshot(): void;
+  /** G7: empty the screenshot queue (header chip). */
+  clearQueue?(): void;
   /** Interactive-mode input row submit. */
   submitText(text: string): void;
   setTemplate(id: string): void;
@@ -21,4 +23,8 @@ export interface OverlaySource {
   dragStart?(): void;
   dragTo?(dx: number, dy: number): void;
   dragEnd?(): void;
+  /** G2: the pill window is draggable too (same pointer-delta protocol). */
+  pillDragStart?(): void;
+  pillDragTo?(dx: number, dy: number): void;
+  pillDragEnd?(): void;
 }

@@ -81,6 +81,18 @@ for (const lang of LANGS) {
             await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 6 });
             await page.waitForSelector('.dropping');
           }
+          if (st.act === 'new-call-popover') {
+            await page.locator('.tb button.btn.primary').click();
+            await page.waitForSelector('.np');
+          }
+          if (st.act === 'source-picker' || st.act === 'source-other') {
+            await page.locator('.nc .trig').click();
+            await page.waitForSelector('[role=listbox]');
+            if (st.act === 'source-other') {
+              await page.getByRole('option', { name: /Other…|Другое…/ }).click();
+              await page.waitForSelector('.modal .list button');
+            }
+          }
           if (st.act === 'recording') {
             await page.locator('.nc button.primary, .nc .btn.primary, header ~ * button.primary').first().click({ timeout: 3000 }).catch(() => {});
             await page.waitForTimeout(700);

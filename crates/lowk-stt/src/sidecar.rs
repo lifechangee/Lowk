@@ -55,13 +55,22 @@ pub fn spawn_worker(spec: &SidecarSpec) -> std::io::Result<Child> {
     if spec.nice != 0 {
         use std::os::unix::process::CommandExt;
         let n = spec.nice;
-        // SAFETY: nice(2) is async-signal-safe; runs between fork and exec.
+        // SAFETY: nice(2) / setpriority(2) are async-signal-safe; they run between fork and exec.
         unsafe {
             cmd.pre_exec(move || {
                 extern "C" {
                     fn nice(inc: i32) -> i32;
+                    fn setpriority(which: i32, who: u32, prio: i32) -> i32;
                 }
                 nice(n);
+                #[cfg(target_os = "macos")]
+                {
+                    // PRIO_DARWIN_PROCESS / PRIO_DARWIN_BG: background QoS (efficiency cores,
+                    // throttled I/O) so the correction worker never competes with live streams.
+                    setpriority(4, 0, 0x1000);
+                }
+                #[cfg(not(target_os = "macos"))]
+                let _ = setpriority;
                 Ok(())
             });
         }
@@ -174,7 +183,9 @@ impl SttEngine for SidecarEngine {
             spec.args.push(worker_lang(&cfg.langs));
         }
         if !spec.exe.exists() {
-            return Err(AppError::new(ErrorCode::NotFound).with_detail(format!("worker {}", spec.exe.display())));
+            return Err(
+                AppError::new(ErrorCode::NotFound).with_detail(format!("worker {}", spec.exe.display()))
+            );
         }
         let (tx, rx) = sync_channel(QUEUE_FRAMES);
         self.tx = Some(tx);
@@ -258,7 +269,11 @@ fn parse_event(v: &serde_json::Value, stream: Stream, base: u64) -> Option<SttEv
         stream,
         utt: base + v["utt"].as_u64()?,
         rev: v["rev"].as_u64()? as u32,
-        kind: if v["kind"] == "final" { SttKind::Final } else { SttKind::Partial },
+        kind: if v["kind"] == "final" {
+            SttKind::Final
+        } else {
+            SttKind::Partial
+        },
         text: v["text"].as_str()?.to_owned(),
         lang: v["lang"].as_str().map(str::to_owned),
         t_start_ns: v["t_start_ns"].as_u64()?,
@@ -291,7 +306,9 @@ fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Rece
             let sink = sink.clone();
             std::thread::spawn(move || {
                 for line in BufReader::new(stdout).lines().map_while(std::result::Result::ok) {
-                    let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
+                    let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
+                        continue;
+                    };
                     match v["ev"].as_str() {
                         Some("ready") => sh.ready.store(true, Ordering::SeqCst),
                         Some("ack") => {
@@ -330,7 +347,10 @@ fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Rece
                     }
                 }
                 Ok(Out::Flush) => {
-                    if stdin.write_all(&frame_bytes(KIND_CONTROL, br#"{"op":"flush"}"#)).is_err() {
+                    if stdin
+                        .write_all(&frame_bytes(KIND_CONTROL, br#"{"op":"flush"}"#))
+                        .is_err()
+                    {
                         break;
                     }
                 }

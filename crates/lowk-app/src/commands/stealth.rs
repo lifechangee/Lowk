@@ -103,6 +103,35 @@ pub fn overlay_drag_end(st: State<'_, Shared>) -> Result<()> {
     Ok(())
 }
 
+/// G2: header-less pointer drag of the pill window (the pill is always clickable).
+#[tauri::command(async)]
+#[specta::specta]
+pub fn pill_drag_start(st: State<'_, Shared>) -> Result<()> {
+    let f = st.stealth()?.pill.as_ref().map(|p| p.frame());
+    *st.pill_drag_origin.lock() = f.map(|f| (f.x, f.y));
+    Ok(())
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn pill_drag_to(st: State<'_, Shared>, dx: f64, dy: f64) -> Result<()> {
+    if let Some((x, y)) = *st.pill_drag_origin.lock() {
+        if let Some(p) = &st.stealth()?.pill {
+            p.set_origin(x + dx, y + dy);
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn pill_drag_end(st: State<'_, Shared>) -> Result<()> {
+    if st.pill_drag_origin.lock().take().is_some() {
+        remember_pill_position(&st);
+    }
+    Ok(())
+}
+
 /// Interactive-mode input row: ask the AI with the typed text.
 #[tauri::command(async)]
 #[specta::specta]
@@ -121,6 +150,22 @@ pub fn remember_position(st: &Arc<AppState>) {
     let display = st.settings.get().overlay.display;
     let _ = st.settings.patch(SettingsPatch(serde_json::json!({
         "overlay": { "positions": { display: { "x": f.x, "y": f.y } } }
+    })));
+}
+
+/// G2: persist the pill origin for the display it is on (key = the display's visible frame).
+pub fn remember_pill_position(st: &Arc<AppState>) {
+    let Ok(stealth) = st.stealth() else { return };
+    let Some(p) = &stealth.pill else { return };
+    let f = p.frame();
+    let frames = p.display_frames();
+    let c = (f.x + f.w / 2.0, f.y + f.h / 2.0);
+    let Some(d) = lowk_stealth::magnet::display_for(c, &frames) else {
+        return;
+    };
+    let key = lowk_stealth::magnet::display_key(&d);
+    let _ = st.settings.patch(SettingsPatch(serde_json::json!({
+        "overlay": { "pill_positions": { key: { "x": f.x, "y": f.y } } }
     })));
 }
 

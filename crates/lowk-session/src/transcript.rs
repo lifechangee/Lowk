@@ -207,14 +207,23 @@ mod tests {
     fn snapshot_for_ask_includes_open_partials_immediately() {
         let mut t = TranscriptBuf::default();
         let c = clock();
-        t.apply(&ev(Stream::System, 1, 0, SttKind::Final, "Расскажи про проект."), &c);
-        t.apply(&ev(Stream::System, 2, 0, SttKind::Partial, "а какие были метр"), &c);
+        t.apply(
+            &ev(Stream::System, 1, 0, SttKind::Final, "Расскажи про проект."),
+            &c,
+        );
+        t.apply(
+            &ev(Stream::System, 2, 0, SttKind::Partial, "а какие были метр"),
+            &c,
+        );
         let s = t.snapshot_for_ask(0);
         assert_eq!(s.len(), 2);
         assert!(!s[1].is_final);
         assert_eq!(s[1].text, "а какие были метр");
         // a correction that arrives later replaces the stored text but not what was sent
-        t.apply(&ev(Stream::System, 1, 1, SttKind::Final, "Расскажи про проект!"), &c);
+        t.apply(
+            &ev(Stream::System, 1, 1, SttKind::Final, "Расскажи про проект!"),
+            &c,
+        );
         assert_eq!(t.get(Stream::System, 1).unwrap().text, "Расскажи про проект!");
     }
 

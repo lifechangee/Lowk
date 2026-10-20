@@ -4,7 +4,7 @@
   // mode=passive|interactive|moving, menu=1, view=pill, still=1 (preloaded frame, no demo).
   import { onMount, untrack } from 'svelte';
   import { OverlayStore } from './store.svelte';
-  import { MockSource } from './mock';
+  import { MockSource, fakeThumb } from './mock';
   import Overlay from './Overlay.svelte';
   import { PRESETS, type ToneEvent } from './tone';
   import type { OverlayMode, Tone, ToneKind } from '../lib/ipc/bindings';
@@ -61,7 +61,7 @@
     store.applyLlm({ type: 'delta', req_id: 'r', seq: 0, text: ru ? '**EBITDA margin** вырос с 21,3% до **23,4%** (+2,1 п.п.). **CAC** снизился на 11%, с 86 до 77 тыс. ₽, за счёт partner-канала. Стоит упомянуть one-off эффект в марже.' : '**One-off items** added about **1.2 pp** to the Q3 margin, so the Q4 forecast should exclude them. Underlying margin is roughly 22.2%.' });
     store.applyLlm({ type: 'done', req_id: 'r', truncated: false, usage: null });
     store.applyStt({ stream: 'me', utt: 2, rev: 0, kind: 'final', text: ru ? 'EBITDA margin вырос до двадцати трёх и четырёх, а CAC упал на одиннадцать процентов.' : 'The one-offs added around one point two, so I would exclude them.', lang: null, t_start_ns: 0, t_audio_end_ns: 0, t_emit_ns: 0 });
-    store.setQueue(2, ['a', 'b']);
+    store.setQueue(2, [fakeThumb(0), fakeThumb(1)]);
   }
 
   onMount(() => {
@@ -81,6 +81,11 @@
   const typing = (e: Event) => (e.target as HTMLElement)?.tagName === 'INPUT';
 
   function onKeyDown(e: KeyboardEvent) {
+    // G6: hold Ctrl = clickable overlay (the real app does this natively; the stage mimics the mode).
+    if (e.key === 'Control' && !moving && store.mode === 'passive' && view === 'overlay') {
+      store.setMode('hover');
+      return;
+    }
     if (e.key === 'Alt' && !moving && view === 'overlay') {
       moving = true;
       priorMode = store.mode;
@@ -97,6 +102,7 @@
     else if (e.key.toLowerCase() === 's') source.screenshot();
   }
   function onKeyUp(e: KeyboardEvent) {
+    if (e.key === 'Control' && store.mode === 'hover') store.setMode('passive');
     if (e.key === 'Alt' && moving) {
       moving = false;
       store.setMode(priorMode);

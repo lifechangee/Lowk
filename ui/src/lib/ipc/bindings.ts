@@ -70,6 +70,10 @@ export const commands = {
 	overlayDragStart: () => typedError<null, AppError>(__TAURI_INVOKE("overlay_drag_start")),
 	overlayDragTo: (dx: number | null, dy: number | null) => typedError<null, AppError>(__TAURI_INVOKE("overlay_drag_to", { dx, dy })),
 	overlayDragEnd: () => typedError<null, AppError>(__TAURI_INVOKE("overlay_drag_end")),
+	/**  G2: header-less pointer drag of the pill window (the pill is always clickable). */
+	pillDragStart: () => typedError<null, AppError>(__TAURI_INVOKE("pill_drag_start")),
+	pillDragTo: (dx: number | null, dy: number | null) => typedError<null, AppError>(__TAURI_INVOKE("pill_drag_to", { dx, dy })),
+	pillDragEnd: () => typedError<null, AppError>(__TAURI_INVOKE("pill_drag_end")),
 	/**  Interactive-mode input row: ask the AI with the typed text. */
 	overlayInputSubmit: (text: string) => typedError<Ulid, AppError>(__TAURI_INVOKE("overlay_input_submit", { text })),
 	/**  Current adaptive tone (a window that loads late missed the events). */
@@ -125,12 +129,16 @@ export const commands = {
 	llmAsk: (typedText: string | null) => typedError<Ulid, AppError>(__TAURI_INVOKE("llm_ask", { typedText })),
 	llmCancel: () => typedError<null, AppError>(__TAURI_INVOKE("llm_cancel")),
 	llmSetTemplate: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("llm_set_template", { id })),
-	captureScreenshot: () => typedError<null, AppError>(__TAURI_INVOKE("capture_screenshot")),
+	captureScreenshot: () => typedError<number, AppError>(__TAURI_INVOKE("capture_screenshot")),
 	queueClear: () => typedError<null, AppError>(__TAURI_INVOKE("queue_clear")),
 };
 
 /* Types */
-export type ActionId = "toggle_record" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | "clear_shots";
+export type ActionId = "toggle_record" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | "clear_shots" | 
+/**  G6: hold = the overlay is clickable without taking focus (default Ctrl). */
+"click_hold" | 
+/**  G6: ask with a fixed template, no overlay mode switch needed. */
+"ask_brief" | "ask_complement" | "ask_say" | "ask_factcheck" | "ask_followup" | "ask_recap";
 
 export type AecMode = "auto" | "on" | "off";
 
@@ -499,7 +507,12 @@ export type OverlayMode =
 /**  Takes clicks and keyboard; auto-exits on blur or Esc. */
 "interactive" | 
 /**  Hold-to-move magnet; returns to the prior mode on release. */
-"moving";
+"moving" | 
+/**
+ *  G6: the click-hold key (Ctrl) is down: the overlay takes mouse events but never
+ *  focus, so the app below keeps keyboard focus. Release = click-through again.
+ */
+"hover";
 
 export type OverlayPos = {
 	x: number | null,
@@ -514,6 +527,8 @@ export type OverlaySettings = {
 	display?: string,
 	/**  Remembered origin per display id. */
 	positions?: { [key in string]: OverlayPos },
+	/**  G2: remembered pill origin per display (`x,y,WxH` of the display's visible frame). */
+	pill_positions?: { [key in string]: OverlayPos },
 	visibility?: OverlayVisibility,
 	pill_edge?: PillEdge,
 	tone_mode?: ToneMode,

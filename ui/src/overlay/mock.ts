@@ -38,6 +38,13 @@ const OPENING: Beat[] = [
   { stream: 'me', text: 'Да, я подготовил отчёт, сейчас покажу слайды.' },
 ];
 
+/** A recognisable fake monitor thumbnail (an SVG data URI, like the real PNG ones). */
+export function fakeThumb(i: number): string {
+  const c = ['#4b6a9b', '#7a5c9e', '#4f8f7a'][i % 3];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100"><rect width="160" height="100" fill="${c}"/><rect x="12" y="14" width="96" height="8" fill="#fff" opacity=".8"/><rect x="12" y="32" width="136" height="6" fill="#fff" opacity=".5"/><rect x="12" y="46" width="120" height="6" fill="#fff" opacity=".5"/></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 const SEED_ELAPSED_MS = (47 * 60 + 12) * 1000;
 
 export class MockSource implements OverlaySource {
@@ -143,8 +150,12 @@ export class MockSource implements OverlaySource {
 
   screenshot(): void {
     const s = this.#store;
-    s.setQueue(s.shots + 1, [...s.thumbs, 'x']);
+    s.setQueue(s.shots + 1, [...s.thumbs, fakeThumb(s.shots)]);
     s.flash(s.lang === 'ru' ? 'Скриншот добавлен' : 'Screenshot added');
+  }
+
+  clearQueue(): void {
+    this.#store.setQueue(0);
   }
 
   submitText(text: string): void {

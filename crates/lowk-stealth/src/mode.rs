@@ -16,6 +16,9 @@ pub enum Interaction {
     Passive,
     /// Takes clicks and keyboard (key window / foreground), app not activated.
     Interactive,
+    /// G6: takes mouse events only (hold-Ctrl): never key, never activates, so the app below
+    /// keeps keyboard focus. Release returns to `Passive`.
+    Hover,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,6 +27,9 @@ pub enum ModeInput {
     Set(OverlayMode),
     MoveDown,
     MoveUp,
+    /// G6: the click-hold key went down / up.
+    HoverDown,
+    HoverUp,
     /// The overlay lost key/foreground status while interactive.
     Blur,
     /// Escape pressed in the interactive overlay.
@@ -44,6 +50,7 @@ pub struct ModeChange {
 pub struct ModeMachine {
     base: Interaction,
     moving: bool,
+    hover: bool,
 }
 
 impl Default for ModeMachine {
@@ -57,6 +64,7 @@ impl ModeMachine {
         Self {
             base: Interaction::Passive,
             moving: false,
+            hover: false,
         }
     }
 
@@ -64,17 +72,25 @@ impl ModeMachine {
     pub fn effective(&self) -> OverlayMode {
         if self.moving {
             OverlayMode::Moving
+        } else if self.base == Interaction::Interactive {
+            OverlayMode::Interactive
+        } else if self.hover {
+            OverlayMode::Hover
         } else {
-            match self.base {
-                Interaction::Passive => OverlayMode::Passive,
-                Interaction::Interactive => OverlayMode::Interactive,
-            }
+            OverlayMode::Passive
         }
     }
 
-    /// What the native window style must follow.
+    /// What the native window style must follow. Typing mode (Interactive) outranks the
+    /// hold-to-click state; `Moving` never touches the native style.
     pub fn style(&self) -> Interaction {
-        self.base
+        if self.base == Interaction::Interactive {
+            Interaction::Interactive
+        } else if self.hover {
+            Interaction::Hover
+        } else {
+            Interaction::Passive
+        }
     }
 
     pub fn is_moving(&self) -> bool {
@@ -83,16 +99,23 @@ impl ModeMachine {
 
     pub fn apply(&mut self, input: ModeInput) -> Option<ModeChange> {
         let prev = self.effective();
-        let prev_base = self.base;
+        let prev_style = self.style();
         match input {
             ModeInput::Set(OverlayMode::Moving) | ModeInput::MoveDown => self.moving = true,
             ModeInput::Set(OverlayMode::Passive) => self.base = Interaction::Passive,
             ModeInput::Set(OverlayMode::Interactive) => self.base = Interaction::Interactive,
+            // Hover is driven by the hold bind only; as a `Set` it is the hold going down.
+            ModeInput::Set(OverlayMode::Hover) | ModeInput::HoverDown => self.hover = true,
             ModeInput::MoveUp => self.moving = false,
-            ModeInput::Blur | ModeInput::Escape | ModeInput::Hidden => self.base = Interaction::Passive,
+            ModeInput::HoverUp => self.hover = false,
+            ModeInput::Blur | ModeInput::Escape => self.base = Interaction::Passive,
+            ModeInput::Hidden => {
+                self.base = Interaction::Passive;
+                self.hover = false;
+            }
         }
         let now = self.effective();
-        let style_changed = prev_base != self.base;
+        let style_changed = prev_style != self.style();
         (prev != now || style_changed).then_some(ModeChange {
             prev,
             now,
@@ -102,7 +125,12 @@ impl ModeMachine {
 
     /// Undo a base-style change whose native application failed.
     pub fn force_style(&mut self, style: Interaction) {
-        self.base = style;
+        self.hover = style == Interaction::Hover;
+        self.base = if style == Interaction::Interactive {
+            Interaction::Interactive
+        } else {
+            Interaction::Passive
+        };
     }
 }
 
@@ -177,6 +205,40 @@ mod tests {
             assert!(c.style_changed);
             assert!(m.apply(i).is_none(), "no-op when already passive");
         }
+    }
+
+    #[test]
+    fn hover_hold_toggles_style_without_touching_base() {
+        let mut m = ModeMachine::new();
+        let c = m.apply(ModeInput::HoverDown).unwrap();
+        assert_eq!((c.now, c.style_changed), (Hover, true));
+        assert_eq!(m.style(), Interaction::Hover);
+        assert!(m.apply(ModeInput::HoverDown).is_none());
+        let c = m.apply(ModeInput::HoverUp).unwrap();
+        assert_eq!((c.now, c.style_changed), (Passive, true));
+        assert_eq!(m.style(), Interaction::Passive);
+    }
+
+    #[test]
+    fn typing_mode_outranks_hover_and_move_outranks_both() {
+        let mut m = ModeMachine::new();
+        m.apply(ModeInput::HoverDown);
+        let c = m.apply(ModeInput::Set(Interactive)).unwrap();
+        assert_eq!((c.now, c.style_changed), (Interactive, true));
+        // releasing the hold while typing changes nothing visible
+        assert!(m.apply(ModeInput::HoverUp).is_none());
+        let mut m = ModeMachine::new();
+        m.apply(ModeInput::HoverDown);
+        let c = m.apply(ModeInput::MoveDown).unwrap();
+        assert_eq!((c.now, c.style_changed), (Moving, false));
+        assert_eq!(m.apply(ModeInput::MoveUp).unwrap().now, Hover);
+    }
+
+    #[test]
+    fn hidden_clears_hover() {
+        let mut m = ModeMachine::new();
+        m.apply(ModeInput::HoverDown);
+        assert_eq!(m.apply(ModeInput::Hidden).unwrap().now, Passive);
     }
 
     #[test]

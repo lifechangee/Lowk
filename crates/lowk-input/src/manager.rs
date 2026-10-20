@@ -184,13 +184,22 @@ mod tests {
     use crate::combo::fake::FakeRegistrar;
     use lowk_types::{default_binds, Phase};
 
+    /// These tests start the real OS input hook (CGEventTap on macOS), which
+    /// traps on a headless CI runner with no desktop session.
+    fn no_desktop() -> bool {
+        cfg!(target_os = "macos") && std::env::var_os("CI").is_some()
+    }
+
     #[test]
     fn plain_combos_go_to_adapter_others_to_hook() {
+        if no_desktop() {
+            return;
+        }
         let reg = FakeRegistrar::default();
         let registered = reg.registered.clone();
         let mut m = InputManager::with_os(Os::Macos, Some(Box::new(reg)));
         let rep = m.set_binds(&default_binds(Os::Macos)).unwrap();
-        assert_eq!(registered.lock().unwrap().len(), 6);
+        assert_eq!(registered.lock().unwrap().len(), 7);
         let mv = rep
             .entries
             .iter()
@@ -199,15 +208,22 @@ mod tests {
         // MoveHold goes to the hook: Active, Degraded(InputMonitoring) or Failed, never a combo.
         assert!(!matches!(mv.status, BindStatus::Conflict(_)));
         assert!(m.status().combo_adapter);
-        for e in rep.entries.iter().filter(|e| e.action != ActionId::MoveHold) {
+        for e in rep
+            .entries
+            .iter()
+            .filter(|e| !matches!(e.action, ActionId::MoveHold | ActionId::ClickHold))
+        {
             assert_eq!(e.status, BindStatus::Active, "{:?}", e.action);
         }
     }
 
     #[test]
     fn refused_combo_falls_back_and_duplicates_conflict() {
+        if no_desktop() {
+            return;
+        }
         let reg = FakeRegistrar::default();
-        reg.refuse.lock().unwrap().push(ActionId::Ask);
+        reg.refuse.lock().unwrap().push(ActionId::AskBrief);
         let mut m = InputManager::with_os(Os::Windows, Some(Box::new(reg)));
         let mut binds = default_binds(Os::Windows);
         binds.push(binds[1].clone()); // same action twice
@@ -234,9 +250,12 @@ mod tests {
 
     #[test]
     fn without_adapter_everything_goes_to_hook() {
+        if no_desktop() {
+            return;
+        }
         let mut m = InputManager::with_os(Os::current(), None);
         let rep = m.set_binds(&default_binds(Os::current())).unwrap();
-        assert_eq!(rep.entries.len(), 7);
+        assert_eq!(rep.entries.len(), 9);
         assert!(!m.status().combo_adapter);
     }
 }

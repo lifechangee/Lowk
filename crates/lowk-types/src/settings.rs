@@ -302,6 +302,8 @@ pub struct OverlaySettings {
     pub display: String,
     /// Remembered origin per display id.
     pub positions: BTreeMap<String, OverlayPos>,
+    /// G2: remembered pill origin per display (`x,y,WxH` of the display's visible frame).
+    pub pill_positions: BTreeMap<String, OverlayPos>,
     pub visibility: OverlayVisibility,
     pub pill_edge: PillEdge,
     pub tone_mode: ToneMode,
@@ -314,6 +316,7 @@ impl Default for OverlaySettings {
             font_px: 14,
             display: "primary".into(),
             positions: BTreeMap::new(),
+            pill_positions: BTreeMap::new(),
             visibility: OverlayVisibility::RecordingOnly,
             pill_edge: PillEdge::Right,
             tone_mode: ToneMode::Auto,
@@ -490,7 +493,9 @@ pub fn default_binds(os: Os) -> Vec<BindSpec> {
         swallow: false,
     };
     vec![
-        combo(ActionId::Ask, primary, "Enter"),
+        // G6: direct binds per template; plain `Ask` (chip template) is assignable but unbound.
+        combo(ActionId::AskBrief, primary, "Enter"),
+        combo(ActionId::AskComplement, primary_shift, "Enter"),
         combo(ActionId::Screenshot, primary_shift, "KeyS"),
         combo(ActionId::ScreenshotArea, primary_shift, "KeyA"),
         combo(ActionId::ToggleInteractive, primary_shift, "KeyI"),
@@ -500,6 +505,12 @@ pub fn default_binds(os: Os) -> Vec<BindSpec> {
         BindSpec {
             action: ActionId::MoveHold,
             trigger: Trigger::ModifierOnly { mods: Mods::ALT },
+            swallow: false,
+        },
+        // G6: hold Ctrl = clickable without focus. Move (Alt) wins when both are held.
+        BindSpec {
+            action: ActionId::ClickHold,
+            trigger: Trigger::ModifierOnly { mods: Mods::CTRL },
             swallow: false,
         },
     ]

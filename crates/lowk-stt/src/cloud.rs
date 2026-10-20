@@ -162,7 +162,9 @@ impl Parser {
     }
 
     pub fn on_message(&mut self, raw: &str, now: MonoNs) -> Vec<SttEvent> {
-        let Ok(v) = serde_json::from_str::<Value>(raw) else { return vec![] };
+        let Ok(v) = serde_json::from_str::<Value>(raw) else {
+            return vec![];
+        };
         match self.vendor {
             Vendor::Soniox => self.soniox(&v, now),
             Vendor::Deepgram => self.deepgram(&v, now),
@@ -345,10 +347,17 @@ fn open(
                 "sample_rate": 16000, "num_channels": 1, "language_hints": hints,
                 "enable_language_identification": true, "enable_endpoint_detection": true,
             });
-            ws.send(Message::text(cfg.to_string())).map_err(|e| e.to_string())?;
+            ws.send(Message::text(cfg.to_string()))
+                .map_err(|e| e.to_string())?;
             (ws, false)
         }
-        Vendor::Deepgram => (connect(&deepgram_url(langs), Some(("Authorization", format!("Token {key}"))))?, false),
+        Vendor::Deepgram => (
+            connect(
+                &deepgram_url(langs),
+                Some(("Authorization", format!("Token {key}"))),
+            )?,
+            false,
+        ),
     };
     set_timeout(&mut ws, Some(POLL));
     Ok(Conn {
@@ -368,7 +377,10 @@ fn pump(c: &mut Conn, sink: &Arc<dyn SttSink>, stats: &StreamStats, err_msg: &mu
     loop {
         match c.ws.read() {
             Ok(Message::Text(t)) => {
-                if let Some(v) = serde_json::from_str::<Value>(&t).ok().filter(|v| v["error_code"].is_number()) {
+                if let Some(v) = serde_json::from_str::<Value>(&t)
+                    .ok()
+                    .filter(|v| v["error_code"].is_number())
+                {
                     *err_msg = Some(format!(
                         "{} {}",
                         v["error_code"],
@@ -465,10 +477,14 @@ fn run(
                     // end of audio, then collect the trailing results
                     let _ = match vendor {
                         Vendor::Soniox => conn.ws.send(Message::text("")),
-                        Vendor::Deepgram => conn.ws.send(Message::text(json!({"type":"CloseStream"}).to_string())),
+                        Vendor::Deepgram => conn
+                            .ws
+                            .send(Message::text(json!({"type":"CloseStream"}).to_string())),
                     };
                     let t0 = Instant::now();
-                    while t0.elapsed() < Duration::from_secs(6) && pump(&mut conn, &sink, &stats, &mut err_msg) {}
+                    while t0.elapsed() < Duration::from_secs(6)
+                        && pump(&mut conn, &sink, &stats, &mut err_msg)
+                    {}
                     for ev in conn.parser.flush(now_mono_ns()) {
                         stats.note_event(&ev);
                         sink.emit(ev);
@@ -478,7 +494,9 @@ fn run(
                 }
                 Err(RecvTimeoutError::Timeout) => {
                     if vendor == Vendor::Deepgram && conn.last_tx.elapsed() > Duration::from_secs(5) {
-                        let _ = conn.ws.send(Message::text(json!({"type":"KeepAlive"}).to_string()));
+                        let _ = conn
+                            .ws
+                            .send(Message::text(json!({"type":"KeepAlive"}).to_string()));
                         conn.last_tx = Instant::now();
                     }
                 }
@@ -494,11 +512,18 @@ fn run(
         }
         reconnects += 1;
         stats.restarts.store(reconnects, Ordering::Relaxed);
-        let fatal = err_msg.as_deref().is_some_and(|m| m.starts_with("401") || m.starts_with("403"));
+        // 4xx from the vendor (bad key, no balance, bad request) will not fix itself
+        let fatal = err_msg
+            .as_deref()
+            .is_some_and(|m| m.starts_with("40") || m.contains("HTTP error: 40"));
         tracing::warn!(vendor = vendor.id(), reason = %err_msg.clone().unwrap_or_default().replace(&key, "***"), "cloud stt connection ended");
         sink.error(SttError {
             stream,
-            message: format!("{}: {}", vendor.id(), err_msg.unwrap_or_else(|| "connection closed".into())),
+            message: format!(
+                "{}: {}",
+                vendor.id(),
+                err_msg.unwrap_or_else(|| "connection closed".into())
+            ),
             recoverable: !fatal && reconnects <= MAX_RECONNECTS,
         });
         if fatal || reconnects > MAX_RECONNECTS {
@@ -582,8 +607,16 @@ impl Drop for CloudEngine {
 
 pub fn descriptor(v: Vendor) -> EngineDescriptor {
     let (name, langs): (&str, &[&str]) = match v {
-        Vendor::Soniox => ("Soniox (cloud)", &["ru", "en", "de", "fr", "es", "it", "pt", "uk", "pl", "tr", "ja", "ko", "zh"]),
-        Vendor::Deepgram => ("Deepgram Nova-3 (cloud)", &["ru", "en", "de", "fr", "es", "it", "pt", "nl", "ja", "hi"]),
+        Vendor::Soniox => (
+            "Soniox (cloud)",
+            &[
+                "ru", "en", "de", "fr", "es", "it", "pt", "uk", "pl", "tr", "ja", "ko", "zh",
+            ],
+        ),
+        Vendor::Deepgram => (
+            "Deepgram Nova-3 (cloud)",
+            &["ru", "en", "de", "fr", "es", "it", "pt", "nl", "ja", "hi"],
+        ),
     };
     EngineDescriptor {
         id: v.id().into(),
@@ -629,7 +662,9 @@ mod tests {
     const T0: MonoNs = 10_000_000_000;
 
     fn texts(v: &[SttEvent]) -> Vec<(SttKind, u64, u32, &str)> {
-        v.iter().map(|e| (e.kind, e.utt, e.rev, e.text.as_str())).collect()
+        v.iter()
+            .map(|e| (e.kind, e.utt, e.rev, e.text.as_str()))
+            .collect()
     }
 
     #[test]
@@ -661,7 +696,10 @@ mod tests {
     fn soniox_finished_flag_and_flush() {
         let mut p = Parser::new(Vendor::Soniox, Stream::Me, 7_000_000);
         p.t0 = Some(T0);
-        p.on_message(r#"{"tokens":[{"text":"hi","start_ms":0,"end_ms":200,"is_final":true}]}"#, 1);
+        p.on_message(
+            r#"{"tokens":[{"text":"hi","start_ms":0,"end_ms":200,"is_final":true}]}"#,
+            1,
+        );
         let f = p.flush(2);
         assert_eq!(texts(&f), vec![(SttKind::Final, 7_000_001, 1, "hi")]);
         p.on_message(r#"{"tokens":[],"finished":true}"#, 3);

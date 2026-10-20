@@ -1,7 +1,7 @@
 // View state for the main window. No business logic: everything goes through `api`.
 import { locale } from '../lib/i18n/locale.svelte';
 import type { LangSetting } from '../lib/i18n';
-import type { CallMeta, FolderMeta, Settings, Target } from '../lib/ipc';
+import type { CallMeta, FolderMeta, Settings, SourceInfo, Target } from '../lib/ipc';
 import { api, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type FolderKey, type LiveLine } from './api';
 import { EVENTS, on } from '../lib/ipc';
 import type { SessionState } from '../lib/ipc';
@@ -69,6 +69,29 @@ class Prefs {
   }
 }
 export const prefs = new Prefs();
+
+/** G3: running apps that produce audio + (lazily) the installed apps behind «Другое…». */
+class Sources {
+  running = $state<SourceInfo[]>([]);
+  installed = $state<SourceInfo[] | null>(null);
+  loaded = $state(false);
+  /** Apps picked from the installed list, so their name/icon survive when they are not running. */
+  picked = $state<Record<string, SourceInfo>>({});
+
+  async refresh(): Promise<void> {
+    try { this.running = await api.sourceList(); } catch { /* keep the previous list */ }
+    this.loaded = true;
+  }
+  async loadInstalled(): Promise<void> {
+    if (this.installed) return;
+    try { this.installed = await api.sourceListInstalled(); } catch { this.installed = []; }
+  }
+  remember(s: SourceInfo): void { this.picked = { ...this.picked, [s.id]: s }; }
+  /** Everything we can resolve an id against (running first: it has the live pid/icon). */
+  pool = $derived([...this.running, ...Object.values(this.picked), ...(this.installed ?? [])]);
+  find(id: string): SourceInfo | undefined { return this.pool.find((s) => s.id === id); }
+}
+export const sources = new Sources();
 
 class Session {
   phase = $state<'idle' | 'recording'>('idle');
@@ -140,11 +163,8 @@ class Ui {
   moveMenu = $state<{ id: string; x: number; y: number } | null>(null);
   openMove(id: string, x: number, y: number): void { this.moveMenu = { id, x, y }; }
   callTab = $state<'transcript' | 'summary' | 'qa' | 'shots' | 'md'>('transcript');
-  newCall(): void {
-    router.go(hrefs.home);
-    this.flashNew = true;
-    setTimeout(() => (this.flashNew = false), 1400);
-  }
+  /** G5: the header «Новый созвон» popover (never shown on the library home). */
+  newCallOpen = $state(false);
   toast = $state<string | null>(null);
   #timer: ReturnType<typeof setTimeout> | null = null;
   notify(msg: string): void {

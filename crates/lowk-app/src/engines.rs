@@ -34,7 +34,13 @@ fn build_corrector() -> Option<Arc<dyn Corrector>> {
     let model = store.path(local::WHISPER_ID, local::WHISPER_FILE);
     Some(Arc::new(WhisperCorrector::new(SidecarSpec {
         exe,
-        args: vec!["correct".into(), "--model".into(), model.to_string_lossy().into_owned()],
+        args: vec![
+            "correct".into(),
+            "--model".into(),
+            model.to_string_lossy().into_owned(),
+            "--threads".into(),
+            "2".into(),
+        ],
         nice: 15,
     })))
 }
@@ -50,7 +56,12 @@ impl Corrector for LazyCorrector {
             None => Err(AppError::new(ErrorCode::NotFound).with_detail("correction model")),
         }
     }
-    fn submit(&self, job: lowk_stt::CorrectionJob, sink: Arc<dyn lowk_stt::CorrectionSink>, backlog: u32) -> bool {
+    fn submit(
+        &self,
+        job: lowk_stt::CorrectionJob,
+        sink: Arc<dyn lowk_stt::CorrectionSink>,
+        backlog: u32,
+    ) -> bool {
         let c = self.0.lock().clone();
         c.is_some_and(|c| c.submit(job, sink, backlog))
     }
@@ -64,7 +75,10 @@ impl Corrector for LazyCorrector {
         }
     }
     fn stats(&self) -> (u32, u32, Percentiles) {
-        self.0.lock().as_ref().map_or((0, 0, Percentiles::default()), |c| c.stats())
+        self.0
+            .lock()
+            .as_ref()
+            .map_or((0, 0, Percentiles::default()), |c| c.stats())
     }
 }
 
@@ -100,10 +114,18 @@ impl AppState {
 
     /// True when a real call can start now (assets present, worker found / key available).
     pub fn engine_ready(&self) -> bool {
-        let Some(id) = self.effective_engine() else { return false };
-        let Some(f) = self.engines.factory(&id) else { return false };
+        let Some(id) = self.effective_engine() else {
+            return false;
+        };
+        let Some(f) = self.engines.factory(&id) else {
+            return false;
+        };
         if f.needs_key() {
-            let v = if id == lowk_stt::cloud::DEEPGRAM_ID { Vendor::Deepgram } else { Vendor::Soniox };
+            let v = if id == lowk_stt::cloud::DEEPGRAM_ID {
+                Vendor::Deepgram
+            } else {
+                Vendor::Soniox
+            };
             return lowk_stt::cloud::resolve_key(v).is_ok();
         }
         f.installed() && local::find_worker().is_some()

@@ -60,7 +60,11 @@ pub trait SttEngineFactory: Send + Sync {
         self.assets().is_empty()
     }
     /// Downloads missing assets; progress per file.
-    fn install(&self, _cancel: &std::sync::atomic::AtomicBool, _progress: models::ProgressFn<'_>) -> Result<()> {
+    fn install(
+        &self,
+        _cancel: &std::sync::atomic::AtomicBool,
+        _progress: models::ProgressFn<'_>,
+    ) -> Result<()> {
         Ok(())
     }
     fn needs_key(&self) -> bool {
@@ -83,7 +87,10 @@ impl EngineRegistry {
         self.factories.iter().map(|f| f.descriptor()).collect()
     }
     pub fn factory(&self, id: &str) -> Option<&dyn SttEngineFactory> {
-        self.factories.iter().find(|f| f.descriptor().id == id).map(|b| &**b)
+        self.factories
+            .iter()
+            .find(|f| f.descriptor().id == id)
+            .map(|b| &**b)
     }
     pub fn create(&self, id: &str, stream: Stream) -> Result<Box<dyn SttEngine>> {
         self.factory(id)
@@ -98,7 +105,9 @@ impl EngineRegistry {
         if rec.local() {
             if let Some(f) = self.factories.iter().find(|f| {
                 let d = f.descriptor();
-                d.kind == EngineKind::Local && d.id != "fake" && !matches!(f.fitness(&rep.info), Fitness::Unsupported(_))
+                d.kind == EngineKind::Local
+                    && d.id != "fake"
+                    && !matches!(f.fitness(&rep.info), Fitness::Unsupported(_))
             }) {
                 return Some(f.descriptor().id);
             }
@@ -106,7 +115,11 @@ impl EngineRegistry {
         self.factories
             .iter()
             .find(|f| f.descriptor().kind == EngineKind::Cloud && f.descriptor().id == cloud_vendor)
-            .or_else(|| self.factories.iter().find(|f| f.descriptor().kind == EngineKind::Cloud))
+            .or_else(|| {
+                self.factories
+                    .iter()
+                    .find(|f| f.descriptor().kind == EngineKind::Cloud)
+            })
             .map(|f| f.descriptor().id)
     }
 

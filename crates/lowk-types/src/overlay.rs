@@ -11,6 +11,9 @@ pub enum OverlayMode {
     Interactive,
     /// Hold-to-move magnet; returns to the prior mode on release.
     Moving,
+    /// G6: the click-hold key (Ctrl) is down: the overlay takes mouse events but never
+    /// focus, so the app below keeps keyboard focus. Release = click-through again.
+    Hover,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]

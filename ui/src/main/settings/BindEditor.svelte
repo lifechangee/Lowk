@@ -22,7 +22,7 @@
 
   const label = (a: ActionId) => tm(`m.act.${a}` as MKey);
   const hint = (a: ActionId): string => (hints && HINTS.has(a) ? tm(`m.act.${a}.hint` as MKey) : '');
-  const HINTS = new Set<ActionId>(['ask', 'screenshot', 'toggle_interactive', 'move_hold', 'next_template', 'toggle_overlay', 'panic_hide']);
+  const HINTS = new Set<ActionId>(['ask', 'ask_brief', 'ask_complement', 'click_hold', 'screenshot', 'toggle_interactive', 'move_hold', 'next_template', 'toggle_overlay', 'panic_hide']);
 
   async function commit(a: ActionId, tr: Trigger | null) {
     rec = null;
@@ -69,7 +69,7 @@
       <div class="ctl">
         <button class="key" class:rec={rec === a} class:m={b?.trigger.kind === 'mouse'} onclick={(e) => { e.stopPropagation(); rec = rec === a ? null : a; peak = {}; }} aria-label={label(a)}>
           {#if rec === a}<span class="lbl">{tm('m.pressKey')}</span>
-          {:else if b}{#each formatTrigger(b.trigger, os, mouseNames()) as part, i (i)}<kbd>{part}</kbd>{/each}{#if b.trigger.kind === 'modifier_only' && a === 'move_hold'}<span class="hold lbl">{tm('m.hold')}</span>{/if}
+          {:else if b}{#each formatTrigger(b.trigger, os, mouseNames()) as part, i (i)}<kbd>{part}</kbd>{/each}{#if b.trigger.kind === 'modifier_only' && (a === 'move_hold' || a === 'click_hold')}<span class="hold lbl">{tm('m.hold')}</span>{/if}
           {:else}<span class="unset lbl">{tm('m.notSet')}</span>{/if}
         </button>
         {#if b && rec !== a}<button class="clr" aria-label={tm('m.clearBind')} title={tm('m.clearBind')} onclick={() => commit(a, null)}><Icon name="close" size={12} /></button>{:else}<span class="clr"></span>{/if}

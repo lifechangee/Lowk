@@ -11,7 +11,8 @@ use std::sync::atomic::AtomicBool;
 pub const NEMOTRON_ID: &str = "nemotron-local";
 pub const WHISPER_ID: &str = "whisper-turbo-local";
 
-const HF_NEMOTRON: &str = "https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/main";
+const HF_NEMOTRON: &str =
+    "https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/main";
 const HF_SILERO: &str = "https://huggingface.co/handy-computer/silero-vad-v6.2-gguf/resolve/main";
 const HF_WHISPER: &str = "https://huggingface.co/handy-computer/whisper-large-v3-turbo-gguf/resolve/main";
 
@@ -57,7 +58,11 @@ pub fn whisper_assets() -> Vec<DownloadSpec> {
 /// Where the worker executable lives: `LOWK_STT_WORKER`, next to the app, in app data
 /// (`engines/`), and (debug builds) the in-repo build output.
 pub fn find_worker() -> Option<PathBuf> {
-    let name = if cfg!(windows) { "lowk-stt-worker.exe" } else { "lowk-stt-worker" };
+    let name = if cfg!(windows) {
+        "lowk-stt-worker.exe"
+    } else {
+        "lowk-stt-worker"
+    };
     if let Some(p) = std::env::var_os("LOWK_STT_WORKER").map(PathBuf::from) {
         return Some(p);
     }
@@ -71,7 +76,11 @@ pub fn find_worker() -> Option<PathBuf> {
         c.push(d.join(name));
     }
     if cfg!(debug_assertions) {
-        c.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../workers/lowk-stt-worker/target/release").join(name));
+        c.push(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../workers/lowk-stt-worker/target/release")
+                .join(name),
+        );
     }
     c.into_iter().find(|p| p.exists())
 }
@@ -121,10 +130,12 @@ pub fn nemotron_descriptor() -> EngineDescriptor {
         id: NEMOTRON_ID.into(),
         name: "NVIDIA Nemotron 3.5 ASR Streaming (local)".into(),
         kind: EngineKind::Local,
-        languages: ["ru", "en", "de", "fr", "es", "it", "pt", "nl", "tr", "uk", "pl", "ja", "ko", "zh"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect(),
+        languages: [
+            "ru", "en", "de", "fr", "es", "it", "pt", "nl", "tr", "uk", "pl", "ja", "ko", "zh",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect(),
         streaming: StreamingMode::Native,
         size_mb: nemotron_assets().iter().map(DownloadSpec::size_mb).sum(),
         license: "OpenMDW-1.1".into(),
@@ -197,7 +208,8 @@ impl SttEngineFactory for NemotronFactory {
     }
 
     fn install(&self, cancel: &AtomicBool, progress: ProgressFn<'_>) -> Result<()> {
-        self.store.install(NEMOTRON_ID, &nemotron_assets(), cancel, progress)
+        self.store
+            .install(NEMOTRON_ID, &nemotron_assets(), cancel, progress)
     }
 
     fn license_url(&self) -> String {

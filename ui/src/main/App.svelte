@@ -14,6 +14,7 @@
   import Onboarding from './onboarding/Onboarding.svelte';
   import { hrefs, router } from './router.svelte';
   import SearchPalette from './SearchPalette.svelte';
+  import NewCallPopover from './NewCallPopover.svelte';
   import MoveMenu from './MoveMenu.svelte';
   import { dnd } from './dnd.svelte';
   import SettingsView from './settings/SettingsView.svelte';
@@ -83,10 +84,16 @@
           <span class="recpill"><RecDot pulse /><span class="t">{clock(session.elapsed)}</span><span class="m lbl">{session.sourceLabel}</span>
             <Button size="sm" onclick={() => session.callId && router.go(hrefs.call(session.callId))}>{tm('common.open')}</Button>
             <Button size="sm" variant="stop" onclick={() => session.stop()}>{tm('common.stop')}</Button></span>
-        {:else}
-          <Button variant="primary" onclick={() => ui.newCall()}><RecDot onprimary />{tm('main.newCall')}{#if recKey}<Kbd text={recKey} onprimary />{/if}</Button>
+        {:else if route.name !== 'home'}
+          <!-- G5: on the library home the card below is the one «Новый созвон»; elsewhere this opens a compact popover. -->
+          <span data-np-trigger style="display: contents">
+            <Button variant="primary" pressed={ui.newCallOpen || undefined} onclick={() => (ui.newCallOpen = !ui.newCallOpen)}><RecDot onprimary />{tm('main.newCall')}{#if recKey}<Kbd text={recKey} onprimary />{/if}</Button>
+          </span>
         {/if}
         <a class="gear" href={hrefs.settings()} aria-label={tm('common.settings')} title={tm('common.settings')}><Icon name="settings" /></a>
+        {#if ui.newCallOpen && route.name !== 'home' && session.phase !== 'recording'}
+          <NewCallPopover folderHint={route.name === 'folder' ? route.id : route.name === 'call' ? (library.call(route.id)?.deleted ? null : folderKey(library.call(route.id)?.folder ?? { kind: 'unsorted' })) : null} onclose={() => (ui.newCallOpen = false)} />
+        {/if}
       </header>
       <div class="content">
         {#if route.name === 'home'}<Home flash={ui.flashNew} />
@@ -110,7 +117,7 @@
   :global([data-drop].dropping) { outline: 2px solid var(--ac) !important; outline-offset: -2px; background: var(--acbg) !important; }
   .ghost { position: fixed; z-index: 80; pointer-events: none; display: flex; align-items: center; gap: var(--s2); max-width: 280px; height: 32px; padding: 0 var(--s3); border-radius: var(--r); background: var(--panel); border: 1px solid var(--ac); box-shadow: var(--sh); font-size: 13px; color: var(--tx); }
   .app { display: grid; grid-template-rows: 48px minmax(0, 1fr); height: calc(100vh / var(--z, 1)); background: var(--bg); }
-  .tb { display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4); background: var(--side); border-bottom: 1px solid var(--line); min-width: 0; }
+  .tb { position: relative; display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4); background: var(--side); border-bottom: 1px solid var(--line); min-width: 0; }
   .wm { display: inline-flex; gap: var(--s2); align-items: center; height: 32px; padding: 0 var(--s2); border-radius: var(--r); font-weight: 650; font-size: 14px; letter-spacing: -0.01em; color: var(--tx); text-decoration: none; flex: none; }
   .wm:hover { background: var(--hv); }
   .wm i { width: 16px; height: 16px; border: 1.5px solid var(--tx2); border-radius: var(--s1); display: block; }
@@ -123,7 +130,7 @@
   .recpill { display: inline-flex; align-items: center; gap: var(--s2); height: 32px; padding: 0 var(--s1) 0 var(--s3); border-radius: var(--r); border: 1px solid rgba(255, 77, 79, 0.4); background: var(--recbg); font-size: 13px; white-space: nowrap; min-width: 0; flex: none; }
   .recpill .t { font: 600 12px/16px var(--mono); }
   .recpill .m { color: var(--tx2); font-size: 12px; max-width: 160px; }
-  .tb > :global(.btn) { flex: none; }
+  .tb > :global(.btn), .tb > span > :global(.btn) { flex: none; }
   .crumb { flex: 0 1 auto; }
   .gear { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r); color: var(--tx2); flex: none; }
   .gear:hover { background: var(--hv); color: var(--tx); }

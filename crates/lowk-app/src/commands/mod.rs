@@ -1,6 +1,7 @@
 //! Command modules: one file per domain. This list is append-only, one line per
 //! command; the same names are mirrored in `build.rs` (`COMMANDS`) so Tauri
 //! generates `allow-<command>` permissions.
+pub mod capture;
 pub mod input;
 pub mod platform;
 pub mod session;
@@ -49,6 +50,9 @@ macro_rules! all_commands {
             crate::commands::stealth::overlay_drag_start,
             crate::commands::stealth::overlay_drag_to,
             crate::commands::stealth::overlay_drag_end,
+            crate::commands::stealth::pill_drag_start,
+            crate::commands::stealth::pill_drag_to,
+            crate::commands::stealth::pill_drag_end,
             crate::commands::stealth::overlay_input_submit,
             crate::commands::stealth::overlay_tone,
             crate::commands::input::binds_get,
@@ -77,8 +81,8 @@ macro_rules! all_commands {
             crate::commands::session::llm_ask,
             crate::commands::session::llm_cancel,
             crate::commands::session::llm_set_template,
-            crate::commands::session::capture_screenshot,
-            crate::commands::session::queue_clear,
+            crate::commands::capture::capture_screenshot,
+            crate::commands::capture::queue_clear,
         ]
     };
 }

@@ -3,7 +3,9 @@
 //! revision of the same utterance). It never blocks anything: jobs are skipped when the
 //! queue is deep or the live engine is behind, and a stuck worker is simply restarted.
 use crate::diag::Window;
-use crate::sidecar::{drain_stderr, frame_bytes, pcm_i16, spawn_worker, SidecarSpec, KIND_CONTROL, KIND_UTTERANCE};
+use crate::sidecar::{
+    drain_stderr, frame_bytes, pcm_i16, spawn_worker, SidecarSpec, KIND_CONTROL, KIND_UTTERANCE,
+};
 use lowk_types::*;
 use std::io::{BufRead, BufReader, Write};
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -131,8 +133,7 @@ impl Corrector for WhisperCorrector {
             return false;
         };
         self.c.pending.fetch_add(1, Ordering::SeqCst);
-        if r
-            .tx
+        if r.tx
             .try_send(Some(Queued {
                 job,
                 sink,
@@ -231,7 +232,8 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
             finish(&q, None);
             continue;
         };
-        c.lag.record(q.at.elapsed().as_millis().min(u32::MAX as u128) as u32);
+        c.lag
+            .record(q.at.elapsed().as_millis().min(u32::MAX as u128) as u32);
         let text = r.text.trim().to_owned();
         let changed = text != q.job.original.trim() && plausible(&q.job.original, &text);
         let ev = changed.then(|| SttEvent {
@@ -273,7 +275,9 @@ fn connect(spec: &SidecarSpec) -> Option<(std::process::Child, std::process::Chi
     let (ready_tx, ready_rx) = channel();
     std::thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(std::result::Result::ok) {
-            let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
+            let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
+                continue;
+            };
             match v["ev"].as_str() {
                 Some("ready") => {
                     let _ = ready_tx.send(());
@@ -367,7 +371,10 @@ mod tests {
     #[test]
     fn plausibility_guards_against_hallucinations() {
         assert!(plausible("привет как дела у вас", "Привет, как дела у вас?"));
-        assert!(!plausible("привет как дела у вас сегодня", "Спасибо за просмотр!!! Спасибо за просмотр!!! Спасибо за просмотр!!!"));
+        assert!(!plausible(
+            "привет как дела у вас сегодня",
+            "Спасибо за просмотр!!! Спасибо за просмотр!!! Спасибо за просмотр!!!"
+        ));
         assert!(!plausible("привет как дела у вас сегодня", ""));
         assert!(!plausible("привет как дела у вас сегодня", "да"));
         assert!(plausible("да", "Да."));

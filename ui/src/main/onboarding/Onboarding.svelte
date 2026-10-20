@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { AudioApp, HwInfo, UiLanguage } from '../../lib/ipc';
+  import type { HwInfo, UiLanguage } from '../../lib/ipc';
   import Button from '../../lib/components/Button.svelte';
   import Icon, { type IconName } from '../../lib/components/Icon.svelte';
   import OptionCard from '../../lib/components/OptionCard.svelte';
@@ -11,7 +11,9 @@
   import { mouseNames } from '../names';
   import { PERM_ORDER, perms } from '../permissions.svelte';
   import { hrefs, router } from '../router.svelte';
-  import { prefs } from '../state.svelte';
+  import { prefs, sources } from '../state.svelte';
+  import { nameFromId, presetInfo, presetsFor, resolveSource } from '../source';
+  import SourcePicker from '../SourcePicker.svelte';
   import KeyCard from '../settings/KeyCard.svelte';
   import BindEditor from '../settings/BindEditor.svelte';
 
@@ -21,7 +23,6 @@
   const os = api.platform();
 
   let skipped = $state<Set<number>>(new Set());
-  let apps = $state<AudioApp[]>([]);
   let hw = $state<HwInfo | null>(null);
   let scanned = $state(false);
   let captureMode = $state<'app' | 'system'>('app');
@@ -29,12 +30,12 @@
   let engineMode = $state<'local' | 'cloud'>('local');
 
   onMount(async () => {
-    apps = await api.audioApps();
-    const saved = prefs.value.audio?.default_source;
-    appId = saved?.kind === 'app' && apps.some((a) => a.id === saved.id) ? saved.id : (apps[0]?.id ?? '');
-    // F12: preselect what will really be stored. No app list (backend cannot enumerate yet) or an explicit
-    // «whole system» choice -> whole system; otherwise the recommended single app.
-    captureMode = appId && saved?.kind !== 'whole_system' && prefs.value.capture?.default_source !== 'whole_system' ? 'app' : 'system';
+    await sources.refresh();
+    // F12: preselect what will really be stored: an explicit «whole system» choice -> whole system;
+    // a stored app -> that app; otherwise the first app playing audio; nothing playing -> whole system.
+    const v = resolveSource(prefs.value.audio?.default_source, sources.running, prefs.value.capture?.default_source);
+    appId = v.startsWith('app:') ? v.slice(4) : '';
+    captureMode = appId ? 'app' : 'system';
     perms.refresh();
   });
 
@@ -115,13 +116,8 @@
       {:else if step === 2}
         <h1>{tm('onboarding.capture.title')}</h1>
         <p class="lead">{tm('onboarding.capture.hint')}</p>
-        <OptionCard selected={captureMode === 'app'} title={tm('onboarding.capture.app')} hint={tm('onboarding.capture.appHint')} badge={tm('onboarding.capture.recommended')} onselect={() => { if (apps.length) captureMode = 'app'; }} />
-        <div class="apps">
-          {#each apps as a (a.id)}
-            <button class="app" class:on={captureMode === 'app' && appId === a.id} onclick={() => { captureMode = 'app'; appId = a.id; }}><span class="ai">{a.name.slice(0, 1)}</span><span class="lbl">{a.name}</span></button>
-          {/each}
-          <button class="app"><span class="ai">+</span><span class="lbl">{tm('onboarding.capture.system')}</span></button>
-        </div>
+        <OptionCard selected={captureMode === 'app'} title={tm('onboarding.capture.app')} hint={tm('onboarding.capture.appHint')} badge={tm('onboarding.capture.recommended')} onselect={() => { captureMode = 'app'; if (!appId) appId = presetInfo(presetsFor(os)[0]!, os, sources.pool).id; }} />
+        <div class="apps"><SourcePicker allowSystem={false} label={tm('m.audioSource')} value={appId ? `app:${appId}` : 'app:'} onchange={(v) => { captureMode = 'app'; appId = v.slice(4); }} /></div>
         <OptionCard selected={captureMode === 'system'} title={tm('m.sourceSystem')} hint={tm('onboarding.capture.systemHint')} onselect={() => (captureMode = 'system')} />
         <p class="note">{tm('onboarding.capture.micNote')}</p>
 
@@ -164,7 +160,7 @@
       {:else if step === 6}
         <h1>{tm('onboarding.hotkeys.title')}</h1>
         <p class="lead">{tm('onboarding.hotkeys.hint')}</p>
-        <BindEditor actions={['ask', 'screenshot', 'screenshot_area', 'toggle_interactive', 'toggle_record', 'move_hold', 'next_template']} showReset={false} />
+        <BindEditor actions={['ask_brief', 'ask_complement', 'screenshot', 'screenshot_area', 'click_hold', 'toggle_interactive', 'toggle_record', 'move_hold']} showReset={false} />
 
       {:else}
         <div class="fin">
@@ -173,7 +169,7 @@
           <p class="lead centered">{tm('onboarding.done.body', { key: recKey })}</p>
           <div class="sum card">
             <div><span>{tm('settings.language')}</span><span class="lbl">{tm(lang === 'auto' ? 'settings.language.auto' : lang === 'ru' ? 'settings.language.ru' : 'settings.language.en')}</span></div>
-            <div><span>{tm('m.ob.capture')}</span><span class="lbl">{skippedLabel(2) ?? (captureMode === 'app' ? (apps.find((a) => a.id === appId)?.name ?? '') : tm('m.sourceSystemShort'))}</span></div>
+            <div><span>{tm('m.ob.capture')}</span><span class="lbl">{skippedLabel(2) ?? (captureMode === 'app' ? (sources.find(appId)?.name ?? nameFromId(appId)) : tm('m.sourceSystemShort'))}</span></div>
             <div><span>{tm('settings.stt')}</span><span class="lbl">{skippedLabel(4) ?? (engineMode === 'local' ? tm('settings.stt.local') : 'Soniox')}</span></div>
             <div><span>{tm('settings.answers')}</span><span class="lbl">{skippedLabel(5) ?? 'DeepSeek V4.1 Flash'}</span></div>
             <div><span>{tm('settings.apiKey')}</span><span class="lbl">{skippedLabel(5) ?? tm('settings.apiKey.stored')}</span></div>
@@ -225,10 +221,7 @@
   .chk { all: unset; display: flex; gap: var(--s3); align-items: center; cursor: pointer; margin-top: var(--s2); }
   .bx { width: 20px; height: 20px; border-radius: var(--r-sm); border: 1.5px solid var(--tx3); display: grid; place-items: center; flex: none; color: var(--acfg); }
   .chk.on .bx { background: var(--ac); border-color: var(--ac); }
-  .apps { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin: var(--s1) 0 var(--s3); }
-  .app { all: unset; box-sizing: border-box; display: flex; gap: var(--s3); align-items: center; height: 44px; padding: 0 var(--s3); border: 1px solid var(--line); border-radius: var(--r-lg); font-size: 13px; cursor: pointer; background: var(--panel); min-width: 0; }
-  .app.on { border-color: var(--ac); }
-  .ai { width: 24px; height: 24px; border-radius: var(--r); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 11px; background: #3a3a42; flex: none; }
+  .apps { margin: var(--s1) 0 var(--s3); }
   .perm { display: flex; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); margin-bottom: var(--s2); }
   .ic { width: 36px; height: 36px; border-radius: var(--r-lg); background: var(--hv); display: grid; place-items: center; color: var(--tx2); flex: none; border: 1px solid var(--line); }
   .t { flex: 1; min-width: 0; }

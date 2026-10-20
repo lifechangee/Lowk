@@ -69,7 +69,7 @@
   let drag: { x: number; y: number } | null = null;
   function down(e: PointerEvent) {
     const t = e.target as HTMLElement;
-    if (store.mode !== 'interactive' || e.button !== 0 || !t.closest('[data-drag]') || t.closest('button, .menu')) return;
+    if ((store.mode !== 'interactive' && store.mode !== 'hover') || e.button !== 0 || !t.closest('[data-drag]') || t.closest('button, .menu')) return;
     drag = { x: e.screenX, y: e.screenY };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     source.dragStart?.();
@@ -77,9 +77,24 @@
   function move(e: PointerEvent) {
     if (drag) source.dragTo?.(e.screenX - drag.x, e.screenY - drag.y);
   }
+  // macOS WebKit turns Ctrl+click into a context menu and dispatches no `click`. While the Ctrl hold (hover mode)
+  // is the thing making the overlay clickable, a primary press on a button must still act: if the native click does
+  // not arrive right after the release, fire it ourselves; never show the context menu.
+  let pressBtn: HTMLElement | null = null;
+  let nativeClick = false;
+  function press(e: PointerEvent) {
+    pressBtn = store.mode === 'hover' && e.ctrlKey ? (e.target as HTMLElement).closest('button') : null;
+    nativeClick = false;
+  }
+  function seen() {
+    nativeClick = true;
+  }
   function up() {
     if (drag) source.dragEnd?.();
     drag = null;
+    const b = pressBtn;
+    pressBtn = null;
+    if (b) setTimeout(() => nativeClick || b.click(), 40);
   }
   function key(e: KeyboardEvent) {
     if (e.key === 'Escape' && store.mode === 'interactive') source.escape?.();
@@ -91,7 +106,7 @@
 {#if store.showPill}
   <div class="ovp" {style} style:width="100%" style:height="100%"><Pill {store} {source} /></div>
 {:else}
-  <div role="presentation" bind:this={root} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} class="ov" class:interactive={store.mode === 'interactive'} class:moving={store.mode === 'moving'} {style} data-mode={store.mode}>
+  <div role="presentation" bind:this={root} onpointerdown={(e) => { press(e); down(e); }} onclickcapture={seen} oncontextmenu={(e) => e.preventDefault()} onpointermove={move} onpointerup={up} onpointercancel={up} class="ov" class:interactive={store.mode === 'interactive'} class:moving={store.mode === 'moving'} class:hover={store.mode === 'hover'} {style} data-mode={store.mode}>
     <div class="scrim" style={scrimStyle} aria-hidden="true"><i class="r0"></i><i class="r1"></i><i class="r2"></i></div>
     <Header {store} {source} />
     <Subtitle {store} />

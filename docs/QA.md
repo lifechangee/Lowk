@@ -32,10 +32,23 @@ The same `lintInPage` runs inside the real webview in `just qa-app`.
 
 * `cargo build -p lowk-app --features qa,custom-protocol` (debug only). **Never in release**: `crates/lowk-app/src/lib.rs` has a `compile_error!` for `qa` without `debug_assertions`, `tools/qa/check-no-qa-release.sh` (run by `just lint`/CI, `just qa-guard`) additionally verifies that no default feature, recipe or workflow enables it and that a release build with the feature fails to compile.
 * The app binds `127.0.0.1:$LOWK_QA_PORT` (random if unset), requires header `X-Lowk-Qa-Token`, rejects foreign `Host` headers, and writes `{port, token, pid}` to `$LOWK_DATA_DIR/qa.json`. `LOWK_QA_MULTI=1` disables the single-instance hand-off so a QA instance can run beside the developer's own `just dev`; it uses its own temp data dir and vault.
-* Commands (POST `/cmd`, body = one line): `nav <hash>`, `eval <main|overlay|pill> <js expr>` (result comes back as JSON; the page parks it in its URL fragment with `history.replaceState` because the CSP forbids calling out and `eval` has no return channel), `win <label>`, `pid`, `opacity N`, `font PX`, `lang ru|en`, `mode passive|interactive|moving`, plus the whole stealth-probe set (`overlay-show`, `demo-start`, `demo-stop`, `overlay-move X Y`, `exclusion on|off`, ...).
+* Commands (POST `/cmd`, body = one line): `bind <action> <down|up>` (feeds a bind event through the real dispatcher), `hover-state` (overlay mode + native `ignoresMouseEvents`), `pill-state`, `screenshot` / `queue-png <i>` / `queue-clear` (G7 queue), `nav <hash>`, `eval <main|overlay|pill> <js expr>` (result comes back as JSON; the page parks it in its URL fragment with `history.replaceState` because the CSP forbids calling out and `eval` has no return channel), `win <label>`, `pid`, `opacity N`, `font PX`, `lang ru|en`, `mode passive|interactive|moving`, plus the whole stealth-probe set (`overlay-show`, `demo-start`, `demo-stop`, `overlay-move X Y`, `exclusion on|off`, ...).
 * **Capturing the overlay**: the overlay is `NSWindowSharingNone` (stealth). ScreenCaptureKit with a per-window `desktopIndependentWindow` filter still does not deliver such a window while the exclusion is on, so the QA run sends `exclusion off` before capturing and restores it (`exclusion on`) in `finally`. Only qa builds can do that. The **presence sampler needs no lift**: it polls window-server metadata (`CGWindowList` on-screen flag and alpha) at ~120-250 Hz, which is available for protected windows. `tools/qa/qa-cap.swift` also streams the window at 60 fps through ScreenCaptureKit and counts blank frames (needs the exclusion lift).
 * Needs Screen Recording permission for the terminal/host that runs `node tools/qa/app-qa.mjs`.
 
 ## Detector status (first run)
 
 See the F-id table at the top of `docs/qa/report.html`. Browser-visible: F1, F2, F11, F12, F13 (toast). Real-app only: F4 (flicker), F6 (main text size), F10 (duplicated deltas: the browser mock does not reproduce it, the real event path does). Not detectable by machines: F3, F5 (needs judgement), F7 (decision), F8 and F9 (feature work: add tests with the feature).
+
+## What "green" means
+
+"Green" means **both**: (1) local `just ci` passes, which includes `just ci-cross` (clippy `-D warnings` for `x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc`; one-time setup: `rustup target add x86_64-unknown-linux-gnu x86_64-pc-windows-msvc`, the recipe creates the dummy `llvm-rc` itself), and (2) the GitHub Actions run for your pushed commit is green (lint, test-macos, test-windows). macOS-only `just ci` is not enough: Linux/Windows cfg-gated dead code and CRLF issues only show up there. Check with `gh run watch`.
+
+## Round 2 checks (G1 G2 G3 G5 G6 G7)
+
+Permanent regression tests, written together with the fixes (no expected-fail stage):
+
+* `ui/e2e/round2.spec.ts` (chromium + webkit): G1 presets apply on click and the control keeps its size/position; overlay preview follows the overlay size; G5 no header button on home, popover elsewhere; G3 picker (running apps, presets, installed «Other…», no id field); G6 footer shows the real binds and holding Ctrl makes the overlay clickable; G7 header chip with thumbnails + clear.
+* New visual states: `newcall-popover`, `source-picker`, `source-other` (main) and `hover` (overlay).
+* `tools/qa/app-qa.mjs` (real app): G1 clicks the REAL settings control and reads the overlay font-size (S 12 / M 14 / XL 18) and the main zoom; G5/G3 in the real webview; G6 20x hold-Ctrl through the real dispatcher with the `ignoresMouseEvents` readback and the >=30 Hz presence sampler (0 absent frames), tap debounce, move-wins-over-hover, per-template ask; G7 screenshot queue per monitor and a sentinel test (main=green, overlay=magenta are present for a plain `screencapture` and absent from the queue PNGs); G2 pill drag through the real pointer path + position memory.
+

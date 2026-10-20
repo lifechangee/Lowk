@@ -16,7 +16,8 @@ use std::collections::VecDeque;
 use std::io::{BufReader, Read, Write};
 use std::sync::mpsc::{channel, Receiver};
 use transcribe_cpp::{
-    Model, ParakeetStreamOptions, RunOptions, StreamExtension, StreamOptions, WhisperRunOptions,
+    Backend, Model, ModelOptions, ParakeetStreamOptions, RunOptions, SessionOptions, StreamExtension,
+    StreamOptions, WhisperRunOptions,
 };
 
 type BoxErr = Box<dyn std::error::Error>;
@@ -163,7 +164,8 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
     let mut asr_s = asr.session()?;
     let mut vad_s = vad.vad_session()?;
     let run = RunOptions {
-        language: Some(lang),
+        // no hint = the model's auto language slot
+        language: if lang == "auto" { None } else { Some(lang) },
         ..Default::default()
     };
     let so = StreamOptions {
@@ -189,6 +191,7 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
     let mut preroll: VecDeque<Chunk> = VecDeque::new();
     let mut utt: u64 = 0;
     let mut last_ack = 0u64;
+    let (mut vad_t, mut asr_t) = (0f64, 0f64);
 
     'outer: loop {
         let c = match next_ev(&rx, &mut ch, &mut pending) {
@@ -196,10 +199,12 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
             Ev::Flush => continue,
             Ev::Stop => break,
         };
+        let tv = std::time::Instant::now();
         let probs = vad_s.stream_feed(&c.pcm)?.probs;
+        vad_t += tv.elapsed().as_secs_f64();
         if c.t1 - last_ack >= 1_000_000_000 {
             last_ack = c.t1;
-            emit(json!({"ev":"ack","t_ns":c.t1}));
+            emit(json!({"ev":"ack","t_ns":c.t1,"vad_s":vad_t,"asr_s":asr_t}));
         }
         if !probs.iter().any(|p| *p >= thr) {
             preroll.push_back(c);
@@ -224,7 +229,9 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
         loop {
             while let Some(c) = todo.pop_front() {
                 t_end = c.t1;
+                let ta = std::time::Instant::now();
                 let u = stream.feed(&c.pcm)?;
+                asr_t += ta.elapsed().as_secs_f64();
                 if u.result_changed {
                     let t = stream.text().display().trim().to_owned();
                     if !t.is_empty() && t != last {
@@ -240,7 +247,9 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
             }
             match next_ev(&rx, &mut ch, &mut pending) {
                 Ev::Chunk(c) => {
+                    let tv = std::time::Instant::now();
                     let p = vad_s.stream_feed(&c.pcm)?.probs;
+                    vad_t += tv.elapsed().as_secs_f64();
                     if p.iter().any(|x| *x >= thr) {
                         silent = 0;
                     } else {
@@ -248,7 +257,7 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
                     }
                     if c.t1 - last_ack >= 1_000_000_000 {
                         last_ack = c.t1;
-                        emit(json!({"ev":"ack","t_ns":c.t1}));
+                        emit(json!({"ev":"ack","t_ns":c.t1,"vad_s":vad_t,"asr_s":asr_t}));
                     }
                     todo.push_back(c);
                     if silent >= hang {
@@ -283,8 +292,14 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
 
 fn run_correct(a: &[String]) -> Result<(), BoxErr> {
     let model = arg(a, "--model").ok_or("--model")?;
-    let m = Model::load(&model)?;
-    let mut s = m.session()?;
+    let backend = match arg(a, "--backend").as_deref() {
+        Some("cpu") => Backend::Cpu,
+        Some("cpu-accel") => Backend::CpuAccel,
+        _ => Backend::Auto,
+    };
+    let m = Model::load_with(&model, &ModelOptions { backend, ..Default::default() })?;
+    let threads: i32 = arg(a, "--threads").and_then(|s| s.parse().ok()).unwrap_or(0);
+    let mut s = m.session_with(&SessionOptions { n_threads: threads, ..Default::default() })?;
     emit(json!({"ev":"ready","backend":m.backend()}));
     let rx = spawn_reader();
     let prompt = arg(a, "--prompt");

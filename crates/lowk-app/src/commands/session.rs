@@ -130,8 +130,10 @@ pub fn engine_list(st: State<'_, Shared>) -> Vec<EngineDescriptor> {
 #[tauri::command(async)]
 #[specta::specta]
 pub fn engine_status(st: State<'_, Shared>) -> Vec<EngineInfo> {
-    st.engines
-        .infos(&lowk_platform::hw::probe_report(), &st.settings.get().stt.cloud_vendor)
+    st.engines.infos(
+        &lowk_platform::hw::probe_report(),
+        &st.settings.get().stt.cloud_vendor,
+    )
 }
 
 /// Downloads an engine's models into app data (SHA-256 checked); progress arrives as
@@ -180,17 +182,5 @@ pub fn llm_set_template(st: State<'_, Shared>, id: String) -> Result<()> {
         return Err(AppError::new(ErrorCode::NotFound).with_detail("template"));
     }
     *st.template.lock() = id;
-    Ok(())
-}
-
-#[tauri::command(async)]
-#[specta::specta]
-pub fn capture_screenshot() -> Result<()> {
-    Err(AppError::not_implemented())
-}
-
-#[tauri::command(async)]
-#[specta::specta]
-pub fn queue_clear() -> Result<()> {
     Ok(())
 }

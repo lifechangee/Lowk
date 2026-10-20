@@ -1,7 +1,6 @@
 // View-model types for the main window. DTOs that already exist in the generated
 // bindings are reused as-is; the rest are the shapes WP6 will need to provide.
 import type {
-  AudioApp,
   BindReport,
   CallMeta,
   EngineDescriptor,
@@ -14,6 +13,7 @@ import type {
   PermState,
   SessionState,
   Settings,
+  SourceInfo,
   StartOpts,
   Stream,
 } from '../../lib/ipc';
@@ -103,7 +103,10 @@ export interface Backend {
   exportMarkdown(id: string): Promise<string>;
   search(query: string): Promise<SearchHit[]>;
 
-  audioApps(): Promise<AudioApp[]>;
+  /** Running apps that produce audio right now (G3). */
+  sourceList(): Promise<SourceInfo[]>;
+  /** Installed apps for “Other…” (G3). */
+  sourceListInstalled(): Promise<SourceInfo[]>;
   engines(): Promise<EngineDescriptor[]>;
   hwProbe(): Promise<HwInfo>;
   permStatus(): Promise<Record<PermKind, PermState>>;

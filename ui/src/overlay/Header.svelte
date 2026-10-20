@@ -7,11 +7,18 @@
   let { store, source }: { store: OverlayStore; source: OverlaySource } = $props();
   const lang = $derived(store.lang);
   const modeKey = $derived(
-    store.mode === 'interactive' ? 'overlay.mode.interactive' : store.mode === 'moving' ? 'overlay.mode.moving' : 'overlay.mode.passive',
+    store.mode === 'interactive'
+      ? 'overlay.mode.interactive'
+      : store.mode === 'moving'
+        ? 'overlay.mode.moving'
+        : store.mode === 'hover'
+          ? 'overlay.mode.hover'
+          : 'overlay.mode.passive',
   );
   const tplName = $derived(store.template ? store.template.names[lang] : '');
   const slotKey = (i: number) => (store.isMac ? '⌥' : 'Alt+') + (i + 1);
-  const interactive = $derived(store.mode === 'interactive');
+  // G6: hold-Ctrl (hover) makes the header as clickable as the typing mode, minus the keyboard.
+  const interactive = $derived(store.mode === 'interactive' || store.mode === 'hover');
 
   function toggle() {
     if (interactive) store.menuOpen = !store.menuOpen;
@@ -62,8 +69,11 @@
   {#if store.shots > 0}
     <span class="chip" data-blk>
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 5V3.5A1.5 1.5 0 0 1 3.5 2H5M11 2h1.5A1.5 1.5 0 0 1 14 3.5V5M14 11v1.5a1.5 1.5 0 0 1-1.5 1.5H11M5 14H3.5A1.5 1.5 0 0 1 2 12.5V11" /><circle cx="8" cy="8" r="2" /></svg>
-      <span class="shots-wrap">{#each store.thumbs as _, i (i)}<i class="thumb t{i % 3}"></i>{/each}</span>
+      <span class="shots-wrap">{#each store.thumbs as t, i (i)}{#if t.startsWith('data:')}<img class="thumb" src={t} alt="" />{:else}<i class="thumb t{i % 3}"></i>{/if}{/each}</span>
       <span class="lbl">{ot('overlay.shots', lang, { n: store.shots })}</span>
+      <button class="clr" type="button" title={ot('overlay.shots.clear', lang)} aria-label={ot('overlay.shots.clear', lang)} onclick={() => source.clearQueue?.()}>
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M1 1l6 6M7 1 1 7" /></svg>
+      </button>
     </span>
   {/if}
   <span class="mode" data-blk><i></i><span class="lbl">{ot(modeKey, lang)}</span></span>
