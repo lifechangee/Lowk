@@ -1,14 +1,38 @@
 [package]
 name = "lowk-audio"
-description = "Lowk: lowk-audio crate (M0 stub)"
+description = "Lowk audio capture: Core Audio taps (macOS), WASAPI loopback (Windows), resampling, AEC, file replay"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+default = []
+# WebRTC AEC3 on the microphone stream. Needs meson + ninja at build time
+# (`uv tool install meson ninja`), so it is opt-in; release builds enable it.
+aec = ["dep:webrtc-audio-processing"]
+
 [dependencies]
 lowk-types.workspace = true
+lowk-platform.workspace = true
+tracing.workspace = true
+ringbuf.workspace = true
+rubato.workspace = true
+audioadapter-buffers = "5.1"
+hound = "3.5"
+base64 = "0.22"
+symphonia = { version = "0.5", default-features = false, features = ["aac", "isomp4", "wav", "pcm", "mp3", "mpa"] }
+webrtc-audio-processing = { workspace = true, features = ["bundled"], optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cidre = { workspace = true }
+libc = "0.2"
+plist = "1"
+
+[target.'cfg(windows)'.dependencies]
+wasapi.workspace = true
+sysinfo.workspace = true
 
 [lints]
 workspace = true

@@ -74,6 +74,8 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<ContextChunk>();
     types.register_mut::<AskRequest>();
     types.register_mut::<AudioApp>();
+    types.register_mut::<SourceInfo>();
+    types.register_mut::<SourceKind>();
     types.register_mut::<DeviceInfo>();
 }
 

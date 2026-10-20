@@ -294,3 +294,18 @@ fn main_thread_run_sync_and_fakes() {
     });
     assert_eq!(sink.errors.lock().unwrap().len(), 1);
 }
+
+#[test]
+fn source_info_roundtrip() {
+    roundtrip(&SourceInfo {
+        id: "com.google.Chrome".into(),
+        name: "Google Chrome".into(),
+        bundle_id: "com.google.Chrome".into(),
+        pid: 42,
+        icon_png_b64: Some("iVBOR".into()),
+        producing_audio: true,
+        kind: SourceKind::App,
+    });
+    let j = serde_json::to_value(SourceKind::System).unwrap();
+    assert_eq!(j, "system");
+}
