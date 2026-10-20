@@ -19,7 +19,7 @@
   });
 </script>
 
-<div class="ans">
+<div class="ans" data-blk>
   <div class="chain">
     {#each labels as l, i (l)}
       {#if i}<em>›</em>{/if}

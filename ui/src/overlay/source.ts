@@ -13,6 +13,8 @@ export interface OverlaySource {
   setTemplate(id: string): void;
   /** Pill click / record bind. */
   toggleRecord(): void;
+  /** Stop-recording button in the header (`session_stop`). */
+  stopRecording?(): void;
   /** Esc in interactive mode: back to click-through. */
   escape?(): void;
   /** Drag the overlay by its header (interactive mode): pointer deltas in screen points. */

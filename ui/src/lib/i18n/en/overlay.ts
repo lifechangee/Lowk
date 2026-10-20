@@ -59,5 +59,6 @@ export const overlay = {
   'overlay.template': 'Template',
   'overlay.new': 'new',
   'overlay.state.idle': 'Not recording',
+  'overlay.action.stop': 'Stop recording',
   'overlay.state.paused': 'Paused',
 } as const;

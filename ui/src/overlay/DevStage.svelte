@@ -2,12 +2,12 @@
   // Dev-only harness (vite dev, outside Tauri): test backgrounds, controls, mock demo feed.
   // Query params for deterministic screenshots: bg=dark|light|color|live, t=0..90, lang=ru|en,
   // mode=passive|interactive|moving, menu=1, view=pill, still=1 (preloaded frame, no demo).
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { OverlayStore } from './store.svelte';
   import { MockSource } from './mock';
   import Overlay from './Overlay.svelte';
-  import { PRESETS } from './tone';
-  import type { OverlayMode, ToneKind } from '../lib/ipc/bindings';
+  import { PRESETS, type ToneEvent } from './tone';
+  import type { OverlayMode, Tone, ToneKind } from '../lib/ipc/bindings';
   import { setLang } from '../lib/i18n';
 
   const q = new URLSearchParams(location.search);
@@ -15,9 +15,9 @@
   const bare = q.get('bare') === '1';
   const store = new OverlayStore();
   store.isMac = /mac/i.test(navigator.platform);
-  const source = new MockSource({ autoplay: q.get('still') !== '1' });
+  const source = new MockSource({ autoplay: q.get('still') !== '1', duplicate: q.get('dup') === '1' });
 
-  let bg = $state<'dark' | 'light' | 'color' | 'live'>((q.get('bg') as 'dark') ?? 'dark');
+  let bg = $state<'dark' | 'light' | 'color' | 'live' | 'split'>((q.get('bg') as 'dark') ?? 'dark');
   store.transparency = Number(q.get('t') ?? 60);
   store.lang = q.get('lang') === 'en' ? 'en' : 'ru';
   let view = $state<'overlay' | 'pill'>(q.get('view') === 'pill' ? 'pill' : 'overlay');
@@ -29,15 +29,26 @@
   let priorMode: OverlayMode = 'passive';
   let liveIdx = 0;
 
-  const kind = $derived<ToneKind>(bg === 'live' ? (['dark', 'light', 'color'] as const)[liveIdx % 3]! : bg);
+  const kind = $derived<ToneKind>(bg === 'live' ? (['dark', 'light', 'color'] as const)[liveIdx % 3]! : bg === 'split' ? 'dark' : bg);
+  const toneOf = (k: ToneKind): Tone => ({ tone: k, rgb: PRESETS[k].rgb, fg: PRESETS[k].fg, inv: PRESETS[k].inv, int: PRESETS[k].int, mv: PRESETS[k].mv, luma: null, busy: null });
+  // Same payload shape as the real `overlay://tone` event, including the per-region grid (F5).
+  // `split` = dark code on the left, light document on the right, bright slide strip at the bottom.
+  // grid=0 drops the grid to exercise the global-tone fallback.
+  const toneEvent = $derived.by<ToneEvent>(() => {
+    const t = toneOf(kind);
+    if (bg !== 'split' || q.get('grid') === '0') return t;
+    const cells = Array.from({ length: 12 }, (_, i) => toneOf(Math.floor(i / 4) === 2 ? 'color' : i % 4 < 2 ? 'dark' : 'light'));
+    return { ...t, grid: { cols: 4, rows: 3, cells } };
+  });
+  // Applied once synchronously (first paint is already in the right tone: no start-up fade), then on change.
+  store.applyTone(untrack(() => toneEvent));
   $effect(() => {
-    store.tone = PRESETS[kind];
-    store.toneKind = kind;
+    store.applyTone(toneEvent);
   });
   $effect(() => {
     store.visibility = view === 'pill' ? 'pill' : 'recording_only';
     if (view === 'pill') store.phase = 'idle';
-    else if (store.phase === 'idle') store.phase = 'recording';
+    else if (untrack(() => store.phase) === 'idle') store.phase = 'recording';
   });
   $effect(() => setLang(store.lang));
 
@@ -47,7 +58,7 @@
     const ru = store.lang === 'ru';
     store.applyStt({ stream: 'system', utt: 1, rev: 0, kind: 'final', text: ru ? 'А что у нас по EBITDA margin и по customer acquisition cost за третий квартал?' : 'And how risky are the one-off items for the Q4 forecast?', lang: null, t_start_ns: 0, t_audio_end_ns: 0, t_emit_ns: 0 });
     store.applyLlm({ type: 'start', req_id: 'r', qa_id: 'q' });
-    store.applyLlm({ type: 'delta', req_id: 'r', text: ru ? '**EBITDA margin** вырос с 21,3% до **23,4%** (+2,1 п.п.). **CAC** снизился на 11%, с 86 до 77 тыс. ₽, за счёт partner-канала. Стоит упомянуть one-off эффект в марже.' : '**One-off items** added about **1.2 pp** to the Q3 margin, so the Q4 forecast should exclude them. Underlying margin is roughly 22.2%.' });
+    store.applyLlm({ type: 'delta', req_id: 'r', seq: 0, text: ru ? '**EBITDA margin** вырос с 21,3% до **23,4%** (+2,1 п.п.). **CAC** снизился на 11%, с 86 до 77 тыс. ₽, за счёт partner-канала. Стоит упомянуть one-off эффект в марже.' : '**One-off items** added about **1.2 pp** to the Q3 margin, so the Q4 forecast should exclude them. Underlying margin is roughly 22.2%.' });
     store.applyLlm({ type: 'done', req_id: 'r', truncated: false, usage: null });
     store.applyStt({ stream: 'me', utt: 2, rev: 0, kind: 'final', text: ru ? 'EBITDA margin вырос до двадцати трёх и четырёх, а CAC упал на одиннадцать процентов.' : 'The one-offs added around one point two, so I would exclude them.', lang: null, t_start_ns: 0, t_audio_end_ns: 0, t_emit_ns: 0 });
     store.setQueue(2, ['a', 'b']);
@@ -110,7 +121,9 @@
 <svelte:window onkeydown={onKeyDown} onkeyup={onKeyUp} onpointermove={onMove} onpointerdown={onDown} onpointerup={() => (dragging = false)} />
 
 <div class="stage bg-{bg === 'live' ? kind : bg}" class:bare>
-  {#if bg === 'dark' || (bg === 'live' && kind === 'dark')}
+  {#if bg === 'split'}
+    <div class="splitbg"></div>
+  {:else if bg === 'dark' || (bg === 'live' && kind === 'dark')}
     <pre class="code">// Считаем EBITDA margin по сегментам
 export async function buildReport(ctx: Ctx) &#123;
   const rows = await ctx.db.query(`
@@ -135,7 +148,7 @@ export const fmt = (x: number) =&gt; (x * 100).toFixed(1) + '%'</pre>
 
   <div class="bar" hidden={bare}>
     <label>transparency <input type="range" min="0" max="90" bind:value={store.transparency} /> <b>{store.transparency}%</b></label>
-    <select bind:value={bg}><option value="dark">dark</option><option value="light">light</option><option value="color">color</option><option value="live">live</option></select>
+    <select bind:value={bg}><option value="dark">dark</option><option value="light">light</option><option value="color">color</option><option value="live">live</option><option value="split">split</option></select>
     <select bind:value={store.lang}><option value="ru">RU</option><option value="en">EN</option></select>
     <select bind:value={view}><option value="overlay">overlay</option><option value="pill">pill</option></select>
     <select bind:value={store.fontPx}><option value={12}>12px</option><option value={13}>13px</option><option value={15}>15px</option></select>
@@ -151,6 +164,7 @@ export const fmt = (x: number) =&gt; (x * 100).toFixed(1) + '%'</pre>
   .bg-dark { background: #17181c; color: #cfd0d8; }
   .bg-light { background: #e9eaee; }
   .bg-color { background: radial-gradient(900px 500px at 15% 10%, #ff8a5c 0, transparent 55%), radial-gradient(700px 500px at 90% 90%, #2dd4bf 0, transparent 55%), linear-gradient(135deg, #7c3aed, #be185d); color: #fff; }
+  .splitbg { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 66.67%, #7c3aed 66.67%, #be185d), linear-gradient(90deg, #17181c 50%, #f1f2f5 50%); }
   .code { margin: 0; padding: 24px; font: 12px/1.6 ui-monospace, Menlo, monospace; color: #9aa0b4; }
   .doc { width: 520px; margin: 24px auto 0; background: #fff; padding: 32px 40px; color: #23242a; font-family: Georgia, serif; box-shadow: 0 2px 14px rgba(0, 0, 0, 0.12); }
   .doc table { width: 100%; border-collapse: collapse; margin-top: 8px; }

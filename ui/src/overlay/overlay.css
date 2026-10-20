@@ -1,8 +1,10 @@
 /* Overlay styles. Every colour comes from the adaptive tokens below, which are calc() over the
    inputs set inline on .ov by the tone event: --rgb --fg --inv --int --mv --mrgb --k.
    Do not add fixed colours in components. Tokens match docs/design/lowk-mockups-v3.html. */
-.ov, .ovp {
-  --bgc: rgba(var(--rgb), max(calc(var(--k) * 0.85), var(--smin, 0)));
+/* Text blocks ([data-blk]) re-derive the tokens from their own --fg/--inv (set per block from the
+   tone grid, F5), so every block keeps its own legible text colour. */
+.ov, .ovp, .ov [data-blk] {
+  --bgc: rgba(var(--rgb), max(calc(var(--k) * 0.85), var(--smin, 0), var(--floor, 0.72)));
   --bd: rgba(var(--fg), calc(0.07 + var(--k) * 0.25));
   --ln: rgba(var(--fg), calc(0.04 + var(--k) * 0.14));
   --chip: rgba(var(--fg), calc(0.05 + var(--k) * 0.13));
@@ -18,10 +20,11 @@
   --shd: 0 8px 28px rgba(var(--inv), calc(var(--k) * 0.26));
   --menu: rgba(var(--mrgb), calc(0.55 + var(--k) * 0.4));
   --menu-shd: 0 16px 40px rgba(var(--inv), calc(0.12 + var(--k) * 0.2));
-  --intc: rgba(var(--int), calc(0.6 + var(--k) * 0.4));
+  --intc: rgba(var(--int), calc(0.85 + var(--k) * 0.15));
   --mvc: rgb(var(--mv));
   --mvon: rgb(var(--inv));
   --recc: rgba(255, 77, 79, calc(0.6 + var(--k) * 0.4));
+  --recs: rgb(255, 77, 79);
   --toast: rgba(var(--mrgb), calc(0.6 + var(--k) * 0.35));
 }
 
@@ -34,7 +37,6 @@
   border-radius: 16px;
   color: var(--tx);
   text-shadow: var(--ts);
-  background: var(--bgc);
   border: 1px solid var(--bd);
   box-shadow: var(--shd);
   font: var(--ov-fs, 13px) / 1.4 var(--font);
@@ -42,6 +44,43 @@
   user-select: none;
   transition: background-color 0.6s, border-color 0.6s, color 0.6s, box-shadow 0.6s, text-shadow 0.6s;
 }
+/* ---- adaptive scrim (F5 + F11) ----
+   One opaque colour per grid cell (4x3), blended smoothly: three horizontal gradient rows stacked with
+   vertical ramps so each row fades in between row centres (exact bilinear blend). The whole layer
+   then gets ONE opacity = max(slider, backend scrim_min, legibility floor): the text never loses its
+   backing whatever the transparency slider says (WCAG AA body text, see docs/QA.md). */
+@property --c0 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c1 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c2 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c3 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c4 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c5 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c6 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c7 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c8 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c9 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c10 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+@property --c11 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+.ov .scrim {
+  position: absolute; inset: -1px; border-radius: inherit; overflow: hidden; pointer-events: none;
+  opacity: max(calc(var(--k) * 0.85), var(--smin, 0), var(--floor, 0.72));
+  transition: --c0 1s, --c1 1s, --c2 1s, --c3 1s, --c4 1s, --c5 1s, --c6 1s, --c7 1s, --c8 1s, --c9 1s, --c10 1s, --c11 1s, opacity 0.6s;
+}
+.scrim i { position: absolute; inset: 0; }
+.scrim .r0 { background: linear-gradient(90deg, var(--c0) 12.5%, var(--c1) 37.5%, var(--c2) 62.5%, var(--c3) 87.5%); }
+.scrim .r1 {
+  background: linear-gradient(90deg, var(--c4) 12.5%, var(--c5) 37.5%, var(--c6) 62.5%, var(--c7) 87.5%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 16.667%, #000 50%); mask-image: linear-gradient(180deg, transparent 16.667%, #000 50%);
+}
+.scrim .r2 {
+  background: linear-gradient(90deg, var(--c8) 12.5%, var(--c9) 37.5%, var(--c10) 62.5%, var(--c11) 87.5%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 50%, #000 83.333%); mask-image: linear-gradient(180deg, transparent 50%, #000 83.333%);
+}
+.ov.nofade, .ov.nofade *, .ov.nofade .scrim { transition: none !important; }
+.ov :where([data-blk]) { position: relative; color: var(--tx); text-shadow: var(--ts); }
+/* Cells under the block disagree (dark next to light): one local scrim in the block's own tone keeps its text legible. */
+.ov :is(.sub, .ans, .my, .inp, .foot)[data-mixed] { background: rgba(var(--brgb), 0.72); }
+
 .ov *, .ov *::before, .ov *::after {
   box-sizing: border-box;
   transition: color 0.6s, background-color 0.6s, border-color 0.6s, box-shadow 0.6s, opacity 0.6s;
@@ -80,6 +119,13 @@
 .rec { display: flex; align-items: center; gap: 8px; font: 600 12px/16px var(--mono); flex: none; }
 .rec i { width: 8px; height: 8px; border-radius: 50%; background: var(--recc); animation: pulse 1.6s infinite; flex: none; }
 .rec.off i { animation: none; background: transparent; border: 1.5px dashed var(--tx2); }
+.stop {
+  all: unset; box-sizing: border-box; width: 24px; height: 24px; border-radius: 8px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--chip); border: 1px solid var(--chipbd); color: var(--recs); text-shadow: none; cursor: inherit;
+}
+.ov.interactive .stop { cursor: pointer; }
+.stop:hover, .stop:focus-visible { background: var(--hov); }
+.stop:focus-visible { outline: 2px solid var(--intc); outline-offset: 1px; }
 .rec.off { color: var(--tx2); font-family: var(--font); font-weight: 500; }
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.5); }
@@ -92,6 +138,7 @@
   color: var(--tx); min-width: 0; flex: 0 1 auto; text-shadow: none;
 }
 .chip .lbl { flex: 0 1 auto; }
+.tpl .lbl, .mode .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shots-wrap { display: flex; gap: 4px; align-items: center; flex: none; }
 .thumb {
   width: 28px; height: 20px; border-radius: 4px; border: 1px solid var(--chipbd);
@@ -154,13 +201,13 @@
 @keyframes bl { 50% { opacity: 0; } }
 
 /* ---- AI answer (below) ---- */
-.ans { padding: 8px 16px; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; font-size: var(--ov-fs, 13px); line-height: 20px; }
+.ans { padding: 8px 16px; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; font-size: var(--ov-fs, 13px); line-height: calc(var(--ov-fs, 13px) + 7px); }
 .chain { display: flex; align-items: center; gap: 8px; font-size: 11px; line-height: 16px; color: var(--tx2); margin-bottom: 4px; min-width: 0; flex: none; }
 .chain span { opacity: 0.6; white-space: nowrap; }
 .chain span.done { opacity: 0.85; }
 .chain span.on { opacity: 1; font-weight: 700; color: var(--tx); }
-.chain em { font-style: normal; opacity: 0.5; flex: none; }
-.chain .mdl { margin-left: auto; opacity: 0.7; font-weight: 400; min-width: 0; flex: 0 1 auto; }
+.chain em { font-style: normal; opacity: 0.8; flex: none; }
+.chain .mdl { margin-left: auto; color: var(--tx); opacity: 0.85; font-weight: 400; min-width: 0; flex: 0 1 auto; }
 .ans .body { flex: 1 1 0; min-height: 0; overflow: hidden; overflow-wrap: anywhere; position: relative; }
 .ans .body b { font-weight: 650; }
 .ans .empty { color: var(--tx2); }
@@ -168,17 +215,17 @@
 
 /* ---- "My answer" line ---- */
 .my {
-  padding: 8px 16px; border-top: 1px dashed var(--bd); min-height: 52px; max-height: 64px; flex: none; font-size: 12px; line-height: 18px;
+  padding: 8px 16px; border-top: 1px dashed var(--bd); min-height: 52px; max-height: 64px; flex: none; font-size: calc(var(--ov-fs, 13px) - 1px); line-height: calc(var(--ov-fs, 13px) + 5px);
   display: flex; gap: 8px; align-items: flex-start; background: var(--chip); overflow: hidden;
 }
-.my .t { font-size: 10px; line-height: 18px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx2); width: 88px; flex: none; }
+.my .t { font-size: 10px; line-height: calc(var(--ov-fs, 13px) + 5px); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx2); width: 88px; flex: none; }
 .my .tx { flex: 1 1 0; min-width: 0; font-style: italic; color: var(--tx); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .my .tx.ph { color: var(--tx2); }
 
 /* ---- input row (interactive only) ---- */
 .inp { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--ln); padding: 8px 16px; flex: none; }
 .inp input {
-  all: unset; flex: 1 1 0; min-width: 0; font-size: 13px; line-height: 20px; color: var(--tx); caret-color: var(--intc);
+  all: unset; flex: 1 1 0; min-width: 0; font-size: var(--ov-fs, 13px); line-height: 20px; color: var(--tx); caret-color: var(--intc);
   user-select: text; text-shadow: var(--ts); overflow: hidden; text-overflow: ellipsis;
 }
 .inp input::placeholder { color: var(--tx2); }
@@ -190,16 +237,13 @@
 .hints .lbl { flex: 0 1 auto; }
 .hints.move { white-space: normal; }
 
-.badge {
-  position: absolute; right: 16px; bottom: -14px; font-size: 11px; line-height: 16px; font-weight: 600; padding: 4px 12px; border-radius: 99px;
-  background: var(--mvc); color: var(--mvon); text-shadow: none; box-shadow: 0 4px 14px rgba(var(--inv), 0.3); z-index: 5;
-  max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.hints.r2 { height: 16px; }
+.hints .badge, .hints .toast {
+  display: block; min-width: 0; max-width: 100%; font-size: 11px; line-height: 16px; height: 16px; padding: 0 12px; border-radius: 99px;
+  text-shadow: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none;
 }
-.toast {
-  position: absolute; left: 50%; bottom: -36px; transform: translateX(-50%); font-size: 11px; line-height: 16px; padding: 4px 12px;
-  border-radius: 99px; background: var(--toast); border: 1px solid var(--chipbd); color: var(--tx); text-shadow: none; pointer-events: none;
-  max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.hints .badge { font-weight: 600; background: var(--mvc); color: var(--mvon); }
+.hints .toast { background: var(--toast); border: 1px solid var(--chipbd); color: var(--tx); line-height: 14px; }
 
 /* ---- pill variant ---- */
 .pill {
