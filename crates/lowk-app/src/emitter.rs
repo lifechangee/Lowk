@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, EventTarget};
 
 const OVERLAY: &str = "overlay";
 const MAIN: &str = "main";
@@ -49,6 +49,18 @@ fn targets(ev: &AppEvent) -> &'static [&'static str] {
     }
 }
 
+/// Matches the webview windows named in `labels` (and `Any` listeners, which
+/// Tauri always includes).
+fn label_filter<'a>(labels: &'a [&'a str]) -> impl Fn(&EventTarget) -> bool + 'a {
+    move |t| match t {
+        EventTarget::WebviewWindow { label }
+        | EventTarget::Webview { label }
+        | EventTarget::Window { label }
+        | EventTarget::AnyLabel { label } => labels.contains(&label.as_str()),
+        _ => false,
+    }
+}
+
 impl UiEmitter {
     pub fn new(app: AppHandle) -> Arc<Self> {
         let e = Arc::new(Self {
@@ -67,12 +79,12 @@ impl UiEmitter {
         e
     }
 
+    /// ONE `emit_filter` call per event. Never loop `emit_to` over several labels:
+    /// a JS `listen()` registers with target `Any`, and Tauri delivers an event
+    /// to every `Any` listener of the webview for *each* `emit_to` call, whatever
+    /// its label. Two labels = every handler runs twice (F10: duplicated deltas).
     fn send(&self, name: &str, targets: &[&str], p: &Value) {
-        for t in targets {
-            let _ = self
-                .app
-                .emit_to(tauri::EventTarget::webview_window(*t), name, p.clone());
-        }
+        let _ = self.app.emit_filter(name, p.clone(), label_filter(targets));
     }
 
     fn flush_partials(&self) {
@@ -106,5 +118,31 @@ impl EventSink for UiEmitter {
             return;
         }
         self.send(ev.name(), targets(&ev), &payload(&ev));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filter_matches_only_named_labels() {
+        let f = label_filter(&[OVERLAY, MAIN]);
+        assert!(f(&EventTarget::webview_window("overlay")));
+        assert!(f(&EventTarget::webview_window("main")));
+        assert!(!f(&EventTarget::webview_window("pill")));
+        assert!(!f(&EventTarget::Any));
+    }
+
+    /// F10 regression guard: delivery is a single call, so the emitter source must
+    /// never loop `emit_to` over targets again.
+    #[test]
+    fn send_is_a_single_emit_call() {
+        let src = include_str!("emitter.rs");
+        let code = src.split("#[cfg(test)]").next().unwrap();
+        assert!(
+            !code.contains(".emit_to("),
+            "loop of emit_to duplicates deliveries to Any listeners"
+        );
     }
 }

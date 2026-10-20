@@ -227,14 +227,13 @@ fn demo_feed_builds_transcript_and_links_my_answers() {
     assert_eq!(qa.len(), 2);
     assert!(qa[0].question.contains("EBITDA"));
     assert!(qa[0].hint.starts_with("EBITDA"));
-    // «Мой ответ» = both Me finals after the hint, up to the next long System line.
+    // F14: «Мой ответ» runs from the hint to the user's NEXT Ask (System speech never closes it).
     assert!(qa[0].my_answer.contains("операционная прибыль"));
     assert!(qa[0].my_answer.contains("cash-proxy"));
-    assert!(!qa[0].my_answer.contains("Конечно"));
-    assert_eq!(qa[0].closed, Some(CloseReason::SystemQuestion));
+    assert_eq!(qa[0].closed, Some(CloseReason::NextAsk));
     assert!(qa[1].my_answer.starts_with("Конечно"));
-    assert!(!qa[1].my_answer.contains("Спасибо"));
-    assert_eq!(qa[1].closed, Some(CloseReason::SystemQuestion));
+    // The last link stays open until the session ends.
+    assert_eq!(qa[1].closed, None);
 
     // LLM events are well-formed: Start, Deltas, Done per question.
     let llm: Vec<_> = rx
@@ -259,7 +258,7 @@ fn demo_feed_builds_transcript_and_links_my_answers() {
     assert_eq!(streamed, qa[0].hint);
     // QA subscribers saw growing text and the closing update.
     let ups: Vec<_> = qa_rx.try_iter().collect();
-    assert!(ups.iter().any(|u| u.closed == Some(CloseReason::SystemQuestion)));
+    assert!(ups.iter().any(|u| u.closed == Some(CloseReason::NextAsk)));
     assert!(ups
         .iter()
         .any(|u| u.closed.is_none() && u.text.contains("EBITDA")));

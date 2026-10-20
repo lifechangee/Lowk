@@ -2,14 +2,11 @@
 //!
 //! question -> AI hint -> «Мой ответ». When a hint finishes, a [`QaTracker`]
 //! arms one link. It collects the `Final` segments of the Me stream until the
-//! first of: the next Ask, a System final of >= 3 s that follows at least one
-//! Me segment (the interviewer moved on), 90 s after arming, session end.
+//! user's next Ask or the session end (F14: owner decision, no timers, no
+//! interviewer-speech heuristics: only the user closes «Мой ответ»).
 //! All times are event time (`MonoNs` carried by the events), so behaviour is
 //! deterministic and replayable.
 use lowk_types::{CloseReason, MonoNs, QaId, QaRecord, QaUpdate, Stream, SttEvent, SttKind};
-
-pub const MY_ANSWER_TIMEOUT_NS: u64 = 90_000_000_000;
-pub const LONG_SYSTEM_NS: u64 = 3_000_000_000;
 
 /// Returned for the session to journal (`CallEntry::MyAnswer`).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,50 +79,29 @@ impl QaTracker {
         out
     }
 
-    /// Time passed without an event (watchdog / virtual clock).
-    pub fn tick(&mut self, now: MonoNs) -> QaOutput {
-        match self.open {
-            Some(i) if now > self.records[i].armed_at + MY_ANSWER_TIMEOUT_NS => {
-                self.close(CloseReason::Timeout)
-            }
-            _ => QaOutput::default(),
-        }
-    }
-
     pub fn on_stt(&mut self, ev: &SttEvent) -> QaOutput {
-        let mut out = self.tick(ev.t_audio_end_ns);
+        let mut out = QaOutput::default();
         let Some(i) = self.open else { return out };
-        if ev.kind != SttKind::Final {
+        // Only the user's own finals count; System speech never touches the link.
+        if ev.kind != SttKind::Final || ev.stream != Stream::Me {
             return out;
         }
-        match ev.stream {
-            Stream::System => {
-                let long = ev.t_audio_end_ns.saturating_sub(ev.t_start_ns) >= LONG_SYSTEM_NS;
-                if long && !self.records[i].my_answer.is_empty() {
-                    let c = self.close(CloseReason::SystemQuestion);
-                    out.updates.extend(c.updates);
-                    out.closed.extend(c.closed);
-                }
-            }
-            Stream::Me => {
-                let text = ev.text.trim();
-                // Speech that ended before the hint was armed is not an answer to it.
-                if text.is_empty() || ev.t_audio_end_ns <= self.records[i].armed_at {
-                    return out;
-                }
-                let r = &mut self.records[i];
-                if !r.my_answer.is_empty() {
-                    r.my_answer.push(' ');
-                }
-                r.my_answer.push_str(text);
-                r.first_at.get_or_insert(ev.t_start_ns);
-                out.updates.push(QaUpdate {
-                    qa_id: r.qa_id,
-                    text: r.my_answer.clone(),
-                    closed: None,
-                });
-            }
+        let text = ev.text.trim();
+        // Speech that ended before the hint was armed is not an answer to it.
+        if text.is_empty() || ev.t_audio_end_ns <= self.records[i].armed_at {
+            return out;
         }
+        let r = &mut self.records[i];
+        if !r.my_answer.is_empty() {
+            r.my_answer.push(' ');
+        }
+        r.my_answer.push_str(text);
+        r.first_at.get_or_insert(ev.t_start_ns);
+        out.updates.push(QaUpdate {
+            qa_id: r.qa_id,
+            text: r.my_answer.clone(),
+            closed: None,
+        });
         out
     }
 
@@ -177,56 +153,36 @@ mod tests {
     }
 
     #[test]
-    fn collects_me_finals_until_long_system_utterance() {
+    fn collects_me_finals_and_ignores_system_speech() {
         let mut t = QaTracker::default();
         t.arm(qa(1), "q".into(), "hint".into(), 10 * S);
         // Me speech before arming is ignored.
         t.on_stt(&fin(Stream::Me, 5, 9, "старое"));
-        // A short System remark with no Me answer yet does not close the link.
         let o = t.on_stt(&fin(Stream::System, 11, 12, "угу"));
         assert!(o.closed.is_empty() && t.open_qa().is_some());
         let o1 = t.on_stt(&fin(Stream::Me, 12, 15, "Это прибыль"));
         assert_eq!(o1.updates[0].text, "Это прибыль");
         let o2 = t.on_stt(&fin(Stream::Me, 16, 18, "до налогов."));
         assert_eq!(o2.updates[0].text, "Это прибыль до налогов.");
-        // A short System utterance after Me does not close it either...
-        assert!(t.on_stt(&fin(Stream::System, 19, 21, "ага")).closed.is_empty());
-        // ...a >= 3 s one does.
-        let o3 = t.on_stt(&fin(Stream::System, 22, 26, "Теперь следующий вопрос."));
-        assert_eq!(o3.closed.len(), 1);
-        assert_eq!(o3.closed[0].reason, CloseReason::SystemQuestion);
-        assert_eq!(o3.closed[0].text, "Это прибыль до налогов.");
-        assert_eq!(o3.closed[0].first_at, Some(12 * S));
-        assert!(t.open_qa().is_none());
-        // Closed link no longer collects.
-        t.on_stt(&fin(Stream::Me, 30, 31, "поздно"));
-        assert_eq!(t.my_answer(&qa(1)), Some("Это прибыль до налогов."));
-    }
-
-    #[test]
-    fn long_system_without_me_segment_keeps_link_open() {
-        let mut t = QaTracker::default();
-        t.arm(qa(1), "q".into(), "h".into(), 0);
-        let o = t.on_stt(&fin(Stream::System, 1, 8, "длинная реплика"));
-        assert!(o.closed.is_empty());
+        // F14: a long interviewer utterance does NOT close the link...
+        let o3 = t.on_stt(&fin(Stream::System, 22, 40, "Теперь следующий вопрос."));
+        assert!(o3.closed.is_empty() && o3.updates.is_empty());
         assert_eq!(t.open_qa(), Some(qa(1)));
+        // ...and the user's later speech keeps accumulating.
+        let o4 = t.on_stt(&fin(Stream::Me, 41, 42, "и ещё."));
+        assert_eq!(o4.updates[0].text, "Это прибыль до налогов. и ещё.");
     }
 
     #[test]
-    fn times_out_after_90s_on_event_or_tick() {
+    fn never_closes_by_time() {
         let mut t = QaTracker::default();
         t.arm(qa(1), "q".into(), "h".into(), 0);
         t.on_stt(&fin(Stream::Me, 1, 2, "раз"));
-        assert!(t.tick(90 * S).closed.is_empty());
-        let o = t.tick(91 * S);
-        assert_eq!(o.closed[0].reason, CloseReason::Timeout);
-
-        // Event path: a Me final after the deadline is not collected.
-        t.arm(qa(2), "q".into(), "h".into(), 100 * S);
-        t.on_stt(&fin(Stream::Me, 101, 102, "два"));
-        let o = t.on_stt(&fin(Stream::Me, 195, 196, "слишком поздно"));
-        assert_eq!(o.closed[0].text, "два");
-        assert_eq!(t.my_answer(&qa(2)), Some("два"));
+        // Hours later: still open, still collecting.
+        let o = t.on_stt(&fin(Stream::Me, 7200, 7201, "два"));
+        assert!(o.closed.is_empty());
+        assert_eq!(o.updates[0].text, "раз два");
+        assert_eq!(t.open_qa(), Some(qa(1)));
     }
 
     #[test]

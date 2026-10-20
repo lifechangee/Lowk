@@ -6,9 +6,8 @@ use specta::Type;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum CloseReason {
+    /// The only live trigger: the user pressed Ask again.
     NextAsk,
-    SystemQuestion,
-    Timeout,
     SessionEnd,
 }
 

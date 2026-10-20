@@ -84,6 +84,9 @@ pub mod events {
     pub const STT_ERROR: &str = "stt://error";
     pub const QA_MY_ANSWER: &str = "qa://my-answer";
     pub const SESSION_STATE: &str = "session://state";
+    /// A recording ended (any path); payload `{ "route": "home" }`. The app has just
+    /// shown/focused the main window; the UI navigates it to the library home.
+    pub const SESSION_ENDED: &str = "session://ended";
     pub const AUDIO_LEVEL: &str = "audio://level";
     pub const LLM_START: &str = "llm://start";
     pub const LLM_DELTA: &str = "llm://delta";

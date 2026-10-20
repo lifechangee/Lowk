@@ -13,13 +13,19 @@
 //!    with hysteresis);
 //! 5. a new [`Tone`] is only emitted when it differs enough
 //!    ([`ToneParams::deadband`]) so the UI never animates on noise.
+//! 6. (F5) the same pipeline runs per cell of a 4 x 3 grid; the result rides on
+//!    the emitted tone as [`Tone::grid`], the global tone stays as the fallback.
 
-use lowk_types::{Tone, ToneKind, ToneMode};
+use lowk_types::{Tone, ToneGrid, ToneKind, ToneMode};
 use std::collections::VecDeque;
 
 /// Sample bitmap size requested from the sampler.
 pub const SAMPLE_W: u32 = 24;
-pub const SAMPLE_H: u32 = 16;
+pub const SAMPLE_H: u32 = 18;
+/// F5: the sample is split into `GRID_COLS` x `GRID_ROWS` regions (6x6 px each at the
+/// default sample size), each with its own smoothed, hysteretic tone.
+pub const GRID_COLS: usize = 4;
+pub const GRID_ROWS: usize = 3;
 
 #[derive(Clone, Copy, Debug)]
 pub struct ToneParams {
@@ -201,6 +207,7 @@ fn tone_from(kind: ToneKind, p: &Palette, rgb: String, inv: String, stats: &Samp
         luma: stats.median,
         busy: stats.busy,
         scrim_min: scrim_floor(kind, stats_worst(kind, stats)),
+        grid: None,
     }
 }
 
@@ -221,78 +228,18 @@ fn scrim_floor(kind: ToneKind, worst: f32) -> f32 {
     required_scrim_alpha(scrim, fg, worst, ToneParams::default().target_contrast)
 }
 
-/// Stateful tone selector with smoothing and hysteresis.
-pub struct AdaptiveTone {
-    params: ToneParams,
-    mode: ToneMode,
+/// Median-of-3 smoothing + Schmitt trigger + colour gate for one region.
+#[derive(Default)]
+struct Chan {
     hist: VecDeque<f32>,
     light_bg: Option<bool>,
     color: bool,
-    last: Option<Tone>,
-    last_stats: Option<SampleStats>,
 }
 
-impl AdaptiveTone {
-    pub fn new(mode: ToneMode) -> Self {
-        Self::with_params(mode, ToneParams::default())
-    }
-    pub fn with_params(mode: ToneMode, params: ToneParams) -> Self {
-        Self {
-            params,
-            mode,
-            hist: VecDeque::with_capacity(3),
-            light_bg: None,
-            color: false,
-            last: None,
-            last_stats: None,
-        }
-    }
-
-    /// Change the forced mode. The next [`update`](Self::update) /
-    /// [`current`](Self::current) reflects it.
-    pub fn set_mode(&mut self, mode: ToneMode) {
-        if self.mode != mode {
-            self.mode = mode;
-            self.last = None;
-        }
-    }
-
-    /// Last emitted tone, or the dark default.
-    pub fn current(&self) -> Tone {
-        match (&self.last, self.mode) {
-            (_, ToneMode::Dark) => fixed(ToneKind::Dark, &DARK),
-            (_, ToneMode::Light) => fixed(ToneKind::Light, &LIGHT),
-            (Some(t), _) => t.clone(),
-            (None, ToneMode::Auto) => fixed(ToneKind::Dark, &DARK),
-        }
-    }
-
-    /// Scrim opacity floor (0..1) that keeps the contrast target for the last
-    /// sample, for the UI to use as a lower bound of `--k * .85`.
-    pub fn min_scrim_alpha(&self) -> f32 {
-        let (Some(s), Some(t)) = (&self.last_stats, &self.last) else {
-            return 0.0;
-        };
-        let (scrim, fg, worst) = match t.tone {
-            ToneKind::Light => (LIGHT.scrim_luma, LIGHT.fg_luma, s.p10),
-            _ => (DARK.scrim_luma, DARK.fg_luma, s.p90),
-        };
-        required_scrim_alpha(scrim, fg, worst, self.params.target_contrast)
-    }
-
-    /// Feed one sample. Returns the new tone to emit, or `None` when the
-    /// sample is unusable or the result is within the deadband of the last one.
-    pub fn update(&mut self, rgba: &[u8], w: u32, h: u32) -> Option<Tone> {
-        if self.mode != ToneMode::Auto {
-            // Forced palette: emit once after a mode change, never again.
-            if self.last.is_none() {
-                let t = self.current();
-                self.last = Some(t.clone());
-                return Some(t);
-            }
-            return None;
-        }
-        let stats = analyze(rgba, w, h)?;
+impl Chan {
+    /// Feed one analysed sample; returns the tone (grid unset) and the stats
+    /// with the smoothed median.
+    fn select(&mut self, params: &ToneParams, stats: SampleStats) -> (Tone, SampleStats) {
         if self.hist.len() == 3 {
             self.hist.pop_front();
         }
@@ -303,23 +250,23 @@ impl AdaptiveTone {
             v[v.len() / 2]
         };
         let light_bg = match self.light_bg {
-            None => smooth > (self.params.up + self.params.down) / 2.0,
-            Some(true) => smooth >= self.params.down,
-            Some(false) => smooth > self.params.up,
+            None => smooth > (params.up + params.down) / 2.0,
+            Some(true) => smooth >= params.down,
+            Some(false) => smooth > params.up,
         };
         self.light_bg = Some(light_bg);
 
         let chroma_gate = if self.color {
-            self.params.color_off
+            params.color_off
         } else {
-            self.params.color_on
+            params.color_on
         };
         let luma_gate = if self.color {
-            self.params.color_max_luma + 0.05
+            params.color_max_luma + 0.05
         } else {
-            self.params.color_max_luma
+            params.color_max_luma
         };
-        self.color = stats.chroma >= chroma_gate && smooth < luma_gate && smooth > self.params.down * 0.4;
+        self.color = stats.chroma >= chroma_gate && smooth < luma_gate && smooth > params.down * 0.4;
 
         let mut stats = stats;
         stats.median = smooth;
@@ -337,20 +284,164 @@ impl AdaptiveTone {
         } else {
             tone_from(ToneKind::Dark, &DARK, DARK.rgb.into(), DARK.inv.into(), &stats)
         };
+        (tone, stats)
+    }
+}
+
+/// Does `new` differ enough from `prev` to be worth emitting (ignores `grid`)?
+fn differs(prev: &Tone, new: &Tone, params: &ToneParams) -> bool {
+    prev.tone != new.tone
+        || (prev.luma - new.luma).abs() >= params.deadband
+        || (prev.scrim_min - new.scrim_min).abs() >= 0.05
+        || (new.tone == ToneKind::Color && rgb_dist(&prev.rgb, &new.rgb) > 12.0)
+}
+
+/// RGBA8 sub-bitmap of grid cell (`col`, `row`).
+fn cell_bitmap(rgba: &[u8], w: usize, h: usize, col: usize, row: usize) -> (Vec<u8>, u32, u32) {
+    let (x0, x1) = (col * w / GRID_COLS, (col + 1) * w / GRID_COLS);
+    let (y0, y1) = (row * h / GRID_ROWS, (row + 1) * h / GRID_ROWS);
+    let mut out = Vec::with_capacity((x1 - x0) * (y1 - y0) * 4);
+    for y in y0..y1 {
+        out.extend_from_slice(&rgba[(y * w + x0) * 4..(y * w + x1) * 4]);
+    }
+    (out, (x1 - x0) as u32, (y1 - y0) as u32)
+}
+
+fn uniform_grid(t: &Tone) -> ToneGrid {
+    let mut cell = t.clone();
+    cell.grid = None;
+    ToneGrid {
+        cols: GRID_COLS as u8,
+        rows: GRID_ROWS as u8,
+        cells: vec![cell; GRID_COLS * GRID_ROWS],
+    }
+}
+
+fn fixed_with_grid(kind: ToneKind, p: &Palette) -> Tone {
+    let mut t = fixed(kind, p);
+    t.grid = Some(uniform_grid(&t));
+    t
+}
+
+/// Stateful tone selector with smoothing and hysteresis.
+pub struct AdaptiveTone {
+    params: ToneParams,
+    mode: ToneMode,
+    global: Chan,
+    cells: Vec<Chan>,
+    cell_last: Vec<Option<Tone>>,
+    last: Option<Tone>,
+    last_stats: Option<SampleStats>,
+}
+
+impl AdaptiveTone {
+    pub fn new(mode: ToneMode) -> Self {
+        Self::with_params(mode, ToneParams::default())
+    }
+    pub fn with_params(mode: ToneMode, params: ToneParams) -> Self {
+        Self {
+            params,
+            mode,
+            global: Chan::default(),
+            cells: (0..GRID_COLS * GRID_ROWS).map(|_| Chan::default()).collect(),
+            cell_last: vec![None; GRID_COLS * GRID_ROWS],
+            last: None,
+            last_stats: None,
+        }
+    }
+
+    /// Change the forced mode. The next [`update`](Self::update) /
+    /// [`current`](Self::current) reflects it.
+    pub fn set_mode(&mut self, mode: ToneMode) {
+        if self.mode != mode {
+            self.mode = mode;
+            self.last = None;
+        }
+    }
+
+    /// Last emitted tone, or the dark default.
+    pub fn current(&self) -> Tone {
+        match (&self.last, self.mode) {
+            (_, ToneMode::Dark) => fixed_with_grid(ToneKind::Dark, &DARK),
+            (_, ToneMode::Light) => fixed_with_grid(ToneKind::Light, &LIGHT),
+            (Some(t), _) => t.clone(),
+            (None, ToneMode::Auto) => fixed_with_grid(ToneKind::Dark, &DARK),
+        }
+    }
+
+    /// Scrim opacity floor (0..1) that keeps the contrast target for the last
+    /// sample, for the UI to use as a lower bound of `--k * .85`.
+    pub fn min_scrim_alpha(&self) -> f32 {
+        let (Some(s), Some(t)) = (&self.last_stats, &self.last) else {
+            return 0.0;
+        };
+        let (scrim, fg, worst) = match t.tone {
+            ToneKind::Light => (LIGHT.scrim_luma, LIGHT.fg_luma, s.p10),
+            _ => (DARK.scrim_luma, DARK.fg_luma, s.p90),
+        };
+        required_scrim_alpha(scrim, fg, worst, self.params.target_contrast)
+    }
+
+    /// Feed one sample. Returns the new tone to emit, or `None` when the
+    /// sample is unusable or the result is within the deadband of the last one
+    /// (global and every grid cell).
+    pub fn update(&mut self, rgba: &[u8], w: u32, h: u32) -> Option<Tone> {
+        if self.mode != ToneMode::Auto {
+            // Forced palette: emit once after a mode change, never again.
+            if self.last.is_none() {
+                let t = self.current();
+                self.last = Some(t.clone());
+                return Some(t);
+            }
+            return None;
+        }
+        let stats = analyze(rgba, w, h)?;
+        let (mut tone, stats) = self.global.select(&self.params, stats);
         self.last_stats = Some(stats);
 
-        let emit = match &self.last {
-            None => true,
-            Some(prev) => {
-                prev.tone != tone.tone
-                    || (prev.luma - tone.luma).abs() >= self.params.deadband
-                    || (prev.scrim_min - tone.scrim_min).abs() >= 0.05
-                    || (tone.tone == ToneKind::Color && rgb_dist(&prev.rgb, &tone.rgb) > 12.0)
+        // Per-region tones (F5). Skipped when the bitmap does not tile evenly.
+        let mut grid_changed = false;
+        let (wu, hu) = (w as usize, h as usize);
+        if wu % GRID_COLS == 0 && hu % GRID_ROWS == 0 {
+            let mut cells = Vec::with_capacity(GRID_COLS * GRID_ROWS);
+            for i in 0..GRID_COLS * GRID_ROWS {
+                let (col, row) = (i % GRID_COLS, i / GRID_COLS);
+                let (bmp, cw, ch) = cell_bitmap(rgba, wu, hu, col, row);
+                let fresh = match analyze(&bmp, cw, ch) {
+                    Some(cs) => self.cells[i].select(&self.params, cs).0,
+                    // Unknown cell (pure black): keep what we had, else the global tone.
+                    None => self.cell_last[i].clone().unwrap_or_else(|| tone.clone()),
+                };
+                let kept = match &self.cell_last[i] {
+                    Some(prev) if !differs(prev, &fresh, &self.params) => prev.clone(),
+                    _ => {
+                        grid_changed = true;
+                        fresh
+                    }
+                };
+                self.cell_last[i] = Some(kept.clone());
+                cells.push(kept);
             }
+            tone.grid = Some(ToneGrid {
+                cols: GRID_COLS as u8,
+                rows: GRID_ROWS as u8,
+                cells,
+            });
+        }
+
+        let global_changed = match &self.last {
+            None => true,
+            Some(prev) => differs(prev, &tone, &self.params),
         };
-        if emit {
+        if global_changed {
             self.last = Some(tone.clone());
             Some(tone)
+        } else if grid_changed {
+            // Global tone unchanged (stay inside its deadband): only the grid moved.
+            let mut out = self.last.clone().expect("last set when global unchanged");
+            out.grid = tone.grid;
+            self.last = Some(out.clone());
+            Some(out)
         } else {
             None
         }
@@ -378,6 +469,7 @@ fn fixed(kind: ToneKind, p: &Palette) -> Tone {
         luma: if kind == ToneKind::Light { 0.9 } else { 0.05 },
         busy: 0.0,
         scrim_min: 0.0,
+        grid: None,
     }
 }
 
@@ -575,6 +667,61 @@ mod tests {
         let mut t2 = AdaptiveTone::new(ToneMode::Auto);
         feed(&mut t2, &bmp);
         assert!(t2.min_scrim_alpha() >= calm);
+    }
+
+    /// Left half bright, right half dark.
+    fn split_lr(l: u8, r: u8) -> Vec<u8> {
+        (0..SAMPLE_W * SAMPLE_H)
+            .flat_map(|i| {
+                let v = if (i % SAMPLE_W) < SAMPLE_W / 2 { l } else { r };
+                [v, v, v, 255]
+            })
+            .collect()
+    }
+
+    #[test]
+    fn grid_adapts_each_region_independently() {
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        let tone = feed(&mut t, &split_lr(245, 20)).unwrap();
+        let g = tone.grid.expect("grid rides on the tone");
+        assert_eq!((g.cols as usize, g.rows as usize), (GRID_COLS, GRID_ROWS));
+        assert_eq!(g.cells.len(), GRID_COLS * GRID_ROWS);
+        for (i, c) in g.cells.iter().enumerate() {
+            let left = i % GRID_COLS < GRID_COLS / 2;
+            assert_eq!(
+                c.tone,
+                if left { ToneKind::Light } else { ToneKind::Dark },
+                "cell {i}"
+            );
+            assert!(c.grid.is_none());
+        }
+    }
+
+    #[test]
+    fn grid_change_alone_emits_and_noise_does_not() {
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        feed(&mut t, &split_lr(30, 30)).unwrap();
+        assert!(
+            feed(&mut t, &split_lr(31, 30)).is_none(),
+            "noise stays inside every deadband"
+        );
+        // Only the left half turns bright for 3 samples; the global median stays dark.
+        let mut got = None;
+        for _ in 0..3 {
+            if let Some(x) = feed(&mut t, &split_lr(250, 30)) {
+                got = Some(x);
+            }
+        }
+        let g = got.expect("grid change is emitted").grid.unwrap();
+        assert_eq!(g.cells[0].tone, ToneKind::Light);
+        assert_eq!(g.cells[GRID_COLS - 1].tone, ToneKind::Dark);
+    }
+
+    #[test]
+    fn forced_mode_grid_is_uniform() {
+        let mut t = AdaptiveTone::new(ToneMode::Light);
+        let g = feed(&mut t, &flat(0, 0, 10)).unwrap().grid.unwrap();
+        assert!(g.cells.iter().all(|c| c.tone == ToneKind::Light));
     }
 
     #[test]

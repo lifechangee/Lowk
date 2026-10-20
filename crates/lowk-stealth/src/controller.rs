@@ -127,6 +127,11 @@ impl OverlayCtl {
         let Some(c) = change else { return Ok(()) };
         if c.style_changed {
             self.sync_style()?;
+            // Re-verify (and repair) the capture exclusion after the style change. This
+            // never hides or re-shows the window (F4): flags only.
+            if self.guard.is_visible(OVERLAY) && self.guard.verify(OVERLAY) != StealthStatus::Verified {
+                let _ = self.guard.apply(OVERLAY);
+            }
         }
         if c.prev != c.now {
             self.emit_mode(c.now);
@@ -398,6 +403,28 @@ mod tests {
             })
             .collect();
         assert_eq!(modes, vec![OverlayMode::Interactive, OverlayMode::Passive]);
+    }
+
+    /// F4: mode flips (including Moving) never hide, re-show or re-order the window.
+    #[test]
+    fn mode_flips_never_hide_or_reshow() {
+        let (c, fb, _) = setup();
+        c.show().unwrap();
+        let count = |fb: &FakeBackend, n: &str| fb.calls().iter().filter(|c| c.as_str() == n).count();
+        let (hides, shows) = (count(&fb, "hide"), count(&fb, "show"));
+        for _ in 0..20 {
+            for m in [
+                OverlayMode::Interactive,
+                OverlayMode::Passive,
+                OverlayMode::Moving,
+            ] {
+                c.set_mode(m).unwrap();
+                assert!(fb.0.lock().visible, "{m:?}");
+            }
+            c.escape();
+        }
+        assert_eq!((count(&fb, "hide"), count(&fb, "show")), (hides, shows));
+        assert!(fb.0.lock().excluded);
     }
 
     #[test]

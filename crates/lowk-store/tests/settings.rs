@@ -104,3 +104,19 @@ fn templates() {
         4
     );
 }
+
+/// F12: the source mode chosen in onboarding persists; the default is "one app".
+#[test]
+fn capture_default_source_defaults_to_one_app_and_persists() {
+    let d = tempfile::tempdir().unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    assert_eq!(s.get().capture.default_source, CaptureSource::OneApp);
+    s.patch(SettingsPatch(serde_json::json!({
+        "audio": {"default_source": {"kind": "whole_system"}},
+        "capture": {"default_source": "whole_system"}
+    })))
+    .unwrap();
+    let s2 = FileSettingsStore::open(d.path()).unwrap();
+    assert_eq!(s2.get().capture.default_source, CaptureSource::WholeSystem);
+    assert_eq!(s2.get().audio.default_source, Some(Target::WholeSystem));
+}
