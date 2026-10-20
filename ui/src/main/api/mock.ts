@@ -47,7 +47,8 @@ export class MockBackend implements Backend {
       ui: { language: 'auto', font_px: 14 },
       onboarding: { step: 0, done: !fresh, recording_notice_ack: !fresh },
       vault: { path: '~/Documents/Lowk', unsorted_dir: 'Unsorted', trash_dir: 'Trash' },
-      audio: { default_source: { kind: 'app', id: 'us.zoom.xos' }, aec: 'auto', keep_audio: false },
+      // ?src=system seeds the real app's default (whole system) for the QA suite.
+      audio: { default_source: typeof location !== 'undefined' && /[?&]src=system\b/.test(location.search) ? { kind: 'whole_system' } : { kind: 'app', id: 'us.zoom.xos' }, aec: 'auto', keep_audio: false },
       stt: { engine: 'whisper-large-v3-turbo', languages: ['ru', 'en'], cloud_vendor: 'soniox' },
       llm: { provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4.1-flash', reasoning: false, data_collection_deny: true, default_template: 'brief' },
       overlay: { opacity: 60, font_px: 14, display: 'primary', visibility: 'recording_only', pill_edge: 'right', tone_mode: 'auto' },
@@ -149,6 +150,8 @@ export class MockBackend implements Backend {
   }
 
   async audioApps(): Promise<AudioApp[]> {
+    // ?apps=none mirrors the real backend until lowk-audio lands (source_list returns []).
+    if (typeof location !== 'undefined' && /[?&]apps=none\b/.test(location.search)) return [];
     return [
       { id: 'us.zoom.xos', name: 'Zoom', producing_audio: true, pids: [4121] },
       { id: 'com.microsoft.teams2', name: 'Microsoft Teams', producing_audio: false, pids: [] },

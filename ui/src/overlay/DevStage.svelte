@@ -11,6 +11,8 @@
   import { setLang } from '../lib/i18n';
 
   const q = new URLSearchParams(location.search);
+  // bare=1: the overlay fills the viewport exactly like the real 600x384 window (QA layout checks).
+  const bare = q.get('bare') === '1';
   const store = new OverlayStore();
   store.isMac = /mac/i.test(navigator.platform);
   const source = new MockSource({ autoplay: q.get('still') !== '1' });
@@ -107,7 +109,7 @@
 
 <svelte:window onkeydown={onKeyDown} onkeyup={onKeyUp} onpointermove={onMove} onpointerdown={onDown} onpointerup={() => (dragging = false)} />
 
-<div class="stage bg-{bg === 'live' ? kind : bg}">
+<div class="stage bg-{bg === 'live' ? kind : bg}" class:bare>
   {#if bg === 'dark' || (bg === 'live' && kind === 'dark')}
     <pre class="code">// Считаем EBITDA margin по сегментам
 export async function buildReport(ctx: Ctx) &#123;
@@ -131,7 +133,7 @@ export const fmt = (x: number) =&gt; (x * 100).toFixed(1) + '%'</pre>
     <Overlay {store} {source} />
   </div>
 
-  <div class="bar">
+  <div class="bar" hidden={bare}>
     <label>transparency <input type="range" min="0" max="90" bind:value={store.transparency} /> <b>{store.transparency}%</b></label>
     <select bind:value={bg}><option value="dark">dark</option><option value="light">light</option><option value="color">color</option><option value="live">live</option></select>
     <select bind:value={store.lang}><option value="ru">RU</option><option value="en">EN</option></select>
@@ -159,4 +161,6 @@ export const fmt = (x: number) =&gt; (x * 100).toFixed(1) + '%'</pre>
   .frame.pillf { width: 140px; height: 22px; margin-left: calc(100vw - 160px); margin-top: 300px; }
   .bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 8px 16px; background: #111; color: #eee; }
   .tip { color: #999; }
+  .bare .frame, .bare .frame.pillf { inset: 0; margin: 0; width: auto; height: auto; left: 0 !important; top: 0 !important; }
+  .bare .bar { display: none; }
 </style>

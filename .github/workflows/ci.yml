@@ -57,6 +57,7 @@ jobs:
       # lowk-app needs WebKitGTK on Linux; it is linted in the macOS job.
       - run: cargo clippy --workspace --exclude lowk-app --all-targets -- -D warnings
       - run: cargo xtask check-deps
+      - run: QA_GUARD_COMPILE=0 tools/qa/check-no-qa-release.sh # the qa feature must never reach a release build
       - run: cargo deny check
 
   test-pure:

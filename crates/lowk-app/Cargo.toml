@@ -44,6 +44,9 @@ tauri-build.workspace = true
 [features]
 # Set by the Tauri CLI for release builds (embeds the frontend).
 custom-protocol = ["tauri/custom-protocol"]
+# QA only: localhost token-protected control channel to drive the real app (docs/QA.md).
+# Never enabled by default or in release builds (compile_error! + tools/qa/check-no-qa-release.sh).
+qa = []
 
 [lints]
 workspace = true

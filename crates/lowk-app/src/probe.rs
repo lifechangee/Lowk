@@ -15,6 +15,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::Manager;
 
+#[allow(dead_code)]
 pub fn enabled() -> bool {
     std::env::var_os("LOWK_PROBE").is_some()
 }
@@ -45,7 +46,7 @@ pub fn spawn(st: Shared) {
         .expect("spawn probe");
 }
 
-fn run(st: &Shared, line: &str) -> String {
+pub(crate) fn run(st: &Shared, line: &str) -> String {
     let parts: Vec<&str> = line.split_whitespace().collect();
     let Ok(stealth) = st.stealth() else {
         return "no stealth".into();

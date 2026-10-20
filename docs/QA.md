@@ -1,0 +1,41 @@
+# QA: how machines check the UI before a human sees it
+
+Owner feedback ([M0-FEEDBACK.md](M0-FEEDBACK.md)) showed that unit tests do not catch visual and overlay
+behaviour bugs. This is the machinery that does. **Every UI or overlay fix must be verified with it.**
+
+## What exists
+
+| Layer | Command | What it checks |
+|---|---|---|
+| UI visual + layout suite | `just test-ui-visual` | Playwright, **chromium and webkit** (the app is WKWebView), against the mock IPC (`vite` on port 1431, never 1420). Every main-window route and state, every settings page, all 8 onboarding steps, search palette, overlay passive / interactive+template menu / moving / pill / toast, 3 backgrounds x opacity 0/60/90, RU and EN, 2 sizes. Per state: pixel baseline + layout lint (text clipping/overflow, text and sibling overlap, touching chips = missing gaps, 4px grid, pixel-based WCAG contrast with text hidden, outside-viewport). |
+| Owner-bug detectors | `ui/e2e/known-bugs.spec.ts` (part of the above) | One test per F-id the browser can see. Expected-fail (`test.fail`) until fixed. |
+| Real-app QA | `just qa-app` (macOS) | A `qa` build of the real app driven over a localhost token channel. Lints the real WKWebView DOM, captures the real windows (including the overlay) through ScreenCaptureKit, samples the overlay at >=100 Hz across mode switches, checks streamed-answer text for duplicated words from the real DOM. |
+| Gallery | `just qa-report` -> `docs/qa/report.html` | Every screenshot (chromium, webkit, real app) next to the matching v3 mockup frame, failures red, known bugs amber, F-id detector table. |
+| Everything | `just qa` | guard + UI suite + real app + report. |
+
+## Rules for fix agents
+
+1. **Before you touch anything**: `just test-ui-visual-update` (records local pixel baselines from main; baselines are gitignored because font rendering is machine specific) then `just qa`. Keep `docs/qa/report.html` (or its summary) as the "before".
+2. Fix the bug. If your F-id has an expected-fail test, it will now **pass, which Playwright reports as a failure** ("expected to fail but passed"). That is the signal to finish the job: delete the `xfail(...)` line in `ui/e2e/known-bugs.spec.ts` (and the `fid` entry from `ui/e2e/known.ts`; for real-app checks, drop `fid:` in `tools/qa/app-qa.mjs`) so the check becomes a permanent regression test.
+3. **After**: `just qa` again. Required: no new failures versus "before" (red cards in the report), your F-id flipped from "caught" to passing, `just ci` green. If your change intentionally alters the look, run `just test-ui-visual-update`, **look at the new screenshots in the report next to the v3 mockup**, and say so in the PR.
+4. Attach `docs/qa/report.html` (or the F-id table and the paths of the screenshots that changed) to the PR / hand-off message. Never merge a UI change that nobody looked at in the gallery.
+5. Debug an expected-fail test: `QA_SHOW_XFAIL=1 pnpm --dir ui exec playwright test known-bugs` runs them as normal tests and prints the real failure.
+6. New UI, new state: add it to `ui/e2e/lib/states.ts` (main routes / overlay states). New product bug found by lint that you cannot fix now: add a `KNOWN` entry in `ui/e2e/known.ts` with an `N<n>` id and a comment; never loosen a lint rule to make something pass.
+
+## Lint rules (`ui/e2e/lib/lint.ts`, `lib/contrast.ts`)
+
+`overflow` (text clipped without ellipsis, or outside a non-scrolling clipping ancestor), `outside` (outside the viewport), `text-overlap` (text boxes of unrelated elements intersect; popovers exempt), `box-overlap` (in-flow siblings intersect), `flex-gap` (a chip - dot, icon, kbd, bordered or filled box - touches neighbouring text or chip on a line: the F2 pattern), `grid` (key containers: position/height/padding/gap not multiples of 4px), `contrast` (pixel based: text is made transparent, the page screenshotted, text colour compared against the 10th-percentile worst background pixels; below 3:1 fails, 3..4.5 is a warning in the gallery), `dup-words` (consecutive duplicated words, F10).
+
+The same `lintInPage` runs inside the real webview in `just qa-app`.
+
+## Real-app QA mode (`qa` cargo feature)
+
+* `cargo build -p lowk-app --features qa,custom-protocol` (debug only). **Never in release**: `crates/lowk-app/src/lib.rs` has a `compile_error!` for `qa` without `debug_assertions`, `tools/qa/check-no-qa-release.sh` (run by `just lint`/CI, `just qa-guard`) additionally verifies that no default feature, recipe or workflow enables it and that a release build with the feature fails to compile.
+* The app binds `127.0.0.1:$LOWK_QA_PORT` (random if unset), requires header `X-Lowk-Qa-Token`, rejects foreign `Host` headers, and writes `{port, token, pid}` to `$LOWK_DATA_DIR/qa.json`. `LOWK_QA_MULTI=1` disables the single-instance hand-off so a QA instance can run beside the developer's own `just dev`; it uses its own temp data dir and vault.
+* Commands (POST `/cmd`, body = one line): `nav <hash>`, `eval <main|overlay|pill> <js expr>` (result comes back as JSON; the page parks it in its URL fragment with `history.replaceState` because the CSP forbids calling out and `eval` has no return channel), `win <label>`, `pid`, `opacity N`, `font PX`, `lang ru|en`, `mode passive|interactive|moving`, plus the whole stealth-probe set (`overlay-show`, `demo-start`, `demo-stop`, `overlay-move X Y`, `exclusion on|off`, ...).
+* **Capturing the overlay**: the overlay is `NSWindowSharingNone` (stealth). ScreenCaptureKit with a per-window `desktopIndependentWindow` filter still does not deliver such a window while the exclusion is on, so the QA run sends `exclusion off` before capturing and restores it (`exclusion on`) in `finally`. Only qa builds can do that. The **presence sampler needs no lift**: it polls window-server metadata (`CGWindowList` on-screen flag and alpha) at ~120-250 Hz, which is available for protected windows. `tools/qa/qa-cap.swift` also streams the window at 60 fps through ScreenCaptureKit and counts blank frames (needs the exclusion lift).
+* Needs Screen Recording permission for the terminal/host that runs `node tools/qa/app-qa.mjs`.
+
+## Detector status (first run)
+
+See the F-id table at the top of `docs/qa/report.html`. Browser-visible: F1, F2, F11, F12, F13 (toast). Real-app only: F4 (flicker), F6 (main text size), F10 (duplicated deltas: the browser mock does not reproduce it, the real event path does). Not detectable by machines: F3, F5 (needs judgement), F7 (decision), F8 and F9 (feature work: add tests with the feature).

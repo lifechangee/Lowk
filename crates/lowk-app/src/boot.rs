@@ -114,6 +114,8 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
 
     #[cfg(debug_assertions)]
     crate::probe::spawn(state.clone());
+    #[cfg(feature = "qa")]
+    crate::qa::spawn(state.clone());
 
     // ---- settings side effects ----
     spawn_settings_watcher(state.clone());

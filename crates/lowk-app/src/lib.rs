@@ -9,11 +9,17 @@ mod combo;
 mod commands;
 mod emitter;
 mod mainthread;
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "qa"))]
 mod probe;
+#[cfg(feature = "qa")]
+mod qa;
 mod state;
 mod visibility;
 mod windows;
+
+// The QA control channel must never exist in a shipped binary (see docs/QA.md).
+#[cfg(all(feature = "qa", not(debug_assertions)))]
+compile_error!("the `qa` feature is for debug QA builds only; it must not be enabled in release builds");
 
 use tauri::RunEvent;
 
@@ -44,11 +50,19 @@ fn init_tracing() {
 pub fn run() {
     init_tracing();
     let builder = specta_builder();
-    let app = tauri::Builder::default()
+    let mut tb = tauri::Builder::default();
+    // QA builds may run next to a developer's own instance (`LOWK_QA_MULTI=1`): no single-instance hand-off.
+    #[cfg(feature = "qa")]
+    let single = std::env::var_os("LOWK_QA_MULTI").is_none();
+    #[cfg(not(feature = "qa"))]
+    let single = true;
+    if single {
         // Must be the first plugin: a second launch focuses the running app.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        tb = tb.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             windows::open_main(app);
-        }))
+        }));
+    }
+    let app = tb
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(combo::on_shortcut)

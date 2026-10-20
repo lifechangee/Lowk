@@ -28,8 +28,33 @@ lint:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo xtask check-deps
+    QA_GUARD_COMPILE=0 tools/qa/check-no-qa-release.sh
     pnpm --dir ui check
     cargo deny check
+
+# UI visual + layout suite (Playwright, chromium + webkit, mock IPC). Baselines are local (gitignored).
+test-ui-visual:
+    pnpm --dir ui exec playwright test --update-snapshots=missing
+
+# Re-record the local pixel baselines (do this on main BEFORE you change the UI).
+test-ui-visual-update:
+    pnpm --dir ui exec playwright test --update-snapshots
+
+# Real-app QA (macOS, qa build): control channel, ScreenCaptureKit captures, frame sampler.
+qa-app:
+    node tools/qa/app-qa.mjs
+
+# Gallery: docs/qa/report.html from the latest runs.
+qa-report:
+    node tools/qa/report.mjs
+
+# CI guard: the qa feature can never reach a release build.
+qa-guard:
+    tools/qa/check-no-qa-release.sh
+
+# Everything available on this machine + the gallery report. See docs/QA.md.
+qa:
+    tools/qa/run-all.sh
 
 # Everything CI runs on Linux/macOS.
 ci: lint
