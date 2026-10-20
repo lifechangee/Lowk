@@ -134,6 +134,6 @@ export function attachEvents(): void {
   if (!hasTauri) return;
   let t: ReturnType<typeof setTimeout> | undefined;
   void on(EVENTS.storeChanged, () => { clearTimeout(t); t = setTimeout(() => void library.reload(), 300); });
-  void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; });
+  void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; locale.setSetting((s.ui?.language ?? 'auto') as LangSetting); });
   void on<SessionState>(EVENTS.sessionState, (s) => session.sync(s));
 }

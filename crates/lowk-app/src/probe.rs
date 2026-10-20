@@ -130,6 +130,62 @@ fn run(st: &Shared, line: &str) -> String {
             }
             "ok".into()
         }
+        ["demo-start"] => format!(
+            "{:?}",
+            crate::commands::session::demo_start_inner(st).map_err(|e| e.to_string())
+        ),
+        ["demo-stop"] => format!("{:?}", st.session.stop().map_err(|e| e.to_string())),
+        ["ask"] => {
+            let template_id = st.template.lock().clone();
+            format!(
+                "{:?}",
+                st.session
+                    .ask(AskRequest {
+                        template_id,
+                        typed_text: None
+                    })
+                    .map_err(|e| e.to_string())
+            )
+        }
+        ["settings-patch", rest @ ..] => match serde_json::from_str(&rest.join(" ")) {
+            Ok(v) => format!(
+                "{:?}",
+                st.settings
+                    .patch(SettingsPatch(v))
+                    .map(|s| s.ui.language)
+                    .map_err(|e| e.to_string())
+            ),
+            Err(e) => format!("bad json: {e}"),
+        },
+        ["secret-test"] => {
+            // Dummy key value: set, read back presence, delete.
+            use lowk_platform::secrets;
+            let set = secrets::set("openrouter", "dummy-test-key-not-real");
+            let present = secrets::present("openrouter");
+            let del = secrets::delete("openrouter");
+            format!(
+                "set={set:?} present={present} delete={del:?} after={}",
+                secrets::present("openrouter")
+            )
+        }
+        ["library"] => match st.vault() {
+            Ok(v) => format!(
+                "folders={:?} calls={:?}",
+                v.folders().map(|f| f
+                    .iter()
+                    .map(|x| (x.title.clone(), x.call_count))
+                    .collect::<Vec<_>>()),
+                v.calls_in(&FolderRef::Unsorted)
+                    .map(|c| c.iter().map(|x| x.title.clone()).collect::<Vec<_>>())
+            ),
+            Err(e) => e.to_string(),
+        },
+        ["binds"] => format!(
+            "{:?} status={:?}",
+            st.binds_report.lock().entries,
+            st.input.lock().status()
+        ),
+        ["tone"] => format!("{:?}", stealth.current_tone()),
         ["state"] => format!(
             "status={:?} mode={:?} selftest={:?}",
             stealth.controller.status(),

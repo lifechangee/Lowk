@@ -84,7 +84,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
 tempfile = "3.27"
-blake3 = "1.8"
+blake3 = { version = "1.8", features = ["pure"] }
 bytes = "1.12"
 parking_lot = "0.12"
 crossbeam-channel = "0.5"

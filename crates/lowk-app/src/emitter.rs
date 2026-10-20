@@ -69,7 +69,9 @@ impl UiEmitter {
 
     fn send(&self, name: &str, targets: &[&str], p: &Value) {
         for t in targets {
-            let _ = self.app.emit_to(*t, name, p.clone());
+            let _ = self
+                .app
+                .emit_to(tauri::EventTarget::webview_window(*t), name, p.clone());
         }
     }
 

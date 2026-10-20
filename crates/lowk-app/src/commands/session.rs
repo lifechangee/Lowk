@@ -74,12 +74,9 @@ pub fn session_snapshot(st: State<'_, Shared>) -> SessionSnapshot {
     st.session.snapshot()
 }
 
-/// The scripted RU/EN demo call (also what the record bind plays in M0).
-#[tauri::command(async)]
-#[specta::specta]
-pub fn demo_start(st: State<'_, Shared>) -> Result<SessionState> {
+pub fn demo_start_inner(st: &AppState) -> Result<SessionState> {
     start(
-        &st,
+        st,
         StartOpts {
             title: None,
             folder: None,
@@ -88,6 +85,13 @@ pub fn demo_start(st: State<'_, Shared>) -> Result<SessionState> {
             demo: true,
         },
     )
+}
+
+/// The scripted RU/EN demo call (also what the record bind plays in M0).
+#[tauri::command(async)]
+#[specta::specta]
+pub fn demo_start(st: State<'_, Shared>) -> Result<SessionState> {
+    demo_start_inner(&st)
 }
 
 /// Apps that currently produce audio (empty until `lowk-audio` lands in M1).

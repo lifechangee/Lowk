@@ -41,3 +41,7 @@ ci: lint
 # Compile-check the Windows target from any host (see docs/DECISIONS-M0.md).
 check-windows:
     cargo check --workspace --target x86_64-pc-windows-msvc
+
+# Stealth probe against the real app (macOS, debug build, Screen Recording needed).
+stealth-probe-app:
+    tools/stealth-probe/run-app.sh

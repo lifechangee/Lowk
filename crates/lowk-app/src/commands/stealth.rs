@@ -20,12 +20,20 @@ pub fn stealth_status(st: State<'_, Shared>) -> StealthStatus {
 pub async fn stealth_selftest(st: State<'_, Shared>) -> Result<SelfTestReport> {
     let stealth = st.stealth()?.clone();
     let app = st.app.clone();
-    let _ = app.emit_to("overlay", "overlay://sentinel", true);
+    let _ = app.emit_to(
+        tauri::EventTarget::webview_window("overlay"),
+        "overlay://sentinel",
+        true,
+    );
     tokio_sleep(450).await;
     let r = tauri::async_runtime::spawn_blocking(move || stealth.controller.selftest())
         .await
         .map_err(|e| AppError::new(ErrorCode::Unknown).with_detail(e.to_string()))?;
-    let _ = app.emit_to("overlay", "overlay://sentinel", false);
+    let _ = app.emit_to(
+        tauri::EventTarget::webview_window("overlay"),
+        "overlay://sentinel",
+        false,
+    );
     r
 }
 
