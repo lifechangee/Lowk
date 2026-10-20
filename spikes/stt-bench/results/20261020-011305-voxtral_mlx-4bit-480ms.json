@@ -1,0 +1,3114 @@
+[
+ {
+  "wer": 0.2550335570469799,
+  "cer": 0.16723549488054607,
+  "hyp": "Ну, я работал пем в пентек-стартапе. В основном владел ванбордингом, делали продукт дискавери через юндизерс интервью с потом писал PRD roadmap на квартал. Да, был такой. Мы запускали новую Flow, Activation Rate вырос на 4%, но Retention D30 упал. Начал сегментировать по кухортам, и понял, что пользователи ECS приходили без Intent. Мы сделали AB-тест и поменяли Node Star метрик на Engaged Users. Использовал Rise, иногда Ice, если данных было мало, и стейкхолдер Alignment, это отдельная история. С Engineering Lead'ом мы спорили про Tech Debt, сначала уточнил бы кто юзер и какую GBT. Потом определил бы primary metric, например, successful walking routines. И посмотрел бы guardale metrics, типа crush rate, battery drain. ВП, скорее всего, offline maps. Ну, слушаю, но не делаю. Все, что они говорят. Собираю даты из CRM, смотрю на patterns, а уже потом BBL. Ой, давайте вернусь к этому. Я немного сбился.",
+  "ref": "Ну, я работал PM в fintech-стартапе. В основном владел онбордингом. Делали product discovery через user interviews, потом писал PRD и роадмап на квартал. Да, был такой. Мы запустили новый flow, activation rate вырос на четыре процента, но retention D30 упал. Начал сегментировать по cohort-ам и понял, что пользователи из ads приходили без intent. Мы сделали A/B тест и поменяли north star metric на engaged users. Использовал RICE, иногда ICE, если данных мало. И stakeholder alignment — это отдельная история. С engineering лидом мы спорили про tech debt. Сначала уточнил бы, кто user и какой JTBD. Потом определил бы primary metric, например successful walking routes, и посмотрел бы guardrail metrics, типа crash rate и battery drain. MVP — скорее всего, offline maps. Ну, слушаю, но не делаю всё, что они говорят. Собираю data из CRM, смотрю на patterns, и уже потом...  ой, давайте вернусь к этому. Я немного сбился.\n",
+  "duration_s": 90.11,
+  "rtf_compute": 1.694,
+  "rtf_wall": 1.706,
+  "final_latency_s": 63.586,
+  "word_lag_median_s": 61.348,
+  "word_lag_p90_s": 63.344,
+  "onset_to_first_partial_median_s": 1.451,
+  "onset_to_first_partial_p90_s": 3.268,
+  "n_bursts": 12,
+  "n_updates": 162,
+  "peak_ram_mb": 3395,
+  "english_terms": [
+   [
+    "pm",
+    "cyrillic",
+    "пем"
+   ],
+   [
+    "fintech",
+    "cyrillic",
+    "пентек"
+   ],
+   [
+    "product",
+    "cyrillic",
+    "продукт дискавери"
+   ],
+   [
+    "discovery",
+    "cyrillic",
+    "продукт дискавери"
+   ],
+   [
+    "user",
+    "cyrillic",
+    "юндизерс интервью с"
+   ],
+   [
+    "interviews",
+    "cyrillic",
+    "юндизерс интервью с"
+   ],
+   [
+    "prd",
+    "exact",
+    "prd"
+   ],
+   [
+    "flow",
+    "exact",
+    "flow"
+   ],
+   [
+    "activation",
+    "exact",
+    "activation"
+   ],
+   [
+    "rate",
+    "exact",
+    "rate"
+   ],
+   [
+    "retention",
+    "exact",
+    "retention"
+   ],
+   [
+    "d30",
+    "exact",
+    "d30"
+   ],
+   [
+    "cohort",
+    "cyrillic",
+    "кухортам"
+   ],
+   [
+    "ads",
+    "other",
+    "ecs"
+   ],
+   [
+    "intent",
+    "exact",
+    "intent"
+   ],
+   [
+    "a",
+    "other",
+    "ab"
+   ],
+   [
+    "b",
+    "other",
+    "ab"
+   ],
+   [
+    "north",
+    "other",
+    "node"
+   ],
+   [
+    "star",
+    "exact",
+    "star"
+   ],
+   [
+    "metric",
+    "cyrillic",
+    "метрик"
+   ],
+   [
+    "engaged",
+    "exact",
+    "engaged"
+   ],
+   [
+    "users",
+    "exact",
+    "users"
+   ],
+   [
+    "rice",
+    "other",
+    "rise"
+   ],
+   [
+    "ice",
+    "exact",
+    "ice"
+   ],
+   [
+    "stakeholder",
+    "cyrillic",
+    "стейкхолдер"
+   ],
+   [
+    "alignment",
+    "exact",
+    "alignment"
+   ],
+   [
+    "engineering",
+    "exact",
+    "engineering"
+   ],
+   [
+    "tech",
+    "exact",
+    "tech"
+   ],
+   [
+    "debt",
+    "exact",
+    "debt"
+   ],
+   [
+    "user",
+    "cyrillic",
+    "юзер"
+   ],
+   [
+    "jtbd",
+    "cyrillic",
+    "какую gbt"
+   ],
+   [
+    "primary",
+    "exact",
+    "primary"
+   ],
+   [
+    "metric",
+    "exact",
+    "metric"
+   ],
+   [
+    "successful",
+    "exact",
+    "successful"
+   ],
+   [
+    "walking",
+    "exact",
+    "walking"
+   ],
+   [
+    "routes",
+    "other",
+    "routines"
+   ],
+   [
+    "guardrail",
+    "other",
+    "guardale"
+   ],
+   [
+    "metrics",
+    "exact",
+    "metrics"
+   ],
+   [
+    "crash",
+    "other",
+    "crush"
+   ],
+   [
+    "rate",
+    "exact",
+    "rate"
+   ],
+   [
+    "battery",
+    "exact",
+    "battery"
+   ],
+   [
+    "drain",
+    "exact",
+    "drain"
+   ],
+   [
+    "mvp",
+    "cyrillic",
+    "вп"
+   ],
+   [
+    "offline",
+    "exact",
+    "offline"
+   ],
+   [
+    "maps",
+    "exact",
+    "maps"
+   ],
+   [
+    "data",
+    "cyrillic",
+    "даты"
+   ],
+   [
+    "crm",
+    "exact",
+    "crm"
+   ],
+   [
+    "patterns",
+    "exact",
+    "patterns"
+   ]
+  ],
+  "notes": {
+   "load_s": 2.0
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "01_me_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.3288590604026846,
+  "cer": 0.20591581342434584,
+  "hyp": "Но я работал пиемом в финтедж-стартапе в основном владел ланбордингом, делали продукт дискавери через юзер-интервью потом писал PRD и roadmap на квартал Да, был такой. Мы запускали новый Flow, Activation Rate вырос на 4%, но Retention до 30% упал. Начали сегментировать по кохардам, и понял, что пользователи из Ads приходили без Intent. Мы сделали АБ-тест и поменяли North Star Metric на Engaged Users. Использовал Rise, иногда Ice, если данных мало. И Stakeholder Alignment. Это отдельная история. С Engineering Lead'ом мы спорили по touch depth. Сначала бы уточнил, кто юзер и какой job to be done, GBT. Потом определял бы, primary metric, например, successful walking routines, и посмотрел бы guard tail metrics, типа crush rate и battery drain, MVP, скорее всего, offline maps. Ну, слушаю, но не делаю все, что они говорят. Собираю дата из CRM, смотрю на паттерн, и потом уже",
+  "ref": "Ну, я работал PM в fintech-стартапе. В основном владел онбордингом. Делали product discovery через user interviews, потом писал PRD и роадмап на квартал. Да, был такой. Мы запустили новый flow, activation rate вырос на четыре процента, но retention D30 упал. Начал сегментировать по cohort-ам и понял, что пользователи из ads приходили без intent. Мы сделали A/B тест и поменяли north star metric на engaged users. Использовал RICE, иногда ICE, если данных мало. И stakeholder alignment — это отдельная история. С engineering лидом мы спорили про tech debt. Сначала уточнил бы, кто user и какой JTBD. Потом определил бы primary metric, например successful walking routes, и посмотрел бы guardrail metrics, типа crash rate и battery drain. MVP — скорее всего, offline maps. Ну, слушаю, но не делаю всё, что они говорят. Собираю data из CRM, смотрю на patterns, и уже потом...  ой, давайте вернусь к этому. Я немного сбился.\n",
+  "duration_s": 96.0,
+  "rtf_compute": 1.537,
+  "rtf_wall": 1.546,
+  "final_latency_s": 52.389,
+  "word_lag_median_s": 53.643,
+  "word_lag_p90_s": 56.504,
+  "onset_to_first_partial_median_s": 1.332,
+  "onset_to_first_partial_p90_s": 3.234,
+  "n_bursts": 11,
+  "n_updates": 158,
+  "peak_ram_mb": 3583,
+  "english_terms": [
+   [
+    "pm",
+    "cyrillic",
+    "пиемом"
+   ],
+   [
+    "fintech",
+    "cyrillic",
+    "финтедж"
+   ],
+   [
+    "product",
+    "cyrillic",
+    "продукт дискавери"
+   ],
+   [
+    "discovery",
+    "cyrillic",
+    "продукт дискавери"
+   ],
+   [
+    "user",
+    "cyrillic",
+    "юзер интервью"
+   ],
+   [
+    "interviews",
+    "cyrillic",
+    "юзер интервью"
+   ],
+   [
+    "prd",
+    "exact",
+    "prd"
+   ],
+   [
+    "flow",
+    "exact",
+    "flow"
+   ],
+   [
+    "activation",
+    "exact",
+    "activation"
+   ],
+   [
+    "rate",
+    "exact",
+    "rate"
+   ],
+   [
+    "retention",
+    "exact",
+    "retention"
+   ],
+   [
+    "d30",
+    "cyrillic",
+    "до 30"
+   ],
+   [
+    "cohort",
+    "cyrillic",
+    "кохардам"
+   ],
+   [
+    "ads",
+    "exact",
+    "ads"
+   ],
+   [
+    "intent",
+    "exact",
+    "intent"
+   ],
+   [
+    "a",
+    "cyrillic",
+    "аб"
+   ],
+   [
+    "b",
+    "cyrillic",
+    "аб"
+   ],
+   [
+    "north",
+    "exact",
+    "north"
+   ],
+   [
+    "star",
+    "exact",
+    "star"
+   ],
+   [
+    "metric",
+    "exact",
+    "metric"
+   ],
+   [
+    "engaged",
+    "exact",
+    "engaged"
+   ],
+   [
+    "users",
+    "exact",
+    "users"
+   ],
+   [
+    "rice",
+    "other",
+    "rise"
+   ],
+   [
+    "ice",
+    "exact",
+    "ice"
+   ],
+   [
+    "stakeholder",
+    "exact",
+    "stakeholder"
+   ],
+   [
+    "alignment",
+    "exact",
+    "alignment"
+   ],
+   [
+    "engineering",
+    "exact",
+    "engineering"
+   ],
+   [
+    "tech",
+    "cyrillic",
+    "по touch depth"
+   ],
+   [
+    "debt",
+    "cyrillic",
+    "по touch depth"
+   ],
+   [
+    "user",
+    "cyrillic",
+    "юзер"
+   ],
+   [
+    "jtbd",
+    "other",
+    "job to be done gbt"
+   ],
+   [
+    "primary",
+    "exact",
+    "primary"
+   ],
+   [
+    "metric",
+    "exact",
+    "metric"
+   ],
+   [
+    "successful",
+    "exact",
+    "successful"
+   ],
+   [
+    "walking",
+    "exact",
+    "walking"
+   ],
+   [
+    "routes",
+    "other",
+    "routines"
+   ],
+   [
+    "guardrail",
+    "other",
+    "guard tail"
+   ],
+   [
+    "metrics",
+    "exact",
+    "metrics"
+   ],
+   [
+    "crash",
+    "other",
+    "crush"
+   ],
+   [
+    "rate",
+    "exact",
+    "rate"
+   ],
+   [
+    "battery",
+    "exact",
+    "battery"
+   ],
+   [
+    "drain",
+    "exact",
+    "drain"
+   ],
+   [
+    "mvp",
+    "exact",
+    "mvp"
+   ],
+   [
+    "offline",
+    "exact",
+    "offline"
+   ],
+   [
+    "maps",
+    "exact",
+    "maps"
+   ],
+   [
+    "data",
+    "cyrillic",
+    "дата"
+   ],
+   [
+    "crm",
+    "exact",
+    "crm"
+   ],
+   [
+    "patterns",
+    "cyrillic",
+    "паттерн"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.2
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "01_me_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.04,
+  "cer": 0.017857142857142856,
+  "hyp": "Привет! Рад познакомиться. Расскажи коротко, чем занимался последние два года. Окей, расскажи кейс, где метрики не сошлись с ожиданиями. Интересно, как приоритизировал бэклог? Как бы ты подошел к задаче улучшить Google Maps для пешеходов? Хорошо, последний вопрос. Как работаешь с фидбэком от сейлз? Ничего, давай. Спасибо, свяжемся на следующей неделе.",
+  "ref": "Привет, рад познакомиться. Расскажи коротко, чем занимался последние два года? Окей. Расскажи кейс, где метрики не сошлись с ожиданиями. Интересно. Как приоритизировал бэклог? Как бы ты подошёл к задаче «улучшить Google Maps для пешеходов»? Хорошо. Последний вопрос: как работаешь с фидбеком от sales? Ничего, давай. Спасибо, свяжемся на следующей неделе.\n",
+  "duration_s": 39.94,
+  "rtf_compute": 1.518,
+  "rtf_wall": 1.528,
+  "final_latency_s": 21.099,
+  "word_lag_median_s": 19.035,
+  "word_lag_p90_s": 22.016,
+  "onset_to_first_partial_median_s": 1.629,
+  "onset_to_first_partial_p90_s": 4.848,
+  "n_bursts": 7,
+  "n_updates": 57,
+  "peak_ram_mb": 3326,
+  "english_terms": [
+   [
+    "google",
+    "exact",
+    "google"
+   ],
+   [
+    "maps",
+    "exact",
+    "maps"
+   ],
+   [
+    "sales",
+    "cyrillic",
+    "сейлз"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.1
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "01_them_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.16,
+  "cer": 0.07142857142857142,
+  "hyp": "Привет, рад познакомиться. Ну, расскажи коротко, чем занимался последние два года. Окей. Ну, расскажи кейс, где метрики не сошлись с ожиданиями. Интересно, а как приоритизировал бэклог? А как бы ты подошел к задаче улучшить Google Maps для пешеходов? Хорошо, ну и последний вопрос. Как работаешь с фидбэком от Sales? Ничего, давай, свяжемся на следующей неделе.",
+  "ref": "Привет, рад познакомиться. Расскажи коротко, чем занимался последние два года? Окей. Расскажи кейс, где метрики не сошлись с ожиданиями. Интересно. Как приоритизировал бэклог? Как бы ты подошёл к задаче «улучшить Google Maps для пешеходов»? Хорошо. Последний вопрос: как работаешь с фидбеком от sales? Ничего, давай. Спасибо, свяжемся на следующей неделе.\n",
+  "duration_s": 42.15,
+  "rtf_compute": 1.725,
+  "rtf_wall": 1.739,
+  "final_latency_s": 31.14,
+  "word_lag_median_s": 30.261,
+  "word_lag_p90_s": 32.298,
+  "onset_to_first_partial_median_s": 2.608,
+  "onset_to_first_partial_p90_s": 4.317,
+  "n_bursts": 7,
+  "n_updates": 62,
+  "peak_ram_mb": 3271,
+  "english_terms": [
+   [
+    "google",
+    "exact",
+    "google"
+   ],
+   [
+    "maps",
+    "exact",
+    "maps"
+   ],
+   [
+    "sales",
+    "exact",
+    "sales"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.1
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "01_them_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.3644859813084112,
+  "cer": 0.2774566473988439,
+  "hyp": "Около 42 миллионов рублей в долларов примерно 500 тысяч растем в среднем 8% в month Aromat. Monthly burn 3 миллиона 500 тысяч примерно две трети по зарплате. При cash balance около 13.000.000 выходит порядка 4 месяцев, если не будем дорого минимать. Да, сип, хотим поднять до миллиона долларов при примане около 8. LTV около 900 долларов, CAC 240, соотношение примерно 3 из 7,5. Payback период 6 месяцев. Честно, не раньше 2028 года мы сознательно инвестируем в growth. Founders примерно 65% ESOP, 10,2% ангела по 5%. Ой, извините, мне надо уточнить про Option Pool. Я перепроверил и пришлю.",
+  "ref": "Около сорока двух миллионов рублей, в долларах примерно пятьсот тысяч. Растём в среднем восемь процентов month over month. Monthly burn три миллиона пятьсот тысяч. Примерно две трети — это зарплаты. При cash balance около тринадцати миллионов выходит порядка четырёх месяцев. Если не будем дорого нанимать. Да, seed. Хотим поднять два миллиона долларов при pre-money около восьми. LTV около девятисот долларов, CAC — двести сорок. Соотношение примерно три и семь десятых. Payback period — шесть месяцев. Честно — не раньше 2028 года. Мы сознательно инвестируем в growth. Founders примерно шестьдесят пять процентов, ESOP — десять, и два ангела по пять. Ой, извините, мне надо уточнить про option pool, я перепроверю и пришлю.\n",
+  "duration_s": 76.12,
+  "rtf_compute": 1.613,
+  "rtf_wall": 1.624,
+  "final_latency_s": 47.477,
+  "word_lag_median_s": 47.754,
+  "word_lag_p90_s": 50.452,
+  "onset_to_first_partial_median_s": 2.706,
+  "onset_to_first_partial_p90_s": 10.174,
+  "n_bursts": 11,
+  "n_updates": 115,
+  "peak_ram_mb": 3270,
+  "english_terms": [
+   [
+    "month",
+    "exact",
+    "month"
+   ],
+   [
+    "over",
+    "other",
+    "aromat"
+   ],
+   [
+    "month",
+    "other",
+    "aromat"
+   ],
+   [
+    "monthly",
+    "exact",
+    "monthly"
+   ],
+   [
+    "burn",
+    "exact",
+    "burn"
+   ],
+   [
+    "cash",
+    "exact",
+    "cash"
+   ],
+   [
+    "balance",
+    "exact",
+    "balance"
+   ],
+   [
+    "seed",
+    "cyrillic",
+    "сип"
+   ],
+   [
+    "pre",
+    "cyrillic",
+    "примане"
+   ],
+   [
+    "money",
+    "cyrillic",
+    "примане"
+   ],
+   [
+    "ltv",
+    "exact",
+    "ltv"
+   ],
+   [
+    "cac",
+    "exact",
+    "cac"
+   ],
+   [
+    "payback",
+    "exact",
+    "payback"
+   ],
+   [
+    "period",
+    "cyrillic",
+    "период 6"
+   ],
+   [
+    "growth",
+    "exact",
+    "growth"
+   ],
+   [
+    "founders",
+    "exact",
+    "founders"
+   ],
+   [
+    "esop",
+    "exact",
+    "esop"
+   ],
+   [
+    "option",
+    "exact",
+    "option"
+   ],
+   [
+    "pool",
+    "exact",
+    "pool"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.4
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "02_me_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.3364485981308411,
+  "cer": 0.2774566473988439,
+  "hyp": "Около 42 миллионов рублей в долларах примерно 500 тысяч растем в среднем 8% в month-over-month. Monthly burn 3 миллиона 500 тысяч примерно две трети это зарплаты при cash balance около 13 миллионов выходит порядка четырех месяцев если будем дорого нанимать да сит Хотим поднять 2 миллиона долларов при премании около 8. LTV около 900 долларов SAS 240. Соотношение примерно 3,7. Paycheck период 6 месяцев. Честно, не раньше 2028 года. Мы сознательно инвестируем в growth. Фаундерс примерно 65% и СОП 10% и 2 ангела по 5%. Ой, извините, мне нужно уточнить про общий пул. Я перепроверю и пришлю.",
+  "ref": "Около сорока двух миллионов рублей, в долларах примерно пятьсот тысяч. Растём в среднем восемь процентов month over month. Monthly burn три миллиона пятьсот тысяч. Примерно две трети — это зарплаты. При cash balance около тринадцати миллионов выходит порядка четырёх месяцев. Если не будем дорого нанимать. Да, seed. Хотим поднять два миллиона долларов при pre-money около восьми. LTV около девятисот долларов, CAC — двести сорок. Соотношение примерно три и семь десятых. Payback period — шесть месяцев. Честно — не раньше 2028 года. Мы сознательно инвестируем в growth. Founders примерно шестьдесят пять процентов, ESOP — десять, и два ангела по пять. Ой, извините, мне надо уточнить про option pool, я перепроверю и пришлю.\n",
+  "duration_s": 63.66,
+  "rtf_compute": 1.954,
+  "rtf_wall": 1.964,
+  "final_latency_s": 61.351,
+  "word_lag_median_s": 62.726,
+  "word_lag_p90_s": 63.97,
+  "onset_to_first_partial_median_s": 21.408,
+  "onset_to_first_partial_p90_s": 41.232,
+  "n_bursts": 10,
+  "n_updates": 111,
+  "peak_ram_mb": 3509,
+  "english_terms": [
+   [
+    "month",
+    "exact",
+    "month"
+   ],
+   [
+    "over",
+    "exact",
+    "over"
+   ],
+   [
+    "month",
+    "exact",
+    "month"
+   ],
+   [
+    "monthly",
+    "exact",
+    "monthly"
+   ],
+   [
+    "burn",
+    "exact",
+    "burn"
+   ],
+   [
+    "cash",
+    "exact",
+    "cash"
+   ],
+   [
+    "balance",
+    "exact",
+    "balance"
+   ],
+   [
+    "seed",
+    "cyrillic",
+    "сит"
+   ],
+   [
+    "pre",
+    "cyrillic",
+    "премании"
+   ],
+   [
+    "money",
+    "cyrillic",
+    "премании"
+   ],
+   [
+    "ltv",
+    "exact",
+    "ltv"
+   ],
+   [
+    "cac",
+    "other",
+    "sas 240"
+   ],
+   [
+    "payback",
+    "cyrillic",
+    "3 7 paycheck период 6"
+   ],
+   [
+    "period",
+    "cyrillic",
+    "3 7 paycheck период 6"
+   ],
+   [
+    "growth",
+    "exact",
+    "growth"
+   ],
+   [
+    "founders",
+    "cyrillic",
+    "фаундерс"
+   ],
+   [
+    "esop",
+    "other",
+    "65"
+   ],
+   [
+    "option",
+    "cyrillic",
+    "общий пул"
+   ],
+   [
+    "pool",
+    "cyrillic",
+    "общий пул"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.0
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "02_me_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.2127659574468085,
+  "cer": 0.17269076305220885,
+  "hyp": "Спасибо, что нашел время. Давай сразу к цифрам. Какого у вас сейчас ARR? А Бернрейд какой? Тогда какой Ронвей? Четыре месяца это мало. Вы уже в раунде? Давай про юнит экономить. LTV к CAC какой? А EBITDA? Да. Когда будет положительный? И каптейбл, кто сейчас держит?",
+  "ref": "Спасибо, что нашёл время. Давай сразу к цифрам. Какой у вас сейчас ARR? А burn rate какой? Тогда какой runway? Четыре месяца — это мало. Вы уже в раунде? Давай про unit economics. LTV к CAC какой? А EBITDA когда будет положительной? И cap table — кто сейчас держит?\n",
+  "duration_s": 33.28,
+  "rtf_compute": 1.53,
+  "rtf_wall": 1.541,
+  "final_latency_s": 18.008,
+  "word_lag_median_s": 17.451,
+  "word_lag_p90_s": 19.118,
+  "onset_to_first_partial_median_s": 0.864,
+  "onset_to_first_partial_p90_s": 2.865,
+  "n_bursts": 7,
+  "n_updates": 52,
+  "peak_ram_mb": 3267,
+  "english_terms": [
+   [
+    "arr",
+    "exact",
+    "arr"
+   ],
+   [
+    "burn",
+    "cyrillic",
+    "бернрейд"
+   ],
+   [
+    "rate",
+    "cyrillic",
+    "бернрейд"
+   ],
+   [
+    "runway",
+    "cyrillic",
+    "ронвей"
+   ],
+   [
+    "unit",
+    "cyrillic",
+    "юнит экономить"
+   ],
+   [
+    "economics",
+    "cyrillic",
+    "юнит экономить"
+   ],
+   [
+    "ltv",
+    "exact",
+    "ltv"
+   ],
+   [
+    "cac",
+    "exact",
+    "cac"
+   ],
+   [
+    "ebitda",
+    "exact",
+    "ebitda"
+   ],
+   [
+    "cap",
+    "cyrillic",
+    "каптейбл"
+   ],
+   [
+    "table",
+    "cyrillic",
+    "каптейбл"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.1
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "02_them_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.2127659574468085,
+  "cer": 0.1606425702811245,
+  "hyp": "Спасибо, что нашел время. Давай сразу к цифрам. Какой у вас сейчас ARR? Берн рейд какой? Тогда какой ранвей? 4 месяца это мало. Вы уже в раунде? Давай тогда про Unit Economics. LTV к SaaS какой? EBITDA, будет положительный? И Cap Table, кто сейчас держит?",
+  "ref": "Спасибо, что нашёл время. Давай сразу к цифрам. Какой у вас сейчас ARR? А burn rate какой? Тогда какой runway? Четыре месяца — это мало. Вы уже в раунде? Давай про unit economics. LTV к CAC какой? А EBITDA когда будет положительной? И cap table — кто сейчас держит?\n",
+  "duration_s": 34.3,
+  "rtf_compute": 1.591,
+  "rtf_wall": 1.605,
+  "final_latency_s": 20.742,
+  "word_lag_median_s": 19.403,
+  "word_lag_p90_s": 21.173,
+  "onset_to_first_partial_median_s": 1.444,
+  "onset_to_first_partial_p90_s": 3.097,
+  "n_bursts": 8,
+  "n_updates": 41,
+  "peak_ram_mb": 3319,
+  "english_terms": [
+   [
+    "arr",
+    "exact",
+    "arr"
+   ],
+   [
+    "burn",
+    "cyrillic",
+    "берн рейд"
+   ],
+   [
+    "rate",
+    "cyrillic",
+    "берн рейд"
+   ],
+   [
+    "runway",
+    "cyrillic",
+    "ранвей 4"
+   ],
+   [
+    "unit",
+    "exact",
+    "unit"
+   ],
+   [
+    "economics",
+    "exact",
+    "economics"
+   ],
+   [
+    "ltv",
+    "exact",
+    "ltv"
+   ],
+   [
+    "cac",
+    "other",
+    "saas"
+   ],
+   [
+    "ebitda",
+    "exact",
+    "ebitda"
+   ],
+   [
+    "cap",
+    "exact",
+    "cap"
+   ],
+   [
+    "table",
+    "exact",
+    "table"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.0
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "02_them_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.2391304347826087,
+  "cer": 0.1299638989169675,
+  "hyp": "Я вчера закончил пиар на рефакторинг от Middleware. Сейчас его ревьюет Саша и Лена. Сегодня я хочу задеплоить фичу в Staging. И проверить latency на endpoint V2 payments. На проде P95 около 800 миллисекунд, это много. Подозреваю N плюс 1, запрос в URN посмотрю в трейсах. Да, был rollback, на предыдущий релиз кибернетис подали с OEM killed. Подняли memory limits, сейчас все стабильно. Да, фронт ждет новый контракт. На PulseWagger скинул спек до обеда. Ну, если получится. Один. CI падает на интеграционных тестах фланки наверное. Из-за таймонтов в рейлис. Звелтикет Jira 481.",
+  "ref": "Я. Вчера закончил PR на рефакторинг auth middleware, сейчас его ревьюят Саша и Лена. Сегодня хочу задеплоить фичу в staging и проверить latency на endpoint /v2/payments. На проде p95 около восьмисот миллисекунд, это много. Подозреваю N+1 запрос в ORM, посмотрю в трейсах. Да, был rollback на предыдущий релиз. Kubernetes поды падали с OOMKilled. Подняли memory limits, сейчас всё стабильно. Да, фронт ждёт новый контракт по swagger. Скину spec до обеда. Ну, если получится. Один. CI падает на интеграционных тестах, flaky, наверное из-за таймаутов в Redis. Завёл тикет, JIRA-482.\n",
+  "duration_s": 63.83,
+  "rtf_compute": 1.508,
+  "rtf_wall": 1.518,
+  "final_latency_s": 33.051,
+  "word_lag_median_s": 31.602,
+  "word_lag_p90_s": 36.113,
+  "onset_to_first_partial_median_s": 1.104,
+  "onset_to_first_partial_p90_s": 3.18,
+  "n_bursts": 8,
+  "n_updates": 110,
+  "peak_ram_mb": 3312,
+  "english_terms": [
+   [
+    "pr",
+    "cyrillic",
+    "пиар"
+   ],
+   [
+    "auth",
+    "cyrillic",
+    "от"
+   ],
+   [
+    "middleware",
+    "exact",
+    "middleware"
+   ],
+   [
+    "staging",
+    "exact",
+    "staging"
+   ],
+   [
+    "latency",
+    "exact",
+    "latency"
+   ],
+   [
+    "endpoint",
+    "exact",
+    "endpoint"
+   ],
+   [
+    "v2",
+    "exact",
+    "v2"
+   ],
+   [
+    "payments",
+    "exact",
+    "payments"
+   ],
+   [
+    "p95",
+    "exact",
+    "p95"
+   ],
+   [
+    "n",
+    "exact",
+    "n"
+   ],
+   [
+    "orm",
+    "other",
+    "urn"
+   ],
+   [
+    "rollback",
+    "exact",
+    "rollback"
+   ],
+   [
+    "kubernetes",
+    "cyrillic",
+    "кибернетис подали"
+   ],
+   [
+    "oomkilled",
+    "other",
+    "oem killed"
+   ],
+   [
+    "memory",
+    "exact",
+    "memory"
+   ],
+   [
+    "limits",
+    "exact",
+    "limits"
+   ],
+   [
+    "swagger",
+    "cyrillic",
+    "на pulsewagger скинул спек"
+   ],
+   [
+    "spec",
+    "cyrillic",
+    "на pulsewagger скинул спек"
+   ],
+   [
+    "ci",
+    "exact",
+    "ci"
+   ],
+   [
+    "flaky",
+    "cyrillic",
+    "фланки"
+   ],
+   [
+    "redis",
+    "cyrillic",
+    "рейлис звелтикет"
+   ],
+   [
+    "jira",
+    "exact",
+    "jira"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.1
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "03_me_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.29347826086956524,
+  "cer": 0.21299638989169675,
+  "hyp": "Yeah, вчера закончил пиар на рефакторинг от middleware. Сейчас его ревьюет Саша и Лена. Сегодня хочу задеплоить фичу в стейджен и проверить latency на endpoint slash vid slash payments. На проде P95 около 80 мс, это много. Подозреваю N плюс 1 запрос в ORM смотрю в трейсах. Да, был роллбэк на предыдущий релиз, кибернетис, поды падали. С ом килт подняли memory limits сейчас все стабильно до фронт ждет новый контракт по swagger скинул спек до обеда но если получится один сиай падает на интеграционных тестах в банке наверное из-за тайм-аутов в рейдерс завел тикет джира 482",
+  "ref": "Я. Вчера закончил PR на рефакторинг auth middleware, сейчас его ревьюят Саша и Лена. Сегодня хочу задеплоить фичу в staging и проверить latency на endpoint /v2/payments. На проде p95 около восьмисот миллисекунд, это много. Подозреваю N+1 запрос в ORM, посмотрю в трейсах. Да, был rollback на предыдущий релиз. Kubernetes поды падали с OOMKilled. Подняли memory limits, сейчас всё стабильно. Да, фронт ждёт новый контракт по swagger. Скину spec до обеда. Ну, если получится. Один. CI падает на интеграционных тестах, flaky, наверное из-за таймаутов в Redis. Завёл тикет, JIRA-482.\n",
+  "duration_s": 64.51,
+  "rtf_compute": 1.459,
+  "rtf_wall": 1.469,
+  "final_latency_s": 30.242,
+  "word_lag_median_s": 29.832,
+  "word_lag_p90_s": 34.582,
+  "onset_to_first_partial_median_s": 1.676,
+  "onset_to_first_partial_p90_s": 3.866,
+  "n_bursts": 8,
+  "n_updates": 114,
+  "peak_ram_mb": 3309,
+  "english_terms": [
+   [
+    "pr",
+    "cyrillic",
+    "пиар"
+   ],
+   [
+    "auth",
+    "cyrillic",
+    "от"
+   ],
+   [
+    "middleware",
+    "exact",
+    "middleware"
+   ],
+   [
+    "staging",
+    "cyrillic",
+    "стейджен"
+   ],
+   [
+    "latency",
+    "exact",
+    "latency"
+   ],
+   [
+    "endpoint",
+    "exact",
+    "endpoint"
+   ],
+   [
+    "v2",
+    "other",
+    "slash vid slash"
+   ],
+   [
+    "payments",
+    "exact",
+    "payments"
+   ],
+   [
+    "p95",
+    "exact",
+    "p95"
+   ],
+   [
+    "n",
+    "exact",
+    "n"
+   ],
+   [
+    "orm",
+    "exact",
+    "orm"
+   ],
+   [
+    "rollback",
+    "cyrillic",
+    "роллбэк"
+   ],
+   [
+    "kubernetes",
+    "cyrillic",
+    "кибернетис"
+   ],
+   [
+    "oomkilled",
+    "cyrillic",
+    "ом килт"
+   ],
+   [
+    "memory",
+    "exact",
+    "memory"
+   ],
+   [
+    "limits",
+    "exact",
+    "limits"
+   ],
+   [
+    "swagger",
+    "exact",
+    "swagger"
+   ],
+   [
+    "spec",
+    "cyrillic",
+    "скинул спек"
+   ],
+   [
+    "ci",
+    "cyrillic",
+    "сиай"
+   ],
+   [
+    "flaky",
+    "cyrillic",
+    "в банке"
+   ],
+   [
+    "redis",
+    "cyrillic",
+    "рейдерс"
+   ],
+   [
+    "jira",
+    "cyrillic",
+    "джира"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.0
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "03_me_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.18518518518518517,
+  "cer": 0.11413043478260869,
+  "hyp": "Окей, давайте начнем с стендап. Кто начнет? Что с лейпингом? Слушай, вчерашний диплой откатывали. Нужна помощь API для мобильного клиента? Договорились. Блокеры есть? Ок. Посмотрим после стендапа. Спасибо.",
+  "ref": "Окей, давайте стендап. Кто начнёт? Что с latency? Слушай, вчерашний деплой откатывали? Нужна помощь с API для мобильного клиента? Договорились. Блокеры есть? Ок, посмотрим после стендапа. Спасибо.\n",
+  "duration_s": 21.59,
+  "rtf_compute": 1.69,
+  "rtf_wall": 1.701,
+  "final_latency_s": 15.137,
+  "word_lag_median_s": 14.448,
+  "word_lag_p90_s": 15.008,
+  "onset_to_first_partial_median_s": 3.147,
+  "onset_to_first_partial_p90_s": 4.825,
+  "n_bursts": 6,
+  "n_updates": 34,
+  "peak_ram_mb": 3354,
+  "english_terms": [
+   [
+    "latency",
+    "cyrillic",
+    "лейпингом"
+   ],
+   [
+    "api",
+    "exact",
+    "api"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.0
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "03_them_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.07407407407407407,
+  "cer": 0.04891304347826087,
+  "hyp": "Окей, давайте начнем стендап. Кто начнет? Что с latency? Слушай, вчерашний диплом откатывали? Нужна помощь с API для мобильного клиента? Договорились. Блокеры есть? Ок, посмотрим после стендапа. Спасибо.",
+  "ref": "Окей, давайте стендап. Кто начнёт? Что с latency? Слушай, вчерашний деплой откатывали? Нужна помощь с API для мобильного клиента? Договорились. Блокеры есть? Ок, посмотрим после стендапа. Спасибо.\n",
+  "duration_s": 19.97,
+  "rtf_compute": 2.438,
+  "rtf_wall": 2.452,
+  "final_latency_s": 28.991,
+  "word_lag_median_s": 26.902,
+  "word_lag_p90_s": 28.026,
+  "onset_to_first_partial_median_s": 18.099,
+  "onset_to_first_partial_p90_s": 24.323,
+  "n_bursts": 6,
+  "n_updates": 34,
+  "peak_ram_mb": 3232,
+  "english_terms": [
+   [
+    "latency",
+    "exact",
+    "latency"
+   ],
+   [
+    "api",
+    "exact",
+    "api"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.1
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "03_them_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.21359223300970873,
+  "cer": 0.1834862385321101,
+  "hyp": "Анна, добрый день. Да, помню, вы хотели тариф бизнес на 50 мест. Верно, с 1 октября базовая цена 4 900 рублей за место в месяц при годовой оплате 49 тысяч рублей за место в год. Это около 20... Процентов скидки да если подпишите договору 31 октября цену зафиксируем на год могу отправить счет или звоните мне номер плюс 7 915 302 77 14 плюс 7 9 1 5 3 0 2 7 7 1 4 Давайте в четверг 23 октября в 11.30 по Москве. Или в понедельник 27 в 15.00. Конечно, пришлю реквизиты и условия SLA. Сегодня до 6 вечера.",
+  "ref": "Анна, добрый день! Да, помню. Вы хотели тариф Business на пятьдесят мест? Верно. С первого октября базовая цена — 4 900 рублей за место в месяц. При годовой оплате — 49 000 рублей за место в год, это около двадцати процентов скидки. Да, если подпишете договор до 31 октября, цену зафиксируем на год. Могу отправить счёт, или звоните мне, номер +7 915 302 77 14. Плюс семь, девять один пять, три ноль два, семь семь, один четыре. Давайте в четверг, 23 октября, в 11:30 по Москве. Или в понедельник, 27-го, в 15:00. Конечно, пришлю реквизиты и условия SLA сегодня до шести вечера.\n",
+  "duration_s": 55.38,
+  "rtf_compute": 1.78,
+  "rtf_wall": 1.79,
+  "final_latency_s": 43.735,
+  "word_lag_median_s": 42.984,
+  "word_lag_p90_s": 44.3,
+  "onset_to_first_partial_median_s": 10.047,
+  "onset_to_first_partial_p90_s": 25.804,
+  "n_bursts": 9,
+  "n_updates": 103,
+  "peak_ram_mb": 3265,
+  "english_terms": [
+   [
+    "business",
+    "cyrillic",
+    "бизнес"
+   ],
+   [
+    "sla",
+    "exact",
+    "sla"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.6
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "04_me_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.2621359223300971,
+  "cer": 0.20733944954128442,
+  "hyp": "Анна, добрый день. Да, помню, вы хотели тариф бизнес на 50 мест? Верно. С 1 октября базовая цена 4900 рублей за одно место в месяц. При годовой оплате 49000 рублей за место в год. Это около 20% скидки. Да, если подпишете договор до 31 октября, цену зафиксируем на год. Могу отправить счет или позвоните мне на номер 7-915-302-77-14. Плюс 7, 9, 1, 5, 3, 0, 2, 7, 7, 1, 4. Давайте в четверг 23 октября в 11 по Москве или в понедельник 27 в 15.00. Конечно, я пришлю реквизиты и условия SLA сегодня до 6 вечера.",
+  "ref": "Анна, добрый день! Да, помню. Вы хотели тариф Business на пятьдесят мест? Верно. С первого октября базовая цена — 4 900 рублей за место в месяц. При годовой оплате — 49 000 рублей за место в год, это около двадцати процентов скидки. Да, если подпишете договор до 31 октября, цену зафиксируем на год. Могу отправить счёт, или звоните мне, номер +7 915 302 77 14. Плюс семь, девять один пять, три ноль два, семь семь, один четыре. Давайте в четверг, 23 октября, в 11:30 по Москве. Или в понедельник, 27-го, в 15:00. Конечно, пришлю реквизиты и условия SLA сегодня до шести вечера.\n",
+  "duration_s": 59.05,
+  "rtf_compute": 1.511,
+  "rtf_wall": 1.521,
+  "final_latency_s": 30.746,
+  "word_lag_median_s": 31.148,
+  "word_lag_p90_s": 33.216,
+  "onset_to_first_partial_median_s": 1.142,
+  "onset_to_first_partial_p90_s": 3.963,
+  "n_bursts": 11,
+  "n_updates": 107,
+  "peak_ram_mb": 3436,
+  "english_terms": [
+   [
+    "business",
+    "cyrillic",
+    "бизнес"
+   ],
+   [
+    "sla",
+    "exact",
+    "sla"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.1
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "04_me_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.09836065573770492,
+  "cer": 0.06565656565656566,
+  "hyp": "Здравствуйте, это Анна из компании Северстройгрупп. Мы обсуждали лицензии. Да, но цена выросла с прошлого квартала. Можно зафиксировать до конца месяца. Повторите, пожалуйста, номер записываю. Ага, демо, когда можем провести? Нужно показать директору Сергею Петровичу, он в отпуске с 3 по 14 ноября. Давайте в четверг, и нам нужны реквизиты. И нэнэн, 7701-234-567. И SLA. Хорошо, спасибо. Всего доброго.",
+  "ref": "Здравствуйте, это Анна из компании «Северстрой Групп». Мы обсуждали лицензии. Да, но цена выросла с прошлого квартала. Можно зафиксировать до конца месяца? Повторите, пожалуйста, номер, записываю. Ага. Демо когда можем провести? Нужно показать директору, Сергею Петровичу, он в отпуске с третьего по четырнадцатое ноября. Давайте в четверг. И нам нужны реквизиты, ИНН 7701 234 567, и SLA. Хорошо, спасибо. Всего доброго.\n",
+  "duration_s": 39.68,
+  "rtf_compute": 1.461,
+  "rtf_wall": 1.471,
+  "final_latency_s": 18.682,
+  "word_lag_median_s": 15.324,
+  "word_lag_p90_s": 18.904,
+  "onset_to_first_partial_median_s": 0.904,
+  "onset_to_first_partial_p90_s": 2.363,
+  "n_bursts": 8,
+  "n_updates": 70,
+  "peak_ram_mb": 3446,
+  "english_terms": [
+   [
+    "sla",
+    "exact",
+    "sla"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.0
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "04_them_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.09836065573770492,
+  "cer": 0.06313131313131314,
+  "hyp": "Здравствуйте, это Анна из компании Себеростройгрупп. Мы обсуждали лицензии. Да, но цена выросла с прошлого квартала. Можно зафиксировать до конца месяца? Повторите, пожалуйста, номер записываю. Ага, демо когда можем провести, нужно показать директору Сергею Петровичу, он в отпуске с 3 по 14 ноября. Давайте в четверг. И нам нужны реквизиты. И НН 7701-234-567 и SLA. Хорошо, спасибо. Всего доброго.",
+  "ref": "Здравствуйте, это Анна из компании «Северстрой Групп». Мы обсуждали лицензии. Да, но цена выросла с прошлого квартала. Можно зафиксировать до конца месяца? Повторите, пожалуйста, номер, записываю. Ага. Демо когда можем провести? Нужно показать директору, Сергею Петровичу, он в отпуске с третьего по четырнадцатое ноября. Давайте в четверг. И нам нужны реквизиты, ИНН 7701 234 567, и SLA. Хорошо, спасибо. Всего доброго.\n",
+  "duration_s": 51.03,
+  "rtf_compute": 1.482,
+  "rtf_wall": 1.495,
+  "final_latency_s": 25.234,
+  "word_lag_median_s": 22.771,
+  "word_lag_p90_s": 27.375,
+  "onset_to_first_partial_median_s": 1.909,
+  "onset_to_first_partial_p90_s": 4.0,
+  "n_bursts": 8,
+  "n_updates": 74,
+  "peak_ram_mb": 3399,
+  "english_terms": [
+   [
+    "sla",
+    "exact",
+    "sla"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.2
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "04_them_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.1262135922330097,
+  "cer": 0.08181818181818182,
+  "hyp": "Yeah, I saw that. The blocker is the payment webhook. No, Retire Logic сломами и мы получаем дублин. I'd rather not. Давай сначала посмотрим на логс, потом решим, нужен ли rollback. Probably Thursday, if QA sign off is quick. Я уже написал тест кейсов для edge кейсов. Sure, I'll put together a deck tomorrow morning. Stati, the pricing slide is outdated. Надо проверить с finance. I think yes, the team really wants to talk about onboarding. Ну, мы же обсуждали это на прошлой неделе. Agreed. Oh, and make one more thing. The staging database is down again. Yeah, we'll do thanks talk later.",
+  "ref": "Yeah, I saw that. The blocker is the payment webhook. Ну, retry logic сломан, и мы получаем дубли. I'd rather not. Давай сначала посмотрим на logs, потом решим, нужен ли rollback. Probably Thursday, if QA sign-off is quick. Я уже написал test cases для edge cases. Sure, I'll put together a deck tomorrow morning. Кстати, the pricing slide is outdated, надо проверить с finance. I think yes, the team really wants to talk about onboarding. Ну, мы же обсуждали это на прошлой неделе. Agreed. Oh, and one more thing: the staging database is down again. Will do. Thanks, talk later.\n",
+  "duration_s": 60.25,
+  "rtf_compute": 1.588,
+  "rtf_wall": 1.598,
+  "final_latency_s": 36.039,
+  "word_lag_median_s": 36.203,
+  "word_lag_p90_s": 39.913,
+  "onset_to_first_partial_median_s": 0.583,
+  "onset_to_first_partial_p90_s": 3.945,
+  "n_bursts": 9,
+  "n_updates": 105,
+  "peak_ram_mb": 3402,
+  "english_terms": [
+   [
+    "yeah",
+    "exact",
+    "yeah"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "saw",
+    "exact",
+    "saw"
+   ],
+   [
+    "that",
+    "exact",
+    "that"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "blocker",
+    "exact",
+    "blocker"
+   ],
+   [
+    "is",
+    "exact",
+    "is"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "payment",
+    "exact",
+    "payment"
+   ],
+   [
+    "webhook",
+    "exact",
+    "webhook"
+   ],
+   [
+    "retry",
+    "other",
+    "no retire"
+   ],
+   [
+    "logic",
+    "exact",
+    "logic"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "d",
+    "exact",
+    "d"
+   ],
+   [
+    "rather",
+    "exact",
+    "rather"
+   ],
+   [
+    "not",
+    "exact",
+    "not"
+   ],
+   [
+    "logs",
+    "cyrillic",
+    "логс"
+   ],
+   [
+    "rollback",
+    "exact",
+    "rollback"
+   ],
+   [
+    "probably",
+    "exact",
+    "probably"
+   ],
+   [
+    "thursday",
+    "exact",
+    "thursday"
+   ],
+   [
+    "if",
+    "exact",
+    "if"
+   ],
+   [
+    "qa",
+    "exact",
+    "qa"
+   ],
+   [
+    "sign",
+    "exact",
+    "sign"
+   ],
+   [
+    "off",
+    "exact",
+    "off"
+   ],
+   [
+    "is",
+    "exact",
+    "is"
+   ],
+   [
+    "quick",
+    "exact",
+    "quick"
+   ],
+   [
+    "test",
+    "cyrillic",
+    "тест кейсов"
+   ],
+   [
+    "cases",
+    "cyrillic",
+    "тест кейсов"
+   ],
+   [
+    "edge",
+    "exact",
+    "edge"
+   ],
+   [
+    "cases",
+    "cyrillic",
+    "кейсов"
+   ],
+   [
+    "sure",
+    "exact",
+    "sure"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "ll",
+    "exact",
+    "ll"
+   ],
+   [
+    "put",
+    "exact",
+    "put"
+   ],
+   [
+    "together",
+    "exact",
+    "together"
+   ],
+   [
+    "a",
+    "exact",
+    "a"
+   ],
+   [
+    "deck",
+    "exact",
+    "deck"
+   ],
+   [
+    "tomorrow",
+    "exact",
+    "tomorrow"
+   ],
+   [
+    "morning",
+    "exact",
+    "morning"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "pricing",
+    "exact",
+    "pricing"
+   ],
+   [
+    "slide",
+    "exact",
+    "slide"
+   ],
+   [
+    "is",
+    "exact",
+    "is"
+   ],
+   [
+    "outdated",
+    "exact",
+    "outdated"
+   ],
+   [
+    "finance",
+    "exact",
+    "finance"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "think",
+    "exact",
+    "think"
+   ],
+   [
+    "yes",
+    "exact",
+    "yes"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "team",
+    "exact",
+    "team"
+   ],
+   [
+    "really",
+    "exact",
+    "really"
+   ],
+   [
+    "wants",
+    "exact",
+    "wants"
+   ],
+   [
+    "to",
+    "exact",
+    "to"
+   ],
+   [
+    "talk",
+    "exact",
+    "talk"
+   ],
+   [
+    "about",
+    "exact",
+    "about"
+   ],
+   [
+    "onboarding",
+    "exact",
+    "onboarding"
+   ],
+   [
+    "agreed",
+    "exact",
+    "agreed"
+   ],
+   [
+    "oh",
+    "exact",
+    "oh"
+   ],
+   [
+    "and",
+    "exact",
+    "and"
+   ],
+   [
+    "one",
+    "exact",
+    "one"
+   ],
+   [
+    "more",
+    "exact",
+    "more"
+   ],
+   [
+    "thing",
+    "exact",
+    "thing"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "staging",
+    "exact",
+    "staging"
+   ],
+   [
+    "database",
+    "exact",
+    "database"
+   ],
+   [
+    "is",
+    "exact",
+    "is"
+   ],
+   [
+    "down",
+    "exact",
+    "down"
+   ],
+   [
+    "again",
+    "exact",
+    "again"
+   ],
+   [
+    "will",
+    "other",
+    "yeah we ll"
+   ],
+   [
+    "do",
+    "exact",
+    "do"
+   ],
+   [
+    "thanks",
+    "exact",
+    "thanks"
+   ],
+   [
+    "talk",
+    "exact",
+    "talk"
+   ],
+   [
+    "later",
+    "exact",
+    "later"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.1
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "05_me_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.11650485436893204,
+  "cer": 0.06727272727272728,
+  "hyp": "Yeah, I saw that. The blocker is the payment webhook. No retry logic сломан, и мы получаем дубли. I'd rather not. Давай сначала посмотрим на logs, а потом решим, нужен ли rollback. Probably Thursday, if QA sign off is quick. Я уже написал тест кейсов для H-кейсов. Sure, I'll put together a deck tomorrow. Morning, кстати, the pricing slides. It's outdated, надо проверить с finance. I think, yes, the team really wants to talk about onboarding. Мы же обсуждали это на прошлой неделе. Agreed. Oh, one more thing. The staging database is down again. Will do. Thanks. So, talk later.",
+  "ref": "Yeah, I saw that. The blocker is the payment webhook. Ну, retry logic сломан, и мы получаем дубли. I'd rather not. Давай сначала посмотрим на logs, потом решим, нужен ли rollback. Probably Thursday, if QA sign-off is quick. Я уже написал test cases для edge cases. Sure, I'll put together a deck tomorrow morning. Кстати, the pricing slide is outdated, надо проверить с finance. I think yes, the team really wants to talk about onboarding. Ну, мы же обсуждали это на прошлой неделе. Agreed. Oh, and one more thing: the staging database is down again. Will do. Thanks, talk later.\n",
+  "duration_s": 59.22,
+  "rtf_compute": 1.651,
+  "rtf_wall": 1.663,
+  "final_latency_s": 39.264,
+  "word_lag_median_s": 39.382,
+  "word_lag_p90_s": 41.644,
+  "onset_to_first_partial_median_s": 1.182,
+  "onset_to_first_partial_p90_s": 3.591,
+  "n_bursts": 11,
+  "n_updates": 105,
+  "peak_ram_mb": 3447,
+  "english_terms": [
+   [
+    "yeah",
+    "exact",
+    "yeah"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "saw",
+    "exact",
+    "saw"
+   ],
+   [
+    "that",
+    "exact",
+    "that"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "blocker",
+    "exact",
+    "blocker"
+   ],
+   [
+    "is",
+    "exact",
+    "is"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "payment",
+    "exact",
+    "payment"
+   ],
+   [
+    "webhook",
+    "exact",
+    "webhook"
+   ],
+   [
+    "retry",
+    "exact",
+    "retry"
+   ],
+   [
+    "logic",
+    "exact",
+    "logic"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "d",
+    "exact",
+    "d"
+   ],
+   [
+    "rather",
+    "exact",
+    "rather"
+   ],
+   [
+    "not",
+    "exact",
+    "not"
+   ],
+   [
+    "logs",
+    "exact",
+    "logs"
+   ],
+   [
+    "rollback",
+    "exact",
+    "rollback"
+   ],
+   [
+    "probably",
+    "exact",
+    "probably"
+   ],
+   [
+    "thursday",
+    "exact",
+    "thursday"
+   ],
+   [
+    "if",
+    "exact",
+    "if"
+   ],
+   [
+    "qa",
+    "exact",
+    "qa"
+   ],
+   [
+    "sign",
+    "exact",
+    "sign"
+   ],
+   [
+    "off",
+    "exact",
+    "off"
+   ],
+   [
+    "is",
+    "exact",
+    "is"
+   ],
+   [
+    "quick",
+    "exact",
+    "quick"
+   ],
+   [
+    "test",
+    "cyrillic",
+    "тест кейсов"
+   ],
+   [
+    "cases",
+    "cyrillic",
+    "тест кейсов"
+   ],
+   [
+    "edge",
+    "cyrillic",
+    "h кейсов"
+   ],
+   [
+    "cases",
+    "cyrillic",
+    "h кейсов"
+   ],
+   [
+    "sure",
+    "exact",
+    "sure"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "ll",
+    "exact",
+    "ll"
+   ],
+   [
+    "put",
+    "exact",
+    "put"
+   ],
+   [
+    "together",
+    "exact",
+    "together"
+   ],
+   [
+    "a",
+    "exact",
+    "a"
+   ],
+   [
+    "deck",
+    "exact",
+    "deck"
+   ],
+   [
+    "tomorrow",
+    "exact",
+    "tomorrow"
+   ],
+   [
+    "morning",
+    "exact",
+    "morning"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "pricing",
+    "exact",
+    "pricing"
+   ],
+   [
+    "slide",
+    "other",
+    "slides it s"
+   ],
+   [
+    "is",
+    "other",
+    "slides it s"
+   ],
+   [
+    "outdated",
+    "exact",
+    "outdated"
+   ],
+   [
+    "finance",
+    "exact",
+    "finance"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "think",
+    "exact",
+    "think"
+   ],
+   [
+    "yes",
+    "exact",
+    "yes"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "team",
+    "exact",
+    "team"
+   ],
+   [
+    "really",
+    "exact",
+    "really"
+   ],
+   [
+    "wants",
+    "exact",
+    "wants"
+   ],
+   [
+    "to",
+    "exact",
+    "to"
+   ],
+   [
+    "talk",
+    "exact",
+    "talk"
+   ],
+   [
+    "about",
+    "exact",
+    "about"
+   ],
+   [
+    "onboarding",
+    "exact",
+    "onboarding"
+   ],
+   [
+    "agreed",
+    "exact",
+    "agreed"
+   ],
+   [
+    "oh",
+    "exact",
+    "oh"
+   ],
+   [
+    "and",
+    "missing",
+    ""
+   ],
+   [
+    "one",
+    "exact",
+    "one"
+   ],
+   [
+    "more",
+    "exact",
+    "more"
+   ],
+   [
+    "thing",
+    "exact",
+    "thing"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "staging",
+    "exact",
+    "staging"
+   ],
+   [
+    "database",
+    "exact",
+    "database"
+   ],
+   [
+    "is",
+    "exact",
+    "is"
+   ],
+   [
+    "down",
+    "exact",
+    "down"
+   ],
+   [
+    "again",
+    "exact",
+    "again"
+   ],
+   [
+    "will",
+    "exact",
+    "will"
+   ],
+   [
+    "do",
+    "exact",
+    "do"
+   ],
+   [
+    "thanks",
+    "exact",
+    "thanks"
+   ],
+   [
+    "talk",
+    "exact",
+    "talk"
+   ],
+   [
+    "later",
+    "exact",
+    "later"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.1
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "05_me_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.14516129032258066,
+  "cer": 0.09120521172638436,
+  "hyp": "Hey, thanks for jumping on the release of Sleeping Right. Got it. Can we just fix it? Fine, what's the ETA? Cool, the customer also wants a demo. Can you prep slides? Okay, do we still need the retro after spring planning? Right, I forgot, so let's make it 30 minutes, not an hour. Seriously? Okay, ping... I'll escalate.",
+  "ref": "Hey, thanks for jumping on. The release is slipping, right? Got it. Can we just hotfix it? Fine. What's the ETA? Cool. The customer also wants a demo. Can you prep slides? Ok. Do we still need the retro after sprint planning? Right, I forgot. Let's make it thirty minutes, not an hour. Seriously? Ok, ping DevOps, I'll escalate.\n",
+  "duration_s": 35.67,
+  "rtf_compute": 1.665,
+  "rtf_wall": 1.676,
+  "final_latency_s": 24.115,
+  "word_lag_median_s": 23.96,
+  "word_lag_p90_s": 25.931,
+  "onset_to_first_partial_median_s": 6.289,
+  "onset_to_first_partial_p90_s": 13.313,
+  "n_bursts": 8,
+  "n_updates": 57,
+  "peak_ram_mb": 3440,
+  "english_terms": [
+   [
+    "hey",
+    "exact",
+    "hey"
+   ],
+   [
+    "thanks",
+    "exact",
+    "thanks"
+   ],
+   [
+    "for",
+    "exact",
+    "for"
+   ],
+   [
+    "jumping",
+    "exact",
+    "jumping"
+   ],
+   [
+    "on",
+    "exact",
+    "on"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "release",
+    "exact",
+    "release"
+   ],
+   [
+    "is",
+    "other",
+    "of sleeping"
+   ],
+   [
+    "slipping",
+    "other",
+    "of sleeping"
+   ],
+   [
+    "right",
+    "exact",
+    "right"
+   ],
+   [
+    "got",
+    "exact",
+    "got"
+   ],
+   [
+    "it",
+    "exact",
+    "it"
+   ],
+   [
+    "can",
+    "exact",
+    "can"
+   ],
+   [
+    "we",
+    "exact",
+    "we"
+   ],
+   [
+    "just",
+    "exact",
+    "just"
+   ],
+   [
+    "hotfix",
+    "other",
+    "fix"
+   ],
+   [
+    "it",
+    "exact",
+    "it"
+   ],
+   [
+    "fine",
+    "exact",
+    "fine"
+   ],
+   [
+    "what",
+    "exact",
+    "what"
+   ],
+   [
+    "s",
+    "exact",
+    "s"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "eta",
+    "exact",
+    "eta"
+   ],
+   [
+    "cool",
+    "exact",
+    "cool"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "customer",
+    "exact",
+    "customer"
+   ],
+   [
+    "also",
+    "exact",
+    "also"
+   ],
+   [
+    "wants",
+    "exact",
+    "wants"
+   ],
+   [
+    "a",
+    "exact",
+    "a"
+   ],
+   [
+    "demo",
+    "exact",
+    "demo"
+   ],
+   [
+    "can",
+    "exact",
+    "can"
+   ],
+   [
+    "you",
+    "exact",
+    "you"
+   ],
+   [
+    "prep",
+    "exact",
+    "prep"
+   ],
+   [
+    "slides",
+    "exact",
+    "slides"
+   ],
+   [
+    "ok",
+    "other",
+    "okay"
+   ],
+   [
+    "do",
+    "exact",
+    "do"
+   ],
+   [
+    "we",
+    "exact",
+    "we"
+   ],
+   [
+    "still",
+    "exact",
+    "still"
+   ],
+   [
+    "need",
+    "exact",
+    "need"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "retro",
+    "exact",
+    "retro"
+   ],
+   [
+    "after",
+    "exact",
+    "after"
+   ],
+   [
+    "sprint",
+    "other",
+    "spring"
+   ],
+   [
+    "planning",
+    "exact",
+    "planning"
+   ],
+   [
+    "right",
+    "exact",
+    "right"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "forgot",
+    "exact",
+    "forgot"
+   ],
+   [
+    "let",
+    "exact",
+    "let"
+   ],
+   [
+    "s",
+    "exact",
+    "s"
+   ],
+   [
+    "make",
+    "exact",
+    "make"
+   ],
+   [
+    "it",
+    "exact",
+    "it"
+   ],
+   [
+    "thirty",
+    "other",
+    "30"
+   ],
+   [
+    "minutes",
+    "exact",
+    "minutes"
+   ],
+   [
+    "not",
+    "exact",
+    "not"
+   ],
+   [
+    "an",
+    "exact",
+    "an"
+   ],
+   [
+    "hour",
+    "exact",
+    "hour"
+   ],
+   [
+    "seriously",
+    "exact",
+    "seriously"
+   ],
+   [
+    "ok",
+    "other",
+    "okay"
+   ],
+   [
+    "ping",
+    "exact",
+    "ping"
+   ],
+   [
+    "devops",
+    "missing",
+    ""
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "ll",
+    "exact",
+    "ll"
+   ],
+   [
+    "escalate",
+    "exact",
+    "escalate"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.2
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "05_them_n.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.14516129032258066,
+  "cer": 0.08143322475570032,
+  "hyp": "Hey, thanks for jumping on the release, you're sleeping right? Got it can we adjust the hotfix it fine what's the eta cool the customer also wants a demo can you prep slides okay do we still need the retro after sprint planning Right, I forgot. Let's make it 30 minutes, not an hour. Seriously? Okay, pink DevOps, I'll escalate.",
+  "ref": "Hey, thanks for jumping on. The release is slipping, right? Got it. Can we just hotfix it? Fine. What's the ETA? Cool. The customer also wants a demo. Can you prep slides? Ok. Do we still need the retro after sprint planning? Right, I forgot. Let's make it thirty minutes, not an hour. Seriously? Ok, ping DevOps, I'll escalate.\n",
+  "duration_s": 39.85,
+  "rtf_compute": 1.461,
+  "rtf_wall": 1.473,
+  "final_latency_s": 18.833,
+  "word_lag_median_s": 18.813,
+  "word_lag_p90_s": 21.598,
+  "onset_to_first_partial_median_s": 1.417,
+  "onset_to_first_partial_p90_s": 3.219,
+  "n_bursts": 7,
+  "n_updates": 62,
+  "peak_ram_mb": 3308,
+  "english_terms": [
+   [
+    "hey",
+    "exact",
+    "hey"
+   ],
+   [
+    "thanks",
+    "exact",
+    "thanks"
+   ],
+   [
+    "for",
+    "exact",
+    "for"
+   ],
+   [
+    "jumping",
+    "exact",
+    "jumping"
+   ],
+   [
+    "on",
+    "exact",
+    "on"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "release",
+    "exact",
+    "release"
+   ],
+   [
+    "is",
+    "other",
+    "you re sleeping"
+   ],
+   [
+    "slipping",
+    "other",
+    "you re sleeping"
+   ],
+   [
+    "right",
+    "exact",
+    "right"
+   ],
+   [
+    "got",
+    "exact",
+    "got"
+   ],
+   [
+    "it",
+    "exact",
+    "it"
+   ],
+   [
+    "can",
+    "exact",
+    "can"
+   ],
+   [
+    "we",
+    "exact",
+    "we"
+   ],
+   [
+    "just",
+    "other",
+    "adjust the"
+   ],
+   [
+    "hotfix",
+    "exact",
+    "hotfix"
+   ],
+   [
+    "it",
+    "exact",
+    "it"
+   ],
+   [
+    "fine",
+    "exact",
+    "fine"
+   ],
+   [
+    "what",
+    "exact",
+    "what"
+   ],
+   [
+    "s",
+    "exact",
+    "s"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "eta",
+    "exact",
+    "eta"
+   ],
+   [
+    "cool",
+    "exact",
+    "cool"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "customer",
+    "exact",
+    "customer"
+   ],
+   [
+    "also",
+    "exact",
+    "also"
+   ],
+   [
+    "wants",
+    "exact",
+    "wants"
+   ],
+   [
+    "a",
+    "exact",
+    "a"
+   ],
+   [
+    "demo",
+    "exact",
+    "demo"
+   ],
+   [
+    "can",
+    "exact",
+    "can"
+   ],
+   [
+    "you",
+    "exact",
+    "you"
+   ],
+   [
+    "prep",
+    "exact",
+    "prep"
+   ],
+   [
+    "slides",
+    "exact",
+    "slides"
+   ],
+   [
+    "ok",
+    "other",
+    "okay"
+   ],
+   [
+    "do",
+    "exact",
+    "do"
+   ],
+   [
+    "we",
+    "exact",
+    "we"
+   ],
+   [
+    "still",
+    "exact",
+    "still"
+   ],
+   [
+    "need",
+    "exact",
+    "need"
+   ],
+   [
+    "the",
+    "exact",
+    "the"
+   ],
+   [
+    "retro",
+    "exact",
+    "retro"
+   ],
+   [
+    "after",
+    "exact",
+    "after"
+   ],
+   [
+    "sprint",
+    "exact",
+    "sprint"
+   ],
+   [
+    "planning",
+    "exact",
+    "planning"
+   ],
+   [
+    "right",
+    "exact",
+    "right"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "forgot",
+    "exact",
+    "forgot"
+   ],
+   [
+    "let",
+    "exact",
+    "let"
+   ],
+   [
+    "s",
+    "exact",
+    "s"
+   ],
+   [
+    "make",
+    "exact",
+    "make"
+   ],
+   [
+    "it",
+    "exact",
+    "it"
+   ],
+   [
+    "thirty",
+    "other",
+    "30"
+   ],
+   [
+    "minutes",
+    "exact",
+    "minutes"
+   ],
+   [
+    "not",
+    "exact",
+    "not"
+   ],
+   [
+    "an",
+    "exact",
+    "an"
+   ],
+   [
+    "hour",
+    "exact",
+    "hour"
+   ],
+   [
+    "seriously",
+    "exact",
+    "seriously"
+   ],
+   [
+    "ok",
+    "other",
+    "okay pink"
+   ],
+   [
+    "ping",
+    "other",
+    "okay pink"
+   ],
+   [
+    "devops",
+    "exact",
+    "devops"
+   ],
+   [
+    "i",
+    "exact",
+    "i"
+   ],
+   [
+    "ll",
+    "exact",
+    "ll"
+   ],
+   [
+    "escalate",
+    "exact",
+    "escalate"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.0
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "05_them_q.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.021505376344086023,
+  "cer": 0.005873715124816446,
+  "hyp": "В различных местах Рима были установлены большие телевизионные экраны, с помощью которых люди могли наблюдать за церемонией. Мадагаскар намного больше других и является самобытным континентом в том, что касается дикой природы. Только мутации в клетках зародышевой линии могут передаваться далее детям, в то время как мутация где-то еще могут привести к гибели клеток или раку. Причиной дебатов стали разногласия относительно затрат на оказание материальной поддержки и восстановление зданий после урагана Катрина, который некоторые фискальные консерваторы в шутку назвали «Новарлианской сделкой Буша». Переносчиками являются свиньи, от которых через комаров болезнь затем передается человеку.",
+  "ref": "В различных местах Рима были установлены большие телевизионные экраны, с помощью которых люди могли наблюдать за церемонией. Мадагаскар намного больше других и  является самобытным континентом в том, что касается дикой природы. Только мутации в клетках зародышевой линии могут передаваться далее детям, в то время как мутации где-то ещё могут привести к гибели клеток или раку. Причиной дебатов стали разногласия относительно затрат на оказание материальной поддержки и восстановление зданий после урагана Катрина, который некоторые фискальные консерваторы в шутку назвали \"новоорлеанской сделкой Буша\". Переносчиками являются свиньи, от которых через комаров болезнь затем передаётся человеку.\n",
+  "duration_s": 61.32,
+  "rtf_compute": 1.431,
+  "rtf_wall": 1.441,
+  "final_latency_s": 27.052,
+  "word_lag_median_s": 25.278,
+  "word_lag_p90_s": 28.982,
+  "onset_to_first_partial_median_s": 0.55,
+  "onset_to_first_partial_p90_s": 2.007,
+  "n_bursts": 7,
+  "n_updates": 99,
+  "peak_ram_mb": 3418,
+  "english_terms": [],
+  "notes": {
+   "load_s": 0.9
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "fleurs_ru_1.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.09375,
+  "cer": 0.026806526806526808,
+  "hyp": "Надлежащее использование блогов может дать учащимся возможность стать более аналитичными и критичными. Путем активного отклика на интернет-материалы учащиеся могут определять свою позицию в контексте чужих работ, а также излагать свои собственные взгляды на конкретные вопросы. Только мутации в клетках зародышевой линии могут передаваться далее детям, в то время как мутации где-то еще могут привести к гибели клеток или раку. Серия Asus EPC, ранее представленная во всем мире с ориентацией на такие факторы, как экономия средств и функциональность, стала горячей темой во время месяца информационных технологий в Тайбэе в 2007 году. Султан Марокко перестроил город под названием Эдар-эль-Бейда, а испанские торговцы, создавшие тут торговые базы, назвали его Касабланка. Лакха Синг исполнил Чхаппанбхо Пхаджан. Певец Раджу Ханделвал пел вместе с ним.",
+  "ref": "Надлежащее использование блогов может дать учащимся возможность стать более аналитичными и критичными. Путём активного отклика на интернет-материалы учащиеся могут определять свою позицию в контексте чужих работ, а также излагать свои собственные взгляды на конкретные вопросы (Оравек, 2002). Только мутации в клетках зародышевой линии могут передаваться далее детям, в то время как мутации где-то ещё могут привести к гибели клеток или раку. Серия ASUS Eee PC, ранее представленная во всём мире с ориентацией на такие факторы, как экономия средств и функциональность, стала горячей темой во время месяца информационных технологий в Тайбэе в 2007 году. Султан Марокко перестроил город под названием Эд-Дар-эль-Бейда, а испанские торговцы, создавшие тут торговые базы, назвали его Касабланка. Лаккха Сингх исполнил чхаппан бхог бхаджан.  Певец Раджу Кханделвал пел вместе с ним.\n",
+  "duration_s": 78.24,
+  "rtf_compute": 1.428,
+  "rtf_wall": 1.438,
+  "final_latency_s": 34.289,
+  "word_lag_median_s": 34.323,
+  "word_lag_p90_s": 38.589,
+  "onset_to_first_partial_median_s": 0.328,
+  "onset_to_first_partial_p90_s": 2.031,
+  "n_bursts": 8,
+  "n_updates": 129,
+  "peak_ram_mb": 3476,
+  "english_terms": [
+   [
+    "asus",
+    "exact",
+    "asus"
+   ],
+   [
+    "eee",
+    "other",
+    "epc"
+   ],
+   [
+    "pc",
+    "other",
+    "epc"
+   ]
+  ],
+  "notes": {
+   "load_s": 0.9
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "fleurs_ru_2.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.022900763358778626,
+  "cer": 0.007829977628635347,
+  "hyp": "53-летний Куома начал свою деятельность на посту губернатора в начале этого года и подписал законопроект о легализации однополых браков в прошлом месяце. В результате актеры курят косяки с марихуаной на сцене, и сам театр поощряет публику присоединиться. Обычные объявления в метро делаются только на каталонском языке, но незапланированные перебои объявляются автоматизированной системой на самых разных языках, включая испанский, английский, французский, арабский и японский. Начиная с 1988 года, урны для избирательных бюллетеней должны быть прозрачными, чтобы избиратели и наблюдатели могли убедиться в том, что в начале голосования внутри нет конвертов, и что к ним не добавлены какие-либо другие конверты, кроме конвертов тех людей, которых допустили к участию в голосовании, и голоса которых подсчитали надлежащим образом. Между 10 и 11 вечера по горному времени заключенные устроили пожар во дворе.",
+  "ref": "53-летний Куомо начал свою деятельность на посту губернатора в начале этого года и подписал законопроект о легализации однополых браков в прошлом месяце. В результате актёры курят косяки с марихуаной на сцене, и сам театр поощряет публику присоединиться. Обычные объявления в метро делаются только на каталонском языке, но незапланированные перебои объявляются автоматизированной системой на самых разных языках, включая испанский, английский, французский, арабский и японский. Начиная с 1988 года урны для избирательных бюллетеней должны быть прозрачными, чтобы избиратели и наблюдатели могли убедиться в том, что в начале голосования внутри нет конвертов и что к ним не добавлены какие-либо другие конверты, кроме конвертов тех людей, которых допустили к участию в голосовании и голоса которых подсчитали надлежащим образом. Между 10:00 и 11:00 вечера по горному времени заключенные устроили пожар во дворе.\n",
+  "duration_s": 81.54,
+  "rtf_compute": 1.633,
+  "rtf_wall": 1.642,
+  "final_latency_s": 52.368,
+  "word_lag_median_s": 51.404,
+  "word_lag_p90_s": 52.688,
+  "onset_to_first_partial_median_s": 2.322,
+  "onset_to_first_partial_p90_s": 5.728,
+  "n_bursts": 7,
+  "n_updates": 134,
+  "peak_ram_mb": 3518,
+  "english_terms": [],
+  "notes": {
+   "load_s": 0.9
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "fleurs_ru_3.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ },
+ {
+  "wer": 0.045454545454545456,
+  "cer": 0.011363636363636364,
+  "hyp": "Давайте посмотрим на EBITDA. За прошлый квартал, а потом обсудим. KPI. Для команды продаж. Нам нужно задеплоить новую версию до конца. Sprint. И закрыть все этикеты. Jira. Потом созвонимся с клиентом по поводу. Pricing and onboarding flow. И обновим. Roadmap. На следующий год.",
+  "ref": "Давайте посмотрим на EBITDA за прошлый квартал, а потом обсудим KPI для команды продаж. Нам нужно задеплоить новую версию до конца sprint и закрыть все тикеты в Jira. Потом созвонимся с клиентом по поводу pricing and onboarding flow и обновим roadmap на следующий год.\n",
+  "duration_s": 21.2,
+  "rtf_compute": 1.907,
+  "rtf_wall": 1.913,
+  "final_latency_s": 19.361,
+  "word_lag_median_s": 19.373,
+  "word_lag_p90_s": 20.066,
+  "onset_to_first_partial_median_s": 4.638,
+  "onset_to_first_partial_p90_s": 4.638,
+  "n_bursts": 1,
+  "n_updates": 46,
+  "peak_ram_mb": 3518,
+  "english_terms": [
+   [
+    "ebitda",
+    "exact",
+    "ebitda"
+   ],
+   [
+    "kpi",
+    "exact",
+    "kpi"
+   ],
+   [
+    "sprint",
+    "exact",
+    "sprint"
+   ],
+   [
+    "jira",
+    "exact",
+    "jira"
+   ],
+   [
+    "pricing",
+    "exact",
+    "pricing"
+   ],
+   [
+    "and",
+    "exact",
+    "and"
+   ],
+   [
+    "onboarding",
+    "exact",
+    "onboarding"
+   ],
+   [
+    "flow",
+    "exact",
+    "flow"
+   ],
+   [
+    "roadmap",
+    "exact",
+    "roadmap"
+   ]
+  ],
+  "notes": {
+   "load_s": 1.1
+  },
+  "engine": "voxtral_mlx:4bit-480ms",
+  "clip": "synth_codeswitch_ru_en.wav",
+  "chunk_ms": 160,
+  "cfg": {}
+ }
+]

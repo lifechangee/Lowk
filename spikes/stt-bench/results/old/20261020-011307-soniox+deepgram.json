@@ -1,0 +1,10 @@
+[
+ {
+  "engine": "soniox",
+  "skipped": "SONIOX_API_KEY not set"
+ },
+ {
+  "engine": "deepgram",
+  "skipped": "DEEPGRAM_API_KEY not set"
+ }
+]
