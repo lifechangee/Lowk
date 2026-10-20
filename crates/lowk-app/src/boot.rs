@@ -69,6 +69,16 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     deps.audio = Arc::new(std::sync::Mutex::new(crate::engines::DynBackend(
         lowk_audio::default_backend(),
     )));
+    // QA only (feature `qa`, debug builds): replay files as the Me / System streams instead of
+    // capturing, so end-to-end checks make no sound and need no permissions.
+    #[cfg(feature = "qa")]
+    {
+        let f = |k: &str| std::env::var_os(k).map(std::path::PathBuf::from);
+        let (me, sys) = (f("LOWK_QA_ME_FILE"), f("LOWK_QA_SYSTEM_FILE"));
+        if me.is_some() || sys.is_some() {
+            deps.audio = Arc::new(std::sync::Mutex::new(lowk_audio::FileAudioSource::new(me, sys)));
+        }
+    }
     let engines = Arc::new(crate::engines::registry());
     deps.stt = engines.clone();
     deps.corrector = Some(Arc::new(crate::engines::LazyCorrector::default()));

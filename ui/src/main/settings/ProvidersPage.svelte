@@ -8,13 +8,19 @@
   import { api } from '../api';
   import { tm } from '../i18n';
   import { prefs } from '../state.svelte';
+  import EngineCard from './EngineCard.svelte';
   import KeyCard from './KeyCard.svelte';
 
   let engines = $state<EngineDescriptor[]>([]);
-  onMount(async () => { engines = await api.engines(); });
+  let recommended = $state('');
+  onMount(async () => {
+    engines = await api.engines();
+    recommended = (await api.engineStatus()).find((i) => i.recommended)?.descriptor.id ?? '';
+  });
 
   const llm = $derived(prefs.value.llm ?? {});
-  const engineId = $derived(prefs.value.stt?.engine ?? '');
+  // empty setting = the hardware check's pick, which is what a call would use
+  const engineId = $derived(prefs.value.stt?.engine || recommended);
   const engine = $derived(engines.find((e) => e.id === engineId));
   const providers: LlmProvider[] = ['openrouter', 'ollama', 'lmstudio', 'llama_server', 'custom'];
   let model = $state('');
@@ -45,7 +51,9 @@
 <SettingRow label={tm('settings.stt')} hint={engine ? sizeLabel(engine) : undefined}>
   <Select label={tm('settings.stt')} value={engineId} options={engines.map((e) => ({ value: e.id, label: e.name }))} onchange={pickEngine} />
 </SettingRow>
-{#if engine?.kind === 'cloud'}
+{#if engine?.kind === 'local'}
+  <EngineCard engine={engine.id} />
+{:else if engine?.kind === 'cloud'}
   <KeyCard provider="stt-cloud" title={tm('m.sttKey', { vendor: engine.name })} placeholder={tm('m.sttKeyPlaceholder')} note={tm('m.sttCloudNote')} />
 {/if}
 

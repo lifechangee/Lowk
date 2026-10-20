@@ -450,3 +450,56 @@ fn failed_ask_emits_error_and_arms_nothing() {
     r.session.stop().unwrap();
     assert!(r.session.qa_records().is_empty());
 }
+
+#[test]
+fn ask_takes_the_question_from_the_utterance_still_being_spoken() {
+    // M1 QA: the owner presses Ask while the interviewer is still mid-question. The question
+    // must be that partial, not the previous (final) sentence.
+    let r = rig(|d| d.hints = Arc::new(StubHints("ok".into())));
+    r.session.start(opts(false)).unwrap();
+    r.session
+        .inject_stt(ev(Stream::System, 1, 0, 2, "Расскажите о себе."));
+    let mut p = ev(Stream::System, 2, 3, 4, "А что такое EBITDA");
+    p.kind = SttKind::Partial;
+    r.session.inject_stt(p);
+    r.session.ask(brief(None)).unwrap();
+    let rec = r.session.qa_records().remove(0);
+    assert_eq!(rec.question, "А что такое EBITDA");
+    r.session.stop().unwrap();
+}
+
+/// Streams for a while, so the test can speak while the hint is still being generated.
+struct SlowHints;
+impl HintGenerator for SlowHints {
+    fn generate(&self, _r: &HintRequest, d: &mut dyn FnMut(&str)) -> Result<String> {
+        d("раз ");
+        std::thread::sleep(Duration::from_millis(600));
+        d("два");
+        Ok("раз два".into())
+    }
+}
+
+#[test]
+fn my_answer_collects_speech_spoken_while_the_hint_is_still_streaming() {
+    // M1 QA: the owner answers along with the generation. Speech that ends before the hint
+    // finishes must not be lost.
+    let r = rig(|d| d.hints = Arc::new(SlowHints));
+    r.session.start(opts(false)).unwrap();
+    let qa_id = r.session.ask(brief(Some("Что такое EBITDA?"))).unwrap();
+    let t = now_mono_ns() / 1_000_000_000 + 1;
+    r.session
+        .inject_stt(ev(Stream::Me, 1, t, t + 1, "Это операционная прибыль"));
+    assert_eq!(
+        r.session.my_answer(&qa_id).as_deref(),
+        Some("Это операционная прибыль"),
+        "collected before the hint is done"
+    );
+    r.session.stop().unwrap();
+    let entries = r.store.entries.lock().unwrap();
+    assert!(entries
+        .iter()
+        .any(|e| matches!(e, CallEntry::MyAnswer { text, .. } if text == "Это операционная прибыль")));
+    assert!(entries
+        .iter()
+        .any(|e| matches!(e, CallEntry::Qa { answer, .. } if answer == "раз два")));
+}

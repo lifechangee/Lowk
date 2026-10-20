@@ -52,3 +52,9 @@ Permanent regression tests, written together with the fixes (no expected-fail st
 * New visual states: `newcall-popover`, `source-picker`, `source-other` (main) and `hover` (overlay).
 * `tools/qa/app-qa.mjs` (real app): G1 clicks the REAL settings control and reads the overlay font-size (S 12 / M 14 / XL 18) and the main zoom; G5/G3 in the real webview; G6 20x hold-Ctrl through the real dispatcher with the `ignoresMouseEvents` readback and the >=30 Hz presence sampler (0 absent frames), tap debounce, move-wins-over-hover, per-template ask; G7 screenshot queue per monitor and a sentinel test (main=green, overlay=magenta are present for a plain `screencapture` and absent from the queue PNGs); G2 pill drag through the real pointer path + position memory.
 
+
+## M1 checks (live transcription, QA review)
+
+* `tools/qa/m1-e2e.mjs` (macOS, qa build, **no audio output**: `LOWK_QA_SYSTEM_FILE` / `LOWK_QA_ME_FILE` replay files as the System / Me streams, qa builds only): stage `live` (real local model: overlay subtitles, finals in the call `.md`, Whisper correction, Ask on a partial, «Мой ответ» until the next Ask, stop -> home), `noengine` (empty `$HOME`: demo fallback is explained), `install` (real download card: progress, cancel, resume, corrupt file). Needs the worker (`cargo build --release --manifest-path workers/lowk-stt-worker/Cargo.toml`) and the models in `~/Library/Application Support/Lowk/models`. Results: `docs/qa/m1/`.
+* `cargo run --release -p lowk-session --example stt_replay -- --models <dir> --probe-ask` replays the 20 owner recordings through the full session path and prints word-to-screen latency, an estimator audit (lag by position in the utterance, exact at the utterance end) and an `ask()` probe. Run it on a quiet machine: other processes inflate the tail.
+* `ui/e2e/m1-engine.spec.ts`: the model download card (not installed / progress / cancel / checksum failure).

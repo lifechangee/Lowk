@@ -268,3 +268,4 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 
 /* ---- stealth self-test sentinel (painted only while the app grabs the screen) ---- */
 .sentinel { position: absolute; inset: 0; background: rgb(255, 0, 255); border-radius: 16px; z-index: 50; }
+.sub .wait.err { color: var(--warn); }

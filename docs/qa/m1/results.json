@@ -1,0 +1,77 @@
+[
+ {
+  "name": "record bind starts a REAL call (not the demo) with the file sources",
+  "ok": true,
+  "detail": "{\"phase\":\"recording\",\"call\":\"01M5DEY6BS7A41E8KJG268RYQ7\",\"demo\":false}"
+ },
+ {
+  "name": "stop (overlay button) ends the call and opens the main window on library home",
+  "ok": true,
+  "detail": "idle after 342 ms; main visible=true hash=#/"
+ },
+ {
+  "name": "live subtitles appear in the overlay as the file plays (both speakers)",
+  "ok": true,
+  "detail": "first subtitle after 4691 ms; 121 distinct lines; speakers система/я",
+  "shots": []
+ },
+ {
+  "name": "finals land in the call .md with timestamps and Я / Система speakers",
+  "ok": true,
+  "detail": "1 md; Я lines 4, Система lines 4; sample: [00:00:03] **Система:** Окей, давайте начнем стендап. Кто начнет? | > **Мой ответ:** [00:00:03] Я вчера закончил Пер на рефакторинг Алто Мидрвай. Сейчас его рев",
+  "shots": []
+ },
+ {
+  "name": "background correction revises stored text (the .md carries the corrected version, not the live one)",
+  "ok": true,
+  "detail": "13 final utterances, 12 re-emitted by Whisper, 12 changed, 12 of them stored corrected in the .md"
+ },
+ {
+  "name": "Ask sent while the System utterance was still a partial: the question is that live text (snapshot_for_ask includes the partial)",
+  "ok": true,
+  "detail": "ask #1 at 9216 ms with on screen: \"СИСТЕМАЩо с лайт\"; question stored: \"Що с лайт\"; qa blocks 3"
+ },
+ {
+  "name": "«Мой ответ» keeps collecting until the NEXT Ask (not closed by time or System speech)",
+  "ok": true,
+  "detail": "between asks: 51 samples, length 0 -> 169, never shrank=true; at ask #2 169 chars -> new link 0 chars"
+ },
+ {
+  "name": "closed «Мой ответ» is saved in the .md",
+  "ok": true,
+  "detail": "present"
+ },
+ {
+  "name": "no engine installed: Settings > Providers shows a download card that says what happens without it",
+  "ok": true,
+  "detail": "\"NVIDIA Nemotron 3.5 ASR Streaming (local): модель\\nНе установлена\\n\\nПока модель не установлена, кнопка записи проигрывает демо-сценарий, а не ваш звук. Загрузка: 0.7 ГБ, один раз.\\n\\nСкачать (0.7 ГБ",
+  "shots": []
+ },
+ {
+  "name": "no engine installed: the record bind falls back to the scripted demo",
+  "ok": true,
+  "detail": "{\"phase\":\"recording\",\"call\":\"01M5DF0NXRXK2NZFRQ5M1ZY3NH\",\"demo\":true}"
+ },
+ {
+  "name": "engine install: card offers the download with size and licence",
+  "ok": true,
+  "detail": "\"NVIDIA Nemotron 3.5 ASR Streaming (local): модель\\nНе установлена\\n\\nПока модель не установлена, кнопка записи проигрывает демо-сценарий, а не ваш звук. Загрузка: 0.7 ГБ, один раз.\\n\\nСкачать (0.7 ГБ)\\n\\nЛицензия OpenMD"
+ },
+ {
+  "name": "engine install: progress is shown and Cancel stops it, keeping the partial file",
+  "ok": true,
+  "detail": "part 20714452 -> 21091284 bytes; progress ticks 24; card after cancel: \"NVIDIA Nemotron 3.5 ASR Streaming (local): модель\\nНе установлена\\n\\nПока модель не установлена, кнопка записи проигрыв",
+  "shots": []
+ },
+ {
+  "name": "engine install: a second start resumes the .part file (Range) instead of starting over",
+  "ok": true,
+  "detail": "before 21091284, after resume 23384455 bytes"
+ },
+ {
+  "name": "engine install: a corrupt (full-size) file fails the SHA-256 check with a readable message, the file is removed, retry is offered",
+  "ok": true,
+  "detail": "\"NVIDIA Nemotron 3.5 ASR Streaming (local): модель\\nНе установлена\\n\\nПока модель не установлена, кнопка записи проигрывает демо-сценарий, а не ваш звук. Загрузка: 0.7 ГБ, один раз.\\n\\nПовторить (дока",
+  "shots": []
+ }
+]

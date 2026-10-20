@@ -96,7 +96,7 @@ pub struct LocalTuning {
 impl Default for LocalTuning {
     fn default() -> Self {
         Self {
-            right: 6,
+            right: 3,
             chunk_ms: 160,
             hang_ms: 480,
         }

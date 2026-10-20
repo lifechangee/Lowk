@@ -160,6 +160,12 @@ fn download(
 ) -> Result<()> {
     let have = fs::metadata(part).map(|m| m.len()).unwrap_or(0);
     let have = if have > expect { 0 } else { have };
+    if have == expect && expect > 0 {
+        // A complete `.part` (the app died while verifying): a Range request past the end is
+        // answered with 416, which would loop forever. Go straight to the checksum.
+        on_progress(have);
+        return Ok(());
+    }
     let tls = ureq::tls::TlsConfig::builder()
         .provider(ureq::tls::TlsProvider::Rustls)
         .unversioned_rustls_crypto_provider(crate::cloud::tls_provider())
@@ -311,6 +317,28 @@ mod tests {
         st.install("e", &specs, &AtomicBool::new(false), &mut |_, _, _, _| {})
             .unwrap();
         assert!(st.verify("e", &specs));
+        let _ = fs::remove_dir_all(st.root());
+    }
+
+    #[test]
+    fn complete_part_file_is_verified_not_requested_again() {
+        let body: Vec<u8> = (0..50_000u32).map(|i| (i % 249) as u8).collect();
+        let st = ModelStore::new(tmp("fullpart"));
+        // the server is never contacted: a dead URL proves it
+        let specs = vec![spec("http://127.0.0.1:1/none".into(), &body, None)];
+        fs::create_dir_all(st.dir("e")).unwrap();
+        fs::write(st.path("e", "m.part"), &body).unwrap();
+        st.install("e", &specs, &AtomicBool::new(false), &mut |_, _, _, _| {})
+            .unwrap();
+        assert!(st.verify("e", &specs));
+        // a corrupt complete part is rejected and removed
+        let _ = fs::remove_file(st.path("e", "m.bin"));
+        fs::write(st.path("e", "m.part"), vec![0u8; body.len()]).unwrap();
+        let e = st
+            .install("e", &specs, &AtomicBool::new(false), &mut |_, _, _, _| {})
+            .unwrap_err();
+        assert_eq!(e.params.get("reason").map(String::as_str), Some("checksum"));
+        assert!(!st.path("e", "m.part").exists());
         let _ = fs::remove_dir_all(st.root());
     }
 

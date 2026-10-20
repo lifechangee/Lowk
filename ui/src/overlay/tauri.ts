@@ -34,12 +34,17 @@ export class TauriSource implements OverlaySource {
       });
     add(on<SttEvent>(EVENTS.sttSegment, (e) => store.applyStt(e)));
     for (const n of ['start', 'delta', 'done', 'error'] as const) {
-      add(on<Omit<LlmEvent, 'type'>>(`llm://${n}`, (e) => store.applyLlm({ ...e, type: n } as LlmEvent)));
+      add(on<{ recoverable: boolean }>(EVENTS.sttError, (e) => (store.sttError = { recoverable: e.recoverable })));
+    add(on<Omit<LlmEvent, 'type'>>(`llm://${n}`, (e) => store.applyLlm({ ...e, type: n } as LlmEvent)));
     }
     add(on<{ mode: OverlayMode } | OverlayMode>(EVENTS.overlayMode, (e) => store.setMode(typeof e === 'string' ? e : e.mode)));
     add(on<ToneEvent>(EVENTS.overlayTone, (e) => store.applyTone(e)));
     add(on<QueueState>(EVENTS.queueChanged, (e) => store.setQueue(e.shots, e.thumbs)));
-    add(on<QaUpdate>(EVENTS.myAnswer, (e) => store.applyMyAnswer(e.text)));
+    add(on<QaUpdate>(EVENTS.myAnswer, (e) => {
+      // The close update of the PREVIOUS link arrives right after the new Ask's `start`; it must not
+      // bring the old text back under the new question.
+      if (!e.closed) store.applyMyAnswer(e.text);
+    }));
     add(on<boolean>('overlay://sentinel', (on_) => (store.sentinel = on_)));
     add(on<Settings>(EVENTS.settingsChanged, (s) => this.#applySettings(s)));
     add(on<SessionState>(EVENTS.sessionState, (e) => this.#session(e)));

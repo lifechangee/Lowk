@@ -1,7 +1,7 @@
 // Real backend: every method that has a command in the generated bindings calls it. Only what the
 // roadmap defers (documents/search index M2, LLM summary M3, native folder picker) keeps the mock.
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AppError, BindReport, EngineDescriptor, FolderMeta, HwInfo, NewFolder, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts, SttEvent } from '../../lib/ipc';
+import type { AppError, BindReport, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, NewFolder, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts, SttEvent } from '../../lib/ipc';
 import { MockBackend } from './mock';
 import { folderKey, folderRef, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider } from './types';
 
@@ -71,6 +71,15 @@ export class TauriBackend extends MockBackend {
   override async sourceList(): Promise<SourceInfo[]> { return ok(await commands.sourceList()); }
   override async sourceListInstalled(): Promise<SourceInfo[]> { return ok(await commands.sourceListInstalled()); }
   override async engines(): Promise<EngineDescriptor[]> { return commands.engineList(); }
+  override async engineStatus(): Promise<EngineInfo[]> { return commands.engineStatus(); }
+  override async engineInstall(id: string): Promise<void> { ok(await commands.engineInstall(id)); }
+  override async engineInstallCancel(): Promise<void> { await commands.engineInstallCancel(); }
+  override onEngineProgress(cb: (p: EngineProgress) => void): () => void {
+    let off: (() => void) | undefined;
+    let dead = false;
+    void on<EngineProgress>(EVENTS.engineProgress, cb).then((u) => (dead ? u() : (off = u)));
+    return () => { dead = true; off?.(); };
+  }
   override async hwProbe(): Promise<HwInfo> { return ok(await commands.hwProbe()).report.info; }
   override async permStatus(): Promise<Record<PermKind, PermState>> {
     const s = await commands.permStatus();
@@ -90,7 +99,7 @@ export class TauriBackend extends MockBackend {
   override onLiveLine(cb: (line: LiveLine) => void): () => void {
     let off: (() => void) | undefined;
     let dead = false;
-    void on<SttEvent>(EVENTS.sttSegment, (e) => { if (e.kind === 'final' && e.text.trim()) cb({ speaker: e.stream, text: e.text.trim() }); }).then((u) => (dead ? u() : (off = u)));
+    void on<SttEvent>(EVENTS.sttSegment, (e) => { if (e.kind === 'final' && e.text.trim()) cb({ speaker: e.stream, text: e.text.trim(), utt: e.utt }); }).then((u) => (dead ? u() : (off = u)));
     return () => { dead = true; off?.(); };
   }
 }

@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command WP6 has not wired yet. Mutations are real within the page's life.
-import type { BindReport, CallMeta, EngineDescriptor, FolderMeta, HwInfo, NewFolder, Os, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts } from '../../lib/ipc';
+import type { BindReport, CallMeta, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, NewFolder, Os, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { LIVE_LINES, makeCalls, makeDetail, makeFolderDetail, makeFolders, summarizedIds } from './fixtures';
 import { folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type DocItem, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider } from './types';
@@ -167,6 +167,41 @@ export class MockBackend implements Backend {
       { id: 'soniox', name: 'Soniox', kind: 'cloud', languages: ['*'], streaming: 'native', size_mb: 0, license: 'cloud' },
       { id: 'deepgram', name: 'Deepgram', kind: 'cloud', languages: ['*'], streaming: 'native', size_mb: 0, license: 'cloud' },
     ];
+  }
+  #engineInstalled = new Set<string>();
+  #engineSubs = new Set<(p: EngineProgress) => void>();
+  #installCancel = false;
+  async engineStatus(): Promise<EngineInfo[]> {
+    return (await this.engines()).map((d) => ({
+      descriptor: d,
+      fitness: { kind: 'recommended' as const },
+      installed: d.kind === 'cloud' || this.#engineInstalled.has(d.id),
+      recommended: d.id === 'whisper-large-v3-turbo',
+      needs_key: d.kind === 'cloud',
+      license_url: 'https://openmdw.ai/license/1-1/',
+    }));
+  }
+  async engineInstall(id: string): Promise<void> {
+    this.#installCancel = false;
+    const total = 751 * 1024 * 1024;
+    const fail = typeof location !== 'undefined' && /[?&]install=fail\b/.test(location.search);
+    for (let i = 1; i <= 10; i++) {
+      await delay(60);
+      if (this.#installCancel) throw new Error('cancelled');
+      const phase = i === 10 ? 'verifying' : 'downloading';
+      for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase, done_bytes: (total / 10) * i, total_bytes: total, message: null });
+      if (fail && i === 6) {
+        for (const f of this.#engineSubs) f({ engine: id, file: '', phase: 'failed', done_bytes: 0, total_bytes: 0, message: 'checksum' });
+        throw new Error('download_failed');
+      }
+    }
+    this.#engineInstalled.add(id);
+    for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase: 'ready', done_bytes: total, total_bytes: total, message: null });
+  }
+  async engineInstallCancel(): Promise<void> { this.#installCancel = true; }
+  onEngineProgress(cb: (p: EngineProgress) => void): () => void {
+    this.#engineSubs.add(cb);
+    return () => this.#engineSubs.delete(cb);
   }
   async hwProbe(): Promise<HwInfo> {
     await delay(400);

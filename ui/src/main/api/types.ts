@@ -4,6 +4,8 @@ import type {
   BindReport,
   CallMeta,
   EngineDescriptor,
+  EngineInfo,
+  EngineProgress,
   FolderMeta,
   FolderRef,
   HwInfo,
@@ -79,7 +81,8 @@ export type SearchHit = { group: 'calls' | 'docs'; title: string; snippet: strin
 
 export type SecretProvider = 'openrouter' | 'stt-cloud';
 
-export type LiveLine = { speaker: Stream; text: string };
+/** `utt` identifies the utterance within its stream: a corrected re-emit replaces the shown line. */
+export type LiveLine = { speaker: Stream; text: string; utt?: number };
 
 export interface Backend {
   readonly isMock: boolean;
@@ -108,6 +111,12 @@ export interface Backend {
   /** Installed apps for “Other…” (G3). */
   sourceListInstalled(): Promise<SourceInfo[]>;
   engines(): Promise<EngineDescriptor[]>;
+  /** Fitness / installed / licence per engine (model download card). */
+  engineStatus(): Promise<EngineInfo[]>;
+  /** Downloads the engine's models (resumable, SHA-256 checked); resolves when ready, rejects when failed or cancelled. */
+  engineInstall(id: string): Promise<void>;
+  engineInstallCancel(): Promise<void>;
+  onEngineProgress(cb: (p: EngineProgress) => void): () => void;
   hwProbe(): Promise<HwInfo>;
   permStatus(): Promise<Record<PermKind, PermState>>;
   permRequest(kind: PermKind): Promise<PermState>;

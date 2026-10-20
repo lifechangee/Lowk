@@ -162,7 +162,11 @@ impl AppState {
                 phase: InstallPhase::Failed,
                 done_bytes: 0,
                 total_bytes: 0,
-                message: Some(e.to_string()),
+                // the UI maps the machine-readable reason (checksum / cancelled / network) to text
+                message: Some(format!(
+                    "{e} {}",
+                    e.params.get("reason").map_or("", String::as_str)
+                )),
             }));
         }
         res

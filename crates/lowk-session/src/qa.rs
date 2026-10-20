@@ -79,6 +79,27 @@ impl QaTracker {
         out
     }
 
+    /// The hint of an already armed link finished streaming.
+    pub fn set_hint(&mut self, qa: &QaId, hint: String) {
+        if let Some(r) = self.records.iter_mut().find(|r| &r.qa_id == qa) {
+            r.hint = hint;
+        }
+    }
+
+    /// The Ask failed: forget the link so a hint-less record never reaches the journal.
+    pub fn discard(&mut self, qa: &QaId) {
+        if let Some(i) = self.records.iter().position(|r| &r.qa_id == qa) {
+            if self.records[i].my_answer.is_empty() {
+                self.records.remove(i);
+                self.open = match self.open {
+                    Some(o) if o == i => None,
+                    Some(o) if o > i => Some(o - 1),
+                    other => other,
+                };
+            }
+        }
+    }
+
     pub fn on_stt(&mut self, ev: &SttEvent) -> QaOutput {
         let mut out = QaOutput::default();
         let Some(i) = self.open else { return out };

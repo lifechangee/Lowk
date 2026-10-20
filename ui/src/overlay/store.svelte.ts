@@ -58,6 +58,10 @@ export class OverlayStore {
   menuOpen = $state(false);
 
   sub = $state<SubLine | null>(null);
+  /** Engine failure of a stream (`stt://error`); cleared by the next transcript event. */
+  sttError = $state<{ recoverable: boolean } | null>(null);
+  /** Highest utterance id seen per stream: a lower one is a background correction of the past. */
+  #maxUtt: Record<string, number> = {};
   answer = $state('');
   streaming = $state(false);
   answerError = $state(false);
@@ -89,6 +93,10 @@ export class OverlayStore {
   applyStt(e: SttEvent): void {
     const stream = e.stream;
     const partial = e.kind === 'partial';
+    this.sttError = null;
+    // A Whisper correction of an older utterance must not replace the line being spoken now.
+    if (e.utt < (this.#maxUtt[stream] ?? 0)) return;
+    this.#maxUtt[stream] = e.utt;
     this.sub = { stream, utt: e.utt, text: e.text, partial };
     if (!partial) {
       if (stream === 'system' && this.stage !== 'hint') this.stage = 'question';
@@ -169,6 +177,8 @@ export class OverlayStore {
 
   reset(): void {
     this.sub = null;
+    this.sttError = null;
+    this.#maxUtt = {};
     this.answer = '';
     this.streaming = false;
     this.answerError = false;

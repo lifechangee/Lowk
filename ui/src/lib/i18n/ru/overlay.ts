@@ -56,6 +56,8 @@ export const overlay = {
   'overlay.hint.move': 'Удерживайте {key}: перетащить · {type}: ввод текста',
   'overlay.move.badge': 'Перемещение · отпустите {key}, и снова сквозной режим',
   'overlay.toast.shot': 'Скриншот добавлен',
+  'overlay.sttRestarting': 'Перезапуск распознавания…',
+  'overlay.sttFailed': 'Распознавание остановилось. Проверьте Настройки > Провайдеры.',
   'overlay.waiting': 'Слушаю…',
   'overlay.answer.empty': 'Нажмите {key}, чтобы спросить ИИ',
   'overlay.answer.error': 'Не удалось получить ответ',

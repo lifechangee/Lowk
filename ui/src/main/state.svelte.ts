@@ -120,7 +120,12 @@ class Session {
     this.now = this.startedAt;
     this.lines = [];
     this.#tick = setInterval(() => (this.now = Date.now()), 1000);
-    this.#off = api.onLiveLine((l) => this.lines.push({ ...l, at_s: this.elapsed }));
+    this.#off = api.onLiveLine((l) => {
+      // A background correction re-emits an already shown utterance: replace it in place.
+      const i = l.utt === undefined ? -1 : this.lines.findIndex((x) => x.utt === l.utt && x.speaker === l.speaker);
+      if (i >= 0) this.lines[i] = { ...this.lines[i]!, text: l.text };
+      else this.lines.push({ ...l, at_s: this.elapsed });
+    });
   }
   /** Follow a session started or stopped elsewhere (record bind, overlay, demo end). */
   sync(s: SessionState): void {

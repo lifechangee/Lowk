@@ -418,7 +418,8 @@ impl Session {
                         delta
                             .iter()
                             .rev()
-                            .find(|l| l.is_final && (!sys_only || l.stream == Stream::System))
+                            // the line still being spoken counts: Ask never waits for a final
+                            .find(|l| !sys_only || l.stream == Stream::System)
                             .map(|l| l.text.clone())
                     };
                     pick(true).or_else(|| pick(false))
@@ -446,7 +447,7 @@ impl Session {
                 cloud_provider: false,
             })
             .unwrap_or_default();
-        inner.qa_begin(qa_id, req_id, &question);
+        inner.qa_begin(qa_id, req_id, &question, now_mono_ns());
         let hint_req = HintRequest {
             qa_id,
             template_id: template.id.clone(),
@@ -476,8 +477,11 @@ impl Session {
                         now_mono_ns(),
                     ),
                     Err(error) => {
-                        me.core().llm_cursor = prev_cursor;
-                        me.core().pending_q.remove(&qa_id);
+                        let mut c = me.core();
+                        c.llm_cursor = prev_cursor;
+                        c.pending_q.remove(&qa_id);
+                        c.qa.discard(&qa_id);
+                        drop(c);
                         me.bus.emit(AppEvent::Llm(LlmEvent::Error { req_id, error }));
                     }
                 }
@@ -825,11 +829,13 @@ impl Inner {
         self.flush(out);
     }
 
-    fn qa_begin(&self, qa_id: QaId, req_id: ReqId, question: &str) {
+    fn qa_begin(&self, qa_id: QaId, req_id: ReqId, question: &str, armed_at: MonoNs) {
         let mut out = Out::default();
         {
             let mut c = self.core();
-            let o = c.qa.on_ask();
+            // The link opens at Ask time, not when the hint finishes: the owner starts answering
+            // while the hint streams, and that speech belongs to «Мой ответ».
+            let o = c.qa.arm(qa_id, question.to_owned(), String::new(), armed_at);
             c.absorb_qa(o, &mut out);
             c.pending_q.insert(qa_id, question.to_owned());
         }
@@ -868,8 +874,7 @@ impl Inner {
                     answer: answer.clone(),
                 });
             }
-            let o = c.qa.arm(qa_id, question, answer, armed_at);
-            c.absorb_qa(o, &mut out);
+            c.qa.set_hint(&qa_id, answer);
         }
         out.events.push(AppEvent::Llm(LlmEvent::Done {
             req_id,
@@ -895,7 +900,7 @@ impl Inner {
             ReplayKind::Stt(ev) => self.ingest(rebase(ev, t0)),
             ReplayKind::HintStart { qa, question } => {
                 let (q, r) = ids(*qa);
-                self.qa_begin(q, r, question);
+                self.qa_begin(q, r, question, t0 + item.at_ms * NS_PER_MS);
             }
             ReplayKind::HintDelta { qa, text } => {
                 self.bus.emit(AppEvent::Llm(LlmEvent::Delta {

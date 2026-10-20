@@ -20,6 +20,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+static PROBES: Mutex<Vec<(Vec<f64>, usize, usize, usize)>> = Mutex::new(Vec::new());
+
 fn arg(k: &str) -> Option<String> {
     let a: Vec<String> = std::env::args().collect();
     a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).cloned()
@@ -59,6 +61,15 @@ impl AudioBackend for Tap {
             sink(f)
         });
         self.inner.start(cfg, tapped, ev)
+    }
+}
+
+/// `--probe-ask`: records what each Ask would send (the transcript delta) and when.
+struct ProbeHints(Arc<Mutex<Vec<(u64, Vec<TranscriptLine>)>>>);
+impl lowk_session::HintGenerator for ProbeHints {
+    fn generate(&self, req: &lowk_session::HintRequest, _on: &mut dyn FnMut(&str)) -> Result<String> {
+        self.0.lock().unwrap().push((now_mono_ns(), req.delta.clone()));
+        Ok("ok".into())
     }
 }
 
@@ -121,6 +132,8 @@ struct ClipResult {
     live_cer: f64,
     final_cer: f64,
     lags_ms: Vec<f64>,
+    /// (word position 0..1, utterance speech seconds, words in utterance, lag ms) for the estimator audit
+    pts: Vec<(f64, f64, usize, f64)>,
     live: String,
     fin: String,
     diag: Option<SttDiagnostics>,
@@ -156,8 +169,34 @@ fn run_pair(
     deps.stt = Arc::new(reg_builder());
     deps.corrector = if correct { corrector } else { None };
     deps.store = Arc::new(MemCallStore::default());
-    let session = Session::new(deps);
+    let probe = flag("--probe-ask");
+    let asks_seen: Arc<Mutex<Vec<(u64, Vec<TranscriptLine>)>>> = Arc::default();
+    if probe {
+        deps.hints = Arc::new(ProbeHints(asks_seen.clone()));
+    }
+    let session = Arc::new(Session::new(deps));
     let rx = session.subscribe();
+    // Ask probe: ask() every 2.3 s; records how long the call took (lock + snapshot) and when.
+    let ask_log: Arc<Mutex<Vec<(u64, f64)>>> = Arc::default();
+    let pstop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let prober = probe.then(|| {
+        let (se, lg, st) = (session.clone(), ask_log.clone(), pstop.clone());
+        std::thread::spawn(move || {
+            while !st.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(2300));
+                let (t, i) = (now_mono_ns(), Instant::now());
+                if se
+                    .ask(AskRequest {
+                        template_id: TEMPLATE_BRIEF.into(),
+                        typed_text: None,
+                    })
+                    .is_ok()
+                {
+                    lg.lock().unwrap().push((t, i.elapsed().as_secs_f64() * 1e3));
+                }
+            }
+        })
+    });
 
     // collect bus events with their arrival time (stand-in for "on screen")
     let evs: Arc<Mutex<Vec<(u64, SttEvent)>>> = Arc::default();
@@ -183,6 +222,10 @@ fn run_pair(
         })
         .expect("session start");
     done.wait(Duration::from_secs(600));
+    pstop.store(true, std::sync::atomic::Ordering::Relaxed);
+    if let Some(h) = prober {
+        let _ = h.join();
+    }
     std::thread::sleep(Duration::from_millis(1500)); // let the last partials surface
     session.stop().expect("stop");
     stop.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -194,6 +237,46 @@ fn run_pair(
 
     let diag = session.stt_diagnostics();
     let evs = evs.lock().unwrap().clone();
+    if probe {
+        let asks = asks_seen.lock().unwrap().clone();
+        let lg = ask_log.lock().unwrap().clone();
+        let durs: Vec<f64> = lg.iter().map(|x| x.1).collect();
+        let (mut open, mut contained, mut earlier) = (0, 0, 0);
+        for (ai, (t_ask, delta)) in asks.iter().enumerate() {
+            // the newest partial per stream that was open (no later final) 10 ms before the ask
+            for st in [Stream::Me, Stream::System] {
+                let before: Vec<&(u64, SttEvent)> = evs
+                    .iter()
+                    .filter(|(tr, e)| e.stream == st && *tr + 10_000_000 <= *t_ask)
+                    .collect();
+                let Some((_, last)) = before.last() else { continue };
+                if last.kind != SttKind::Partial || last.text.trim().is_empty() {
+                    continue;
+                }
+                open += 1;
+                if delta.iter().any(|l| l.stream == st && l.text == last.text) {
+                    contained += 1;
+                } else if asks[..ai].iter().any(|(_, d)| {
+                    d.iter().any(|l| {
+                        l.stream == st
+                            && !l.text.is_empty()
+                            && last.text.starts_with(l.text.trim_end_matches(['.', '?', '!']))
+                    })
+                }) {
+                    // not a miss: an earlier Ask already carried this utterance (llm cursor)
+                    earlier += 1;
+                }
+            }
+        }
+        eprintln!(
+            "[{tag}] ASK-PROBE n={} ask() ms p50 {:.2} p95 {:.2} max {:.2}; open partials at ask {open}, contained in snapshot {contained}, already sent by an earlier Ask {earlier}",
+            durs.len(),
+            pct(&mut durs.clone(), 0.5),
+            pct(&mut durs.clone(), 0.95),
+            durs.iter().cloned().fold(0.0, f64::max)
+        );
+        PROBES.lock().unwrap().push((durs, open, contained, earlier));
+    }
     let frames = frames.lock().unwrap().clone();
     let mut out = vec![];
     for (stream, path, r) in [(Stream::Me, &me, &refs[0]), (Stream::System, &them, &refs[1])] {
@@ -230,6 +313,7 @@ fn run_pair(
         let mut utts: Vec<u64> = live.keys().copied().collect();
         utts.sort_unstable();
         let mut lags = vec![];
+        let mut pts = vec![];
         for u in utts {
             let Some((_, fe)) = mine
                 .iter()
@@ -272,7 +356,14 @@ fn run_pair(
                 c += w.chars().count() + 1;
                 if let Some(t) = seen[j] {
                     let spoken_end = active_time(&span, c as f64 / total_chars as f64);
-                    lags.push((t as f64 - spoken_end as f64) / 1e6);
+                    let lag = (t as f64 - spoken_end as f64) / 1e6;
+                    lags.push(lag);
+                    pts.push((
+                        c as f64 / total_chars as f64,
+                        span.len() as f64 * 0.02,
+                        final_words.len(),
+                        lag,
+                    ));
                 }
             }
         }
@@ -281,6 +372,7 @@ fn run_pair(
             live_cer: cer(&live_t, r),
             final_cer: cer(&fin_t, r),
             lags_ms: lags,
+            pts,
             live: live_t,
             fin: fin_t,
             diag: diag.clone(),
@@ -309,7 +401,7 @@ fn main() {
         .map(str::to_owned)
         .collect();
     let tuning = LocalTuning {
-        right: arg("--right").and_then(|s| s.parse().ok()).unwrap_or(6),
+        right: arg("--right").and_then(|s| s.parse().ok()).unwrap_or(3),
         chunk_ms: arg("--chunk-ms").and_then(|s| s.parse().ok()).unwrap_or(160),
         hang_ms: arg("--hang-ms").and_then(|s| s.parse().ok()).unwrap_or(480),
     };
@@ -432,12 +524,55 @@ fn main() {
         mean(&live_c),
         mean(&fin_c)
     );
+    // Estimator audit: the char-proportional spread of words over speech-active frames is exact
+    // at the utterance end (pos 1.0) and loose in the middle; split the lags accordingly.
+    {
+        let pts: Vec<&(f64, f64, usize, f64)> = results.iter().flat_map(|r| r.pts.iter()).collect();
+        let bucket = |name: &str, f: &dyn Fn(&(f64, f64, usize, f64)) -> bool, md: &mut String| {
+            let mut v: Vec<f64> = pts.iter().filter(|p| f(p)).map(|p| p.3).collect();
+            *md += &format!(
+                "| {name} | {} | {:.0} | {:.0} | {:.0} |\n",
+                v.len(),
+                pct(&mut v.clone(), 0.5),
+                pct(&mut v.clone(), 0.95),
+                pct(&mut v, 0.99)
+            );
+        };
+        md += "\n## Estimator audit (word-to-screen lag by bucket)\n\n| bucket | n | p50 ms | p95 ms | p99 ms |\n|---|---|---|---|---|\n";
+        bucket("last word of utterance (anchor exact)", &|p| p.0 > 0.999, &mut md);
+        bucket("pos <= 0.2 (anchor near start)", &|p| p.0 <= 0.2, &mut md);
+        bucket("pos 0.2..0.8 (estimated)", &|p| p.0 > 0.2 && p.0 <= 0.8, &mut md);
+        bucket("pos > 0.8", &|p| p.0 > 0.8, &mut md);
+        bucket("utterance speech < 5 s", &|p| p.1 < 5.0, &mut md);
+        bucket("utterance speech 5..12 s", &|p| p.1 >= 5.0 && p.1 < 12.0, &mut md);
+        bucket("utterance speech >= 12 s", &|p| p.1 >= 12.0, &mut md);
+        let neg = pts.iter().filter(|p| p.3 < 0.0).count();
+        md += &format!(
+            "\nNegative lags (estimator says word shown before spoken): {neg} of {}\n",
+            pts.len()
+        );
+    }
     if let Some(d) = results.last().and_then(|r| r.diag.clone()) {
         md += &format!("\nEngine diagnostics (last session): {d:#?}\n");
     }
     md += "\n## Texts\n";
     for r in &results {
         md += &format!("\n### {}\nlive: {}\n\ncorrected: {}\n", r.name, r.live, r.fin);
+    }
+    {
+        let pr = PROBES.lock().unwrap();
+        if !pr.is_empty() {
+            let all: Vec<f64> = pr.iter().flat_map(|p| p.0.clone()).collect();
+            let (o, c, e): (usize, usize, usize) = (
+                pr.iter().map(|p| p.1).sum(),
+                pr.iter().map(|p| p.2).sum(),
+                pr.iter().map(|p| p.3).sum(),
+            );
+            md += &format!(
+                "\n## Ask probe (ask() every 2.3 s during replay)\n\nn={} ask() call ms p50 {:.2} p95 {:.2} max {:.2}; open partials at ask time: {o}, present in snapshot: {c}, carried by an earlier Ask: {e}\n",
+                all.len(), pct(&mut all.clone(), 0.5), pct(&mut all.clone(), 0.95), all.iter().cloned().fold(0.0, f64::max)
+            );
+        }
     }
     println!("{md}");
     if let Some(p) = arg("--out") {
