@@ -142,7 +142,7 @@ class Session {
   }
   /** F8: a recording ended (stop button, bind, overlay): library home, window in front, new call on top. */
   async #finished(call: string | null): Promise<void> {
-    await library.reload();
+    await library.reload().catch(() => undefined);
     ui.justFinished = call;
     router.go(hrefs.home);
     void focusMainWindow();
@@ -202,5 +202,6 @@ export function attachEvents(): void {
   void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; locale.setSetting((s.ui?.language ?? 'auto') as LangSetting); });
   void on<SessionState>(EVENTS.sessionState, (s) => { if (s.phase === 'idle') session.sttLoading = false; session.sync(s); });
   void on<{ loading: boolean }>(EVENTS.sttLoading, (e) => (session.sttLoading = e.loading));
-  void on<{ route?: string }>(EVENTS.sessionEnded, () => { void library.reload().then(() => { router.go(hrefs.home); }); });
+  // go home even when the library reload fails (e.g. the vault is busy writing the just-ended call)
+  void on<{ route?: string }>(EVENTS.sessionEnded, () => { void library.reload().catch(() => undefined).then(() => { router.go(hrefs.home); }); });
 }

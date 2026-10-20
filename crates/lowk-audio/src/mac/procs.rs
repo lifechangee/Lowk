@@ -239,10 +239,22 @@ pub fn refresh_group(key: &str) -> Option<Group> {
 /// e.g. its WebKit processes): excluded from the whole-system tap.
 pub fn own_tree_objs() -> Vec<u32> {
     let me = std::process::id() as i32;
+    // A bundle started by Finder/launchd is responsible for its helpers. A binary started from a
+    // terminal or another app (`just dev`, the QA harness) is not: its WebKit helpers are
+    // attributed to that host, so also take the WebKit XPC helpers of the same host created after us.
+    let host = responsible_pid(me);
+    let from_host = host > 0 && host != me;
     let mut v: Vec<u32> = list_processes()
         .unwrap_or_default()
         .iter()
-        .filter(|p| p.pid == me || (p.pid > 0 && responsible_pid(p.pid) == me))
+        .filter(|p| {
+            p.pid == me
+                || (p.pid > 0 && responsible_pid(p.pid) == me)
+                || (from_host
+                    && p.pid > me
+                    && responsible_pid(p.pid) == host
+                    && p.path.contains("/com.apple.WebKit."))
+        })
         .map(|p| p.obj)
         .collect();
     v.sort_unstable();

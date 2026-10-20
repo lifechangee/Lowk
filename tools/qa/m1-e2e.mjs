@@ -3,6 +3,7 @@
 // streams are fed from files (LOWK_QA_SYSTEM_FILE / LOWK_QA_ME_FILE, qa builds only).
 //
 //   node tools/qa/m1-e2e.mjs [--no-build] [--stage live|noengine|install|loading|bundle|warmup]
+//   Audible, opt-in (real capture, real speakers, display must be awake): --stage audible-app,audible-system
 //
 // live      : record from files with the owner's local model; live subtitles in the overlay, finals in the
 //             call .md, background correction, Ask on a partial, "Мой ответ" closes only on the next Ask,
@@ -84,10 +85,12 @@ const findMd = (dir) => {
 const pct = (a, q) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.ceil(s.length * q) - 1)] : NaN; };
 
 // ---------------------------------------------------------------------------------------------
-async function stageLive() {
+async function stageLive(o = {}) {
+  // o.audible: real capture (no LOWK_QA_*_FILE); o.beforeRecord(a) starts the players; o.prefix names the evidence files
+  const P = o.prefix ?? '';
   const sys = join(audio, '03_them_q.m4a'), me = join(audio, '03_me_q.m4a');
   const a = await launch({
-    env: { LOWK_QA_SYSTEM_FILE: sys, LOWK_QA_ME_FILE: me, LOWK_STT_WORKER: worker },
+    env: o.audible ? { LOWK_STT_WORKER: worker } : { LOWK_QA_SYSTEM_FILE: sys, LOWK_QA_ME_FILE: me, LOWK_STT_WORKER: worker },
     settings: '[stt]\nengine = "nemotron-local"\nlanguages = ["ru", "en"]\nbackground_correction = true\n',
   });
   const log = [];
@@ -97,23 +100,25 @@ async function stageLive() {
     await a.cmd('exclusion off');
     // record every transcript event as the main webview receives it (real IPC path)
     await a.ev('main', `(()=>{window.__ev=[];const T=window.__TAURI_INTERNALS__;const h=T.transformCallback(e=>window.__ev.push({t:performance.now(),p:e.payload}));return T.invoke('plugin:event|listen',{event:'stt://segment',target:{kind:'Any'},handler:h})})()`);
+    await a.ev('main', `(()=>{window.__ended=[];const T=window.__TAURI_INTERNALS__;const h=T.transformCallback(e=>window.__ended.push({t:Math.round(performance.now()),p:e.payload}));return T.invoke('plugin:event|listen',{event:'session://ended',target:{kind:'Any'},handler:h})})()`);
     await a.ev('main', `(()=>{window.__llm=[];const T=window.__TAURI_INTERNALS__;for(const n of ['start','delta','done','error']){const h=T.transformCallback(e=>window.__llm.push({t:performance.now(),n,p:e.payload}));T.invoke('plugin:event|listen',{event:'llm://'+n,target:{kind:'Any'},handler:h})}return 1})()`);
 
+    if (o.beforeRecord) await o.beforeRecord(a);
     const t0 = Date.now();
     await a.cmd('bind toggle_record down');
     await a.cmd('bind toggle_record up');
     const st0 = JSON.parse(await a.ev('main', `JSON.stringify(await window.__TAURI_INTERNALS__.invoke('session_state'))`));
-    add({ name: 'record bind starts a REAL call (not the demo) with the file sources', ok: st0.phase === 'recording' && st0.demo === false, detail: JSON.stringify(st0) });
+    add({ name: P + 'record bind starts a REAL call (not the demo) with the file sources', ok: st0.phase === 'recording' && st0.demo === false, detail: JSON.stringify(st0) });
 
     const probe = `(()=>{const q=s=>document.querySelector(s);const sub=q('.sub .txt');return {sub:sub?sub.innerText:null,caret:!!q('.sub .caret'),my:(q('.my .tx.ph')?'':((q('.my .tx')||{}).innerText||'')),ans:(q('.ans .body')||{}).innerText||'',wait:(q('.sub .wait')||{}).innerText||null}})()`;
     const samples = [];
     let firstSub = null, askAt = null, ask1 = null, ask2 = null, shots = [];
     let phase = 'pre';
-    while (Date.now() - t0 < 110_000) {
+    while (Date.now() - t0 < (o.endMs ? o.endMs + 40_000 : 110_000)) {
       const t = Date.now() - t0;
       const s = await a.ev('overlay', probe).catch(() => null);
       if (s) samples.push({ t, ...s });
-      if (s?.sub && firstSub === null) { firstSub = t; const n = await a.shot('overlay', 'live-subtitle.png'); if (n) shots.push(n); }
+      if (s?.sub && firstSub === null) { firstSub = t; const n = await a.shot('overlay', P + 'live-subtitle.png'); if (n) shots.push(n); }
       // ask #1 while the System utterance is still being spoken (a partial with the caret)
       if (!ask1 && t > 9000 && s?.caret && /^(Система|System)/i.test(s.sub ?? '')) {
         const before = s.sub;
@@ -130,14 +135,14 @@ async function stageLive() {
         await sleep(400);
         const s2 = await a.ev('overlay', probe).catch(() => ({}));
         ask2.myAfter = s2.my;
-        const n = await a.shot('overlay', 'live-after-ask2.png'); if (n) shots.push(n);
+        const n = await a.shot('overlay', P + 'live-after-ask2.png'); if (n) shots.push(n);
       }
-      if (ask1 && !shots.includes('live-answer.png') && t > ask1.t + 6000) { const n = await a.shot('overlay', 'live-answer.png'); if (n) shots.push(n); }
+      if (ask1 && !shots.includes(P + 'live-answer.png') && t > ask1.t + 6000) { const n = await a.shot('overlay', P + 'live-answer.png'); if (n) shots.push(n); }
       const done = (await a.ev('main', `JSON.stringify(await window.__TAURI_INTERNALS__.invoke('session_state'))`).then(JSON.parse).catch(() => ({}))).phase;
-      if (t > 15000 && ask2 && t > ask2.t + 12_000 && done === 'recording' && samples.length > 50) {
+      if (t > 15000 && (o.noMic || (ask2 && t > ask2.t + 12_000)) && done === 'recording' && samples.length > 50) {
         // keep going until both files have been played (about 60-70 s of audio)
         const evn = await a.ev('main', 'window.__ev.length').catch(() => 1);
-        if (t > 75_000 && evn > 0) break;
+        if (t > (o.endMs ?? 75_000) && evn > 0) break;
       }
       await sleep(120);
     }
@@ -158,18 +163,20 @@ async function stageLive() {
     }
     await sleep(800);
     const w = JSON.parse(await a.cmd('win main'));
-    const hash = await a.ev('main', 'location.hash').catch(() => '?');
-    add({ name: 'stop (overlay button) ends the call and opens the main window on library home', ok: stopMs !== null && w.visible && (hash === '#/' || hash === ''), detail: `idle after ${stopMs} ms; main visible=${w.visible} hash=${hash}` });
+    let hash = await a.ev('main', 'location.hash').catch(() => '?');
+    let homeAfter = 800;
+    for (; hash !== '#/' && hash !== '' && homeAfter < 5000; homeAfter += 250) { await sleep(250); hash = await a.ev('main', 'location.hash').catch(() => '?'); }
+    add({ name: P + 'stop (overlay button) ends the call and opens the main window on library home', ok: stopMs !== null && w.visible && (hash === '#/' || hash === ''), detail: `idle after ${stopMs} ms; main visible=${w.visible} hash=${hash} (home reached ${homeAfter} ms after idle); session://ended events seen by the main webview: ${JSON.stringify(await a.ev('main', 'window.__ended').catch(() => null))}` });
 
     const events = await a.ev('main', 'window.__ev');
     const llm = await a.ev('main', 'window.__llm');
-    writeFileSync(join(out, 'live-events.json'), JSON.stringify({ events, llm, samples, ask1, ask2 }, null, 1));
+    writeFileSync(join(out, P + 'live-events.json'), JSON.stringify({ events, llm, samples, ask1, ask2, t0, timeOrigin: await a.ev('main', 'performance.timeOrigin').catch(() => null) }, null, 1));
 
     // ---- subtitles ----
     const subs = samples.filter((s) => s.sub);
     const distinct = new Set(subs.map((s) => s.sub)).size;
     const labels = new Set(subs.map((s) => (s.sub.match(/^(Я|Система|Me|System)/i) ?? [''])[0].toLowerCase()));
-    add({ name: 'live subtitles appear in the overlay as the file plays (both speakers)', ok: firstSub !== null && distinct > 20 && labels.has('система') && labels.has('я'), detail: `first subtitle after ${firstSub} ms; ${distinct} distinct lines; speakers ${[...labels].join('/')}`, shots });
+    add({ name: P + 'live subtitles appear in the overlay as the file plays (both speakers)', ok: firstSub !== null && distinct > 20 && labels.has('система') && (labels.has('я') || !!o.noMic), detail: `first subtitle after ${firstSub} ms; ${distinct} distinct lines; speakers ${[...labels].join('/')}`, shots });
 
     // ---- bus -> DOM delay (real WKWebView) ----
     const first = new Map();
@@ -179,12 +186,12 @@ async function stageLive() {
     // ---- journal ----
     const mds = findMd(a.vault);
     const md = mds.length ? readFileSync(mds[0], 'utf8') : '';
-    if (mds.length) copyFileSync(mds[0], join(out, 'live-call.md'));
+    if (mds.length) copyFileSync(mds[0], join(out, P + 'live-call.md'));
     const lines = md.split('\n');
     const tsLines = lines.filter((l) => /^\*{0,2}\[?\d{1,2}:\d{2}/.test(l) || /^- \*\*\d{2}:\d{2}/.test(l) || /\d{2}:\d{2}(:\d{2})?\]?\s*\*{0,2}(Я|Система)/.test(l));
     const meL = lines.filter((l) => /^\[\d\d:\d\d:\d\d\] \*\*(Я|Me):\*\*/.test(l)).length;
     const sysL = lines.filter((l) => /^\[\d\d:\d\d:\d\d\] \*\*(Система|System):\*\*/.test(l)).length;
-    add({ name: 'finals land in the call .md with timestamps and Я / Система speakers', ok: md.length > 500 && meL > 3 && sysL > 3, detail: `${mds.length} md; Я lines ${meL}, Система lines ${sysL}; sample: ${tsLines.slice(0, 2).join(' | ').slice(0, 160)}`, shots: [] });
+    add({ name: P + 'finals land in the call .md with timestamps and Я / Система speakers', ok: md.length > 500 && (meL > 3 || !!o.noMic) && sysL > 0, detail: `${mds.length} md; Я lines ${meL}, Система lines ${sysL}; sample: ${tsLines.slice(0, 2).join(' | ').slice(0, 160)}`, shots: [] });
 
     // ---- correction ----
     const byUtt = new Map();
@@ -198,7 +205,7 @@ async function stageLive() {
         if (md.includes(last.text.trim().slice(0, 30))) inMd++;
       }
     }
-    add({ name: 'background correction revises stored text (the .md carries the corrected version, not the live one)', ok: corrected.length > 3 && differs > 3 && inMd >= Math.floor(differs * 0.7), detail: `${byUtt.size} final utterances, ${corrected.length} re-emitted by Whisper, ${differs} changed, ${inMd} of them stored corrected in the .md` });
+    add({ name: P + 'background correction revises stored text (the .md carries the corrected version, not the live one)', ok: corrected.length > 3 && differs > 3 && inMd >= Math.floor(differs * 0.7), detail: `${byUtt.size} final utterances, ${corrected.length} re-emitted by Whisper, ${differs} changed, ${inMd} of them stored corrected in the .md` });
 
     // ---- ask on a partial ----
     const qa = llm.filter((e) => e.n === 'start');
@@ -206,17 +213,17 @@ async function stageLive() {
     const askMd = md;
     const qText = (askMd.match(/\*\*(?:Вопрос|Question):\*\* ([^\n]+)/) ?? [])[1] ?? '';
     const shownTxt = (ask1?.shown ?? '').replace(/^(СИСТЕМА|SYSTEM)/i, '').toLowerCase();
-    add({ name: 'Ask sent while the System utterance was still a partial: the question is that live text (snapshot_for_ask includes the partial)', ok: !!ask1 && qa.length >= 1 && qText.length > 0 && qText.toLowerCase().startsWith(shownTxt.slice(0, 3)), detail: `ask #1 at ${ask1?.tA} ms with on screen: "${(ask1?.shown ?? '').slice(0, 80)}"; question stored: "${qText.slice(0, 120)}"; qa blocks ${qline.length}` });
+    add({ name: P + 'Ask sent while the System utterance was still a partial: the question is that live text (snapshot_for_ask includes the partial)', ok: !!ask1 && qa.length >= 1 && qText.length > 0 && qText.toLowerCase().startsWith(shownTxt.slice(0, 3)), detail: `ask #1 at ${ask1?.tA} ms with on screen: "${(ask1?.shown ?? '').slice(0, 80)}"; question stored: "${qText.slice(0, 120)}"; qa blocks ${qline.length}` });
 
     // ---- my answer ----
-    add({ name: '«Мой ответ» keeps collecting until the NEXT Ask (not closed by time or System speech)', ok: !!ask1 && !!ask2 && monotonic && grew && (ask2.myBefore ?? '').length > 0 && (ask2.myAfter ?? '').length < (ask2.myBefore ?? '').length, detail: `between asks: ${lens.length} samples, length ${lens[0]} -> ${lens.at(-1)}, never shrank=${monotonic}; at ask #2 ${ask2?.myBefore?.length} chars -> new link ${ask2?.myAfter?.length} chars` });
+    add({ name: P + '«Мой ответ» keeps collecting until the NEXT Ask (not closed by time or System speech)', ok: !!o.noMic || !!ask1 && !!ask2 && monotonic && (grew || !!o.audible) && (ask2.myBefore ?? '').length > 0 && (ask2.myAfter ?? '').length < (ask2.myBefore ?? '').length, detail: `between asks: ${lens.length} samples, length ${lens[0]} -> ${lens.at(-1)}, never shrank=${monotonic}; at ask #2 ${ask2?.myBefore?.length} chars -> new link ${ask2?.myAfter?.length} chars` });
     const hasMy = /Мой ответ|My answer|my-answer|lowk-my/i.test(md);
-    add({ name: 'closed «Мой ответ» is saved in the .md', ok: hasMy, detail: hasMy ? 'present' : 'missing in md' });
+    add({ name: P + 'closed «Мой ответ» is saved in the .md', ok: hasMy || !!o.noMic, detail: o.noMic ? 'SKIPPED (no mic speech: speaker output is muted, the mic hears nothing)' : hasMy ? 'present' : 'missing in md' });
 
     // ---- the live page in the main window ----
-    return { md, events };
+    return { md, events, t0, samples, ask1, ask2, llm, timeOrigin: await a.ev('main', 'performance.timeOrigin').catch(() => null) };
   } finally {
-    writeFileSync(join(out, 'live-checks.partial.json'), JSON.stringify(log));
+    writeFileSync(join(out, P + 'live-checks.partial.json'), JSON.stringify(log));
     await a.kill();
   }
 }
@@ -380,6 +387,152 @@ async function stageWarmup() {
   } finally { await a.kill(); }
 }
 
+// ---------------------------------------------------------------------------------------------
+// AUDIBLE stages (real capture, real sound through the speakers; opt-in: --stage audible-app,audible-system).
+// The system volume is never touched. The display must be awake (a sleeping display gives AudioQueueStart -66681).
+//   audible-app    : the "call" is an afplay process playing the them recordings; a second afplay (the owner's own voice,
+//                    02_me) plays through the speakers and reaches the real microphone. Source = that one process (per-app tap).
+//   audible-system : whole-system tap; the app itself plays a DIFFERENT clip in its own webview (must be excluded).
+const wavOf = (src, dst) => spawnSync('afconvert', ['-f', 'WAVE', '-d', 'LEI16@16000', '-c', '1', src, dst]).status === 0;
+function readWav(f) { // 16 kHz mono LE16 -> Float32Array
+  const b = readFileSync(f); let o = 12;
+  while (o < b.length - 8) { const id = b.toString('ascii', o, o + 4), n = b.readUInt32LE(o + 4); if (id === 'data') { const d = b.subarray(o + 8, o + 8 + n); const x = new Float32Array(d.length >> 1); for (let i = 0; i < x.length; i++) x[i] = d.readInt16LE(i * 2) / 32768; return x; } o += 8 + n + (n & 1); }
+  throw new Error('no data chunk');
+}
+function writeWav(f, x) {
+  const d = Buffer.alloc(x.length * 2); for (let i = 0; i < x.length; i++) d.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(x[i] * 32767))), i * 2);
+  const h = Buffer.alloc(44); h.write('RIFF', 0); h.writeUInt32LE(36 + d.length, 4); h.write('WAVEfmt ', 8); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(16000, 24); h.writeUInt32LE(32000, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write('data', 36); h.writeUInt32LE(d.length, 40);
+  writeFileSync(f, Buffer.concat([h, d]));
+}
+/** Concatenates clips with a lead-in and gaps. Returns the file, the reference text and the speech end of every utterance (s from file start). */
+function buildClip(dir, name, clips, leadS = 4, gapS = 2) {
+  const parts = [new Float32Array(16000 * leadS)]; const ends = []; let t = leadS; const refs = [];
+  for (const c of clips) {
+    const w = join(dir, `${c}.wav`); wavOf(join(audio, `${c}.m4a`), w);
+    const x = readWav(w); refs.push(readFileSync(join(audio, `${c}.txt`), 'utf8').trim());
+    const base = t; parts.push(x); t += x.length / 16000;
+    let last = -1, quiet = 0; // an utterance ends after >= 300 ms of silence following speech (20 ms rms frames)
+    for (let i = 0; i + 320 <= x.length; i += 320) {
+      let e = 0; for (let k = 0; k < 320; k++) e += x[i + k] * x[i + k];
+      if (Math.sqrt(e / 320) > 0.01) { last = i / 16000; quiet = 0; } else if (last >= 0 && ++quiet === 15) { ends.push(base + last + 0.02); last = -1; }
+    }
+    if (last >= 0) ends.push(base + last + 0.02);
+    parts.push(new Float32Array(16000 * gapS)); t += gapS;
+  }
+  const all = new Float32Array(parts.reduce((n, p) => n + p.length, 0)); let o = 0; for (const p of parts) { all.set(p, o); o += p.length; }
+  const f = join(dir, name); writeWav(f, all);
+  return { file: f, ref: refs.join(' '), ends, dur: all.length / 16000 };
+}
+const normW = (s) => s.toLowerCase().replace(/ё/g, 'е').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ').filter(Boolean);
+const lev = (a, b) => {
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) { const cur = [i]; for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; }
+  return prev[b.length];
+};
+const cer = (hyp, ref) => { const h = normW(hyp).join(' '), r = normW(ref).join(' '); return lev(h, r) / Math.max(1, r.length); };
+const wer = (hyp, ref) => { const h = normW(hyp), r = normW(ref); return lev(h, r) / Math.max(1, r.length); };
+const bigrams = (w) => new Set(w.slice(0, -1).map((x, i) => x + ' ' + w[i + 1]));
+const mdLines = (md, who) => md.split('\n').map((l) => l.match(new RegExp(`^\\[(\\d\\d):(\\d\\d):(\\d\\d)\\] \\*\\*(?:${who}):\\*\\* (.*)$`))).filter(Boolean).map((m) => ({ t: +m[1] * 3600 + +m[2] * 60 + +m[3], text: m[4] }));
+const players = [];
+const play = (file) => { const p = spawn('afplay', ['-v', '1', file], { stdio: 'ignore' }); players.push(p); return p; };
+const stopPlayers = () => { for (const p of players.splice(0)) try { p.kill('SIGKILL'); } catch {} };
+
+/** Plays a wav inside the app's own webview (WebAudio): proves our own sounds stay out of the System stream. */
+async function webviewPlay(a, wavFile) {
+  const b64 = readFileSync(wavFile).toString('base64');
+  await a.ev('main', 'window.__w=""');
+  for (let i = 0; i < b64.length; i += 200_000) await a.ev('main', `(window.__w+=${JSON.stringify(b64.slice(i, i + 200_000))},1)`);
+  return a.ev('main', `(async()=>{const u=Uint8Array.from(atob(window.__w),c=>c.charCodeAt(0));const ctx=new AudioContext();await ctx.resume();const buf=await ctx.decodeAudioData(u.buffer.slice(0));const s=ctx.createBufferSource();s.buffer=buf;s.connect(ctx.destination);s.start();window.__ctx=ctx;return ctx.state+' '+buf.duration.toFixed(1)+'s'})()`);
+}
+
+function audibleMetrics(tag, md, ref, ends, playAt, evs, timeOrigin) {
+  const sys = mdLines(md, 'Система|System'), me = mdLines(md, 'Я|Me');
+  const sysText = sys.map((x) => x.text).join(' ');
+  const m = { tag, sysLines: sys.length, meLines: me.length, sysCER: cer(sysText, ref), sysWER: wer(sysText, ref) };
+  const sysEv = evs.filter(({ p }) => p.stream === 'system').map(({ t, p }) => ({ at: timeOrigin + t, p })).sort((x, y) => x.at - y.at);
+  const lagTo = (list) => ends.map((e) => { const spoken = playAt + e * 1000; const hit = list.find((x) => x.at >= spoken - 150); return hit ? hit.at - spoken : null; }).filter((x) => x !== null);
+  const lp = lagTo(sysEv), lf = lagTo(sysEv.filter((x) => x.p.kind === 'final'));
+  const emit = sysEv.map(({ p }) => (p.t_emit_ns - p.t_audio_end_ns) / 1e6).filter((x) => x >= 0 && x < 5000);
+  m.endOfSpeechToAnyText = { n: lp.length, p50: pct(lp, 0.5), p95: pct(lp, 0.95) };
+  m.endOfSpeechToFinal = { n: lf.length, p50: pct(lf, 0.5), p95: pct(lf, 0.95) };
+  m.audioToEmit = { n: emit.length, p50: pct(emit, 0.5), p95: pct(emit, 0.95) };
+  m.me = me;
+  return m;
+}
+
+async function stageAudibleApp() {
+  const dir = mkdtempSync(join(tmpdir(), 'lowk-audible-'));
+  const them = buildClip(dir, 'call.wav', ['02_them_q', '03_them_q']);
+  const mine = buildClip(dir, 'mine.wav', ['02_me_q'], 9, 0);
+  let playAt = 0, callProc;
+  try {
+    const r = await stageLive({
+      audible: true, noMic: process.env.LOWK_AUDIBLE_NO_MIC === '1', prefix: 'audible-app-', endMs: process.env.LOWK_AUDIBLE_NO_MIC === '1' ? 62_000 : 78_000,
+      beforeRecord: async (a) => {
+        callProc = play(them.file);
+        await sleep(600);
+        const patch = JSON.stringify({ audio: { default_source: { kind: 'app', id: String(callProc.pid) } } });
+        const sr = await a.ev('main', `JSON.stringify(await window.__TAURI_INTERNALS__.invoke('settings_patch',{patch:${patch}}).then(s=>s.audio.default_source))`);
+        add({ name: 'audible-app: source = the afplay "call" process only', ok: /app/.test(sr), detail: sr });
+        play(mine.file); // the owner's voice: reaches the real mic through the speakers
+        playAt = Date.now() - 600;
+      },
+    });
+    const m = audibleMetrics('app', r.md, them.ref, them.ends, playAt, r.events, r.timeOrigin);
+    const sysBi = bigrams(normW(mdLines(r.md, 'Система|System').map((x) => x.text).join(' ')));
+    const ownRef = readFileSync(join(audio, '02_me_q.txt'), 'utf8'), meBi = bigrams(normW(ownRef));
+    let dupLines = 0; const per = [];
+    for (const l of m.me) { const b = bigrams(normW(l.text)); if (!b.size) continue; let inSys = 0, inMe = 0; for (const x of b) { if (sysBi.has(x)) inSys++; if (meBi.has(x)) inMe++; } per.push({ text: l.text.slice(0, 90), overlapWithSystemText: +(inSys / b.size).toFixed(2), overlapWithOwnVoiceRef: +(inMe / b.size).toFixed(2) }); if (inSys / b.size >= 0.4) dupLines++; }
+    const meText = m.me.map((x) => x.text).join(' ');
+    m.echo = { meLines: m.me.length, linesRepeatingSystem: dupLines, meCERvsOwnVoice: cer(meText, ownRef), meCERvsSystemRef: cer(meText, them.ref), per };
+    add({ name: 'audible-app: System transcript = ONLY the chosen app (CER/WER vs the them reference text)', ok: m.sysCER < 0.45 && m.sysLines >= 1, detail: `CER ${m.sysCER.toFixed(3)} WER ${m.sysWER.toFixed(3)} (${m.sysLines} lines)` });
+    let lk = 0; for (const x of sysBi) if (meBi.has(x)) lk++;
+    add({ name: 'audible-app: the other process (own-voice clip) does not reach System', ok: lk <= 2, detail: `${lk} bigrams of the own-voice clip found in System text (of ${sysBi.size})` });
+    add({ name: 'audible-app: real-capture latency (speech end -> text in the webview)', ok: m.endOfSpeechToAnyText.n > 3, detail: JSON.stringify({ toAnyText: m.endOfSpeechToAnyText, toFinal: m.endOfSpeechToFinal, audioToEmit: m.audioToEmit }) });
+    add({ name: 'audible-app: echo (System speech repeated as «Я») measured', ok: true, detail: `${dupLines}/${m.me.length} «Я» lines repeat System text (bigram overlap >= 40%); «Я» CER vs own-voice ref ${m.echo.meCERvsOwnVoice.toFixed(3)}, vs System ref ${m.echo.meCERvsSystemRef.toFixed(3)}` });
+    delete m.me;
+    writeFileSync(join(out, 'audible-app-metrics.json'), JSON.stringify(m, null, 1));
+  } finally { stopPlayers(); rmSync(dir, { recursive: true, force: true }); }
+}
+
+async function stageAudibleSystem() {
+  const dir = mkdtempSync(join(tmpdir(), 'lowk-audible-'));
+  const them = buildClip(dir, 'call.wav', ['02_them_q', '03_them_q']);
+  const own = join(dir, 'own.wav'); wavOf(join(audio, '04_them_q.m4a'), own);
+  const a = await launch({ env: { LOWK_STT_WORKER: worker }, settings: '[stt]\nengine = "nemotron-local"\nlanguages = ["ru", "en"]\nbackground_correction = false\n[audio]\ndefault_source = { kind = "whole_system" }\n' });
+  try {
+    await a.cmd('nav #/'); await sleep(1500); await a.cmd('exclusion off');
+    await a.ev('main', `(()=>{window.__ev=[];const T=window.__TAURI_INTERNALS__;const h=T.transformCallback(e=>window.__ev.push({t:performance.now(),p:e.payload}));return T.invoke('plugin:event|listen',{event:'stt://segment',target:{kind:'Any'},handler:h})})()`);
+    await a.cmd('bind toggle_record down'); await a.cmd('bind toggle_record up');
+    await sleep(1500);
+    const playAt = Date.now(); play(them.file);
+    const wv = await webviewPlay(a, own).catch((e) => `error ${e}`);
+    const wvAt = Date.now();
+    add({ name: 'audible-system: the app plays its OWN sound (a different clip, in its webview) during the whole-system capture', ok: /running/.test(String(wv)), detail: String(wv) });
+    await sleep(them.dur * 1000 + 4000 - (Date.now() - playAt));
+    const shot = await a.shot('overlay', 'audible-system-overlay.png');
+    await a.cmd('bind toggle_record down'); await a.cmd('bind toggle_record up');
+    await sleep(3000);
+    const mds = findMd(a.vault);
+    const md = mds.length ? readFileSync(mds[0], 'utf8') : '';
+    if (mds.length) copyFileSync(mds[0], join(out, 'audible-system-call.md'));
+    const events = await a.ev('main', 'window.__ev').catch(() => []);
+    const timeOrigin = await a.ev('main', 'performance.timeOrigin').catch(() => 0);
+    const m = audibleMetrics('system', md, them.ref, them.ends, playAt, events, timeOrigin);
+    const sysW = normW(mdLines(md, 'Система|System').map((x) => x.text).join(' '));
+    const ownRef = readFileSync(join(audio, '04_them_q.txt'), 'utf8');
+    const ownBi = bigrams(normW(ownRef)); let lk = 0; for (const x of bigrams(sysW)) if (ownBi.has(x)) lk++;
+    const refW = new Set(normW(them.ref));
+    const distinct = [...new Set(normW(ownRef))].filter((w) => w.length > 5 && !refW.has(w));
+    const hitW = distinct.filter((w) => sysW.includes(w));
+    add({ name: 'audible-system: whole-system capture contains the playing app clip (CER vs reference)', ok: m.sysCER < 0.5, detail: `CER ${m.sysCER.toFixed(3)} WER ${m.sysWER.toFixed(3)}, ${m.sysLines} System lines`, shots: shot ? [shot] : [] });
+    add({ name: 'audible-system: our own app sound is excluded (distinctive words of the webview clip never appear in System)', ok: hitW.length === 0 && lk <= 1, detail: `${hitW.length}/${distinct.length} distinctive words (${hitW.join(',')}) and ${lk} bigrams of the excluded clip found; webview clip started ${wvAt - playAt} ms after the call clip` });
+    m.exclusion = { distinctWords: distinct.length, leakedWords: hitW, leakedBigrams: lk };
+    delete m.me;
+    writeFileSync(join(out, 'audible-system-metrics.json'), JSON.stringify(m, null, 1));
+  } finally { stopPlayers(); await a.kill(); rmSync(dir, { recursive: true, force: true }); }
+}
+
 try {
   if (stages.includes('live')) await stageLive();
   if (stages.includes('noengine')) await stageNoEngine();
@@ -387,6 +540,8 @@ try {
   if (stages.includes('loading')) await stageLoading();
   if (stages.includes('bundle')) await stageBundle();
   if (stages.includes('warmup')) await stageWarmup();
+  if (stages.includes('audible-app')) await stageAudibleApp();
+  if (stages.includes('audible-system')) await stageAudibleSystem();
 } catch (e) {
   add({ name: 'm1-e2e harness error', ok: false, detail: String(e?.stack ?? e).slice(0, 400) });
 }

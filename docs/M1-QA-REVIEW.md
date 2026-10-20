@@ -55,8 +55,8 @@ Also found and fixed: live page duplicated lines when correction re-emitted an u
 * LOW: `just ci-cross`/Windows runtime still untested.
 
 ## 6. Owner should try by hand
-1. **Audible, deferred:** per-app isolation with two sounds (call app + YouTube): only the call app appears in System.
-2. **Audible, deferred:** a real call in Discord/Zoom: subtitles, ⌘↵ mid-question, answering aloud, «Мой ответ», stop.
+1. ~~Audible: per-app isolation~~ done, see «Тесты со звуком» (still worth a try with real YouTube + Discord).
+2. Audible: a real call in Discord/Zoom with a headset and with speakers (echo, see big item below).
 3. Settings > Providers: download the model on a fresh profile; kill Wi-Fi mid-download and retry.
 4. ⌘⇧I typing in the overlay; ⌘⇧S screenshot with a real second display.
 5. First Record right after a reboot: watch for a delayed start.
@@ -64,3 +64,33 @@ Also found and fixed: live page duplicated lines when correction re-emitted an u
 ## M1 polish backlog
 - Engine install card shows 0.8 GB, but with Whisper correction the total download is ~1.4 GB — show the real total (or list both models).
 - Memory-pressure skip for warm-up exists on macOS only.
+
+## Тесты со звуком
+
+Owner allowed sound. Setup: MacBook Air M4, built-in speakers + mic, volume left as the owner had it (19 %, unmuted for the final runs; the first runs happened with output muted, which the per-app/system taps do not care about but the mic does). Tools: `tools/audio/isolation.sh`, `tools/qa/m1-e2e.mjs --stage audible-app,audible-system` (new, opt-in), `capture` + `stt_replay`. Evidence: `docs/qa/m1/audible-*`.
+
+Environment gotcha: with the **display asleep** (nobody at the Mac) `afplay` fails with `AudioQueueStart failed (-66681)`. `caffeinate -d -u` wakes it; the audible harness needs an awake display.
+
+### 1. Per-app isolation: PASS
+* `isolation.sh`: app=440 player 0.300 / 0.0001, app=880 player 0.0000 / 0.2999, whole system both 0.30, 440 stopped 0.0001 / 0.3000.
+* Realistic: afplay A = `02_them_q` (the call), afplay B = `03_them_q` (another conversation), same time. `--app A` transcript is only A (question about ARR / burn rate / runway, nothing of стендап / деплой / блокеры); `--system` has both. See `audible-isolation-transcripts.md`. Not done: Chrome/YouTube (no audio tab available, nothing logged into).
+
+### 2. Real app, source = one app (afplay), mic on, qa build: PASS 13/13 (`audible-app-*`)
+* Live subtitles in the overlay from 5.1 s after Record (4 s of silent lead-in in the clip), both speakers; screenshots `audible-app-live-subtitle.png`, `-after-ask2.png`.
+* Finals in the call .md with correct «Система» lines: **CER 0.150 / WER 0.203** vs the reference text (after Whisper correction), `audible-app-live-call.md`. The own-voice clip played by a second process (reaches the real mic only) contributes 0 bigrams to System.
+* Latency from real capture (17 utterance ends): speech end → first text on screen **p50 106 ms / p95 441 ms**; speech end → final **p50 836 / p95 1846 ms**; newest audio sample → emitted text p50 43 ms (p95 ~1.4 s: whole-utterance re-emits). Unlike the file replay these include real capture (ring + resampler 7 ms) but the estimator is exact (utterance ends found from the wav).
+* ⌘↵ mid-question: question stored = the live partial («...Какую у вас сейчас AR»), PASS; «Мой ответ» collects from the real mic and resets on the next Ask, saved in the .md; stop → idle 335 ms → main window on home.
+* `audible-system-*` (whole system, 3 clean runs): CER 0.20-0.23, WER 0.30-0.38.
+
+### 3. Whole-system mode: PASS after a fix
+The app played a different clip (`04_them_q`) inside its own webview (WebAudio) during the capture. **Before the fix it leaked into System** (18/25 distinctive words, 26 bigrams). Cause: `own_tree_objs` only excludes processes whose *responsible pid* is us; a binary started from a terminal/harness (`just dev`, QA) is not the responsible process of its WebKit helpers (checked: both resolve to the launching host), so the helpers were captured. Fixed in `crates/lowk-audio/src/mac/procs.rs`: when we are not our own responsible process, the WebKit XPC helpers of the same host started after us are excluded too. After: 0/25 words, 0 bigrams, 4 of 4 runs. A Finder/launchd-started bundle was not affected (it is responsible for its helpers); not testable by the harness.
+
+### 4. Echo (speakers + mic): BIG, open
+With the call coming out of the built-in speakers at 19 % volume, System audio **does come back as «Я»**: 1 of 4 «Я» lines is a complete copy of the first System sentence (`Спасибо, что нашел время... ARR?`), two more «Я» lines carry System fragments («4 месяца это мало», «вчерашний диплом откатывали», «нужна помощь с API для мобильного клиента») mixed into the owner's real answer. `aec: auto` does not remove it enough on this Mac. Effect: duplicated text in the journal and in the LLM context, and the owner's answer polluted with the interviewer's words. With headphones there is no echo. Suggest: check the AEC reference path (is the tapped per-app stream the AEC far-end?), and as a mitigation drop a «Я» final whose words are mostly contained in a System final from the last ~3 s. Own-voice CER on «Я» is 0.55-0.67 (echo + room + the 02_me clip played at low volume), so «Я» quality here is not a model number.
+
+### Small defects fixed
+* Main window stayed on the previous route after Stop in 3 of 5 early audible runs (home reached only after the idle poll): `library.reload()` failing made `router.go(home)` never run. Now home is opened even if the reload fails (`ui/src/main/state.svelte.ts`). After the fix 1 of 9 runs still showed it once (not reproduced in the last 8); the harness now records the `session://ended` events to catch it.
+* Whole-system CER dropped to 0.55 in one run when the owner changed volume/mute mid-run (the second clip is missing from the .md): capture of the whole-system tap seems to stall after an output device property change. Not reproduced in 5 later runs, not investigated.
+
+### Not covered
+* Discord/Zoom/YouTube real apps; headset case; a second run of the echo measurement with different volumes.
