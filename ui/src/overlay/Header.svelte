@@ -36,7 +36,7 @@
   {#if store.phase === 'recording' || store.phase === 'paused'}
     <!-- F8: one click, no confirmation. Click-through in passive mode; the record bind keeps working. -->
     <button class="stop" data-blk type="button" title={ot('overlay.action.stop', lang)} aria-label={ot('overlay.action.stop', lang)} onclick={() => source.stopRecording?.()}>
-      <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" rx="1.5" fill="currentColor" /></svg>
+      <svg width="10" height="10" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" rx="1.5" fill="currentColor" /></svg>
     </button>
   {/if}
   <span class="div"></span>

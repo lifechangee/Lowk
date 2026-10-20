@@ -95,7 +95,7 @@ try {
   if (m0.ok) mainShots.push('main-home.png');
   const issues = await lint({ root: 'body' });
   const f2 = issues.filter((i) => i.rule === 'flex-gap' && /button\.btn > span\.lbl/.test(i.sel));
-  add({ name: 'F2 header button spacing (real WKWebView)', fid: 'F2', ok: f2.length === 0, detail: [...new Set(f2.map((i) => i.msg))].join('; ') || 'dot/label/kbd spaced', shots: mainShots });
+  add({ name: 'F2 header button spacing (real WKWebView)', ok: f2.length === 0, detail: [...new Set(f2.map((i) => i.msg))].join('; ') || 'dot/label/kbd spaced', shots: mainShots });
   lintCheck('Main home: layout lint in the real webview', issues.filter((i) => !f2.includes(i)), 'home', mainShots);
 
   for (const page of ['general', 'hotkeys', 'appearance', 'providers', 'storage', 'permissions']) {
@@ -110,7 +110,7 @@ try {
   await sleep(700);
   const o = await shot('main', 'main-onboarding-0.png');
   const rect = await ev('main', `(()=>{const r=document.querySelector('.win').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight}})()`);
-  add({ name: 'F1 onboarding fills the window (real webview)', fid: 'F1', ok: rect.x === 0 && rect.y === 0 && rect.w === rect.vw && rect.h === rect.vh, detail: `card ${rect.w}x${rect.h} at ${rect.x},${rect.y} in ${rect.vw}x${rect.vh}`, shots: o.ok ? [o.name] : [] });
+  add({ name: 'F1 onboarding fills the window (real webview)', ok: rect.x === 0 && rect.y === 0 && rect.w === rect.vw && rect.h === rect.vh, detail: `card ${rect.w}x${rect.h} at ${rect.x},${rect.y} in ${rect.vw}x${rect.vh}`, shots: o.ok ? [o.name] : [] });
   await cmd('nav #/');
   await sleep(500);
 
@@ -147,13 +147,13 @@ try {
   add({ name: 'Overlay text size follows overlay.font_px (live)', ok: f1 > f0, detail: `font ${f0}px -> ${f1}px after font_px 14 -> 18` });
 
   const m0f = await ev('main', `parseFloat(getComputedStyle(document.body).fontSize)`);
-  const mt0 = await ev('main', `parseFloat(getComputedStyle(document.querySelector('.content h1, .content h2, .content')).fontSize)`);
+  const mt0 = await ev('main', `document.querySelector('h1').getBoundingClientRect().height`);
   await cmd('font 18');
   await sleep(700);
   const m1f = await ev('main', `parseFloat(getComputedStyle(document.body).fontSize)`);
-  const mt1 = await ev('main', `parseFloat(getComputedStyle(document.querySelector('.content h1, .content h2, .content')).fontSize)`);
+  const mt1 = await ev('main', `document.querySelector('h1').getBoundingClientRect().height`);
   await cmd('font 14');
-  add({ name: 'F6 main window text size follows ui.font_px (live)', fid: 'F6', ok: m1f > m0f || mt1 > mt0, detail: `body ${m0f}px -> ${m1f}px, content ${mt0}px -> ${mt1}px after font_px 14 -> 18` });
+  add({ name: 'F6 main window text size follows ui.font_px (live)', ok: m1f > m0f || mt1 > mt0 * 1.15, detail: `body ${m0f}px -> ${m1f}px, content ${mt0}px -> ${mt1}px after font_px 14 -> 18` });
 
   // opacity states
   const opShots = [];
@@ -180,6 +180,19 @@ try {
   try { s = JSON.parse(so); } catch {}
   const f4ok = s.ok === true && s.presenceHz >= 30 && s.absentSamples === 0;
   add({ name: 'F4 overlay never disappears during 20 Interactive/Passive switches (>=30 Hz sampler, 0 absent)', ok: f4ok, detail: s.presenceHz === undefined ? `sampler failed: ${s.error ?? so}` : `${Math.round(s.presenceHz)} Hz presence, ${s.absentSamples} absent samples${s.absentRuns?.length ? ' (' + s.absentRuns.map((r) => `${(r.from).toFixed(2)}-${r.to.toFixed(2)}s`).join(', ') + ')' : ''}; stream ${s.frames} frames, ${s.blankFrames} blank`, shots: existsSync(join(out, 'f4-sample-last.png')) ? ['f4-sample-last.png'] : [] });
+
+  // F8: stop button in the overlay header -> recording ends -> main window on library home
+  await cmd('demo-start');
+  await sleep(1500);
+  await cmd('nav #/settings/general');
+  await sleep(500);
+  await cmd('main-hide');
+  await sleep(300);
+  const clicked = await ev('overlay', `(()=>{const b=document.querySelector('button.stop');if(!b)return false;b.click();return true})()`);
+  await sleep(2000);
+  const w = JSON.parse(await cmd('win main'));
+  const hash = await ev('main', 'location.hash').catch(() => '?');
+  add({ name: 'F8 overlay stop button ends the recording and opens main on library home (real app)', ok: clicked === true && w.exists && w.visible && (hash === '#/' || hash === ''), detail: `clicked=${clicked} main visible=${w.visible} hash=${hash}` });
 } catch (e) {
   add({ name: 'real-app QA run', ok: false, detail: String(e.message ?? e) });
 } finally {
