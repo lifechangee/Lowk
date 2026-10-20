@@ -10,9 +10,18 @@ publish = false
 [dependencies]
 lowk-types.workspace = true
 tracing.workspace = true
+png.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 screencapturekit = { workspace = true, features = ["macos_14_0"] }
+
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_WindowsAndMessaging",
+] }
 
 [lints]
 workspace = true

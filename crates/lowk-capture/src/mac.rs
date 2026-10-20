@@ -99,3 +99,36 @@ impl ScreenGrab for SckGrab {
         grab(rect, None, false)
     }
 }
+
+/// G7: every display, our own windows (main, overlay, pill) excluded explicitly by `grab`.
+/// The long edge is capped at `max_edge` pixels (never upscaled).
+pub fn capture_displays(max_edge: u32) -> Result<Vec<crate::DisplayShot>> {
+    let content = SCShareableContent::get().map_err(|e| fail("shareable content", e))?;
+    let frames: Vec<Rect> = content
+        .displays()
+        .iter()
+        .map(|d| {
+            let f = d.frame();
+            Rect {
+                x: f.origin.x,
+                y: f.origin.y,
+                w: f.size.width,
+                h: f.size.height,
+            }
+        })
+        .collect();
+    let mut out = Vec::with_capacity(frames.len());
+    for r in frames {
+        let long = r.w.max(r.h).max(1.0);
+        let k = (f64::from(max_edge) / long).min(1.0);
+        let (w, h) = (((r.w * k) as u32).max(1), ((r.h * k) as u32).max(1));
+        let (rgba, w, h) = grab(r, Some((w, h)), true)?;
+        out.push(crate::DisplayShot {
+            primary: r.x == 0.0 && r.y == 0.0,
+            rgba,
+            width: w,
+            height: h,
+        });
+    }
+    Ok(out)
+}

@@ -59,6 +59,8 @@ pub struct AppState {
     pub template: Mutex<String>,
     /// The user hid the overlay by hand (ToggleOverlay) during this recording.
     pub overlay_user_hidden: AtomicBool,
+    /// G7: screenshots waiting for the next Ask (in memory only).
+    pub shots: Mutex<Vec<lowk_capture::CapturedShot>>,
     watcher_stop: Mutex<Option<Arc<AtomicBool>>>,
 }
 
@@ -87,6 +89,7 @@ impl AppState {
             drag_origin: Mutex::new(None),
             template: Mutex::new(template),
             overlay_user_hidden: AtomicBool::new(false),
+            shots: Mutex::new(vec![]),
             watcher_stop: Mutex::new(None),
         }
     }

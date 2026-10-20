@@ -145,15 +145,3 @@ pub fn llm_set_template(st: State<'_, Shared>, id: String) -> Result<()> {
     *st.template.lock() = id;
     Ok(())
 }
-
-#[tauri::command(async)]
-#[specta::specta]
-pub fn capture_screenshot() -> Result<()> {
-    Err(AppError::not_implemented())
-}
-
-#[tauri::command(async)]
-#[specta::specta]
-pub fn queue_clear() -> Result<()> {
-    Ok(())
-}

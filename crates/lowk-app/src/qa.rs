@@ -165,6 +165,11 @@ fn run(st: &Shared, line: &str) -> String {
                 )
             }
         },
+        // G7: same path as the screenshot bind; replies with `[[w,h,png_bytes],..]` of the queue.
+        "screenshot" => match crate::commands::capture::capture_into_queue(st) {
+            Ok(_) => format!("{:?}", crate::commands::capture::queue_png_sizes(st)),
+            Err(e) => format!("error: {e}"),
+        },
         "opacity" => crate::probe::run(
             st,
             &format!("settings-patch {{\"overlay\":{{\"opacity\":{rest}}}}}"),

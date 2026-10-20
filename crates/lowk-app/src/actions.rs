@@ -50,14 +50,15 @@ fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
             ActionId::ToggleOverlay => crate::visibility::toggle(st)?,
             ActionId::PanicHide => st.stealth()?.controller.panic_hide(),
             ActionId::ToggleMain => crate::windows::open_main(&st.app),
+            // G7: every monitor into the queue. The region variant follows with M3.
             ActionId::Screenshot | ActionId::ScreenshotArea => {
-                // Screenshots arrive with lowk-capture in M3.
-                tracing::info!(action = ?ev.action, "screenshot bind: not implemented in M0");
+                crate::commands::capture::capture_into_queue(st).map(|_| ())?
             }
             ActionId::NextTemplate | ActionId::PrevTemplate => {
                 cycle_template(st, ev.action == ActionId::NextTemplate)
             }
-            ActionId::CancelAnswer | ActionId::ClearShots => {}
+            ActionId::ClearShots => crate::commands::capture::clear_queue(st),
+            ActionId::CancelAnswer => {}
         }
         Ok(())
     })();
