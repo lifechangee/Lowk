@@ -174,4 +174,5 @@ export function attachEvents(): void {
   void on(EVENTS.storeChanged, () => { clearTimeout(t); t = setTimeout(() => void library.reload(), 300); });
   void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; locale.setSetting((s.ui?.language ?? 'auto') as LangSetting); });
   void on<SessionState>(EVENTS.sessionState, (s) => session.sync(s));
+  void on<{ route?: string }>(EVENTS.sessionEnded, () => { void library.reload().then(() => { router.go(hrefs.home); }); });
 }

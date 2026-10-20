@@ -34,7 +34,7 @@
     appId = saved?.kind === 'app' && apps.some((a) => a.id === saved.id) ? saved.id : (apps[0]?.id ?? '');
     // F12: preselect what will really be stored. No app list (backend cannot enumerate yet) or an explicit
     // «whole system» choice -> whole system; otherwise the recommended single app.
-    captureMode = appId && saved?.kind !== 'whole_system' ? 'app' : 'system';
+    captureMode = appId && saved?.kind !== 'whole_system' && prefs.value.capture?.default_source !== 'whole_system' ? 'app' : 'system';
     perms.refresh();
   });
 
@@ -60,7 +60,7 @@
     if (step === 4) await prefs.patch({ stt: { engine: engineMode === 'local' ? 'whisper-large-v3-turbo' : 'soniox' } });
     if (step < TOTAL - 1) await go(step + 1);
   }
-  const persistCapture = () => prefs.patch({ audio: { default_source: captureMode === 'app' && appId ? { kind: 'app', id: appId } : { kind: 'whole_system' } } });
+  const persistCapture = () => prefs.patch({ capture: { default_source: captureMode === 'app' && appId ? 'one_app' : 'whole_system' }, audio: { default_source: captureMode === 'app' && appId ? { kind: 'app', id: appId } : { kind: 'whole_system' } } });
   async function skip() {
     if (step === 2) await persistCapture();
     skipped = new Set([...skipped, step]);

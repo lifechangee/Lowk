@@ -24,7 +24,7 @@
   onMount(async () => {
     apps = await api.audioApps();
     // F12: the onboarding choice (stored default) wins; nothing stored yet = the recommended single app.
-    source = resolveSource(prefs.value.audio?.default_source, apps);
+    source = resolveSource(prefs.value.audio?.default_source, apps, prefs.value.capture?.default_source);
   });
 
   const folderOptions = $derived([
