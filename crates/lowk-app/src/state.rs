@@ -65,6 +65,9 @@ pub struct AppState {
     pub template: Mutex<String>,
     /// The user hid the overlay by hand (ToggleOverlay) during this recording.
     pub overlay_user_hidden: AtomicBool,
+    /// Speech engines (local sidecar + cloud) and the running model download, if any.
+    pub engines: Arc<lowk_stt::EngineRegistry>,
+    pub install_cancel: Mutex<Option<Arc<AtomicBool>>>,
     /// G7: screenshots waiting for the next Ask (in memory only).
     pub shots: Mutex<Vec<lowk_capture::CapturedShot>>,
     watcher_stop: Mutex<Option<Arc<AtomicBool>>>,
@@ -78,6 +81,7 @@ impl AppState {
         session: Arc<Session>,
         input: InputManager,
         emitter: Arc<UiEmitter>,
+        engines: Arc<lowk_stt::EngineRegistry>,
     ) -> Self {
         let template = settings.get().llm.default_template;
         Self {
@@ -98,6 +102,8 @@ impl AppState {
             hover_gen: std::sync::atomic::AtomicU64::new(0),
             template: Mutex::new(template),
             overlay_user_hidden: AtomicBool::new(false),
+            engines,
+            install_cancel: Mutex::new(None),
             shots: Mutex::new(vec![]),
             watcher_stop: Mutex::new(None),
         }

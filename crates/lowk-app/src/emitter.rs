@@ -35,6 +35,7 @@ fn payload(ev: &AppEvent) -> Value {
         AppEvent::Level(e) => v(serde_json::to_value(e)),
         AppEvent::MyAnswer(e) => v(serde_json::to_value(e)),
         AppEvent::SttError(e) => v(serde_json::to_value(e)),
+        AppEvent::EngineProgress(e) => v(serde_json::to_value(e)),
     }
 }
 

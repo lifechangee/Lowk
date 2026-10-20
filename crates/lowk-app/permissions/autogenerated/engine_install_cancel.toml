@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-engine-install-cancel"
+description = "Enables the engine_install_cancel command without any pre-configured scope."
+commands.allow = ["engine_install_cancel"]
+
+[[permission]]
+identifier = "deny-engine-install-cancel"
+description = "Denies the engine_install_cancel command without any pre-configured scope."
+commands.deny = ["engine_install_cancel"]

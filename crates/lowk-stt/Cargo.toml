@@ -1,6 +1,6 @@
 [package]
 name = "lowk-stt"
-description = "Lowk: lowk-stt crate (M0 stub)"
+description = "Lowk speech-to-text: engine traits, sidecar host, cloud adapters, model manager, correction"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,19 @@ publish = false
 
 [dependencies]
 lowk-types.workspace = true
+lowk-platform.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+sha2 = "0.11"
+
+# HTTP(S) and WebSocket use rustls with the pure-Rust `graviola` crypto provider: no C
+# toolchain (so the Windows target cross-checks from any host), no openssl (banned).
+# Graviola covers x86_64 and aarch64 on macOS, Windows and Linux.
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
+rustls-graviola = "0.4"
+webpki-roots = "1"
+tungstenite = { version = "0.30", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
+ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots"] }
 
 [lints]
 workspace = true

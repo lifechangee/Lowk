@@ -2,7 +2,7 @@
 //! without Tauri, audio hardware, a vault or a network.
 use crate::replay::DemoPace;
 use lowk_audio::{AudioBackend, NoopAudioBackend};
-use lowk_stt::{EngineRegistry, FakeEngineFactory};
+use lowk_stt::{Corrector, EngineRegistry, FakeEngineFactory};
 use lowk_types::{
     CallEntry, CallId, CallMeta, ContextChunk, MainThread, NewCall, QaId, Result, Retriever, SettingsStore,
     TranscriptLine, Ulid,
@@ -130,6 +130,10 @@ pub struct SessionDeps {
     pub store: Arc<dyn CallStore>,
     pub audio: Arc<Mutex<dyn AudioBackend>>,
     pub stt: Arc<EngineRegistry>,
+    /// Background Whisper correction of finalized utterances (local engines); optional.
+    pub corrector: Option<Arc<dyn Corrector>>,
+    /// Engine used when `settings.stt.engine` is empty (the hardware check's pick).
+    pub default_engine: Option<String>,
     pub hints: Arc<dyn HintGenerator>,
     pub demo_pace: DemoPace,
     /// Write demo calls to the store too (off by default; tests turn it on).
@@ -153,6 +157,8 @@ impl SessionDeps {
             store: Arc::new(NullCallStore),
             audio: Arc::new(Mutex::new(NoopAudioBackend)),
             stt: Arc::new(reg),
+            corrector: None,
+            default_engine: None,
             hints: Arc::new(StubHints::default()),
             demo_pace: DemoPace::Realtime(1.0),
             record_demo: false,

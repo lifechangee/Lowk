@@ -24,6 +24,8 @@ pub enum AppEvent {
     MyAnswer(QaUpdate),
     /// An STT engine failed (isolated per stream).
     SttError(SttError),
+    /// Model download / verification progress.
+    EngineProgress(EngineProgress),
 }
 
 impl AppEvent {
@@ -47,6 +49,7 @@ impl AppEvent {
             AppEvent::Level(_) => AUDIO_LEVEL,
             AppEvent::MyAnswer(_) => QA_MY_ANSWER,
             AppEvent::SttError(_) => STT_ERROR,
+            AppEvent::EngineProgress(_) => ENGINE_PROGRESS,
         }
     }
 }

@@ -105,8 +105,25 @@ export const commands = {
 	sourceList: () => typedError<SourceInfo[], AppError>(__TAURI_INVOKE("source_list")),
 	/**  Installed apps (with icons), so a call app can be picked before it starts playing. */
 	sourceListInstalled: () => typedError<SourceInfo[], AppError>(__TAURI_INVOKE("source_list_installed")),
+	/**  Static descriptors of the registered engines. */
 	engineList: () => __TAURI_INVOKE<EngineDescriptor[]>("engine_list"),
+	/**
+	 *  Downloads an engine's models into app data (SHA-256 checked); progress arrives as
+	 *  `engine://progress`. Returns when the engine is ready or the download failed / was cancelled.
+	 */
 	engineInstall: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("engine_install", { id })),
+	/**  Engine picker rows: fitness for this machine, installed, recommended, needs a key. */
+	engineStatus: () => __TAURI_INVOKE<EngineInfo[]>("engine_status"),
+	engineInstallCancel: () => __TAURI_INVOKE<void>("engine_install_cancel"),
+	/**  Latency percentiles per stream (debug page). */
+	sttDiagnostics: () => __TAURI_INVOKE<{
+	engine: string,
+	lookahead_ms: number,
+	streams: StreamDiag[],
+	corrected: number,
+	correction_skipped: number,
+	correction_lag: Percentiles,
+} | null>("stt_diagnostics"),
 	/**  The scripted RU/EN demo call (also what the record bind plays in M0). */
 	demoStart: () => typedError<SessionState, AppError>(__TAURI_INVOKE("demo_start")),
 	llmAsk: (typedText: string | null) => typedError<Ulid, AppError>(__TAURI_INVOKE("llm_ask", { typedText })),
@@ -141,7 +158,9 @@ export type AppEvent = { type: "stt"; data: SttEvent } | { type: "session"; data
 /**  «Мой ответ» text grew or its link closed. */
 { type: "my_answer"; data: QaUpdate } | 
 /**  An STT engine failed (isolated per stream). */
-{ type: "stt_error"; data: SttError };
+{ type: "stt_error"; data: SttError } | 
+/**  Model download / verification progress. */
+{ type: "engine_progress"; data: EngineProgress };
 
 export type AskRequest = {
 	template_id: string,
@@ -294,9 +313,41 @@ export type EngineDescriptor = {
 	license: string,
 };
 
+/**
+ *  One row of the engine picker (`engine_status`): the static descriptor plus
+ *  what this machine can do with it right now.
+ */
+export type EngineInfo = {
+	descriptor: EngineDescriptor,
+	fitness: Fitness,
+	/**  All assets present in app data and checksum-verified (always true for cloud). */
+	installed: boolean,
+	/**  Picked by the hardware check for this machine. */
+	recommended: boolean,
+	/**  Needs a key in the OS keychain (cloud engines). */
+	needs_key: boolean,
+	/**  Link shown with the licence text before any download. */
+	license_url: string,
+};
+
 export type EngineKind = "local" | "cloud";
 
+/**  `engine://progress` payload (model downloads). */
+export type EngineProgress = {
+	engine: string,
+	/**  Asset being fetched (file name). */
+	file: string,
+	phase: InstallPhase,
+	done_bytes: number,
+	total_bytes: number,
+	/**  Set for `Failed` (machine-readable code in `AppError` form is not needed here). */
+	message: string | null,
+};
+
 export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index";
+
+/**  Static pre-filter result of `SttEngineFactory::fitness`. */
+export type Fitness = { kind: "recommended" } | { kind: "possible" } | { kind: "unsupported"; reason: string };
 
 export type FolderDetail = {
 	meta: FolderMeta,
@@ -369,6 +420,8 @@ export type ImportSummary = {
 	ids_reassigned: number,
 	folders_merged: number,
 };
+
+export type InstallPhase = "downloading" | "verifying" | "ready" | "failed";
 
 /**
  *  W3C `KeyboardEvent.code` name (`KeyS`, `Enter`, `Backslash`, ...): layout
@@ -495,6 +548,14 @@ export type OverlayVisibility =
  *  like the overlay; clicking it starts recording.
  */
 "pill";
+
+/**  Latency percentiles in milliseconds. */
+export type Percentiles = {
+	samples: number,
+	p50_ms: number,
+	p95_ms: number,
+	max_ms: number,
+};
 
 export type PermKind = "microphone" | "system_audio" | "screen_recording" | "input_monitoring" | "accessibility";
 
@@ -684,6 +745,21 @@ export type StoreChangeKind = "created" | "updated" | "moved" | "trashed" | "res
 /**  Audio stream identity. UI labels: «Я» / «Система». */
 export type Stream = "me" | "system";
 
+/**  Per-stream STT health for the debug page. */
+export type StreamDiag = {
+	stream: Stream,
+	/**
+	 *  Newest audio fed -> partial/final emitted by the engine (queue + compute),
+	 *  the part of word-to-screen the app controls. Algorithmic look-ahead of the
+	 *  model is on top (see `lookahead_ms` of `SttDiagnostics`).
+	 */
+	emit_lag: Percentiles,
+	/**  End of speech -> final emitted. */
+	final_lag: Percentiles,
+	backlog_ms: number,
+	restarts: number,
+};
+
 export type StreamingMode = "native" | "pseudo";
 
 export type SttBenchmark = {
@@ -691,6 +767,16 @@ export type SttBenchmark = {
 	rtf: number | null,
 	p95_final_ms: number,
 	app_version: string,
+};
+
+/**  `stt_diagnostics` payload. */
+export type SttDiagnostics = {
+	engine: string,
+	lookahead_ms: number,
+	streams: StreamDiag[],
+	corrected: number,
+	correction_skipped: number,
+	correction_lag: Percentiles,
 };
 
 /**  Engine failure surfaced through the sink (isolated per stream). */
@@ -726,6 +812,8 @@ export type SttSettings = {
 	hallucination_phrases?: string[],
 	/**  Cloud vendor when a cloud engine is selected (`soniox` | `deepgram`). */
 	cloud_vendor?: string,
+	/**  Re-transcribe finished utterances with Whisper in the background (local engines only). */
+	background_correction?: boolean,
 	/**  Cached hardware benchmark: (engine id, RTF). */
 	benchmark?: SttBenchmark | null,
 };

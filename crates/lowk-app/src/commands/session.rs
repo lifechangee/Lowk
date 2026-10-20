@@ -5,10 +5,13 @@ use lowk_types::*;
 use std::sync::Arc;
 use tauri::State;
 
-/// M0 has no audio capture yet (`lowk-audio` is a trait + no-op backend), so
-/// every session runs the scripted demo feed. M1 drops this.
-fn effective(mut o: StartOpts) -> StartOpts {
-    o.demo = true;
+/// A call is real when an engine is ready (assets installed / key present); otherwise the
+/// scripted demo runs, so the app stays usable before onboarding installs an engine.
+/// `LOWK_DEMO=1` forces the demo (QA, screenshots).
+fn effective(st: &AppState, mut o: StartOpts) -> StartOpts {
+    if std::env::var_os("LOWK_DEMO").is_some() || !st.engine_ready() {
+        o.demo = true;
+    }
     o
 }
 
@@ -16,7 +19,8 @@ fn start(st: &AppState, o: StartOpts) -> Result<SessionState> {
     if st.vault.read().is_none() {
         st.open_vault(None)?;
     }
-    st.session.start(effective(o))?;
+    let o = effective(st, o);
+    st.session.start(o)?;
     Ok(st.session.state())
 }
 
@@ -29,7 +33,7 @@ pub fn toggle_record(st: &Arc<AppState>) -> Result<()> {
                 folder: None,
                 system: None,
                 mic: None,
-                demo: true,
+                demo: false,
             },
         )
         .map(|_| ()),
@@ -115,20 +119,42 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T> + Send + 'sta
         .map_err(|e| AppError::new(ErrorCode::Unknown).with_detail(e.to_string()))?
 }
 
+/// Static descriptors of the registered engines.
 #[tauri::command(async)]
 #[specta::specta]
 pub fn engine_list(st: State<'_, Shared>) -> Vec<EngineDescriptor> {
-    let _ = &st;
-    let mut reg = lowk_stt::EngineRegistry::default();
-    reg.register(Box::new(lowk_stt::FakeEngineFactory));
-    reg.available()
+    st.engines.available()
+}
+
+/// Engine picker rows: fitness for this machine, installed, recommended, needs a key.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn engine_status(st: State<'_, Shared>) -> Vec<EngineInfo> {
+    st.engines.infos(
+        &lowk_platform::hw::probe_report(),
+        &st.settings.get().stt.cloud_vendor,
+    )
+}
+
+/// Downloads an engine's models into app data (SHA-256 checked); progress arrives as
+/// `engine://progress`. Returns when the engine is ready or the download failed / was cancelled.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn engine_install(st: State<'_, Shared>, id: String) -> Result<()> {
+    st.install_engine(&id)
 }
 
 #[tauri::command(async)]
 #[specta::specta]
-pub fn engine_install(id: String) -> Result<()> {
-    let _ = id;
-    Err(AppError::not_implemented())
+pub fn engine_install_cancel(st: State<'_, Shared>) {
+    st.cancel_install();
+}
+
+/// Latency percentiles per stream (debug page).
+#[tauri::command(async)]
+#[specta::specta]
+pub fn stt_diagnostics(st: State<'_, Shared>) -> Option<SttDiagnostics> {
+    st.session.stt_diagnostics()
 }
 
 // ---- overlay entry points (LLM / screenshots are M3) ------------------------

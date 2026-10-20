@@ -8,6 +8,7 @@ mod capture;
 mod combo;
 mod commands;
 mod emitter;
+mod engines;
 mod mainthread;
 #[cfg(any(debug_assertions, feature = "qa"))]
 mod probe;

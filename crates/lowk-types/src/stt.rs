@@ -155,3 +155,75 @@ pub struct Frame16k {
     pub t_mono_ns: MonoNs,
     pub pcm: Vec<f32>,
 }
+
+/// One row of the engine picker (`engine_status`): the static descriptor plus
+/// what this machine can do with it right now.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct EngineInfo {
+    pub descriptor: EngineDescriptor,
+    pub fitness: Fitness,
+    /// All assets present in app data and checksum-verified (always true for cloud).
+    pub installed: bool,
+    /// Picked by the hardware check for this machine.
+    pub recommended: bool,
+    /// Needs a key in the OS keychain (cloud engines).
+    pub needs_key: bool,
+    /// Link shown with the licence text before any download.
+    pub license_url: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum InstallPhase {
+    Downloading,
+    Verifying,
+    Ready,
+    Failed,
+}
+
+/// `engine://progress` payload (model downloads).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct EngineProgress {
+    pub engine: String,
+    /// Asset being fetched (file name).
+    pub file: String,
+    pub phase: InstallPhase,
+    pub done_bytes: u64,
+    pub total_bytes: u64,
+    /// Set for `Failed` (machine-readable code in `AppError` form is not needed here).
+    pub message: Option<String>,
+}
+
+/// Latency percentiles in milliseconds.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Percentiles {
+    pub samples: u32,
+    pub p50_ms: u32,
+    pub p95_ms: u32,
+    pub max_ms: u32,
+}
+
+/// Per-stream STT health for the debug page.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct StreamDiag {
+    pub stream: Stream,
+    /// Newest audio fed -> partial/final emitted by the engine (queue + compute),
+    /// the part of word-to-screen the app controls. Algorithmic look-ahead of the
+    /// model is on top (see `lookahead_ms` of `SttDiagnostics`).
+    pub emit_lag: Percentiles,
+    /// End of speech -> final emitted.
+    pub final_lag: Percentiles,
+    pub backlog_ms: u32,
+    pub restarts: u32,
+}
+
+/// `stt_diagnostics` payload.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct SttDiagnostics {
+    pub engine: String,
+    pub lookahead_ms: u32,
+    pub streams: Vec<StreamDiag>,
+    pub corrected: u32,
+    pub correction_skipped: u32,
+    pub correction_lag: Percentiles,
+}
