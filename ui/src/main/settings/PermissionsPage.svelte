@@ -41,6 +41,6 @@
   .t b { display: block; font-weight: 600; }
   small { display: block; color: var(--tx2); font-size: 12px; }
   .pill { display: inline-flex; align-items: center; gap: var(--s1); font-size: 12px; height: 20px; padding: 0 var(--s2); border-radius: 99px; background: var(--acbg); color: var(--ac); font-weight: 600; max-width: 40%; }
-  .state { font-size: 12px; color: var(--tx3); max-width: 96px; }
+  .state { font-size: 12px; color: var(--tx3); flex: none; max-width: none; overflow: visible; }
   .note { color: var(--tx3); font-size: 12px; margin-top: var(--s3); }
 </style>

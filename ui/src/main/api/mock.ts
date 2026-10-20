@@ -47,8 +47,8 @@ export class MockBackend implements Backend {
       ui: { language: 'auto', font_px: 14 },
       onboarding: { step: 0, done: !fresh, recording_notice_ack: !fresh },
       vault: { path: '~/Documents/Lowk', unsorted_dir: 'Unsorted', trash_dir: 'Trash' },
-      // ?src=system seeds the real app's default (whole system) for the QA suite.
-      audio: { default_source: typeof location !== 'undefined' && /[?&]src=system\b/.test(location.search) ? { kind: 'whole_system' } : { kind: 'app', id: 'us.zoom.xos' }, aec: 'auto', keep_audio: false },
+      // ?src=system mirrors the real backend's fresh default (no default_source stored yet) for the QA suite.
+      audio: { default_source: typeof location !== 'undefined' && /[?&]src=system\b/.test(location.search) ? null : { kind: 'app', id: 'us.zoom.xos' }, aec: 'auto', keep_audio: false },
       stt: { engine: 'whisper-large-v3-turbo', languages: ['ru', 'en'], cloud_vendor: 'soniox' },
       llm: { provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4.1-flash', reasoning: false, data_collection_deny: true, default_template: 'brief' },
       overlay: { opacity: 60, font_px: 14, display: 'primary', visibility: 'recording_only', pill_edge: 'right', tone_mode: 'auto' },

@@ -12,6 +12,7 @@
   import { hrefs, router } from '../router.svelte';
   import { library, prefs, session } from '../state.svelte';
   import { mouseNames } from '../names';
+  import { resolveSource } from '../source';
 
   let { flash = false }: { flash?: boolean } = $props();
 
@@ -22,8 +23,8 @@
 
   onMount(async () => {
     apps = await api.audioApps();
-    const d = prefs.value.audio?.default_source;
-    source = d?.kind === 'app' && apps.some((a) => a.id === d.id) ? `app:${d.id}` : 'system';
+    // F12: the onboarding choice (stored default) wins; nothing stored yet = the recommended single app.
+    source = resolveSource(prefs.value.audio?.default_source, apps);
   });
 
   const folderOptions = $derived([

@@ -12,6 +12,7 @@
   import { clock, duration, greeting, when } from '../fmt';
   import { tm } from '../i18n';
   import { hrefs, router } from '../router.svelte';
+  import { callRow, dnd } from '../dnd.svelte';
   import { library, session, ui } from '../state.svelte';
   import NewCallCard from './NewCallCard.svelte';
 
@@ -42,7 +43,7 @@
   <div class="hin">
     <h1>{greeting()}</h1>
     <p class="lead lbl">
-      {tm('main.libraryStats', { calls: library.active.length, folders: library.folders.length, last: last ? `${when(last.started, new Date(), false).toLocaleLowerCase(locale.lang)},${duration(last.duration_s)}` : '—' })}
+      {tm('main.libraryStats', { calls: library.active.length, folders: library.folders.length, last: last ? `${when(last.started, new Date(), false).toLocaleLowerCase(locale.lang)}, ${duration(last.duration_s)}` : '—' })}
     </p>
 
     <NewCallCard {flash} />
@@ -55,7 +56,7 @@
     <div class="grid">
       {#each folders as f (folderKey(f.id))}
         {@const key = folderKey(f.id)}
-        <a class="fc" href={hrefs.folder(key)}>
+        <a class="fc" class:dropping={dnd.over === key} data-drop={key} href={hrefs.folder(key)}>
           <div class="ic">{f.title.slice(0, 1).toUpperCase()}</div>
           <h4 class="lbl">{f.title}</h4>
           <small class="lbl">{tPlural('main.calls', f.call_count)}</small>
@@ -67,7 +68,7 @@
     </div>
 
     <div class="sys">
-      <a class="chip" href={hrefs.folder(SYS_UNSORTED)}><Icon name="inbox" size={14} /><span class="lbl">{tm('main.unsorted')}</span><b>{library.unsorted.length}</b></a>
+      <a class="chip" class:dropping={dnd.over === SYS_UNSORTED} data-drop={SYS_UNSORTED} href={hrefs.folder(SYS_UNSORTED)}><Icon name="inbox" size={14} /><span class="lbl">{tm('main.unsorted')}</span><b>{library.unsorted.length}</b></a>
       <a class="chip" href={hrefs.folder(SYS_TRASH)}><Icon name="trash" size={14} /><span class="lbl">{tm('main.trash')}</span><b>{library.trashed.length}</b></a>
     </div>
 
@@ -76,15 +77,16 @@
       {#if library.live}
         <a class="tr livec" href={session.callId ? hrefs.call(session.callId) : '#/'}>
           <div class="c1"><b class="lbl"><RecDot pulse />{tm('m.newCallTitle')}</b><small class="lbl">{tm('m.recordingIn', { folder: library.live.folder.kind === 'user' ? (library.folder(folderKey(library.live.folder))?.title ?? '') : tm('m.noFolder') })}</small></div>
-          <span class="mono">{clock(session.elapsed)}</span><span></span><span class="st lbl">{tm('m.recording')}</span>
+          <span class="mono">{clock(session.elapsed)}</span><span></span><span class="st lbl">{tm('m.recording')}</span><span></span>
         </a>
       {/if}
       {#each library.recent.filter((c) => c.ended !== null).slice(0, 6) as c (c.id)}
-        <a class="tr" href={hrefs.call(c.id)}>
-          <div class="c1"><b class="lbl">{c.title}</b><small class="lbl">{folderName(c)}{c.tags.length ? ' · ' + c.tags.map((t) => '#' + t).join(' ') : ''}</small></div>
+        <div class="tr" class:fresh={ui.justFinished === c.id} use:callRow={() => ({ id: c.id, title: c.title })}>
+          <div class="c1"><a class="lk" href={hrefs.call(c.id)} draggable="false"><b class="lbl">{c.title}</b></a><small class="lbl">{folderName(c)}{c.tags.length ? ' · ' + c.tags.map((t) => '#' + t).join(' ') : ''}</small></div>
           <span class="lbl">{when(c.started)}</span><span class="lbl">{duration(c.duration_s)}</span>
           <span class="st lbl" class:ok={library.summarized.includes(c.id)}>{library.summarized.includes(c.id) ? tm('main.summaryReady') : tm('main.noSummary')}</span>
-        </a>
+          <button class="more" aria-haspopup="menu" aria-label={tm('m.callActions')} title={tm('m.moveMenu')} onclick={(e) => { const r = e.currentTarget.getBoundingClientRect(); ui.openMove(c.id, r.right, r.bottom); }}><Icon name="more" size={14} /></button>
+        </div>
       {/each}
     </div>
   </div>
@@ -119,7 +121,12 @@
   .chip:hover { border-color: var(--tx3); color: var(--tx); }
   .chip b { font-weight: 500; color: var(--tx3); font-size: 12px; }
   .tbl { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }
-  .tr { display: grid; grid-template-columns: minmax(0, 1fr) 112px 96px 128px; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); border-top: 1px solid var(--line); cursor: pointer; color: inherit; text-decoration: none; }
+  .tr { display: grid; grid-template-columns: minmax(0, 1fr) 112px 96px 128px 32px; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); border-top: 1px solid var(--line); cursor: pointer; color: inherit; text-decoration: none; position: relative; }
+  .tr.fresh { background: var(--acbg); }
+  .lk { color: inherit; text-decoration: none; display: block; min-width: 0; }
+  .lk::after { content: ""; position: absolute; inset: 0; }
+  .more { all: unset; box-sizing: border-box; position: relative; z-index: 1; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r); color: var(--tx3); cursor: pointer; }
+  .more:hover, .more:focus-visible { background: var(--sel); color: var(--tx); }
   .tr:first-child { border-top: none; }
   .tr:hover { background: var(--hv); }
   .c1 { min-width: 0; }
@@ -129,5 +136,5 @@
   .st { font-size: 12px; color: var(--tx2); }
   .st.ok { color: var(--ac); }
   .mono { font: 600 12px var(--mono); }
-  @media (max-width: 760px) { .tr { grid-template-columns: minmax(0, 1fr) 96px; } .tr > :nth-child(n + 3) { display: none; } }
+  @media (max-width: 760px) { .tr { grid-template-columns: minmax(0, 1fr) 96px; } .tr > :nth-child(n + 3):not(.more) { display: none; } .tr { grid-template-columns: minmax(0, 1fr) 96px 32px; } }
 </style>

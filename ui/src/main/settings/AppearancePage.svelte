@@ -17,7 +17,12 @@
   const patch = (p: object) => prefs.patch({ overlay: p });
 </script>
 
-<h2>{tm('m.set.overlay')}</h2>
+<h2>{tm('m.set.interface')}</h2>
+<SettingRow label={tm('m.uiFontSize')} hint={tm('m.uiFontSizeHint')}>
+  <Slider value={prefs.value.ui?.font_px ?? 14} min={12} max={20} unit=" px" label={tm('m.uiFontSize')} onchange={(v) => prefs.patch({ ui: { font_px: v } })} />
+</SettingRow>
+
+<h2 class="gap">{tm('m.set.overlay')}</h2>
 <SettingRow label={tm('m.opacity')} hint={tm('m.opacityHint')}>
   <Slider value={opacity} min={0} max={90} label={tm('m.opacity')} onchange={(v) => patch({ opacity: v })} />
 </SettingRow>

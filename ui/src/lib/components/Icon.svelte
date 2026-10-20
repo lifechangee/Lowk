@@ -33,6 +33,7 @@
     drive: '<rect x="2" y="9" width="12" height="4.5" rx="1.5"/><path d="M3.5 9 5 3h6l1.5 6M11 11.2h.01"/>',
     info: '<circle cx="8" cy="8" r="6"/><path d="M8 7.5V11M8 5.2v.01"/>',
     pencil: '<path d="m10.5 3 2.5 2.5L5.5 13H3v-2.5z"/>',
+    more: '<circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/>',
     cpu: '<rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.5v2M9.5 1.5v2M6.5 12.5v2M9.5 12.5v2M1.5 6.5h2M1.5 9.5h2M12.5 6.5h2M12.5 9.5h2"/>',
   } as const;
 

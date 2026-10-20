@@ -72,7 +72,7 @@
           {:else if b}{#each formatTrigger(b.trigger, os, mouseNames()) as part, i (i)}<kbd>{part}</kbd>{/each}{#if b.trigger.kind === 'modifier_only' && a === 'move_hold'}<span class="hold lbl">{tm('m.hold')}</span>{/if}
           {:else}<span class="unset lbl">{tm('m.notSet')}</span>{/if}
         </button>
-        {#if b && rec !== a}<button class="clr" aria-label={tm('m.clearBind')} title={tm('m.clearBind')} onclick={() => commit(a, null)}><Icon name="close" size={12} /></button>{/if}
+        {#if b && rec !== a}<button class="clr" aria-label={tm('m.clearBind')} title={tm('m.clearBind')} onclick={() => commit(a, null)}><Icon name="close" size={12} /></button>{:else}<span class="clr"></span>{/if}
       </div>
       {#if st && st.state !== 'active' && b}
         <p class="wn">{st.state === 'degraded' ? tm('m.bindDegraded', { perm: tm(`m.perm.${st.reason}` as MKey) }) : tm('m.bindProblem', { reason: st.reason })}</p>
@@ -89,15 +89,15 @@
   .l { min-width: 0; display: block; }
   .n { display: block; }
   small { display: block; color: var(--tx3); font: var(--fs-sm) var(--font); }
-  .ctl { display: flex; align-items: center; gap: var(--s1); }
-  .key { all: unset; box-sizing: border-box; min-width: 128px; max-width: 240px; height: 32px; padding: 0 var(--s3); border-radius: var(--r); border: 1px solid var(--line); background: var(--panel); display: inline-flex; align-items: center; justify-content: center; gap: var(--s1); cursor: pointer; color: var(--tx); overflow: hidden; }
+  .ctl { display: grid; grid-template-columns: 144px 24px; align-items: center; gap: var(--s1); }
+  .key { all: unset; box-sizing: border-box; width: 144px; height: 32px; padding: 0 var(--s3); border-radius: var(--r); border: 1px solid var(--line); background: var(--panel); display: inline-flex; align-items: center; justify-content: center; gap: var(--s1); cursor: pointer; color: var(--tx); overflow: hidden; }
   .key:hover { border-color: var(--tx3); }
   .key.rec { border-color: var(--ac); color: var(--ac); animation: bl 1.2s infinite; font-size: 12px; }
   @keyframes bl { 50% { box-shadow: 0 0 0 4px var(--acbg); } }
   kbd { font: 600 12px/16px var(--mono); padding: 0 var(--s1); }
   .key.m kbd { color: var(--ac); }
   .hold, .unset { font-size: 12px; color: var(--tx3); }
-  .clr { all: unset; cursor: pointer; width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--tx3); }
+  .clr { all: unset; display: block; cursor: pointer; width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--tx3); }
   .clr:hover { background: var(--hv); color: var(--tx); }
   .wn { grid-column: 1 / -1; margin: 0; font-size: 12px; line-height: 16px; color: var(--warn); }
   .foot { padding: var(--s3) 0; }

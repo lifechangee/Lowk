@@ -19,8 +19,11 @@ export async function measureContrast(page: Page, rootSel: string, ignore: strin
     ({ rootSel, ignore }) => {
       const root = document.querySelector(rootSel) ?? document.body;
       const res: { sel: string; text: string; color: string; size: number; weight: number; x: number; y: number; w: number; h: number }[] = [];
+      // a modal scrim dims everything behind it: only the dialog itself is measured then
+      const modal = document.querySelector('[role=dialog]');
       for (const el of root.querySelectorAll('*')) {
         if (ignore.some((s) => el.closest(s))) continue;
+        if (modal && !modal.contains(el)) continue;
         const cs = getComputedStyle(el);
         if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
         let txt = '';
@@ -33,6 +36,24 @@ export async function measureContrast(page: Page, rootSel: string, ignore: strin
           for (const r of rg.getClientRects()) if (r.width > 1 && r.height > 1) u = u ? new DOMRect(Math.min(u.left, r.left), Math.min(u.top, r.top), Math.max(u.right, r.right) - Math.min(u.left, r.left), Math.max(u.bottom, r.bottom) - Math.min(u.top, r.top)) : r;
         }
         if (!u) continue;
+        // ellipsized text: only what fits in the element's own box is painted
+        if (cs.textOverflow === 'ellipsis' && cs.overflowX !== 'visible') {
+          const own = el.getBoundingClientRect();
+          const l = Math.max(u.left, own.left), r = Math.min(u.right, own.right);
+          if (r - l < 2) continue;
+          u = new DOMRect(l, u.top, r - l, u.height);
+        }
+        // clip by scrolling/hidden ancestors: text scrolled out of view is not on screen
+        let clipped = false;
+        for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+          const pc = getComputedStyle(p);
+          if (pc.overflowX === 'visible' && pc.overflowY === 'visible') continue;
+          const ar = p.getBoundingClientRect();
+          const l = Math.max(u.left, ar.left), r = Math.min(u.right, ar.right), t = Math.max(u.top, ar.top), b = Math.min(u.bottom, ar.bottom);
+          if (r - l < 2 || b - t < 2) { clipped = true; break; }
+          u = new DOMRect(l, t, r - l, b - t);
+        }
+        if (clipped) continue;
         // effective alpha: element opacity chain
         let op = 1;
         for (let p: Element | null = el; p; p = p.parentElement) op *= Number(getComputedStyle(p).opacity);

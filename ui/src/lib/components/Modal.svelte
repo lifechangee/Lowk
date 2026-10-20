@@ -23,7 +23,7 @@
 <style>
   .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; justify-content: center; align-items: center; z-index: 50; }
   .top { align-items: flex-start; padding-top: 96px; }
-  .modal { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-xl); box-shadow: var(--sh); max-height: calc(100vh - 48px); display: flex; flex-direction: column; overflow: hidden; }
+  .modal { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-xl); box-shadow: var(--sh); max-height: calc(100vh / var(--z, 1) - 48px); display: flex; flex-direction: column; overflow: hidden; }
   .mh { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); padding: var(--s4) var(--s6) 0; }
   .mh b { font-size: 16px; line-height: 24px; }
   .x { all: unset; cursor: pointer; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r); color: var(--tx2); flex: none; }

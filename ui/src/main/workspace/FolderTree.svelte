@@ -8,6 +8,7 @@
   import { duration, when } from '../fmt';
   import { tm } from '../i18n';
   import { hrefs, router } from '../router.svelte';
+  import { callRow, dnd } from '../dnd.svelte';
   import { library, ui } from '../state.svelte';
 
   let { folder, callId, onnewfolder }: { folder: string; callId: string | null; onnewfolder: () => void } = $props();
@@ -27,14 +28,14 @@
   <nav class="tree" aria-label={tm('main.folders')}>
     {#each library.folders as f (folderKey(f.id))}
       {@const key = folderKey(f.id)}
-      <div class="f" class:cur={folder === key} class:open={isOpen(key)}>
+      <div class="f" class:cur={folder === key} class:open={isOpen(key)} class:dropping={dnd.over === key} data-drop={key}>
         <button class="chv" aria-label={tm('main.folders')} onclick={() => (open[key] = !isOpen(key))}><Icon name="chevron-right" size={12} /></button>
         <a class="fl" href={hrefs.folder(key)}><Icon name="folder" /><span class="lbl">{f.title}</span><span class="n">{f.call_count}</span></a>
       </div>
       {#if isOpen(key)}
         <div class="kids">
           {#each library.callsIn(key) as c (c.id)}
-            <a class="c" class:on={callId === c.id} href={hrefs.call(c.id)}>
+            <a class="c" class:on={callId === c.id} href={hrefs.call(c.id)} draggable="false" use:callRow={() => ({ id: c.id, title: c.title, movable: c.ended !== null })}>
               {#if c.ended === null}<b class="live"><RecDot pulse /><span class="lbl">{c.title}</span></b><small class="lbl">{tm('m.recording')}</small>
               {:else}<span class="lbl t">{c.title}</span><small class="lbl">{when(c.started, new Date(), false)} · {duration(c.duration_s)}</small>{/if}
             </a>
@@ -46,7 +47,7 @@
     {/each}
 
     <div class="sysh"></div>
-    <a class="f sysf" class:cur={folder === SYS_UNSORTED} href={hrefs.folder(SYS_UNSORTED)}><span class="fl"><Icon name="inbox" /><span class="lbl">{tm('main.unsorted')}</span><span class="n">{library.unsorted.length}</span></span></a>
+    <a class="f sysf" class:cur={folder === SYS_UNSORTED} class:dropping={dnd.over === SYS_UNSORTED} data-drop={SYS_UNSORTED} href={hrefs.folder(SYS_UNSORTED)}><span class="fl"><Icon name="inbox" /><span class="lbl">{tm('main.unsorted')}</span><span class="n">{library.unsorted.length}</span></span></a>
     <a class="f sysf" class:cur={folder === SYS_TRASH} href={hrefs.folder(SYS_TRASH)}><span class="fl"><Icon name="trash" /><span class="lbl">{tm('main.trash')}</span><span class="n">{library.trashed.length}</span></span></a>
   </nav>
 
@@ -90,7 +91,7 @@
   .sysh { height: 1px; background: var(--line); margin: var(--s2) var(--s2); }
   .lt { padding: var(--s3) var(--s4); border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: var(--s1); }
   .h6 { width: 100%; margin: 0 0 var(--s1); font: 600 var(--fs-xs) var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx3); }
-  .foot { padding: var(--s2) var(--s4); border-top: 1px solid var(--line); display: flex; gap: var(--s4); color: var(--tx2); font-size: 12px; align-items: center; height: 40px; min-width: 0; }
+  .foot { padding: var(--s2) var(--s3); border-top: 1px solid var(--line); display: flex; gap: var(--s2); color: var(--tx2); font-size: 12px; align-items: center; height: 40px; min-width: 0; }
   .foot button { all: unset; cursor: pointer; display: inline-flex; gap: var(--s1); align-items: center; min-width: 0; }
   .foot button:hover { color: var(--tx); }
   .sp { flex: 1; }

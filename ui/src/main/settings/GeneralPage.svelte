@@ -10,13 +10,14 @@
   import { tm } from '../i18n';
   import { hrefs, router } from '../router.svelte';
   import { prefs } from '../state.svelte';
+  import { resolveSource } from '../source';
 
   let apps = $state<AudioApp[]>([]);
   onMount(async () => { apps = await api.audioApps(); });
 
   const s = $derived(prefs.value);
   const src = $derived(s.audio?.default_source);
-  const srcValue = $derived(src?.kind === 'app' ? `app:${src.id}` : 'system');
+  const srcValue = $derived(resolveSource(src, apps));
   const srcOptions = $derived([...apps.map((a) => ({ value: `app:${a.id}`, label: tm('m.sourceOnly', { app: a.name }) })), { value: 'system', label: tm('m.sourceSystem') }]);
 </script>
 

@@ -20,7 +20,7 @@
 
 <button class="btn {variant} {size}" class:block class:on={pressed} {type} {disabled} {title} aria-pressed={pressed} {onclick}>
   {#if icon}<Icon name={icon} size={14} />{/if}
-  {#if children}<span class="lbl">{@render children()}</span>{/if}
+  {#if children}<span class="lbl bl">{@render children()}</span>{/if}
   {#if trailing}{@render trailing()}{/if}
 </button>
 
@@ -30,6 +30,7 @@
     height: 32px; padding: 0 var(--s3); border-radius: var(--r); border: 1px solid var(--line);
     font: 500 13px/20px var(--font); color: var(--tx); background: var(--panel); white-space: nowrap; max-width: 100%; min-width: 0;
   }
+  .btn > :global(.bl) { display: inline-flex; align-items: center; gap: var(--s2); min-width: 0; }
   .btn:hover { border-color: var(--tx3); }
   .btn:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; }
   .btn[disabled] { opacity: 0.4; pointer-events: none; }
