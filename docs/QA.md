@@ -39,3 +39,7 @@ The same `lintInPage` runs inside the real webview in `just qa-app`.
 ## Detector status (first run)
 
 See the F-id table at the top of `docs/qa/report.html`. Browser-visible: F1, F2, F11, F12, F13 (toast). Real-app only: F4 (flicker), F6 (main text size), F10 (duplicated deltas: the browser mock does not reproduce it, the real event path does). Not detectable by machines: F3, F5 (needs judgement), F7 (decision), F8 and F9 (feature work: add tests with the feature).
+
+## What "green" means
+
+"Green" means **both**: (1) local `just ci` passes, which includes `just ci-cross` (clippy `-D warnings` for `x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc`; one-time setup: `rustup target add x86_64-unknown-linux-gnu x86_64-pc-windows-msvc`, the recipe creates the dummy `llvm-rc` itself), and (2) the GitHub Actions run for your pushed commit is green (lint, test-macos, test-windows). macOS-only `just ci` is not enough: Linux/Windows cfg-gated dead code and CRLF issues only show up there. Check with `gh run watch`.

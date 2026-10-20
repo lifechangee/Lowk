@@ -34,6 +34,7 @@ use std::time::{Duration, Instant};
 /// A native window handle that may cross threads. The handle is only
 /// dereferenced on the main thread, by the backend.
 #[derive(Clone, Copy)]
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
 pub struct RawWindow(RawWindowHandle);
 
 // SAFETY: the handle is an opaque pointer/integer; the crate only uses it on
@@ -46,6 +47,7 @@ impl RawWindow {
     pub fn new(h: RawWindowHandle) -> Self {
         Self(h)
     }
+    #[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
     pub(crate) fn handle(&self) -> RawWindowHandle {
         self.0
     }

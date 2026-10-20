@@ -56,8 +56,16 @@ qa-guard:
 qa:
     tools/qa/run-all.sh
 
-# Everything CI runs on Linux/macOS.
-ci: lint
+# One-time setup: rustup target add x86_64-unknown-linux-gnu x86_64-pc-windows-msvc
+# Cross-target clippy so cfg-gated dead code on Linux/Windows is caught locally (CI lints on ubuntu).
+# Windows needs a dummy llvm-rc on PATH (created here); lowk-app is excluded (WebKitGTK on Linux).
+ci-cross:
+    cargo clippy --workspace --exclude lowk-app --all-targets --target x86_64-unknown-linux-gnu -- -D warnings
+    mkdir -p target/fakebin && printf '#!/bin/sh\nexit 0\n' > target/fakebin/llvm-rc && chmod +x target/fakebin/llvm-rc
+    PATH="$PWD/target/fakebin:$PATH" cargo clippy --workspace --all-targets --target x86_64-pc-windows-msvc -- -D warnings
+
+# Everything CI runs, incl. Linux and Windows cross-target clippy.
+ci: lint ci-cross
     cargo test --workspace
     pnpm --dir ui test
     pnpm --dir ui build
