@@ -139,3 +139,10 @@ pub struct BindStatusEntry {
 pub struct BindReport {
     pub entries: Vec<BindStatusEntry>,
 }
+
+/// `binds_get` / `binds_set` payload.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct BindsState {
+    pub binds: Vec<BindSpec>,
+    pub report: BindReport,
+}

@@ -104,6 +104,13 @@ impl StealthGuard {
         r
     }
 
+    /// Forget a window whose native handle is about to die (the main window is
+    /// destroyed when closed). Nothing may touch the stale pointer afterwards.
+    pub fn unprotect(&self, label: &str) {
+        self.inner.wins.lock().remove(label);
+        self.inner.status.lock().remove(label);
+    }
+
     /// Change the policy of one label (e.g. the "hide main from capture"
     /// setting) and apply it. Other labels are untouched.
     pub fn set_policy(&self, label: &str, policy: WindowPolicy) -> Result<()> {

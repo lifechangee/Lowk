@@ -1,6 +1,11 @@
 //! Screenshots and region grabs. M0 stub (M3 owns it).
 use lowk_types::{AppError, Rect, RegionSampler, Result};
 
+#[cfg(target_os = "macos")]
+mod mac;
+#[cfg(target_os = "macos")]
+pub use mac::{SckGrab, SckSampler};
+
 #[derive(Debug, Clone)]
 pub struct MonitorShot {
     pub index: u32,

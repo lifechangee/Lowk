@@ -110,3 +110,10 @@ pub struct StoreChange {
     pub id: Ulid,
     pub is_folder: bool,
 }
+
+/// `vault_open` / `vault_info` payload.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct VaultInfo {
+    /// Absolute path of the open vault.
+    pub path: String,
+}

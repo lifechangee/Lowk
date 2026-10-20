@@ -129,7 +129,7 @@ pub fn create_stealth(
 
     let ctl = OverlayCtl::new(guard.clone(), main_thread.clone(), ob);
     if let Some(b) = main_be {
-        ctl.set_main_backend(b);
+        ctl.set_main_backend(Some(b));
     }
     let g2 = guard.clone();
     native::install_observers(Arc::new(move || g2.on_policy_change()));
@@ -154,9 +154,30 @@ impl Stealth {
         self.overlay.set_sink(sink);
     }
 
+    /// Register the main window (created on demand, may be re-created). It is
+    /// never stealth unless `hide_main`; a failure never touches the overlay.
+    pub fn register_main(&self, win: RawWindow, hide_main: bool) -> Result<()> {
+        let b = native::make_backend(&win)?;
+        self.guard
+            .protect_backend(MAIN, WindowPolicy::main(hide_main), b.clone())?;
+        self.overlay.set_main_backend(Some(b));
+        Ok(())
+    }
+
+    /// Drop the main window before it is destroyed.
+    pub fn unregister_main(&self) {
+        self.overlay.set_main_backend(None);
+        self.guard.unprotect(MAIN);
+    }
+
     /// "Hide main from capture" setting; affects only the `main` label.
     pub fn set_hide_main(&self, on: bool) -> Result<()> {
         self.guard.set_policy(MAIN, WindowPolicy::main(on))
+    }
+
+    /// Last emitted (or forced) tone, for a window that loads after the event.
+    pub fn current_tone(&self) -> Tone {
+        self.tone.state.lock().current()
     }
 
     /// Forced palette (`auto|light|dark`); emits the new tone immediately.

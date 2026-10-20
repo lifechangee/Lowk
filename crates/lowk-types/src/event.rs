@@ -13,7 +13,10 @@ pub enum AppEvent {
     Overlay(OverlayEvent),
     Stealth(StealthStatus),
     Bind(BindEvent),
-    Perm { kind: PermKind, state: PermState },
+    Perm {
+        kind: PermKind,
+        state: PermState,
+    },
     Queue(QueueState),
     Store(StoreChange),
     Level(AudioLevel),

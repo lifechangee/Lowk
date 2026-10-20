@@ -88,3 +88,10 @@ impl Recommendation {
         self.tier != SttTier::Cloud
     }
 }
+
+/// `hw_probe` payload: the probe plus the static local-vs-cloud recommendation.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct HwProbe {
+    pub report: HwReport,
+    pub recommendation: Recommendation,
+}

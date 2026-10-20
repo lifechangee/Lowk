@@ -64,6 +64,9 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<BindSpec>();
     types.register_mut::<HwInfo>();
     types.register_mut::<HwReport>();
+    types.register_mut::<HwProbe>();
+    types.register_mut::<VaultInfo>();
+    types.register_mut::<BindsState>();
     types.register_mut::<Recommendation>();
     types.register_mut::<QaRecord>();
     types.register_mut::<EngineDescriptor>();
@@ -93,6 +96,7 @@ pub mod events {
     pub const PERM_CHANGED: &str = "perm://changed";
     pub const BIND_EVENT: &str = "bind://event";
     pub const STORE_CHANGED: &str = "store://changed";
+    pub const SETTINGS_CHANGED: &str = "settings://changed";
     pub const ENGINE_PROGRESS: &str = "engine://progress";
 }
 

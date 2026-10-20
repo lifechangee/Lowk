@@ -71,8 +71,8 @@ impl OverlayCtl {
     pub(crate) fn set_sink(&self, s: Arc<dyn EventSink>) {
         *self.sink.lock() = Some(s);
     }
-    pub(crate) fn set_main_backend(&self, b: Arc<dyn WindowBackend>) {
-        *self.main_backend.lock() = Some(b);
+    pub(crate) fn set_main_backend(&self, b: Option<Arc<dyn WindowBackend>>) {
+        *self.main_backend.lock() = b;
     }
     /// Pixel layer of the self-test: a grab *without* window exclusion. The
     /// overlay UI must paint a magenta sentinel (`r>170, b>170, g<100`) meanwhile.
