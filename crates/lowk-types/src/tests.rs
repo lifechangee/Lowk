@@ -19,6 +19,19 @@ fn settings_defaults_reflect_brief() {
     assert_eq!(s.overlay.accent, "#8ba6c4");
     assert!(s.updates.check_daily);
     assert_eq!(s.capture.monitors, CaptureMonitors::All);
+    assert_eq!(
+        s.capture.default_source,
+        CaptureSource::OneApp,
+        "F12: onboarding recommends one app"
+    );
+    assert_eq!(
+        CaptureSource::of_target(Some(&Target::WholeSystem)),
+        CaptureSource::WholeSystem
+    );
+    assert_eq!(
+        CaptureSource::of_target(Some(&Target::App("us.zoom.xos".into()))),
+        CaptureSource::OneApp
+    );
     assert!(!s.audio.keep_audio);
     assert!(!s.stealth.hide_main);
     assert_eq!(s.llm.model, "deepseek/deepseek-v4.1-flash");
@@ -35,7 +48,7 @@ fn default_binds_per_os() {
     let find = |b: &[BindSpec], a| b.iter().find(|x| x.action == a).unwrap().trigger.clone();
     let mac = default_binds(Os::Macos);
     let win = default_binds(Os::Windows);
-    assert_eq!(mac.len(), 8);
+    assert_eq!(mac.len(), 7);
     assert_eq!(
         find(&mac, ActionId::Ask),
         Trigger::Combo {
@@ -50,11 +63,18 @@ fn default_binds_per_os() {
             key: KeyCode::new("Enter")
         }
     );
+    // F7: panic is unbound by default; show/hide overlay is Cmd/Ctrl+\.
+    assert!(default_binds(Os::Macos)
+        .iter()
+        .all(|b| b.action != ActionId::PanicHide));
+    assert!(default_binds(Os::Windows)
+        .iter()
+        .all(|b| b.action != ActionId::PanicHide));
     assert_eq!(
-        find(&mac, ActionId::PanicHide),
+        find(&mac, ActionId::ToggleOverlay),
         Trigger::Combo {
-            mods: Mods::META_SHIFT,
-            key: KeyCode::new("KeyH")
+            mods: Mods::META,
+            key: KeyCode::new("Backslash")
         }
     );
     assert_eq!(

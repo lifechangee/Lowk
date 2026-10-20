@@ -44,6 +44,21 @@ pub struct Tone {
     /// backdrop pixel. The UI scrim is `max(k * .85, scrim_min)`.
     #[serde(default)]
     pub scrim_min: f32,
+    /// F5: per-region tones (the region under the overlay split `cols` x `rows`,
+    /// row-major, top-left first). `None` only from old senders; the UI then uses
+    /// the global fields above for every region.
+    #[serde(default)]
+    pub grid: Option<ToneGrid>,
+}
+
+/// Per-region tones under the overlay. Each cell is a full [`Tone`] with its own
+/// palette / scrim floor (its own `grid` is always `None`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct ToneGrid {
+    pub cols: u8,
+    pub rows: u8,
+    /// `cols * rows` entries, row-major.
+    pub cells: Vec<Tone>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]

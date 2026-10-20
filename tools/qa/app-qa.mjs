@@ -130,7 +130,7 @@ try {
   }
   const dups = [...new Set(snaps.flatMap((s) => dupWords(s)))];
   const sample = snaps.at(-1) ?? '';
-  add({ name: 'F10 overlay streaming answer: no duplicated words (real DOM)', fid: 'F10', ok: snaps.length > 0 && dups.length === 0, detail: snaps.length === 0 ? 'no answer text appeared in 45 s' : dups.length ? `duplicated: ${dups.slice(0, 6).join(', ')} | «${sample.slice(0, 100)}»` : `${snaps.length} snapshots clean`, shots: [] });
+  add({ name: 'F10 overlay streaming answer: no duplicated words (real DOM)', ok: snaps.length > 0 && dups.length === 0, detail: snaps.length === 0 ? 'no answer text appeared in 45 s' : dups.length ? `duplicated: ${dups.slice(0, 6).join(', ')} | «${sample.slice(0, 100)}»` : `${snaps.length} snapshots clean`, shots: [] });
 
   const ovLint = await ev('overlay', `(${lintInPage.toString()})(${JSON.stringify({ root: 'body' })})`);
   const ovBad = ovLint.filter((i) => ['overflow', 'outside', 'text-overlap', 'box-overlap'].includes(i.rule));
@@ -169,17 +169,17 @@ try {
   // F4: presence sampler while the mode flips
   const flips = (async () => {
     await sleep(700);
-    for (let i = 0; i < 4; i++) { await cmd('mode interactive'); await sleep(450); await cmd('mode passive'); await sleep(450); }
+    for (let i = 0; i < 20; i++) { await cmd('mode interactive'); await sleep(200); await cmd('mode passive'); await sleep(200); }
   })();
   const sj = join(out, 'f4-sample.json');
-  const sp = spawn(cap, ['sample', pid, 'overlay', '5', sj], { stdio: ['ignore', 'pipe', 'ignore'] });
+  const sp = spawn(cap, ['sample', pid, 'overlay', '11', sj], { stdio: ['ignore', 'pipe', 'ignore'] });
   let so = '';
   sp.stdout.on('data', (d) => (so += d));
   await Promise.all([flips, new Promise((r) => sp.on('close', r))]);
   let s = {};
   try { s = JSON.parse(so); } catch {}
-  const f4ok = s.ok === true && s.presenceHz >= 30;
-  add({ name: 'F4 overlay never disappears during Interactive/Passive switches (>=30 Hz sampler)', fid: 'F4', ok: f4ok, detail: s.presenceHz === undefined ? `sampler failed: ${s.error ?? so}` : `${Math.round(s.presenceHz)} Hz presence, ${s.absentSamples} absent samples${s.absentRuns?.length ? ' (' + s.absentRuns.map((r) => `${(r.from).toFixed(2)}-${r.to.toFixed(2)}s`).join(', ') + ')' : ''}; stream ${s.frames} frames, ${s.blankFrames} blank`, shots: existsSync(join(out, 'f4-sample-last.png')) ? ['f4-sample-last.png'] : [] });
+  const f4ok = s.ok === true && s.presenceHz >= 30 && s.absentSamples === 0;
+  add({ name: 'F4 overlay never disappears during 20 Interactive/Passive switches (>=30 Hz sampler, 0 absent)', ok: f4ok, detail: s.presenceHz === undefined ? `sampler failed: ${s.error ?? so}` : `${Math.round(s.presenceHz)} Hz presence, ${s.absentSamples} absent samples${s.absentRuns?.length ? ' (' + s.absentRuns.map((r) => `${(r.from).toFixed(2)}-${r.to.toFixed(2)}s`).join(', ') + ')' : ''}; stream ${s.frames} frames, ${s.blankFrames} blank`, shots: existsSync(join(out, 'f4-sample-last.png')) ? ['f4-sample-last.png'] : [] });
 } catch (e) {
   add({ name: 'real-app QA run', ok: false, detail: String(e.message ?? e) });
 } finally {

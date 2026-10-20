@@ -190,7 +190,7 @@ mod tests {
         let registered = reg.registered.clone();
         let mut m = InputManager::with_os(Os::Macos, Some(Box::new(reg)));
         let rep = m.set_binds(&default_binds(Os::Macos)).unwrap();
-        assert_eq!(registered.lock().unwrap().len(), 7);
+        assert_eq!(registered.lock().unwrap().len(), 6);
         let mv = rep
             .entries
             .iter()
@@ -236,7 +236,7 @@ mod tests {
     fn without_adapter_everything_goes_to_hook() {
         let mut m = InputManager::with_os(Os::current(), None);
         let rep = m.set_binds(&default_binds(Os::current())).unwrap();
-        assert_eq!(rep.entries.len(), 8);
+        assert_eq!(rep.entries.len(), 7);
         assert!(!m.status().combo_adapter);
     }
 }

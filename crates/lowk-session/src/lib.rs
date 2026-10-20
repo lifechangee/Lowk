@@ -13,7 +13,7 @@ pub use deps::{
     CallRecorder, CallStore, HintGenerator, HintRequest, MemCallStore, NullCallStore, SessionDeps, StubHints,
 };
 pub use lowk_types::{CloseReason, QaRecord, QaUpdate};
-pub use qa::{QaTracker, LONG_SYSTEM_NS, MY_ANSWER_TIMEOUT_NS};
+pub use qa::QaTracker;
 pub use replay::{rebase, DemoPace, Pacer, ReplayItem, ReplayKind, ReplayScript, ReplaySource};
 pub use session::{phase_allowed, Session};
 pub use transcript::{Applied, TranscriptBuf};
