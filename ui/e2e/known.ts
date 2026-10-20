@@ -15,14 +15,6 @@ export interface Known {
 
 export const KNOWN: Known[] = [
   // --- owner feedback (docs/M0-FEEDBACK.md) ---
-  { fid: 'F2', rule: 'flex-gap', sel: /button\.btn > span\.lbl/ }, // dot / label / kbd touch in the primary button
-  // --- new findings from the first QA run (not in the owner list; fix agents: see docs/QA.md) ---
-  { fid: 'N1', rule: 'contrast', sel: /.*/, state: /^main\// }, // --tx3 / --tx2 text on --bg/--panel below 3:1
-  { fid: 'N2', rule: 'text-overlap', sel: /div\.hd > h1\.lbl {2}<> {2}button\.btn > span\.lbl/ }, // long call title runs under the header button
-  { fid: 'N3', rule: 'text-overlap', sel: /div\.t > small\.lbl {2}<> {2}div\.perm > span\.state/ }, // permissions row: hint overlaps state badge
-  { fid: 'N4', rule: 'grid', sel: /div\.apps > button\.app/ }, // onboarding app tiles are 42px high
-  { fid: 'N6', rule: 'text-overlap', sel: /div\.ctl > code\.path\.lbl {2}<> {2}button\.btn > span\.lbl/ }, // storage settings: vault path runs under the buttons at ~1100px
-  { fid: 'N7', rule: 'overflow', sel: /span\.lbl > kbd\.onprimary/ }, // primary button's kbd chip clipped by its own label at 960px with a long title
 ];
 
 export function classify(rule: Known['rule'], sel: string, stateKey: string): string | undefined {

@@ -8,6 +8,7 @@ export * from './bindings';
 export const EVENTS = {
   sttSegment: 'stt://segment',
   sessionState: 'session://state',
+  sessionEnded: 'session://ended',
   audioLevel: 'audio://level',
   overlayMode: 'overlay://mode',
   overlayTone: 'overlay://tone',

@@ -86,6 +86,11 @@ export function lintInPage(opts: LintOpts): Issue[] {
     // 2) walk the clipping ancestors. A scroll container on an axis legitimises everything beyond
     //    it on that axis (the user can scroll); the visible part is what remains after clipping.
     let vis = { l: tr.left, t: tr.top, r: tr.right, b: tr.bottom };
+    // Ellipsized text: only what fits in the element's own box is painted; the rest is not text on screen.
+    if (cs.textOverflow === 'ellipsis' && cs.overflowX !== 'visible') {
+      const own = h.getBoundingClientRect();
+      vis = { l: Math.max(vis.l, own.left), t: vis.t, r: Math.min(vis.r, own.right), b: vis.b };
+    }
     let clippedBy: string | null = null;
     let xScrolls = false, yScrolls = false;
     for (const a of clipAncestors(el)) {

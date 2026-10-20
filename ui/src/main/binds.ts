@@ -17,7 +17,6 @@ export function defaultBinds(os: Os): BindSpec[] {
     { action: 'screenshot_area', trigger: combo('KeyA', ms) },
     { action: 'toggle_interactive', trigger: combo('KeyI', ms) },
     { action: 'toggle_overlay', trigger: combo('Backslash', m) },
-    { action: 'panic_hide', trigger: combo('KeyH', ms) },
     { action: 'toggle_record', trigger: combo('KeyR', ms) },
     { action: 'move_hold', trigger: { kind: 'modifier_only', mods: { alt: true } } },
   ];

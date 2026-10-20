@@ -5,6 +5,8 @@ import { en, ru } from '../lib/i18n';
 import { mergePatch } from './api/mock';
 import { bindWarnings, defaultBinds, formatTrigger, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
 import { parse } from './router.svelte';
+import { greeting } from './fmt';
+import { resolveSource } from './source';
 
 const names = { middle: 'Wheel', back: 'Back', forward: 'Forward', other: (n: number) => `Btn ${n}` };
 
@@ -66,5 +68,37 @@ describe('infra', () => {
     expect(parse('#/settings/nope')).toEqual({ name: 'settings', page: 'general' });
     expect(parse('#/onboarding/99')).toEqual({ name: 'onboarding', step: 7 });
     expect(parse('')).toEqual({ name: 'home' });
+  });
+});
+
+describe('F7 default binds', () => {
+  it('has no panic bind; backslash toggles the overlay', () => {
+    for (const os of ['macos', 'windows'] as const) {
+      const b = defaultBinds(os);
+      expect(b.some((x) => x.action === 'panic_hide')).toBe(false);
+      expect(b.find((x) => x.action === 'toggle_overlay')?.trigger).toMatchObject({ kind: 'combo', key: 'Backslash' });
+    }
+  });
+});
+
+describe('F12 capture source default', () => {
+  const apps = [{ id: 'zoom', name: 'Zoom', producing_audio: true, pids: [] }, { id: 'teams', name: 'Teams', producing_audio: false, pids: [] }];
+  it('follows the stored choice, else the recommended app, else the whole system', () => {
+    expect(resolveSource({ kind: 'app', id: 'teams' }, apps)).toBe('app:teams');
+    expect(resolveSource({ kind: 'whole_system' }, apps)).toBe('system');
+    expect(resolveSource(null, apps)).toBe('app:zoom');
+    expect(resolveSource({ kind: 'app', id: 'gone' }, apps)).toBe('app:zoom');
+    expect(resolveSource(null, [])).toBe('system');
+  });
+});
+
+describe('greeting', () => {
+  it('uses the local hour', () => {
+    const g = (h: number) => greeting(new Date(2026, 9, 20, h, 30));
+    expect(new Set([g(2), g(9), g(14), g(20)]).size).toBe(4);
+    expect(g(4)).toBe(g(0));
+    expect(g(5)).toBe(g(11));
+    expect(g(12)).toBe(g(17));
+    expect(g(18)).toBe(g(23));
   });
 });

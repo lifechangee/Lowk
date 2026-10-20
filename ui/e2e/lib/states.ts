@@ -16,15 +16,17 @@ export interface MainState {
   hash: string;
   query?: string;
   /** After load: interactions */
-  act?: 'tab-summary' | 'tab-qa' | 'tab-shots' | 'search' | 'recording';
+  act?: 'tab-summary' | 'tab-qa' | 'tab-shots' | 'search' | 'recording' | 'move-menu' | 'drag';
   mockup: 'mn' | 'ob';
 }
 
 export const MAIN_STATES: MainState[] = [
   { id: 'home', title: 'Library home', hash: '#/', mockup: 'mn' },
   { id: 'home-recording', title: 'Home while recording (demo)', hash: '#/', act: 'recording', mockup: 'mn' },
+  { id: 'home-drag', title: 'Home: dragging a call over a folder (drop highlight)', hash: '#/', act: 'drag', mockup: 'mn' },
   { id: 'folder', title: 'Folder workspace', hash: `#/folder/${ACME}`, mockup: 'mn' },
   { id: 'unsorted', title: 'Unsorted', hash: '#/folder/sys:unsorted', mockup: 'mn' },
+  { id: 'unsorted-menu', title: 'Unsorted: «Move to…» menu', hash: '#/folder/sys:unsorted', act: 'move-menu', mockup: 'mn' },
   { id: 'trash', title: 'Trash', hash: '#/folder/sys:trash', mockup: 'mn' },
   { id: 'call-transcript', title: 'Call: transcript tab', hash: `#/call/${CALL1}`, mockup: 'mn' },
   { id: 'call-summary', title: 'Call: summary tab', hash: `#/call/${CALL1}`, act: 'tab-summary', mockup: 'mn' },

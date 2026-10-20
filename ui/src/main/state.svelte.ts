@@ -7,6 +7,7 @@ import { EVENTS, on } from '../lib/ipc';
 import type { SessionState } from '../lib/ipc';
 import { mergePatch } from './api/mock';
 import { hrefs, router } from './router.svelte';
+import { tm } from './i18n';
 
 class Library {
   folders = $state<FolderMeta[]>([]);
@@ -38,6 +39,16 @@ class Library {
   call(id: string): CallMeta | undefined { return this.calls.find((c) => c.id === id); }
   folder(key: FolderKey): FolderMeta | undefined { return this.folders.find((f) => folderKey(f.id) === key); }
   lastActivity(key: FolderKey): string | null { return this.callsIn(key)[0]?.started ?? null; }
+
+  /** F9: move a call into a folder (drag & drop and the «Переместить в…» menu both end here). */
+  async move(id: string, to: FolderKey): Promise<boolean> {
+    const c = this.call(id);
+    if (!c || c.deleted || folderKey(c.folder) === to) return false;
+    await api.callMove(id, to);
+    await this.reload();
+    ui.notify(tm('m.movedTo', { folder: to === SYS_UNSORTED ? tm('main.unsorted') : (this.folder(to)?.title ?? '') }));
+    return true;
+  }
 }
 export const library = new Library();
 
@@ -92,19 +103,29 @@ class Session {
   sync(s: SessionState): void {
     if (s.phase === 'recording' && this.phase === 'idle') this.#begin(s.call, SYS_UNSORTED, '');
     else if (s.phase === 'idle' && this.phase === 'recording') {
+      const done = this.callId;
       this.#off?.();
       if (this.#tick) clearInterval(this.#tick);
       this.phase = 'idle';
-      void library.reload();
+      void this.#finished(done);
     }
+  }
+  /** F8: a recording ended (stop button, bind, overlay): library home, window in front, new call on top. */
+  async #finished(call: string | null): Promise<void> {
+    await library.reload();
+    ui.justFinished = call;
+    router.go(hrefs.home);
+    void focusMainWindow();
+    setTimeout(() => { if (ui.justFinished === call) ui.justFinished = null; }, 6000);
   }
   async stop(): Promise<void> {
     if (this.phase !== 'recording') return;
     this.#off?.();
     if (this.#tick) clearInterval(this.#tick);
     this.phase = 'idle';
+    const done = this.callId;
     await api.sessionStop();
-    await library.reload();
+    await this.#finished(done);
   }
 }
 export const session = new Session();
@@ -113,6 +134,11 @@ class Ui {
   paletteOpen = $state(false);
   /** Briefly highlights the «Новый созвон» card after a jump from another screen. */
   flashNew = $state(false);
+  /** The call that just stopped recording: highlighted at the top of Recent for a few seconds. */
+  justFinished = $state<string | null>(null);
+  /** Open «Переместить в…» menu (context menu or the ⋯ button). */
+  moveMenu = $state<{ id: string; x: number; y: number } | null>(null);
+  openMove(id: string, x: number, y: number): void { this.moveMenu = { id, x, y }; }
   callTab = $state<'transcript' | 'summary' | 'qa' | 'shots' | 'md'>('transcript');
   newCall(): void {
     router.go(hrefs.home);
@@ -129,6 +155,18 @@ class Ui {
 }
 export const ui = new Ui();
 
+/** Bring the main window to the front (the backend also does this; plain browsers have no window). */
+export async function focusMainWindow(): Promise<void> {
+  if (!hasTauri) return;
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    const w = getCurrentWindow();
+    await w.show();
+    await w.unminimize();
+    await w.setFocus();
+  } catch { /* no core:window permission for this webview: the backend raises the window itself */ }
+}
+
 /** Backend events that change main-window state (no-op in a plain browser). */
 export function attachEvents(): void {
   if (!hasTauri) return;
@@ -136,4 +174,5 @@ export function attachEvents(): void {
   void on(EVENTS.storeChanged, () => { clearTimeout(t); t = setTimeout(() => void library.reload(), 300); });
   void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; locale.setSetting((s.ui?.language ?? 'auto') as LangSetting); });
   void on<SessionState>(EVENTS.sessionState, (s) => session.sync(s));
+  void on<{ route?: string }>(EVENTS.sessionEnded, () => { void library.reload().then(() => { router.go(hrefs.home); }); });
 }

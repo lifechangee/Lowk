@@ -30,7 +30,11 @@
 
   onMount(async () => {
     apps = await api.audioApps();
-    appId = apps[0]?.id ?? '';
+    const saved = prefs.value.audio?.default_source;
+    appId = saved?.kind === 'app' && apps.some((a) => a.id === saved.id) ? saved.id : (apps[0]?.id ?? '');
+    // F12: preselect what will really be stored. No app list (backend cannot enumerate yet) or an explicit
+    // «whole system» choice -> whole system; otherwise the recommended single app.
+    captureMode = appId && saved?.kind !== 'whole_system' && prefs.value.capture?.default_source !== 'whole_system' ? 'app' : 'system';
     perms.refresh();
   });
 
@@ -52,11 +56,16 @@
     await prefs.patch({ onboarding: { step: n } });
   }
   async function next() {
-    if (step === 2) await prefs.patch({ audio: { default_source: captureMode === 'app' && appId ? { kind: 'app', id: appId } : { kind: 'whole_system' } } });
+    if (step === 2) await persistCapture();
     if (step === 4) await prefs.patch({ stt: { engine: engineMode === 'local' ? 'whisper-large-v3-turbo' : 'soniox' } });
     if (step < TOTAL - 1) await go(step + 1);
   }
-  async function skip() { skipped = new Set([...skipped, step]); await go(step + 1); }
+  const persistCapture = () => prefs.patch({ capture: { default_source: captureMode === 'app' && appId ? 'one_app' : 'whole_system' }, audio: { default_source: captureMode === 'app' && appId ? { kind: 'app', id: appId } : { kind: 'whole_system' } } });
+  async function skip() {
+    if (step === 2) await persistCapture();
+    skipped = new Set([...skipped, step]);
+    await go(step + 1);
+  }
   async function finish() {
     await prefs.patch({ onboarding: { done: true, step: TOTAL } });
     router.go(hrefs.home);
@@ -106,7 +115,7 @@
       {:else if step === 2}
         <h1>{tm('onboarding.capture.title')}</h1>
         <p class="lead">{tm('onboarding.capture.hint')}</p>
-        <OptionCard selected={captureMode === 'app'} title={tm('onboarding.capture.app')} hint={tm('onboarding.capture.appHint')} badge={tm('onboarding.capture.recommended')} onselect={() => (captureMode = 'app')} />
+        <OptionCard selected={captureMode === 'app'} title={tm('onboarding.capture.app')} hint={tm('onboarding.capture.appHint')} badge={tm('onboarding.capture.recommended')} onselect={() => { if (apps.length) captureMode = 'app'; }} />
         <div class="apps">
           {#each apps as a (a.id)}
             <button class="app" class:on={captureMode === 'app' && appId === a.id} onclick={() => { captureMode = 'app'; appId = a.id; }}><span class="ai">{a.name.slice(0, 1)}</span><span class="lbl">{a.name}</span></button>
@@ -184,8 +193,8 @@
 </div>
 
 <style>
-  .win { max-width: 980px; height: min(680px, calc(100vh - 32px)); margin: var(--s4) auto; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-xl); overflow: hidden; display: grid; grid-template-columns: 240px minmax(0, 1fr); box-shadow: var(--sh); }
-  .rail { background: var(--side); border-right: 1px solid var(--line); padding: var(--s6) var(--s4); display: flex; flex-direction: column; min-width: 0; }
+  .win { width: 100%; height: calc(100vh / var(--z, 1)); background: var(--bg); overflow: hidden; display: grid; grid-template-columns: 256px minmax(0, 1fr); }
+  .rail { background: var(--side); border-right: 1px solid var(--line); padding: var(--s8) var(--s4) var(--s6); display: flex; flex-direction: column; min-width: 0; }
   .logo { display: flex; gap: var(--s2); align-items: center; font-weight: 650; font-size: 16px; padding: 0 var(--s1) var(--s6); }
   .logo i { width: 20px; height: 20px; border: 1.5px solid var(--tx2); border-radius: var(--r-sm); display: block; }
   .steps { flex: 1; }
@@ -198,15 +207,15 @@
   .done { color: var(--tx2); }
   .done .d { background: var(--ac); border-color: var(--ac); color: var(--acfg); }
   .fine { color: var(--tx3); font-size: 11px; line-height: 16px; margin: 0; padding: 0 var(--s1); }
-  .body { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-  .step { flex: 1; padding: var(--s10) var(--s12) var(--s3); overflow: auto; animation: in 0.3s; }
+  .body { --gutter: max(var(--s12), calc((100% - 720px) / 2)); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .step { flex: 1; padding: var(--s10) var(--gutter) var(--s3); overflow: auto; animation: in 0.3s; }
   @keyframes in { from { opacity: 0; transform: translateY(6px); } }
   .eyebrow { font: 600 var(--fs-xs) var(--font); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ac); margin-bottom: var(--s2); }
   h1 { font-size: 28px; line-height: 36px; letter-spacing: -0.03em; margin: 0 0 var(--s2); font-weight: 650; }
   .lead { color: var(--tx2); margin: 0 0 var(--s6); max-width: 560px; }
   .centered { margin-left: auto; margin-right: auto; }
   .note { font-size: 12px; line-height: 16px; color: var(--tx2); margin: var(--s4) 0 0; }
-  .nav { display: flex; align-items: center; gap: var(--s3); padding: var(--s4) var(--s12) var(--s5); border-top: 1px solid var(--line); }
+  .nav { display: flex; align-items: center; gap: var(--s3); padding: var(--s4) var(--gutter); border-top: 1px solid var(--line); }
   .sp { flex: 1; }
   .skip { all: unset; cursor: pointer; color: var(--tx2); font-size: 13px; padding: var(--s2) var(--s2); }
   .skip:hover { color: var(--tx); }
@@ -217,7 +226,7 @@
   .bx { width: 20px; height: 20px; border-radius: var(--r-sm); border: 1.5px solid var(--tx3); display: grid; place-items: center; flex: none; color: var(--acfg); }
   .chk.on .bx { background: var(--ac); border-color: var(--ac); }
   .apps { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin: var(--s1) 0 var(--s3); }
-  .app { all: unset; box-sizing: border-box; display: flex; gap: var(--s3); align-items: center; padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: var(--r-lg); font-size: 13px; cursor: pointer; background: var(--panel); min-width: 0; }
+  .app { all: unset; box-sizing: border-box; display: flex; gap: var(--s3); align-items: center; height: 44px; padding: 0 var(--s3); border: 1px solid var(--line); border-radius: var(--r-lg); font-size: 13px; cursor: pointer; background: var(--panel); min-width: 0; }
   .app.on { border-color: var(--ac); }
   .ai { width: 24px; height: 24px; border-radius: var(--r); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 11px; background: #3a3a42; flex: none; }
   .perm { display: flex; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); margin-bottom: var(--s2); }

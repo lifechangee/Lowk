@@ -14,6 +14,8 @@
   import Onboarding from './onboarding/Onboarding.svelte';
   import { hrefs, router } from './router.svelte';
   import SearchPalette from './SearchPalette.svelte';
+  import MoveMenu from './MoveMenu.svelte';
+  import { dnd } from './dnd.svelte';
   import SettingsView from './settings/SettingsView.svelte';
   import { attachEvents, library, prefs, session, ui } from './state.svelte';
   import Home from './home/Home.svelte';
@@ -28,6 +30,14 @@
     await Promise.all([prefs.load(), library.reload()]);
     if (!prefs.value.onboarding?.done && router.route.name !== 'onboarding') router.go(hrefs.onboarding(prefs.value.onboarding?.step ?? 0));
     ready = true;
+  });
+
+  // F6: interface text size (settings ui.font_px, 14 = 100%) scales the whole main window live.
+  const zoom = $derived(Math.min(1.6, Math.max(0.8, (prefs.value.ui?.font_px ?? 14) / 14)));
+  $effect(() => {
+    const el = document.getElementById('app');
+    if (el) el.style.zoom = String(zoom);
+    document.documentElement.style.setProperty('--z', String(zoom));
   });
 
   // Mouse side buttons must not navigate history (WebView2 does that by default).
@@ -70,7 +80,7 @@
         </nav>
         <span class="sp"></span>
         {#if session.phase === 'recording'}
-          <span class="recpill"><RecDot pulse /><span class="t">{clock(session.elapsed)}</span><span class="m lbl">{library.live ? '' : ''}{session.sourceLabel}</span>
+          <span class="recpill"><RecDot pulse /><span class="t">{clock(session.elapsed)}</span><span class="m lbl">{session.sourceLabel}</span>
             <Button size="sm" onclick={() => session.callId && router.go(hrefs.call(session.callId))}>{tm('common.open')}</Button>
             <Button size="sm" variant="stop" onclick={() => session.stop()}>{tm('common.stop')}</Button></span>
         {:else}
@@ -86,12 +96,20 @@
     </div>
   {/if}
   <SearchPalette />
+  <MoveMenu />
+  {#if dnd.call}
+    <div class="ghost pop" style:left="{(dnd.x + 12) / zoom}px" style:top="{(dnd.y + 12) / zoom}px"><Icon name="doc" size={14} /><span class="lbl">{dnd.call.title}</span></div>
+  {/if}
   {#if ui.toast}<div class="toast" role="status">{ui.toast}</div>{/if}
 {/if}
 
 <style>
   :global(body) { overflow: hidden; }
-  .app { display: grid; grid-template-rows: 48px minmax(0, 1fr); height: 100vh; background: var(--bg); }
+  :global(html.dnd-on), :global(html.dnd-on *) { user-select: none; -webkit-user-select: none; cursor: grabbing !important; }
+  :global(html.dnd-on [data-drop]) { outline: 1px dashed var(--tx3); outline-offset: -1px; }
+  :global([data-drop].dropping) { outline: 2px solid var(--ac) !important; outline-offset: -2px; background: var(--acbg) !important; }
+  .ghost { position: fixed; z-index: 80; pointer-events: none; display: flex; align-items: center; gap: var(--s2); max-width: 280px; height: 32px; padding: 0 var(--s3); border-radius: var(--r); background: var(--panel); border: 1px solid var(--ac); box-shadow: var(--sh); font-size: 13px; color: var(--tx); }
+  .app { display: grid; grid-template-rows: 48px minmax(0, 1fr); height: calc(100vh / var(--z, 1)); background: var(--bg); }
   .tb { display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4); background: var(--side); border-bottom: 1px solid var(--line); min-width: 0; }
   .wm { display: inline-flex; gap: var(--s2); align-items: center; height: 32px; padding: 0 var(--s2); border-radius: var(--r); font-weight: 650; font-size: 14px; letter-spacing: -0.01em; color: var(--tx); text-decoration: none; flex: none; }
   .wm:hover { background: var(--hv); }
@@ -105,6 +123,8 @@
   .recpill { display: inline-flex; align-items: center; gap: var(--s2); height: 32px; padding: 0 var(--s1) 0 var(--s3); border-radius: var(--r); border: 1px solid rgba(255, 77, 79, 0.4); background: var(--recbg); font-size: 13px; white-space: nowrap; min-width: 0; flex: none; }
   .recpill .t { font: 600 12px/16px var(--mono); }
   .recpill .m { color: var(--tx2); font-size: 12px; max-width: 160px; }
+  .tb > :global(.btn) { flex: none; }
+  .crumb { flex: 0 1 auto; }
   .gear { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r); color: var(--tx2); flex: none; }
   .gear:hover { background: var(--hv); color: var(--tx); }
   .content { min-height: 0; min-width: 0; overflow: hidden; }

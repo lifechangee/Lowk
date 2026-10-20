@@ -10,13 +10,14 @@
   import { tm } from '../i18n';
   import { hrefs, router } from '../router.svelte';
   import { prefs } from '../state.svelte';
+  import { resolveSource } from '../source';
 
   let apps = $state<AudioApp[]>([]);
   onMount(async () => { apps = await api.audioApps(); });
 
   const s = $derived(prefs.value);
   const src = $derived(s.audio?.default_source);
-  const srcValue = $derived(src?.kind === 'app' ? `app:${src.id}` : 'system');
+  const srcValue = $derived(resolveSource(src, apps, s.capture?.default_source));
   const srcOptions = $derived([...apps.map((a) => ({ value: `app:${a.id}`, label: tm('m.sourceOnly', { app: a.name }) })), { value: 'system', label: tm('m.sourceSystem') }]);
 </script>
 
@@ -25,7 +26,7 @@
   <Select label={tm('settings.language')} value={s.ui?.language ?? 'auto'} options={[{ value: 'auto', label: tm('settings.language.auto') }, { value: 'ru', label: tm('settings.language.ru') }, { value: 'en', label: tm('settings.language.en') }]} onchange={(v) => prefs.patch({ ui: { language: v as UiLanguage } })} />
 </SettingRow>
 <SettingRow label={tm('m.defaultSource')} hint={tm('m.defaultSourceHint')}>
-  <Select label={tm('m.defaultSource')} value={srcValue} options={srcOptions} onchange={(v) => prefs.patch({ audio: { default_source: v.startsWith('app:') ? { kind: 'app', id: v.slice(4) } : { kind: 'whole_system' } } })} />
+  <Select label={tm('m.defaultSource')} value={srcValue} options={srcOptions} onchange={(v) => prefs.patch({ capture: { default_source: v.startsWith('app:') ? 'one_app' : 'whole_system' }, audio: { default_source: v.startsWith('app:') ? { kind: 'app', id: v.slice(4) } : { kind: 'whole_system' } } })} />
 </SettingRow>
 <SettingRow label={tm('settings.keepAudio')} hint={tm('m.keepAudioHint')}>
   <Toggle checked={s.audio?.keep_audio ?? false} label={tm('settings.keepAudio')} onchange={(v) => prefs.patch({ audio: { keep_audio: v } })} />

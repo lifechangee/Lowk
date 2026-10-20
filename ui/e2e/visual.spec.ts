@@ -65,6 +65,22 @@ for (const lang of LANGS) {
             await page.keyboard.press('Control+k');
             await page.waitForSelector('input');
           }
+          if (st.act === 'move-menu') {
+            await page.locator('.tbl .tr').first().click({ button: 'right' });
+            await page.waitForSelector('[role=menu]');
+          }
+          if (st.act === 'drag') {
+            const row = page.locator('.tbl .tr', { hasText: /Быстрый|подрядчиком/ }).first();
+            await row.scrollIntoViewIfNeeded();
+            const from = (await row.boundingBox())!;
+            await page.mouse.move(from.x + 40, from.y + from.height / 2);
+            await page.mouse.down();
+            await page.mouse.move(from.x + 60, from.y + from.height / 2 + 6, { steps: 3 });
+            await page.locator('.fc[data-drop]').first().evaluate((el) => el.scrollIntoView({ block: 'center' })); // the list autoscrolls the same way
+            const to = (await page.locator('.fc[data-drop]').first().boundingBox())!;
+            await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 6 });
+            await page.waitForSelector('.dropping');
+          }
           if (st.act === 'recording') {
             await page.locator('.nc button.primary, .nc .btn.primary, header ~ * button.primary').first().click({ timeout: 3000 }).catch(() => {});
             await page.waitForTimeout(700);

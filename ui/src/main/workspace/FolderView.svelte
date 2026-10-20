@@ -2,13 +2,13 @@
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';
   import Modal from '../../lib/components/Modal.svelte';
-  import Select from '../../lib/components/Select.svelte';
   import Tag from '../../lib/components/Tag.svelte';
   import { tPlural } from '../../lib/i18n/locale.svelte';
   import { api, folderKey, SYS_TRASH, SYS_UNSORTED } from '../api';
   import { duration, when } from '../fmt';
   import { tm } from '../i18n';
   import { hrefs } from '../router.svelte';
+  import { callRow } from '../dnd.svelte';
   import { library, ui } from '../state.svelte';
 
   let { folder }: { folder: string } = $props();
@@ -18,11 +18,9 @@
   const meta = $derived(library.folder(folder));
   const title = $derived(isTrash ? tm('main.trash') : isUnsorted ? tm('main.unsorted') : (meta?.title ?? ''));
   const calls = $derived(library.callsIn(folder));
-  const moveOptions = $derived([{ value: '', label: tm('m.moveTo') }, ...library.folders.map((f) => ({ value: folderKey(f.id), label: f.title }))]);
   let confirmEmpty = $state(false);
 
   async function restore(id: string) { await api.callRestore(id); await library.reload(); ui.notify(tm('m.restored')); }
-  async function move(id: string, to: string) { if (!to) return; await api.callMove(id, to); await library.reload(); }
   async function emptyTrash() { await api.trashEmpty(); await library.reload(); confirmEmpty = false; }
 </script>
 
@@ -46,17 +44,18 @@
     <div class="cin">
       <div class="tbl">
         {#each calls as c (c.id)}
-          <div class="tr" class:trash={isTrash}>
-            <a class="c1" href={isTrash ? undefined : hrefs.call(c.id)}>
+          <div class="tr" class:trash={isTrash} use:callRow={() => ({ id: c.id, title: c.title, movable: !isTrash && c.ended !== null })}>
+            <a class="c1" href={isTrash ? undefined : hrefs.call(c.id)} draggable="false">
               <b class="lbl">{c.title}</b>
               <small class="lbl">{when(c.started)} · {duration(c.duration_s)}</small>
             </a>
             {#if isTrash}
               <Button size="sm" icon="restore" onclick={() => restore(c.id)}>{tm('m.restore')}</Button>
-            {:else if isUnsorted}
-              <div class="mv"><Select size="sm" label={tm('m.moveTo')} value="" options={moveOptions} onchange={(v) => move(c.id, v)} /></div>
             {:else}
-              <span class="st lbl" class:ok={library.summarized.includes(c.id)}>{library.summarized.includes(c.id) ? tm('main.summaryReady') : tm('main.noSummary')}</span>
+              <div class="rt"><span class="st lbl" class:ok={library.summarized.includes(c.id)}>{library.summarized.includes(c.id) ? tm('main.summaryReady') : tm('main.noSummary')}</span>
+              {#if c.ended !== null}
+                <button class="more" aria-haspopup="menu" aria-label={tm('m.callActions')} title={tm('m.moveMenu')} onclick={(e) => { const r = e.currentTarget.getBoundingClientRect(); ui.openMove(c.id, r.right, r.bottom); }}><Icon name="more" size={14} /></button>
+              {/if}</div>
             {/if}
           </div>
         {:else}
@@ -86,16 +85,19 @@
   .note { color: var(--tx2); font-size: 13px; margin: var(--s3) 0 0; }
   .doc { flex: 1; overflow: auto; padding: var(--s2) 0 64px; min-height: 0; }
   .tbl { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }
-  .tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); border-top: 1px solid var(--line); }
+  .tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); cursor: grab; border-top: 1px solid var(--line); }
   .tr:first-child { border-top: none; }
   .tr:hover { background: var(--hv); }
   .c1 { min-width: 0; color: inherit; text-decoration: none; display: block; }
   .c1 b { display: block; font-weight: 550; }
+  .trash { cursor: default; }
   .trash .c1 { opacity: 0.7; }
   small { display: block; color: var(--tx2); font: var(--fs-sm) var(--font); }
   .st { font-size: 12px; color: var(--tx2); max-width: 128px; }
   .st.ok { color: var(--ac); }
-  .mv { width: 168px; }
+  .rt { display: flex; align-items: center; gap: var(--s2); }
+  .more { all: unset; box-sizing: border-box; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r); color: var(--tx3); cursor: pointer; }
+  .more:hover, .more:focus-visible { background: var(--sel); color: var(--tx); }
   .emptyrow { display: flex; gap: var(--s3); align-items: center; justify-content: center; padding: var(--s8); color: var(--tx3); }
   .warn { margin: 0; color: var(--tx2); }
 </style>

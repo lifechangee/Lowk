@@ -12,7 +12,6 @@ const xfail = (why: string) => test.fail(!process.env.QA_SHOW_XFAIL, why);
 test.use({ viewport: { width: 1280, height: 800 }, locale: 'en-US', timezoneId: 'UTC' });
 
 test('F1 onboarding fills the window edge-to-edge (no card in a window)', async ({ page }) => {
-  xfail('F1: onboarding renders as a bordered card with 16px outer margins');
   await page.goto('/main.html?lang=en#/onboarding/0');
   await page.waitForSelector('.win');
   const r = await page.locator('.win').boundingBox();
@@ -20,7 +19,6 @@ test('F1 onboarding fills the window edge-to-edge (no card in a window)', async 
 });
 
 test('F2 header primary button: dot / label / kbd are spaced', async ({ page }) => {
-  xfail('F2: «●Новый созвон⇧⌘R» has no spacing between dot, text and kbd chip');
   await page.goto('/main.html?lang=ru#/');
   await page.waitForSelector('.tb button.btn');
   const issues = (await page.evaluate(lintInPage, { root: '.tb' })) as Issue[];
@@ -28,7 +26,6 @@ test('F2 header primary button: dot / label / kbd are spaced', async ({ page }) 
 });
 
 test('F2b gaps between inline chips hold across the whole home screen', async ({ page }) => {
-  xfail('F2: same missing-gap pattern on the NewCallCard start button');
   await page.goto('/main.html?lang=en#/');
   await page.waitForSelector('.nc');
   const issues = (await page.evaluate(lintInPage, { root: '.nc' })) as Issue[];
@@ -70,8 +67,7 @@ test('F13b «Мой ответ» row and hint footer do not overlap and fit the 
   }
 });
 
-test('F12 home screen defaults to the capture source chosen in onboarding (real backend has no app list yet)', async ({ page }) => {
-  xfail('F12: onboarding preselects «one app (recommended)» but source_list is empty, so home falls back to «whole system»');
+test('F12 no app list (real backend today): onboarding preselects whole system and home matches it', async ({ page }) => {
   await page.goto('/main.html?lang=en&fresh&src=system&apps=none#/onboarding/2');
   await page.waitForSelector('.win');
   const chosen = await page.locator('.step .opt.on, .step [aria-pressed=true], .step [class*=selected]').first().innerText().catch(() => '');
@@ -95,8 +91,7 @@ test('F12 (mock with an app list) Next on the capture step persists the preselec
   expect(sources[1]).toMatch(/^app:/);
 });
 
-test('F12b onboarding "Skip" on the capture step: home must still match the preselected «one app»', async ({ page }) => {
-  xfail('F12: onboarding shows «one app (recommended)» preselected, but skipping/empty app list leaves the real default (whole system) and home shows that');
+test('F12b onboarding "Skip" on the capture step stores the preselected «one app»; home matches', async ({ page }) => {
   await page.goto('/main.html?lang=en&fresh&src=system#/onboarding/2');
   await page.waitForSelector('.win');
   await page.locator('.nav .skip').click();
