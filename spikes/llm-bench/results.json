@@ -1,0 +1,4646 @@
+{
+ "deepseek-v4.1-flash|text": [
+  {
+   "ttft": 2.1176895420067012,
+   "ttft_any": 2.046072084005573,
+   "total": 2.551032125003985,
+   "tps": 234.67583632272155,
+   "text": "EBITDA — прибыль до вычета процентов по кредитам, налогов, износа и амортизации; по сути показатель операционной эффективности без учёта финансовых и учётных эффектов. Именно на неё, как отметил собеседник, будут смотреть инвесторы, поэтому нужен путь к безубыточности.",
+   "provider": "Novita",
+   "usage": {
+    "prompt_tokens": 3362,
+    "completion_tokens": 94,
+    "total_tokens": 3456,
+    "cost": 0.00072891,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00072891,
+     "upstream_inference_prompt_cost": 0.00065559,
+     "upstream_inference_completions_cost": 7.332e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 16,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.449684624996735,
+   "ttft_any": 2.449684624996735,
+   "total": 2.86669329200231,
+   "tps": 193.70138671762152,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, depreciation и amortization, то есть грубый показатель операционной эффективности без учёта структуры капитала и учётной политики. На встрече её упомянули как метрику, на которую инвесторы смотрят наряду с growth.",
+   "provider": "DigitalOcean",
+   "usage": {
+    "prompt_tokens": 3339,
+    "completion_tokens": 73,
+    "total_tokens": 3412,
+    "cost": 0.000816975,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000816975,
+     "upstream_inference_prompt_cost": 0.000751275,
+     "upstream_inference_completions_cost": 6.57e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 6.91294341700268,
+   "ttft_any": 6.91294341700268,
+   "total": 7.52259774999402,
+   "tps": 132.26640286930032,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность бизнеса без учёта финансовых и бухгалтерских эффектов. Инвесторы смотрят на неё, чтобы понять, насколько компания способна выйти на безубыточность.",
+   "provider": "Relace",
+   "usage": {
+    "prompt_tokens": 3337,
+    "completion_tokens": 81,
+    "total_tokens": 3418,
+    "cost": 0.00027409,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00027409,
+     "upstream_inference_prompt_cost": 0.00023359,
+     "upstream_inference_completions_cost": 4.05e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.3954903749981895,
+   "ttft_any": 2.3954903749981895,
+   "total": 2.696950249999645,
+   "tps": 253.72348600572016,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, амортизации и износа (Earnings Before Interest, Taxes, Depreciation and Amortization). На встрече её упомянули как метрику, на которую будут смотреть инвесторы помимо growth, чтобы показать путь к безубыточности.",
+   "provider": "StreamLake",
+   "usage": {
+    "prompt_tokens": 3338,
+    "completion_tokens": 74,
+    "total_tokens": 3412,
+    "cost": 0.000534198,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000534198,
+     "upstream_inference_prompt_cost": 0.000490686,
+     "upstream_inference_completions_cost": 4.3512e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.1783358749962645,
+   "ttft_any": 1.1783358749962645,
+   "total": 1.8782033749885159,
+   "tps": 89.57797028361264,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы смотрят на неё как на показатель операционной эффективности и путь к безубыточности.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3337,
+    "completion_tokens": 63,
+    "total_tokens": 3400,
+    "cost": 0.000388756,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000388756,
+     "upstream_inference_prompt_cost": 0.000343711,
+     "upstream_inference_completions_cost": 4.5045e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.197250791999977,
+   "ttft_any": 2.197250791999977,
+   "total": 3.0319539589982014,
+   "tps": 88.32724676755961,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность без учёта структуры капитала и неденежных списаний. Инвесторы смотрят на неё как на индикатор пути к безубыточности.",
+   "provider": "Wafer",
+   "usage": {
+    "prompt_tokens": 3337,
+    "completion_tokens": 74,
+    "total_tokens": 3411,
+    "cost": 0.00068213,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00068213,
+     "upstream_inference_prompt_cost": 0.00063403,
+     "upstream_inference_completions_cost": 4.81e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 4.39498562499648,
+   "ttft_any": 4.39498562499648,
+   "total": 4.922874625000986,
+   "tps": 144.82059506922286,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность без учёта финансовых и бухгалтерских эффектов. Инвесторы смотрят на неё как на индикатор пути к безубыточности.",
+   "provider": "GMICloud",
+   "usage": {
+    "prompt_tokens": 3338,
+    "completion_tokens": 71,
+    "total_tokens": 3409,
+    "cost": 0.00065196,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00065196,
+     "upstream_inference_prompt_cost": 0.00060084,
+     "upstream_inference_completions_cost": 5.112e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.69786691700574,
+   "ttft_any": 1.69786691700574,
+   "total": 2.7098018749966286,
+   "tps": 76.70444504065195,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность бизнеса без учёта финансовых и бухгалтерских эффектов. Инвесторы смотрят на неё, чтобы понять, выходит ли компания на безубыточность.",
+   "provider": "DeepInfra",
+   "usage": {
+    "prompt_tokens": 3338,
+    "completion_tokens": 78,
+    "total_tokens": 3416,
+    "cost": 0.00050008,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00050008,
+     "upstream_inference_prompt_cost": 0.00046732,
+     "upstream_inference_completions_cost": 3.276e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "deepseek-v4.1-flash sort=latency|text": [
+  {
+   "ttft": 1.8940256250061793,
+   "ttft_any": 1.8940256250061793,
+   "total": 1.974906750008813,
+   "tps": 883.2978352656403,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы смотрят на неё как на показатель операционной эффективности и путь к безубыточности.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3337,
+    "completion_tokens": 63,
+    "total_tokens": 3400,
+    "cost": 0.0010767,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010767,
+     "upstream_inference_prompt_cost": 0.0010011,
+     "upstream_inference_completions_cost": 7.56e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.1911555000115186,
+   "ttft_any": 2.1911555000115186,
+   "total": 2.465864917001454,
+   "tps": 226.3305822538278,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы смотрят на неё как на показатель операционной эффективности и путь к безубыточности.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3336,
+    "completion_tokens": 63,
+    "total_tokens": 3399,
+    "cost": 0.0010764,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010764,
+     "upstream_inference_prompt_cost": 0.0010008,
+     "upstream_inference_completions_cost": 7.56e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.757968791993335,
+   "ttft_any": 1.757968791993335,
+   "total": 1.8211989580013324,
+   "tps": 990.5867734045218,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Показывает операционную рентабельность бизнеса без учёта финансовых и учётных факторов.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3339,
+    "completion_tokens": 63,
+    "total_tokens": 3402,
+    "cost": 0.0010773,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010773,
+     "upstream_inference_prompt_cost": 0.0010017,
+     "upstream_inference_completions_cost": 7.56e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.594616958012921,
+   "ttft_any": 2.594616958012921,
+   "total": 3.882429958001012,
+   "tps": 48.63844708434153,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы смотрят на неё как на показатель операционной эффективности и путь к безубыточности.",
+   "provider": "Makora",
+   "usage": {
+    "prompt_tokens": 3336,
+    "completion_tokens": 63,
+    "total_tokens": 3399,
+    "cost": 0.00094107,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00094107,
+     "upstream_inference_prompt_cost": 0.00086736,
+     "upstream_inference_completions_cost": 7.371e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.693276041012723,
+   "ttft_any": 1.693276041012723,
+   "total": 1.9993882910057437,
+   "tps": 236.49638927527866,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность без учёта финансовых и бухгалтерских эффектов. Инвесторы смотрят на неё как на индикатор пути к безубыточности.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3338,
+    "completion_tokens": 72,
+    "total_tokens": 3410,
+    "cost": 0.0010878,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010878,
+     "upstream_inference_prompt_cost": 0.0010014,
+     "upstream_inference_completions_cost": 8.64e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.298687834001612,
+   "ttft_any": 1.298687834001612,
+   "total": 2.710374792004586,
+   "tps": 47.34085345665506,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы смотрят на неё как на показатель операционной эффективности и путь к безубыточности.",
+   "provider": "BaseTen",
+   "usage": {
+    "prompt_tokens": 3338,
+    "completion_tokens": 63,
+    "total_tokens": 3401,
+    "cost": 0.001077,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.001077,
+     "upstream_inference_prompt_cost": 0.0010014,
+     "upstream_inference_completions_cost": 7.56e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.8957306249940302,
+   "ttft_any": 1.8957306249940302,
+   "total": 2.091743625001982,
+   "tps": 368.6272724267489,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность до неденежных и финансовых статей. Инвесторы смотрят на неё, чтобы оценить путь к безубыточности отдельно от growth.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3337,
+    "completion_tokens": 71,
+    "total_tokens": 3408,
+    "cost": 0.0010863,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010863,
+     "upstream_inference_prompt_cost": 0.0010011,
+     "upstream_inference_completions_cost": 8.52e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.50495754199801,
+   "ttft_any": 2.50495754199801,
+   "total": 2.7966887920047157,
+   "tps": 395.2964987149578,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность без учёта финансовых и бухгалтерских эффектов. Инвесторы смотрят на неё, чтобы оценить путь к безубыточности, а не только growth.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3336,
+    "completion_tokens": 76,
+    "total_tokens": 3412,
+    "cost": 0.001092,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.001092,
+     "upstream_inference_prompt_cost": 0.0010008,
+     "upstream_inference_completions_cost": 9.12e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "deepseek-v4.1-flash:nitro|text": [
+  {
+   "ttft": 1.389762916995096,
+   "ttft_any": 1.389762916995096,
+   "total": 2.1108549170021433,
+   "tps": 108.76201634882642,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность бизнеса без учёта финансовых и бухгалтерских эффектов. Инвесторы смотрят на неё, чтобы оценить путь к безубыточности отдельно от growth.",
+   "provider": "BaseTen",
+   "usage": {
+    "prompt_tokens": 3338,
+    "completion_tokens": 78,
+    "total_tokens": 3416,
+    "cost": 0.001095,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.001095,
+     "upstream_inference_prompt_cost": 0.0010014,
+     "upstream_inference_completions_cost": 9.36e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.8823014160007006,
+   "ttft_any": 1.8823014160007006,
+   "total": 2.3611122080037603,
+   "tps": 130.62587773556936,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы смотрят на неё как на показатель операционной эффективности и путь к безубыточности.",
+   "provider": "BaseTen",
+   "usage": {
+    "prompt_tokens": 3339,
+    "completion_tokens": 63,
+    "total_tokens": 3402,
+    "cost": 0.0010773,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010773,
+     "upstream_inference_prompt_cost": 0.0010017,
+     "upstream_inference_completions_cost": 7.56e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.173907333999523,
+   "ttft_any": 2.173907333999523,
+   "total": 2.3067716249934165,
+   "tps": 487.72093707605507,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Показывает операционную эффективность бизнеса без влияния структуры капитала и учётных решений.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3335,
+    "completion_tokens": 63,
+    "total_tokens": 3398,
+    "cost": 0.0010761,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010761,
+     "upstream_inference_prompt_cost": 0.0010005,
+     "upstream_inference_completions_cost": 7.56e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.2010225419944618,
+   "ttft_any": 1.2010225419944618,
+   "total": 1.3604419589973986,
+   "tps": 412.1929328954705,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы смотрят на неё как на показатель операционной эффективности и путь к безубыточности.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3339,
+    "completion_tokens": 63,
+    "total_tokens": 3402,
+    "cost": 0.0010773,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010773,
+     "upstream_inference_prompt_cost": 0.0010017,
+     "upstream_inference_completions_cost": 7.56e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.3212312090035994,
+   "ttft_any": 1.3212312090035994,
+   "total": 1.4463265420054086,
+   "tps": 527.4302746852617,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы смотрят на неё как на показатель операционной эффективности и путь к безубыточности.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3338,
+    "completion_tokens": 63,
+    "total_tokens": 3401,
+    "cost": 0.001077,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.001077,
+     "upstream_inference_prompt_cost": 0.0010014,
+     "upstream_inference_completions_cost": 7.56e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.5138853340031346,
+   "ttft_any": 2.5138853340031346,
+   "total": 3.0298558340000454,
+   "tps": 170.3415676041897,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность без учёта финансовых и бухгалтерских эффектов. Инвесторы смотрят на неё, чтобы оценить, насколько бизнес способен выйти на безубыточность.",
+   "provider": "BaseTen",
+   "usage": {
+    "prompt_tokens": 3339,
+    "completion_tokens": 79,
+    "total_tokens": 3418,
+    "cost": 0.0010965,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010965,
+     "upstream_inference_prompt_cost": 0.0010017,
+     "upstream_inference_completions_cost": 9.48e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.2406325830088463,
+   "ttft_any": 1.2406325830088463,
+   "total": 1.4313731660076883,
+   "tps": 383.20457527208936,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность без учёта финансовых и бухгалтерских эффектов. Инвесторы смотрят на неё как на индикатор пути к безубыточности.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3336,
+    "completion_tokens": 72,
+    "total_tokens": 3408,
+    "cost": 0.0010872,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010872,
+     "upstream_inference_prompt_cost": 0.0010008,
+     "upstream_inference_completions_cost": 8.64e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.3975475000042934,
+   "ttft_any": 1.3975475000042934,
+   "total": 1.8946978750027483,
+   "tps": 375.89174896169123,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность до этих статей. На встрече её упомянули как метрику, на которую смотрят инвесторы помимо роста.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3337,
+    "completion_tokens": 66,
+    "total_tokens": 3403,
+    "cost": 0.0010803,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010803,
+     "upstream_inference_prompt_cost": 0.0010011,
+     "upstream_inference_completions_cost": 7.92e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "deepseek-v4.1-flash-1017 (1st party)|text": [
+  {
+   "ttft": 1.2187652080028784,
+   "ttft_any": 1.2187652080028784,
+   "total": 1.6686877080064733,
+   "tps": 153.05180803674173,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность до учёта этих статей. На встрече её упомянули как метрику, на которую будут смотреть инвесторы помимо growth.",
+   "provider": "Crusoe",
+   "usage": {
+    "prompt_tokens": 3336,
+    "completion_tokens": 69,
+    "total_tokens": 3405,
+    "cost": 0.00105024,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00105024,
+     "upstream_inference_prompt_cost": 0.00096744,
+     "upstream_inference_completions_cost": 8.28e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.2416410419973545,
+   "ttft_any": 1.2416410419973545,
+   "total": 1.4737628339935327,
+   "tps": 325.24815785056467,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, амортизации и износа (Earnings Before Interest, Taxes, Depreciation and Amortization). На встрече её упомянули как метрику, на которую будут смотреть инвесторы помимо growth, чтобы показать путь к безубыточности.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3339,
+    "completion_tokens": 75,
+    "total_tokens": 3414,
+    "cost": 0.00030462,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00030462,
+     "upstream_inference_prompt_cost": 0.00026712,
+     "upstream_inference_completions_cost": 3.75e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.6431110000121407,
+   "ttft_any": 1.6431110000121407,
+   "total": 1.807901000007405,
+   "tps": null,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность до учёта этих статей. На встрече её упомянули как метрику, на которую будут смотреть инвесторы помимо growth.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3337,
+    "completion_tokens": 69,
+    "total_tokens": 3406,
+    "cost": 0.00030146,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00030146,
+     "upstream_inference_prompt_cost": 0.00026696,
+     "upstream_inference_completions_cost": 3.45e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.0532073750073323,
+   "ttft_any": 1.0532073750073323,
+   "total": 1.2884640420088544,
+   "tps": 293.7774268944483,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная рентабельность до этих статей. На встрече её упомянули как метрику, на которую будут смотреть инвесторы помимо growth.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3339,
+    "completion_tokens": 65,
+    "total_tokens": 3404,
+    "cost": 0.00029962,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00029962,
+     "upstream_inference_prompt_cost": 0.00026712,
+     "upstream_inference_completions_cost": 3.25e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.0895016249996843,
+   "ttft_any": 1.0895016249996843,
+   "total": 1.3132622499979334,
+   "tps": 355.9400925437993,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы используют её как грубый показатель операционной рентабельности, поэтому на встрече и звучало, что надо показать путь к безубыточности по EBITDA margin.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3338,
+    "completion_tokens": 79,
+    "total_tokens": 3417,
+    "cost": 0.0010962,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010962,
+     "upstream_inference_prompt_cost": 0.0010014,
+     "upstream_inference_completions_cost": 9.48e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.129821707989322,
+   "ttft_any": 1.129821707989322,
+   "total": 1.3745462499937275,
+   "tps": 291.1592173187959,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, амортизации и износа (Earnings Before Interest, Taxes, Depreciation and Amortization). На встрече её упомянули как метрику, на которую будут смотреть инвесторы, чтобы показать путь к безубыточности.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3336,
+    "completion_tokens": 72,
+    "total_tokens": 3408,
+    "cost": 0.00030288,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00030288,
+     "upstream_inference_prompt_cost": 0.00026688,
+     "upstream_inference_completions_cost": 3.6e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.1481067499989877,
+   "ttft_any": 1.1481067499989877,
+   "total": 1.331539208011236,
+   "tps": 410.18070278305515,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). На встрече её упомянули как метрику, на которую будут смотреть инвесторы помимо growth, чтобы показать путь к безубыточности.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3339,
+    "completion_tokens": 75,
+    "total_tokens": 3414,
+    "cost": 0.0010917,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0010917,
+     "upstream_inference_prompt_cost": 0.0010017,
+     "upstream_inference_completions_cost": 9e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.7333993749925867,
+   "ttft_any": 1.7333993749925867,
+   "total": 2.088507166990894,
+   "tps": 220.78738007196716,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). На встрече её упомянули как метрику, на которую будут смотреть инвесторы помимо growth, чтобы оценить путь к безубыточности.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3337,
+    "completion_tokens": 75,
+    "total_tokens": 3412,
+    "cost": 0.00030446,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00030446,
+     "upstream_inference_prompt_cost": 0.00026696,
+     "upstream_inference_completions_cost": 3.75e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "claude-haiku-5.5|text": [
+  {
+   "ttft": 1.696096708998084,
+   "ttft_any": 1.696096708998084,
+   "total": 2.1126275419956073,
+   "tps": 281.2089968945727,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, амортизации и износа (Earnings Before Interest, Taxes, Depreciation and Amortization). Показатель отражает операционную прибыльность бизнеса без учёта финансовой структуры и учётных начислений, поэтому инвесторы и смотрят на его margin.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 4521,
+    "completion_tokens": 117,
+    "total_tokens": 4638,
+    "cost": 0.0005106,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0005106,
+     "upstream_inference_prompt_cost": 0.0004521,
+     "upstream_inference_completions_cost": 5.85e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.4752947079978185,
+   "ttft_any": 1.4752947079978185,
+   "total": 2.135267624995322,
+   "tps": 209.34720081349803,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Показатель отражает операционную прибыльность бизнеса без влияния финансовой структуры и налогов, поэтому инвесторы и смотрят на EBITDA margin (её долю в выручке) при оценке пути к безубыточности.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 4521,
+    "completion_tokens": 139,
+    "total_tokens": 4660,
+    "cost": 0.0005216,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0005216,
+     "upstream_inference_prompt_cost": 0.0004521,
+     "upstream_inference_completions_cost": 6.95e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.5489281249901978,
+   "ttft_any": 1.5489281249901978,
+   "total": 2.0995015829976182,
+   "tps": 243.46574416819982,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, амортизации и износа (Earnings Before Interest, Taxes, Depreciation and Amortization). Показатель отражает операционную прибыльность бизнеса, без учёта финансирования и налогов, поэтому инвесторы и смотрят на EBITDA margin, чтобы оценить путь компании к безубыточности.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 4522,
+    "completion_tokens": 134,
+    "total_tokens": 4656,
+    "cost": 0.0005192,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0005192,
+     "upstream_inference_prompt_cost": 0.0004522,
+     "upstream_inference_completions_cost": 6.7e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.5597851670027012,
+   "ttft_any": 1.5597851670027012,
+   "total": 2.1051690000022063,
+   "tps": 255.10481133806113,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, амортизации и износа (Earnings Before Interest, Taxes, Depreciation and Amortization). Показатель отражает операционную прибыльность бизнеса без учёта финансирования, налогов и бухгалтерских начислений на активы, поэтому инвесторы и смотрят на EBITDA margin как на путь к безубыточности.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 4520,
+    "completion_tokens": 139,
+    "total_tokens": 4659,
+    "cost": 0.0005215,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0005215,
+     "upstream_inference_prompt_cost": 0.000452,
+     "upstream_inference_completions_cost": 6.95e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.3811698329955107,
+   "ttft_any": 1.3811698329955107,
+   "total": 2.001398624997819,
+   "tps": 218.63295292795044,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Показатель отражает операционную прибыльность бизнеса без учёта финансирования и налогов, поэтому инвесторы и смотрят на EBITDA margin (её долю в выручке) при оценке пути к безубыточности.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 4520,
+    "completion_tokens": 136,
+    "total_tokens": 4656,
+    "cost": 0.00052,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00052,
+     "upstream_inference_prompt_cost": 0.000452,
+     "upstream_inference_completions_cost": 6.8e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.45371920899197,
+   "ttft_any": 1.45371920899197,
+   "total": 2.3400679170008516,
+   "tps": 256.9564140645133,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, амортизации и износа (Earnings Before Interest, Taxes, Depreciation and Amortization). По сути, это показатель операционной прибыльности бизнеса, который не зависит от структуры долгов, налогового режима и учётной амортизации; инвесторы смотрят на EBITDA margin, чтобы понять, когда компания выйдет на безубыточность.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 4524,
+    "completion_tokens": 148,
+    "total_tokens": 4672,
+    "cost": 0.0005264,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0005264,
+     "upstream_inference_prompt_cost": 0.0004524,
+     "upstream_inference_completions_cost": 7.4e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.450569041990093,
+   "ttft_any": 1.450569041990093,
+   "total": 2.1058092919993214,
+   "tps": 294.5575748313389,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, амортизации и износа (Earnings Before Interest, Taxes, Depreciation and Amortization), то есть показатель операционной прибыльности бизнеса. В этой встрече инвесторы будут смотреть на EBITDA margin, чтобы оценить путь компании к безубыточности, а не только на рост выручки.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 4524,
+    "completion_tokens": 133,
+    "total_tokens": 4657,
+    "cost": 0.0005189,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0005189,
+     "upstream_inference_prompt_cost": 0.0004524,
+     "upstream_inference_completions_cost": 6.65e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.4281122499960475,
+   "ttft_any": 1.4281122499960475,
+   "total": 2.0645209590002196,
+   "tps": 233.98995214114674,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Показатель отражает операционную прибыльность бизнеса без учёта финансирования и бухгалтерских начислений, поэтому инвесторы и смотрят на EBITDA margin (долю EBITDA в выручке), когда оценивают путь к безубыточности.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 4521,
+    "completion_tokens": 149,
+    "total_tokens": 4670,
+    "cost": 0.0005266,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0005266,
+     "upstream_inference_prompt_cost": 0.0004521,
+     "upstream_inference_completions_cost": 7.45e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "gemini-3.8-flash (reasoning=low, mandatory)|text": [
+  {
+   "ttft": 2.3604593749914784,
+   "ttft_any": 2.3604593749914784,
+   "total": 2.8440452499926323,
+   "tps": 173.10589596691722,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это прибыль компании до вычета процентов по кредитам, налогов и амортизации. Метрика показывает реальную операционную доходность бизнеса без учёта долговой нагрузки и структуры налогов.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 3170,
+    "completion_tokens": 60,
+    "total_tokens": 3230,
+    "cost": 0.0026025,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0026025,
+     "upstream_inference_prompt_cost": 0.0023775,
+     "upstream_inference_completions_cost": 0.000225
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 3.380260582998744,
+   "ttft_any": 3.380260582998744,
+   "total": 3.7299054580071243,
+   "tps": 294.51131517923693,
+   "text": "EBITDA расшифровывается как Earnings Before Interest, Taxes, Depreciation, and Amortization — это прибыль компании до вычета процентов по кредитам, налогов и амортизации. Метрика показывает чистую операционную доходность бизнеса без учёта структуры его долга, налогового режима и капитальных затрат.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 3171,
+    "completion_tokens": 69,
+    "total_tokens": 3240,
+    "cost": 0.002637,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.002637,
+     "upstream_inference_prompt_cost": 0.00237825,
+     "upstream_inference_completions_cost": 0.00025875
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.4810582919890294,
+   "ttft_any": 2.4810582919890294,
+   "total": 3.025032082994585,
+   "tps": 180.04072663711503,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это прибыль компании до вычета процентов по кредитам, налогов и амортизации. Метрика показывает реальную операционную доходность бизнеса без учёта долговой нагрузки и структуры капитала.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 3170,
+    "completion_tokens": 59,
+    "total_tokens": 3229,
+    "cost": 0.00259875,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00259875,
+     "upstream_inference_prompt_cost": 0.0023775,
+     "upstream_inference_completions_cost": 0.00022125
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.1451312499993946,
+   "ttft_any": 2.1451312499993946,
+   "total": 2.818327708009747,
+   "tps": 147.493979998984,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это прибыль компании до вычета процентов по кредитам, налогов и амортизации. Метрика показывает реальную операционную доходность бизнеса без учета структуры долга, налогового режима и капитальных затрат. В вашем обсуждении EBITDA margin упомянули как ключевой ориентир для инвесторов на пути к безубыточности.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 3170,
+    "completion_tokens": 90,
+    "total_tokens": 3260,
+    "cost": 0.002715,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.002715,
+     "upstream_inference_prompt_cost": 0.0023775,
+     "upstream_inference_completions_cost": 0.0003375
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.554597082998953,
+   "ttft_any": 2.554597082998953,
+   "total": 3.204744957998628,
+   "tps": 107.53048272659964,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это прибыль компании до вычета процентов по кредитам, налогов и амортизации. Метрика показывает реальную операционную доходность бизнеса без учета долговой нагрузки и структуры налогообложения.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 3171,
+    "completion_tokens": 60,
+    "total_tokens": 3231,
+    "cost": 0.00260325,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00260325,
+     "upstream_inference_prompt_cost": 0.00237825,
+     "upstream_inference_completions_cost": 0.000225
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.9389217919961084,
+   "ttft_any": 2.9389217919961084,
+   "total": 3.6169929999887245,
+   "tps": 116.02950000796027,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это прибыль компании до вычета процентов по кредитам, налогов и амортизации. Метрика показывает реальную операционную прибыльность бизнеса без учета структуры долга и капитальных затрат.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 3169,
+    "completion_tokens": 60,
+    "total_tokens": 3229,
+    "cost": 0.00260175,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00260175,
+     "upstream_inference_prompt_cost": 0.00237675,
+     "upstream_inference_completions_cost": 0.000225
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.5367057499970542,
+   "ttft_any": 2.5367057499970542,
+   "total": 3.336979583997163,
+   "tps": 127.4765041284473,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это прибыль компании до вычета процентов по кредитам, налогов и амортизации. Метрика показывает чистую операционную доходность бизнеса без учета структуры долга, налогового режима и капитальных затрат. В вашем обсуждении EBITDA margin упомянули как показатель операционной эффективности и пути к безубыточности для инвесторов.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 3168,
+    "completion_tokens": 90,
+    "total_tokens": 3258,
+    "cost": 0.0027135,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0027135,
+     "upstream_inference_prompt_cost": 0.002376,
+     "upstream_inference_completions_cost": 0.0003375
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 3.417576708001434,
+   "ttft_any": 3.417576708001434,
+   "total": 3.945891417009989,
+   "tps": 136.44858811608108,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это прибыль компании до вычета процентов по кредитам, налогов и амортизации. Метрика показывает реальную операционную доходность бизнеса без учета долговой нагрузки и особенностей налогообложения.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 3171,
+    "completion_tokens": 60,
+    "total_tokens": 3231,
+    "cost": 0.00260325,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00260325,
+     "upstream_inference_prompt_cost": 0.00237825,
+     "upstream_inference_completions_cost": 0.000225
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "gpt-6-luna|text": [
+  {
+   "ttft": 1.6605825830047252,
+   "ttft_any": 1.6605825830047252,
+   "total": 2.2949792080034968,
+   "tps": 143.91817456743553,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации. Она помогает оценить операционную прибыльность бизнеса и его путь к безубыточности.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 2994,
+    "completion_tokens": 48,
+    "total_tokens": 3042,
+    "cost": 0.000398175,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 2991,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000398175,
+     "upstream_inference_prompt_cost": 0.000374175,
+     "upstream_inference_completions_cost": 2.4e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.9162563339923508,
+   "ttft_any": 1.9162563339923508,
+   "total": 2.1969569999928353,
+   "tps": 173.72657498532553,
+   "text": "EBITDA — прибыль компании до вычета процентов, налогов, износа и амортизации. Её используют, чтобы оценить операционную прибыльность бизнеса.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 2991,
+    "completion_tokens": 42,
+    "total_tokens": 3033,
+    "cost": 0.0003948,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 2988,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0003948,
+     "upstream_inference_prompt_cost": 0.0003738,
+     "upstream_inference_completions_cost": 2.1e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.9084595830063336,
+   "ttft_any": 1.9084595830063336,
+   "total": 2.3869208750111284,
+   "tps": 115.622786374487,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации. Её используют, чтобы оценить операционную прибыльность бизнеса без влияния финансирования и налогов.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 2993,
+    "completion_tokens": 49,
+    "total_tokens": 3042,
+    "cost": 0.00039855,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 2990,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00039855,
+     "upstream_inference_prompt_cost": 0.00037405,
+     "upstream_inference_completions_cost": 2.45e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.6307464170095045,
+   "ttft_any": 1.6307464170095045,
+   "total": 2.1479218330059666,
+   "tps": 130.07171044214883,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации. Это показатель операционной прибыльности компании; на встрече отметили, что инвесторам важно видеть путь к безубыточности и росту EBITDA margin.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 2992,
+    "completion_tokens": 59,
+    "total_tokens": 3051,
+    "cost": 0.000403425,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 2989,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000403425,
+     "upstream_inference_prompt_cost": 0.000373925,
+     "upstream_inference_completions_cost": 2.95e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.5348250419920078,
+   "ttft_any": 1.5348250419920078,
+   "total": 1.9393137499864679,
+   "tps": 145.3188604532506,
+   "text": "EBITDA — прибыль до вычета процентов, налогов и амортизации. Её используют, чтобы оценить операционную прибыльность бизнеса без влияния долгов, налогов и неденежных расходов.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 2991,
+    "completion_tokens": 50,
+    "total_tokens": 3041,
+    "cost": 0.0003988,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 2988,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0003988,
+     "upstream_inference_prompt_cost": 0.0003738,
+     "upstream_inference_completions_cost": 2.5e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.7620819579897216,
+   "ttft_any": 1.7620819579897216,
+   "total": 2.198188415990444,
+   "tps": 128.4352551995603,
+   "text": "EBITDA — прибыль компании до вычета процентов, налогов, износа и амортизации. Встреча отмечает, что инвесторам важна EBITDA margin — доля такой прибыли в выручке.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 2993,
+    "completion_tokens": 51,
+    "total_tokens": 3044,
+    "cost": 0.00039955,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 2990,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00039955,
+     "upstream_inference_prompt_cost": 0.00037405,
+     "upstream_inference_completions_cost": 2.55e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.5607026249927003,
+   "ttft_any": 1.5607026249927003,
+   "total": 2.0813648749899585,
+   "tps": 139.9459045747355,
+   "text": "EBITDA — прибыль компании до вычета процентов, налогов, износа и амортизации. На встрече говорили, что инвесторы будут смотреть на EBITDA margin — долю этой прибыли в выручке — и на путь к безубыточности.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 2993,
+    "completion_tokens": 62,
+    "total_tokens": 3055,
+    "cost": 0.00040505,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 2990,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00040505,
+     "upstream_inference_prompt_cost": 0.00037405,
+     "upstream_inference_completions_cost": 3.1e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.6405777090112679,
+   "ttft_any": 1.6405777090112679,
+   "total": 2.0271030840085587,
+   "tps": 117.53084968862136,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации. Это показатель операционной прибыльности компании.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 2992,
+    "completion_tokens": 35,
+    "total_tokens": 3027,
+    "cost": 0.000391425,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 2989,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000391425,
+     "upstream_inference_prompt_cost": 0.000373925,
+     "upstream_inference_completions_cost": 1.75e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "qwen3.8-flash|text": [
+  {
+   "ttft": 2.004789707993041,
+   "ttft_any": 2.004789707993041,
+   "total": 3.201572332996875,
+   "tps": 52.33678749822432,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, которая показывает операционную эффективность бизнеса без учёта структуры капитала и нематериальных активов. Инвесторы смотрят на неё, чтобы оценить реальную способность компании генерировать денежный поток от основной деятельности.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 3241,
+    "completion_tokens": 62,
+    "total_tokens": 3303,
+    "cost": 0.00051529,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00051529,
+     "upstream_inference_prompt_cost": 0.00048615,
+     "upstream_inference_completions_cost": 2.914e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.5357198339916067,
+   "ttft_any": 1.5357198339916067,
+   "total": 2.5310934589942917,
+   "tps": 63.311463403274736,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, которая показывает операционную эффективность бизнеса без влияния структуры капитала и учетных политик. В контексте встречи инвесторы смотрят на этот показатель, чтобы оценить реальную способность компании генерировать денежный поток из основной деятельности.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 3239,
+    "completion_tokens": 64,
+    "total_tokens": 3303,
+    "cost": 0.00051593,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00051593,
+     "upstream_inference_prompt_cost": 0.00048585,
+     "upstream_inference_completions_cost": 3.008e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.8299036249954952,
+   "ttft_any": 1.8299036249954952,
+   "total": 3.2865829999936977,
+   "tps": 49.46407458087071,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, которая показывает операционную эффективность бизнеса без влияния структуры капитала и учёта оборудования. В контексте встречи инвесторы смотрят на этот показатель, чтобы оценить реальную способность компании генерировать денежный поток и выйти на безубыточность.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 3242,
+    "completion_tokens": 68,
+    "total_tokens": 3310,
+    "cost": 0.00051826,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00051826,
+     "upstream_inference_prompt_cost": 0.0004863,
+     "upstream_inference_completions_cost": 3.196e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 12.228734791991883,
+   "ttft_any": 12.228734791991883,
+   "total": 13.486228916997788,
+   "tps": 48.60715596940867,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, которая показывает операционную эффективность бизнеса без учёта долговой нагрузки и бухгалтерских нюансов. Инвесторы смотрят на неё, чтобы оценить реальную способность компании генерировать денежный поток от основной деятельности.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 3241,
+    "completion_tokens": 62,
+    "total_tokens": 3303,
+    "cost": 0.00051529,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00051529,
+     "upstream_inference_prompt_cost": 0.00048615,
+     "upstream_inference_completions_cost": 2.914e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.4174087080027675,
+   "ttft_any": 2.4174087080027675,
+   "total": 3.7870649579999736,
+   "tps": 43.35924791393092,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, которая показывает операционную эффективность бизнеса без влияния структуры капитала и бухгалтерских методов. Инвесторы смотрят на этот показатель, чтобы оценить реальную способность компании генерировать денежный поток от основной деятельности.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 3241,
+    "completion_tokens": 60,
+    "total_tokens": 3301,
+    "cost": 0.00051435,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00051435,
+     "upstream_inference_prompt_cost": 0.00048615,
+     "upstream_inference_completions_cost": 2.82e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.484584709003684,
+   "ttft_any": 1.484584709003684,
+   "total": 2.6446518340089824,
+   "tps": 53.068511648551016,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, которая показывает операционную эффективность бизнеса без влияния структуры капитала и учетных политик. Инвесторы смотрят на этот показатель, чтобы оценить реальную способность компании генерировать денежный поток от основной деятельности.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 3242,
+    "completion_tokens": 61,
+    "total_tokens": 3303,
+    "cost": 0.00051497,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00051497,
+     "upstream_inference_prompt_cost": 0.0004863,
+     "upstream_inference_completions_cost": 2.867e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.7814104999997653,
+   "ttft_any": 2.7814104999997653,
+   "total": 3.6775557920045685,
+   "tps": 51.4165492363664,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации. В контексте встречи инвесторы используют этот показатель для оценки операционной эффективности бизнеса без влияния структуры капитала и учетных решений по основным средствам.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 3240,
+    "completion_tokens": 47,
+    "total_tokens": 3287,
+    "cost": 0.00050809,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00050809,
+     "upstream_inference_prompt_cost": 0.000486,
+     "upstream_inference_completions_cost": 2.209e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.9708986670011654,
+   "ttft_any": 2.9708986670011654,
+   "total": 4.218759957992006,
+   "tps": 62.736133664911826,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, которая показывает операционную эффективность бизнеса без учета долговой нагрузки и бухгалтерских нюансов. Инвесторы смотрят на этот показатель, чтобы оценить реальную способность компании генерировать денежный поток от основной деятельности.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 3241,
+    "completion_tokens": 62,
+    "total_tokens": 3303,
+    "cost": 0.00051529,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00051529,
+     "upstream_inference_prompt_cost": 0.00048615,
+     "upstream_inference_completions_cost": 2.914e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "glm-5.3-flash (reasoning=low, mandatory)|text": [
+  {
+   "ttft": 1.5175337920081802,
+   "ttft_any": 1.5175337920081802,
+   "total": 1.999056250002468,
+   "tps": 199.55922024793185,
+   "text": "EBITDA — это прибыль компании до вычета процентов по кредитам, налогов, амортизации и износа основных средств (Earnings Before Interest, Taxes, Depreciation & Amortization). Инвесторы смотрят на неё, потому что она показывает операционную рентабельность бизнеса без влияния финансовой и учётной политики — в вашем контексте это как раз про путь к безубыточности.",
+   "provider": "Wafer",
+   "usage": {
+    "prompt_tokens": 3008,
+    "completion_tokens": 97,
+    "total_tokens": 3105,
+    "cost": 0.000196872,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000196872,
+     "upstream_inference_prompt_cost": 0.000177472,
+     "upstream_inference_completions_cost": 1.94e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.844167416988057,
+   "ttft_any": 1.844167416988057,
+   "total": 2.690482041987707,
+   "tps": 110.78817962281511,
+   "text": "EBITDA — это прибыль компании до вычета процентов по кредитам, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation & Amortization). Инвесторы используют её, чтобы сравнивать операционную эффективность компаний независимо от структуры финансирования и учёта. В контексте встречи: вам нужно показать рост EBITDA margin как путь к безубыточности.",
+   "provider": "Wafer",
+   "usage": {
+    "prompt_tokens": 3009,
+    "completion_tokens": 93,
+    "total_tokens": 3102,
+    "cost": 0.000196131,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000196131,
+     "upstream_inference_prompt_cost": 0.000177531,
+     "upstream_inference_completions_cost": 1.86e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.5710709999984829,
+   "ttft_any": 1.5710709999984829,
+   "total": 1.8894397499971092,
+   "tps": 282.96463426440727,
+   "text": "EBITDA — это прибыль компании до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Она показывает операционную рентабельность без учёта финансовой и учётной нагрузки, поэтому инвесторы часто смотрят на EBITDA margin, чтобы оценить способность бизнеса выйти на безубыточность.",
+   "provider": "DigitalOcean",
+   "usage": {
+    "prompt_tokens": 3007,
+    "completion_tokens": 88,
+    "total_tokens": 3095,
+    "cost": 0.00043316875,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00043316875,
+     "upstream_inference_prompt_cost": 0.00039466875,
+     "upstream_inference_completions_cost": 3.85e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.0879786659934325,
+   "ttft_any": 2.0879786659934325,
+   "total": 2.3787510830006795,
+   "tps": 277.12529953842255,
+   "text": "EBITDA — это прибыль компании до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation & Amortization). Она показывает операционную рентабельность бизнеса без учёта финансовой и налоговой нагрузки, поэтому инвесторы часто смотрят именно на неё.",
+   "provider": "DigitalOcean",
+   "usage": {
+    "prompt_tokens": 3006,
+    "completion_tokens": 74,
+    "total_tokens": 3080,
+    "cost": 0.0004269125,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0004269125,
+     "upstream_inference_prompt_cost": 0.0003945375,
+     "upstream_inference_completions_cost": 3.2375e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.4345547500124667,
+   "ttft_any": 1.4345547500124667,
+   "total": 1.7591210410027998,
+   "tps": 292.13551058689575,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Показывает операционную рентабельность бизнеса без учёта финансовой и учётной нагрузки. В контексте встречи: инвесторы хотят видеть рост EBITDA margin как путь к безубыточности.",
+   "provider": "Wafer",
+   "usage": {
+    "prompt_tokens": 3007,
+    "completion_tokens": 88,
+    "total_tokens": 3095,
+    "cost": 0.000195013,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000195013,
+     "upstream_inference_prompt_cost": 0.000177413,
+     "upstream_inference_completions_cost": 1.76e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.434045916001196,
+   "ttft_any": 1.434045916001196,
+   "total": 1.8817705410037888,
+   "tps": 157.85356708682716,
+   "text": "EBITDA — это прибыль компании до вычета процентов по кредитам, налогов, амортизации (Depreciation & Amortization). Показывает операционную эффективность бизнеса без учёта финансовой и учётной нагрузки — инвесторы часто смотрят на неё, чтобы оценить реальную рентабельность.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3007,
+    "completion_tokens": 71,
+    "total_tokens": 3078,
+    "cost": 0.000388388,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000388388,
+     "upstream_inference_prompt_cost": 0.00036084,
+     "upstream_inference_completions_cost": 2.7548e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.3311387919966364,
+   "ttft_any": 1.3311387919966364,
+   "total": 1.946588332997635,
+   "tps": 158.73210683876732,
+   "text": "EBITDA — это прибыль компании до вычета процентов по кредитам, налогов, амортизации (Depreciation & Amortization). По сути показывает операционную рентабельность бизнеса без учёта структуры финансирования и бухгалтерских поправок. В контексте встречи: инвесторы смотрят на EBITDA margin, чтобы понять, есть ли у вас путь к безубыточности, а не только рост выручки.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3008,
+    "completion_tokens": 98,
+    "total_tokens": 3106,
+    "cost": 0.000398984,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000398984,
+     "upstream_inference_prompt_cost": 0.00036096,
+     "upstream_inference_completions_cost": 3.8024e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.218248625009437,
+   "ttft_any": 2.218248625009437,
+   "total": 2.7460530000098515,
+   "tps": 129.70320318171514,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Инвесторы используют её, чтобы оценить операционную рентабельность бизнеса без влияния структуры финансирования и учётных начислений.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3008,
+    "completion_tokens": 68,
+    "total_tokens": 3076,
+    "cost": 0.000387344,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000387344,
+     "upstream_inference_prompt_cost": 0.00036096,
+     "upstream_inference_completions_cost": 2.6384e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "deepseek-v4.1-flash|text+image": [
+  {
+   "ttft": 2.4657072500122013,
+   "ttft_any": 2.4657072500122013,
+   "total": 3.3829705829994055,
+   "tps": 71.98409151615063,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта структуры капитала и неденежных списаний. На вашем скриншоте она равна $0.6M при margin 14%.",
+   "provider": "AtlasCloud",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 67,
+    "total_tokens": 3984,
+    "cost": 0.000564975,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000564975,
+     "upstream_inference_prompt_cost": 0.000528795,
+     "upstream_inference_completions_cost": 3.618e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 4.076706666994141,
+   "ttft_any": 4.076706666994141,
+   "total": 4.648815334003302,
+   "tps": 127.99637335011273,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная прибыльность без учёта финансовых и неденежных статей. На вашем слайде она равна $0.6M при margin 14%.",
+   "provider": "StreamLake",
+   "usage": {
+    "prompt_tokens": 3916,
+    "completion_tokens": 65,
+    "total_tokens": 3981,
+    "cost": 0.000613872,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000613872,
+     "upstream_inference_prompt_cost": 0.000575652,
+     "upstream_inference_completions_cost": 3.822e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 4.367496791994199,
+   "ttft_any": 4.367496791994199,
+   "total": 5.110984207989532,
+   "tps": 123.22720149291041,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть показатель операционной эффективности без учёта структуры капитала и неденежных списаний. На вашем слайде Q3 EBITDA = $0.6M при margin 14%, и именно на неё, как отметил Собеседник, будут смотреть инвесторы.",
+   "provider": "StreamLake",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 89,
+    "total_tokens": 4006,
+    "cost": 0.00018557868,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 3072,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00018557868,
+     "upstream_inference_prompt_cost": 0.00013324668,
+     "upstream_inference_completions_cost": 5.2332e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.839942083999631,
+   "ttft_any": 1.839942083999631,
+   "total": 2.275822416995652,
+   "tps": 217.52623848386645,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации, то есть показатель операционной эффективности без учёта структуры капитала и неденежных статей. На вашем слайде EBITDA = $0.6M при margin 14%; инвесторы смотрят на неё как на индикатор пути к безубыточности.",
+   "provider": "DigitalOcean",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 86,
+    "total_tokens": 4003,
+    "cost": 0.000958725,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000958725,
+     "upstream_inference_prompt_cost": 0.000881325,
+     "upstream_inference_completions_cost": 7.74e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.321616458997596,
+   "ttft_any": 2.321616458997596,
+   "total": 2.8784549589909147,
+   "tps": 140.5626145360662,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть грубый показатель операционной рентабельности. На вашем скриншоте она равна $0.6M при margin 14%, и именно на неё, как отметил собеседник, будут смотреть инвесторы.",
+   "provider": "StreamLake",
+   "usage": {
+    "prompt_tokens": 3914,
+    "completion_tokens": 76,
+    "total_tokens": 3990,
+    "cost": 0.000620046,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000620046,
+     "upstream_inference_prompt_cost": 0.000575358,
+     "upstream_inference_completions_cost": 4.4688e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 16.910462750005536,
+   "ttft_any": 16.910462750005536,
+   "total": 17.45695641700877,
+   "tps": 106.12735098461695,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть грубый показатель операционной рентабельности. На вашем скриншоте она равна $0.6M при margin 14%.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 56,
+    "total_tokens": 3971,
+    "cost": 0.000443285,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000443285,
+     "upstream_inference_prompt_cost": 0.000403245,
+     "upstream_inference_completions_cost": 4.004e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 3.135159209006815,
+   "ttft_any": 3.135159209006815,
+   "total": 3.4848293750110315,
+   "tps": 181.29227048683393,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта финансовых и неденежных статей. На вашем слайде она равна $0.6M при margin 14%.",
+   "provider": "Phala",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 63,
+    "total_tokens": 3978,
+    "cost": 0.00087507,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00087507,
+     "upstream_inference_prompt_cost": 0.00082215,
+     "upstream_inference_completions_cost": 5.292e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.3843730410007993,
+   "ttft_any": 2.3843730410007993,
+   "total": 2.969391332997475,
+   "tps": 125.02675666153591,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; на слайде она равна $0.6M при margin 14%. То есть компания уже прибыльна на операционном уровне, что показывает инвесторам путь к безубыточности.",
+   "provider": "DigitalOcean",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 68,
+    "total_tokens": 3983,
+    "cost": 0.000942075,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000942075,
+     "upstream_inference_prompt_cost": 0.000880875,
+     "upstream_inference_completions_cost": 6.12e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "deepseek-v4.1-flash sort=latency|text+image": [
+  {
+   "ttft": 4.450235333002638,
+   "ttft_any": 4.450235333002638,
+   "total": 5.366482000012184,
+   "tps": 102.61954857476461,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть показатель операционной эффективности без учёта структуры капитала и неденежных списаний. На вашем слайде Q3 EBITDA = $0.6M при margin 14%, и именно на неё, как отметил собеседник, будут смотреть инвесторы.",
+   "provider": "DeepInfra",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 89,
+    "total_tokens": 4004,
+    "cost": 0.00087822,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00087822,
+     "upstream_inference_prompt_cost": 0.00082215,
+     "upstream_inference_completions_cost": 5.607e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.6802201660029823,
+   "ttft_any": 1.6802201660029823,
+   "total": 2.8830798330018297,
+   "tps": 68.91893804617567,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть грубый показатель операционной рентабельности. На вашем скриншоте она $0.6M при margin 14%, и именно на неё, как отметил Собеседник, будут смотреть инвесторы.",
+   "provider": "BaseTen",
+   "usage": {
+    "prompt_tokens": 3916,
+    "completion_tokens": 77,
+    "total_tokens": 3993,
+    "cost": 0.0012672,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012672,
+     "upstream_inference_prompt_cost": 0.0011748,
+     "upstream_inference_completions_cost": 9.24e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.944181708007818,
+   "ttft_any": 1.944181708007818,
+   "total": 2.0825026249949588,
+   "tps": 642.0399620038754,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта структуры капитала и неденежных списаний. На вашем слайде EBITDA = $0.6M при margin 14%, и именно на неё, как отметил собеседник, будут смотреть инвесторы.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 88,
+    "total_tokens": 4003,
+    "cost": 0.0012801,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012801,
+     "upstream_inference_prompt_cost": 0.0011745,
+     "upstream_inference_completions_cost": 0.0001056
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.7695695840084227,
+   "ttft_any": 1.7695695840084227,
+   "total": 2.5336053750070278,
+   "tps": 100.9274033183114,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная прибыльность бизнеса. На вашем скриншоте она $0.6M при margin 14%, и именно на неё, как отметил собеседник, будут смотреть инвесторы.",
+   "provider": "BaseTen",
+   "usage": {
+    "prompt_tokens": 3916,
+    "completion_tokens": 77,
+    "total_tokens": 3993,
+    "cost": 0.0012672,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012672,
+     "upstream_inference_prompt_cost": 0.0011748,
+     "upstream_inference_completions_cost": 9.24e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.4632805830042344,
+   "ttft_any": 1.4632805830042344,
+   "total": 1.7910458330006804,
+   "tps": 198.53814834185368,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта структуры капитала и неденежных списаний. На скриншоте она равна $0.6M при margin 14%.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 66,
+    "total_tokens": 3981,
+    "cost": 0.0012537,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012537,
+     "upstream_inference_prompt_cost": 0.0011745,
+     "upstream_inference_completions_cost": 7.92e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.368886583004496,
+   "ttft_any": 1.368886583004496,
+   "total": 1.6155082080076681,
+   "tps": 312.1942665594475,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть грубый показатель операционной рентабельности. На вашем скриншоте EBITDA = $0.6M при margin 14%, и именно на неё, как отметил собеседник, будут смотреть инвесторы.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 77,
+    "total_tokens": 3994,
+    "cost": 0.0012675,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012675,
+     "upstream_inference_prompt_cost": 0.0011751,
+     "upstream_inference_completions_cost": 9.24e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.845096666002064,
+   "ttft_any": 2.845096666002064,
+   "total": 2.874529041000642,
+   "tps": null,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта структуры капитала и неденежных списаний. На вашем слайде она равна $0.6M при margin 14%.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3913,
+    "completion_tokens": 67,
+    "total_tokens": 3980,
+    "cost": 0.0012543,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012543,
+     "upstream_inference_prompt_cost": 0.0011739,
+     "upstream_inference_completions_cost": 8.04e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.8501400829991326,
+   "ttft_any": 1.8501400829991326,
+   "total": 2.2076899579988094,
+   "tps": 251.03083060492642,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта структуры капитала и неденежных списаний. На вашем слайде Q3 EBITDA = $0.6M при margin 14%, и именно на этот показатель, как отметил собеседник, будут смотреть инвесторы.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 90,
+    "total_tokens": 4007,
+    "cost": 0.0012831,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012831,
+     "upstream_inference_prompt_cost": 0.0011751,
+     "upstream_inference_completions_cost": 0.000108
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "deepseek-v4.1-flash:nitro|text+image": [
+  {
+   "ttft": 1.4210965419915738,
+   "ttft_any": 1.4210965419915738,
+   "total": 1.9128212919895304,
+   "tps": 187.3156922820598,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная прибыльность бизнеса без учёта финансовых и бухгалтерских эффектов. На вашем скриншоте она $0.6M при margin 14%, и инвесторы смотрят именно на неё как на путь к безубыточности.",
+   "provider": "BaseTen",
+   "usage": {
+    "prompt_tokens": 3916,
+    "completion_tokens": 91,
+    "total_tokens": 4007,
+    "cost": 0.001284,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.001284,
+     "upstream_inference_prompt_cost": 0.0011748,
+     "upstream_inference_completions_cost": 0.0001092
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.3355328749894397,
+   "ttft_any": 2.3355328749894397,
+   "total": 2.925646957999561,
+   "tps": 126.49155508440454,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть грубый показатель операционной рентабельности. На вашем скриншоте она $0.6M при margin 14%, и именно на неё, как отметили на встрече, будут смотреть инвесторы.",
+   "provider": "BaseTen",
+   "usage": {
+    "prompt_tokens": 3914,
+    "completion_tokens": 75,
+    "total_tokens": 3989,
+    "cost": 0.0012642,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012642,
+     "upstream_inference_prompt_cost": 0.0011742,
+     "upstream_inference_completions_cost": 9e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.6175880410009995,
+   "ttft_any": 1.6175880410009995,
+   "total": 1.7309042080014478,
+   "tps": 636.6660857179805,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; грубо говоря, операционная прибыльность без учёта финансовых и неденежных статей. На вашем слайде она равна $0.6M при margin 14%.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 66,
+    "total_tokens": 3983,
+    "cost": 0.0012543,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012543,
+     "upstream_inference_prompt_cost": 0.0011751,
+     "upstream_inference_completions_cost": 7.92e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.4200227080000332,
+   "ttft_any": 1.4200227080000332,
+   "total": 1.7724674159981078,
+   "tps": 357.87135629403934,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть показатель операционной эффективности без учёта структуры капитала и неденежных списаний. На вашем слайде Q3 EBITDA = $0.6M при margin 14%, и именно на неё, как отметил собеседник, будут смотреть инвесторы.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 89,
+    "total_tokens": 4006,
+    "cost": 0.0012819,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012819,
+     "upstream_inference_prompt_cost": 0.0011751,
+     "upstream_inference_completions_cost": 0.0001068
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.336390708005638,
+   "ttft_any": 2.336390708005638,
+   "total": 2.5199856660037767,
+   "tps": 459.43327025345206,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта структуры капитала и неденежных списаний. На вашем слайде она равна $0.6M при margin 14%, и именно на неё инвесторы будут смотреть в первую очередь.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 82,
+    "total_tokens": 3999,
+    "cost": 0.0012735,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012735,
+     "upstream_inference_prompt_cost": 0.0011751,
+     "upstream_inference_completions_cost": 9.84e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.4945124999940163,
+   "ttft_any": 1.4945124999940163,
+   "total": 1.7796884999988833,
+   "tps": 312.6810089686296,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная доходность без учёта структуры капитала и неденежных списаний. На вашем слайде она равна $0.6M при margin 14%, и именно на неё инвесторы смотрят как на путь к безубыточности.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 86,
+    "total_tokens": 4001,
+    "cost": 0.0012777,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012777,
+     "upstream_inference_prompt_cost": 0.0011745,
+     "upstream_inference_completions_cost": 0.0001032
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.9445721249940107,
+   "ttft_any": 1.9445721249940107,
+   "total": 2.123075458002859,
+   "tps": 488.20281740464907,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта структуры капитала и неденежных списаний. На вашем слайде она равна $0.6M при margin 14%, и именно на неё, как отметил собеседник, будут смотреть инвесторы.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 88,
+    "total_tokens": 4005,
+    "cost": 0.0012807,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012807,
+     "upstream_inference_prompt_cost": 0.0011751,
+     "upstream_inference_completions_cost": 0.0001056
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 7.7291795420023846,
+   "ttft_any": 7.7291795420023846,
+   "total": 7.930678499993519,
+   "tps": 446.6918515888905,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть показатель операционной эффективности без учёта структуры капитала и неденежных статей. На вашем скриншоте EBITDA = $0.6M при margin 14%, и именно на неё, как отметил собеседник, будут смотреть инвесторы.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 87,
+    "total_tokens": 4004,
+    "cost": 0.0012795,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0012795,
+     "upstream_inference_prompt_cost": 0.0011751,
+     "upstream_inference_completions_cost": 0.0001044
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "deepseek-v4.1-flash-1017 (1st party)|text+image": [
+  {
+   "ttft": 1.5179758750018664,
+   "ttft_any": 1.5179758750018664,
+   "total": 1.7511053750058636,
+   "tps": 289.47400203349764,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; на скриншоте она $0.6M при margin 14%. Инвесторы смотрят на неё как на показатель пути к безубыточности, а не только на growth.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3916,
+    "completion_tokens": 66,
+    "total_tokens": 3982,
+    "cost": 0.00034628,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00034628,
+     "upstream_inference_prompt_cost": 0.00031328,
+     "upstream_inference_completions_cost": 3.3e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.4631714589922922,
+   "ttft_any": 1.4631714589922922,
+   "total": 1.7167455839953618,
+   "tps": 281.79650002510857,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; на скриншоте за Q3 она $0.6M при margin 14%. Инвесторы смотрят на неё как на индикатор пути к безубыточности, а не только на growth.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 71,
+    "total_tokens": 3986,
+    "cost": 0.0003487,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0003487,
+     "upstream_inference_prompt_cost": 0.0003132,
+     "upstream_inference_completions_cost": 3.55e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.3444788750057342,
+   "ttft_any": 1.3444788750057342,
+   "total": 1.6056287920073373,
+   "tps": 248.29776172178455,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации; на скриншоте она $0.6M при margin 14%. Инвесторы смотрят на неё как на показатель пути к безубыточности, а не только на growth.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 65,
+    "total_tokens": 3980,
+    "cost": 0.0003457,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0003457,
+     "upstream_inference_prompt_cost": 0.0003132,
+     "upstream_inference_completions_cost": 3.25e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.2707032080070348,
+   "ttft_any": 1.2707032080070348,
+   "total": 1.4239056250080466,
+   "tps": 484.775752954049,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; на скриншоте за Q3 она $0.6M при margin 14%. Инвесторы смотрят на неё как на показатель пути к безубыточности, а не только на growth.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3916,
+    "completion_tokens": 69,
+    "total_tokens": 3985,
+    "cost": 0.00034778,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00034778,
+     "upstream_inference_prompt_cost": 0.00031328,
+     "upstream_inference_completions_cost": 3.45e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.3353524999984074,
+   "ttft_any": 1.3353524999984074,
+   "total": 1.5233939589961665,
+   "tps": 368.46416237388274,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; на скриншоте за Q3 она $0.6M при margin 14%. Инвесторы смотрят на неё как на показатель пути к безубыточности, а не только на growth.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 69,
+    "total_tokens": 3984,
+    "cost": 0.0003477,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0003477,
+     "upstream_inference_prompt_cost": 0.0003132,
+     "upstream_inference_completions_cost": 3.45e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.2575853330054088,
+   "ttft_any": 1.2575853330054088,
+   "total": 1.5865202919958392,
+   "tps": 239.96755713694412,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта структуры капитала и неденежных списаний. На скриншоте за Q3 она $0.6M при margin 14% от выручки $4.2M.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3917,
+    "completion_tokens": 78,
+    "total_tokens": 3995,
+    "cost": 0.00035236,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00035236,
+     "upstream_inference_prompt_cost": 0.00031336,
+     "upstream_inference_completions_cost": 3.9e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.5135849159996724,
+   "ttft_any": 1.5135849159996724,
+   "total": 1.7685022079967894,
+   "tps": 337.51747858664766,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть операционная рентабельность без учёта финансовых и неденежных статей. На скриншоте за Q3 она $0.6M при margin 14%, и инвесторы будут смотреть именно на этот показатель и путь к безубыточности.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3915,
+    "completion_tokens": 85,
+    "total_tokens": 4000,
+    "cost": 0.0003557,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0003557,
+     "upstream_inference_prompt_cost": 0.0003132,
+     "upstream_inference_completions_cost": 4.25e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.4246671669970965,
+   "ttft_any": 1.4246671669970965,
+   "total": 1.6731299170060083,
+   "tps": 295.8616883089611,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации; на скриншоте за Q3 она $0.6M при margin 14%. Инвесторы смотрят на неё как на индикатор пути к безубыточности, а не только на growth.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 3918,
+    "completion_tokens": 71,
+    "total_tokens": 3989,
+    "cost": 0.00034894,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00034894,
+     "upstream_inference_prompt_cost": 0.00031344,
+     "upstream_inference_completions_cost": 3.55e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "claude-haiku-5.5|text+image": [
+  {
+   "ttft": 2.179394750011852,
+   "ttft_any": 2.179394750011852,
+   "total": 2.5871976670023287,
+   "tps": 195.10314924195424,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть показатель операционной эффективности бизнеса. На слайде EBITDA составляет $0.6M при марже 14%.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 5721,
+    "completion_tokens": 76,
+    "total_tokens": 5797,
+    "cost": 0.0006101,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006101,
+     "upstream_inference_prompt_cost": 0.0005721,
+     "upstream_inference_completions_cost": 3.8e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.530018541001482,
+   "ttft_any": 2.530018541001482,
+   "total": 3.0801153329957742,
+   "tps": 197.73786022666113,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации, то есть показатель операционной эффективности бизнеса. На слайде EBITDA $0.6M при марже 14%, а в разговоре его упомянули как ключевой для инвесторов показатель вместо одного только роста.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 5721,
+    "completion_tokens": 107,
+    "total_tokens": 5828,
+    "cost": 0.0006256,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006256,
+     "upstream_inference_prompt_cost": 0.0005721,
+     "upstream_inference_completions_cost": 5.35e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.110579707994475,
+   "ttft_any": 2.110579707994475,
+   "total": 2.501300624993746,
+   "tps": 228.33447063103316,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). По слайду EBITDA за Q3 составляет $0.6M при марже 14%.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 5722,
+    "completion_tokens": 88,
+    "total_tokens": 5810,
+    "cost": 0.0006162,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006162,
+     "upstream_inference_prompt_cost": 0.0005722,
+     "upstream_inference_completions_cost": 4.4e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.007768459006911,
+   "ttft_any": 2.007768459006911,
+   "total": 2.409523624999565,
+   "tps": 218.39162188724123,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации; на слайде она $0.6M при марже 14%. Это показатель операционной эффективности, который инвесторы используют, чтобы оценить путь к безубыточности.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 5719,
+    "completion_tokens": 87,
+    "total_tokens": 5806,
+    "cost": 0.0006154,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006154,
+     "upstream_inference_prompt_cost": 0.0005719,
+     "upstream_inference_completions_cost": 4.35e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.0047621660050936,
+   "ttft_any": 2.0047621660050936,
+   "total": 2.45431099999405,
+   "tps": 250.65084793580536,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). На слайде EBITDA $0.6M при margin 14% — то есть операционная прибыльность бизнеса без учёта финансовых расходов и амортизации.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 5721,
+    "completion_tokens": 113,
+    "total_tokens": 5834,
+    "cost": 0.0006286,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006286,
+     "upstream_inference_prompt_cost": 0.0005721,
+     "upstream_inference_completions_cost": 5.65e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.270399333006935,
+   "ttft_any": 2.270399333006935,
+   "total": 2.728900957998121,
+   "tps": 229.60314601417647,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, амортизации и износа, то есть операционный денежный результат бизнеса. На слайде EBITDA $0.6M при марже 14%, а собеседник как раз говорит, что инвесторы смотрят на неё, а не только на рост.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 5723,
+    "completion_tokens": 104,
+    "total_tokens": 5827,
+    "cost": 0.0006243,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006243,
+     "upstream_inference_prompt_cost": 0.0005723,
+     "upstream_inference_completions_cost": 5.2e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.4365095410030335,
+   "ttft_any": 2.4365095410030335,
+   "total": 2.891862457996467,
+   "tps": 252.78060943843536,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). На слайде EBITDA $0.6M при margin 14%, то есть показатель операционной прибыльности компании без учёта финансовых и бухгалтерских статей.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 5720,
+    "completion_tokens": 115,
+    "total_tokens": 5835,
+    "cost": 0.0006295,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006295,
+     "upstream_inference_prompt_cost": 0.000572,
+     "upstream_inference_completions_cost": 5.75e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.3853504580038134,
+   "ttft_any": 2.3853504580038134,
+   "total": 2.6864432500005933,
+   "tps": 366.4521440150792,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, амортизации и износа, то есть показатель операционной прибыльности бизнеса. На слайде EBITDA за Q3 — $0.6M при марже 14%, и именно по нему инвесторы оценивают путь к безубыточности.",
+   "provider": "Claude Platform on AWS",
+   "usage": {
+    "prompt_tokens": 5720,
+    "completion_tokens": 103,
+    "total_tokens": 5823,
+    "cost": 0.0006235,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006235,
+     "upstream_inference_prompt_cost": 0.000572,
+     "upstream_inference_completions_cost": 5.15e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "gemini-3.8-flash (reasoning=low, mandatory)|text+image": [
+  {
+   "ttft": 4.77482483300264,
+   "ttft_any": 4.77482483300264,
+   "total": 5.505875457994989,
+   "tps": 120.5952785942306,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это операционная прибыль компании до вычета процентов по кредитам, налогов и амортизации. Она показывает реальную прибыльность основного бизнеса без учета структуры долга и налогового режима. У вас на слайде EBITDA составляет $0.6M с маржинальностью 14%.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 4269,
+    "completion_tokens": 78,
+    "total_tokens": 4347,
+    "cost": 0.00349425,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00349425,
+     "upstream_inference_prompt_cost": 0.00320175,
+     "upstream_inference_completions_cost": 0.0002925
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 4.656291666004108,
+   "ttft_any": 4.656291666004108,
+   "total": 5.7011032909940695,
+   "tps": 135.85948201069615,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это операционная прибыль компании до вычета процентов по кредитам, налогов и амортизации. Она показывает чистую прибыльность основного бизнеса без влияния долговой нагрузки, налогового режима и капитальных затрат. По вашему слайду EBITDA составляет $0.6M с маржинальностью 14%.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 4269,
+    "completion_tokens": 83,
+    "total_tokens": 4352,
+    "cost": 0.003513,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.003513,
+     "upstream_inference_prompt_cost": 0.00320175,
+     "upstream_inference_completions_cost": 0.00031125
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 8.119567125002504,
+   "ttft_any": 8.119567125002504,
+   "total": 8.718062208004994,
+   "tps": 168.38144633704192,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это операционная прибыль компании до вычета процентов по кредитам, налогов и амортизации. Она показывает реальную прибыльность основного бизнеса без учета долговой нагрузки и структуры налогообложения. Судя по слайду, у вас EBITDA составляет $0.6M с маржинальностью 14%.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 4269,
+    "completion_tokens": 82,
+    "total_tokens": 4351,
+    "cost": 0.00350925,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00350925,
+     "upstream_inference_prompt_cost": 0.00320175,
+     "upstream_inference_completions_cost": 0.0003075
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 18.280377917006263,
+   "ttft_any": 18.280377917006263,
+   "total": 18.793605625003693,
+   "tps": 156.64964887628147,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это операционная прибыль компании до вычета процентов по кредитам, налогов и амортизации. Она показывает реальную прибыльность основного бизнеса без влияния структуры долга и налогового режима; на вашем слайде она составляет $0.6M с маржинальностью 14%.",
+   "provider": "Google AI Studio",
+   "usage": {
+    "prompt_tokens": 4271,
+    "completion_tokens": 77,
+    "total_tokens": 4348,
+    "cost": 0.003492,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.003492,
+     "upstream_inference_prompt_cost": 0.00320325,
+     "upstream_inference_completions_cost": 0.00028875
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 3.688061958004255,
+   "ttft_any": 3.688061958004255,
+   "total": 4.291277625001385,
+   "tps": 183.20049534296123,
+   "text": "EBITDA — это прибыль компании до вычета процентов по кредитам, налогов и амортизации (Earnings Before Interest, Taxes, Depreciation, and Amortization). Метрика показывает реальную операционную прибыльность бизнеса без учёта структуры долга и капитальных затрат. У вас на слайде EBITDA составляет $0.6M с маржинальностью 14%.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 4271,
+    "completion_tokens": 81,
+    "total_tokens": 4352,
+    "cost": 0.003507,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.003507,
+     "upstream_inference_prompt_cost": 0.00320325,
+     "upstream_inference_completions_cost": 0.00030375
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 3.4331997909903293,
+   "ttft_any": 3.4331997909903293,
+   "total": 3.9358284159970935,
+   "tps": 195.41165366615596,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это операционная прибыль компании до вычета процентов по кредитам, налогов и амортизации. Она показывает реальную прибыльность основного бизнеса без учёта структуры долга и налогового режима. На вашем слайде EBITDA составляет $0.6M с маржинальностью 14%.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 4268,
+    "completion_tokens": 78,
+    "total_tokens": 4346,
+    "cost": 0.0034935,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0034935,
+     "upstream_inference_prompt_cost": 0.003201,
+     "upstream_inference_completions_cost": 0.0002925
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 5.487499833005131,
+   "ttft_any": 5.487499833005131,
+   "total": 6.4929883330041775,
+   "tps": 118.70238757109394,
+   "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это прибыль компании до вычета процентов по кредитам, налогов и амортизации. Она показывает реальную операционную доходность бизнеса без учёта структуры долга и бухгалтерских списаний. На вашем слайде EBITDA составляет $0.6M с маржинальностью 14%.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 4270,
+    "completion_tokens": 80,
+    "total_tokens": 4350,
+    "cost": 0.0035025,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0035025,
+     "upstream_inference_prompt_cost": 0.0032025,
+     "upstream_inference_completions_cost": 0.0003
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 5.40068395799608,
+   "ttft_any": 5.40068395799608,
+   "total": 6.205567416996928,
+   "tps": 103.2155743981303,
+   "text": "**EBITDA** (Earnings Before Interest, Taxes, Depreciation, and Amortization) — это операционная прибыль до вычета процентов по кредитам, налогов и амортизации. Она показывает реальную доходность основного бизнеса без учета долговой нагрузки и структуры налогов. На вашем слайде EBITDA составляет $0.6M с маржинальностью (EBITDA margin) 14%.",
+   "provider": "Google",
+   "usage": {
+    "prompt_tokens": 4269,
+    "completion_tokens": 84,
+    "total_tokens": 4353,
+    "cost": 0.00351675,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00351675,
+     "upstream_inference_prompt_cost": 0.00320175,
+     "upstream_inference_completions_cost": 0.000315
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "gpt-6-luna|text+image": [
+  {
+   "ttft": 2.670127749996027,
+   "ttft_any": 2.670127749996027,
+   "total": 3.010630167002091,
+   "tps": 191.81785001188297,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации. На слайде она составляет $0,6 млн, а EBITDA margin — 14% от выручки.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 4097,
+    "completion_tokens": 51,
+    "total_tokens": 4148,
+    "cost": 0.00053755,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 4094,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00053755,
+     "upstream_inference_prompt_cost": 0.00051205,
+     "upstream_inference_completions_cost": 2.55e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.707211000000825,
+   "ttft_any": 2.707211000000825,
+   "total": 3.0036966250045225,
+   "tps": 278.5380214472545,
+   "text": "EBITDA — это прибыль до вычета процентов по долгам, налогов, амортизации основных средств и нематериальных активов. На слайде она составляет $0,6 млн, или 14% выручки; этот показатель помогает оценить операционную прибыльность бизнеса.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 4097,
+    "completion_tokens": 68,
+    "total_tokens": 4165,
+    "cost": 0.00054605,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 4094,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00054605,
+     "upstream_inference_prompt_cost": 0.00051205,
+     "upstream_inference_completions_cost": 3.4e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 3.390419707997353,
+   "ttft_any": 3.390419707997353,
+   "total": 3.8692862079915358,
+   "tps": 120.75743251238923,
+   "text": "EBITDA — прибыль до вычета процентов по долгам, налогов, амортизации и износа. На слайде она составляет $0,6 млн, или 14% выручки.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 4096,
+    "completion_tokens": 50,
+    "total_tokens": 4146,
+    "cost": 0.000536925,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 4093,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000536925,
+     "upstream_inference_prompt_cost": 0.000511925,
+     "upstream_inference_completions_cost": 2.5e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.7957976249890635,
+   "ttft_any": 2.7957976249890635,
+   "total": 3.2384521669882815,
+   "tps": 158.78227638690137,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации. На слайде она составляет $0,6 млн, а EBITDA margin — 14% от выручки; этот показатель помогает оценить операционную прибыльность компании.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 4098,
+    "completion_tokens": 63,
+    "total_tokens": 4161,
+    "cost": 0.000543675,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 4095,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000543675,
+     "upstream_inference_prompt_cost": 0.000512175,
+     "upstream_inference_completions_cost": 3.15e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.9958441670023603,
+   "ttft_any": 1.9958441670023603,
+   "total": 2.4216872499964666,
+   "tps": 138.71482380648555,
+   "text": "EBITDA — прибыль до вычета процентов по долгам, налогов, износа и амортизации. На слайде она составляет $0,6 млн, или 14% выручки.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 4099,
+    "completion_tokens": 50,
+    "total_tokens": 4149,
+    "cost": 0.0005373,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 4096,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0005373,
+     "upstream_inference_prompt_cost": 0.0005123,
+     "upstream_inference_completions_cost": 2.5e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.133354917008546,
+   "ttft_any": 2.133354917008546,
+   "total": 2.5379484590084758,
+   "tps": 149.83261838978424,
+   "text": "EBITDA — прибыль до вычета процентов, налогов, износа и амортизации. На слайде она составляет $0,6 млн, а EBITDA margin — 14% от выручки.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 4099,
+    "completion_tokens": 51,
+    "total_tokens": 4150,
+    "cost": 0.0005378,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 4096,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0005378,
+     "upstream_inference_prompt_cost": 0.0005123,
+     "upstream_inference_completions_cost": 2.55e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.576569124998059,
+   "ttft_any": 2.576569124998059,
+   "total": 2.795480041997507,
+   "tps": 722.9433951984356,
+   "text": "EBITDA — это прибыль до вычета процентов по долгам, налогов и амортизации. На слайде она составляет $0,6 млн, а EBITDA margin — 14% от выручки.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 4097,
+    "completion_tokens": 51,
+    "total_tokens": 4148,
+    "cost": 0.00053755,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 4094,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00053755,
+     "upstream_inference_prompt_cost": 0.00051205,
+     "upstream_inference_completions_cost": 2.55e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 4.139544749996276,
+   "ttft_any": 4.139544749996276,
+   "total": 4.7086892500083195,
+   "tps": 132.05028858050866,
+   "text": "EBITDA — прибыль до вычета процентов по долгам, налогов, износа и амортизации. На слайде она составляет $0,6 млн, или 14% выручки: это показатель операционной прибыльности, но не чистая прибыль и не денежный поток.",
+   "provider": "OpenAI",
+   "usage": {
+    "prompt_tokens": 4097,
+    "completion_tokens": 68,
+    "total_tokens": 4165,
+    "cost": 0.00054605,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 4094,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00054605,
+     "upstream_inference_prompt_cost": 0.00051205,
+     "upstream_inference_completions_cost": 3.4e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "qwen3.8-flash|text+image": [
+  {
+   "ttft": 2.773740208998788,
+   "ttft_any": 2.773740208998788,
+   "total": 4.10068712499924,
+   "tps": 57.10765244286483,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, то есть операционная эффективность бизнеса без учета долговой нагрузки и бухгалтерских нюансов. На вашем слайде она составляет $0.6M при маржинальности 14%, что подтверждает слова коллеги о важности этого показателя для инвесторов.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 4122,
+    "completion_tokens": 71,
+    "total_tokens": 4193,
+    "cost": 0.00065167,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00065167,
+     "upstream_inference_prompt_cost": 0.0006183,
+     "upstream_inference_completions_cost": 3.337e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.863533458003076,
+   "ttft_any": 2.863533458003076,
+   "total": 3.981417375005549,
+   "tps": 58.98049717113906,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации. На вашем слайде она составляет $0.6M при маржинальности 14%, что подтверждает слова собеседника о фокусе инвесторов на реальной операционной эффективности, а не только на росте выручки.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 4123,
+    "completion_tokens": 66,
+    "total_tokens": 4189,
+    "cost": 0.00064947,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00064947,
+     "upstream_inference_prompt_cost": 0.00061845,
+     "upstream_inference_completions_cost": 3.102e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.696918125002412,
+   "ttft_any": 2.696918125002412,
+   "total": 3.941774124992662,
+   "tps": 46.71477036382567,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации. На скриншоте видно, что в Q3 она составила $0.6M при маржинальности 14%, что подтверждает слова собеседника о важности этого показателя для инвесторов.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 4124,
+    "completion_tokens": 59,
+    "total_tokens": 4183,
+    "cost": 0.00064633,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00064633,
+     "upstream_inference_prompt_cost": 0.0006186,
+     "upstream_inference_completions_cost": 2.773e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 3.4933061249903403,
+   "ttft_any": 3.4933061249903403,
+   "total": 4.394828292002785,
+   "tps": 71.16540106050788,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации. На скриншоте она составляет $0.6M с маржой 14%, что подтверждает слова собеседника о фокусе инвесторов на операционной эффективности, а не только на росте выручки.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 4123,
+    "completion_tokens": 65,
+    "total_tokens": 4188,
+    "cost": 0.000649,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000649,
+     "upstream_inference_prompt_cost": 0.00061845,
+     "upstream_inference_completions_cost": 3.055e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 3.562868625012925,
+   "ttft_any": 3.562868625012925,
+   "total": 4.368083875000593,
+   "tps": 79.73799013436239,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, то есть операционная эффективность бизнеса без учета структуры капитала. На вашем слайде она составляет $0.6M при марже 14%, что подтверждает слова собеседника о важности этого показателя для инвесторов.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 4123,
+    "completion_tokens": 65,
+    "total_tokens": 4188,
+    "cost": 0.000649,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000649,
+     "upstream_inference_prompt_cost": 0.00061845,
+     "upstream_inference_completions_cost": 3.055e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.763581207997049,
+   "ttft_any": 2.763581207997049,
+   "total": 4.150176832990837,
+   "tps": 44.34249270406966,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации. На вашем слайде она составляет $0.6M при маржинальности 14%, что подтверждает слова собеседника о фокусе инвесторов на реальной операционной эффективности бизнеса.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 4124,
+    "completion_tokens": 58,
+    "total_tokens": 4182,
+    "cost": 0.00064586,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00064586,
+     "upstream_inference_prompt_cost": 0.0006186,
+     "upstream_inference_completions_cost": 2.726e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 11.068568750008126,
+   "ttft_any": 11.068568750008126,
+   "total": 11.953084624998155,
+   "tps": 72.98543107156296,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации. На скриншоте она составляет $0.6M с маржой 14%, что подтверждает слова собеседника о фокусе инвесторов на операционной эффективности, а не только на росте выручки.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 4123,
+    "completion_tokens": 65,
+    "total_tokens": 4188,
+    "cost": 0.000649,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000649,
+     "upstream_inference_prompt_cost": 0.00061845,
+     "upstream_inference_completions_cost": 3.055e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 7.658497083000839,
+   "ttft_any": 7.658497083000839,
+   "total": 9.024048207997112,
+   "tps": 63.7362870828222,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации, то есть операционная эффективность бизнеса без учета структуры капитала и учетных политик. На вашем скриншоте EBITDA составляет $0.6M при маржинальности 14%, что подтверждает слова собеседника о фокусе инвесторов на этом показателе как индикаторе пути к безубыточности.",
+   "provider": "Alibaba",
+   "usage": {
+    "prompt_tokens": 4122,
+    "completion_tokens": 88,
+    "total_tokens": 4210,
+    "cost": 0.00065966,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00065966,
+     "upstream_inference_prompt_cost": 0.0006183,
+     "upstream_inference_completions_cost": 4.136e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ],
+ "glm-5.3-flash (reasoning=low, mandatory)|text+image": [
+  {
+   "ttft": 2.407688584004063,
+   "ttft_any": 2.407688584004063,
+   "total": 3.208628292006324,
+   "tps": 134.68572910319264,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Проще говоря, она показывает операционную рентабельность бизнеса без учёта финансовой и учётной нагрузки. На вашем скриншоте EBITDA — $0.6M при margin 14%, и именно её инвесторы будут смотреть как индикатор пути к безубыточности.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 4207,
+    "completion_tokens": 108,
+    "total_tokens": 4315,
+    "cost": 0.000546744,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000546744,
+     "upstream_inference_prompt_cost": 0.00050484,
+     "upstream_inference_completions_cost": 4.1904e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.526896666997345,
+   "ttft_any": 2.526896666997345,
+   "total": 3.6811764589947416,
+   "tps": 92.97430151782581,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации (Earnings Before Interest, Taxes, Depreciation & Amortization). Проще говоря, показывает операционную рентабельность бизнеса без учёта финансовой и учётной нагрузки. На вашем скриншоте EBITDA $0.6M при margin 14% — инвесторы как раз и смотрят, растёт ли эта маржа к безубыточности.",
+   "provider": "Wafer",
+   "usage": {
+    "prompt_tokens": 4205,
+    "completion_tokens": 105,
+    "total_tokens": 4310,
+    "cost": 0.000269095,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000269095,
+     "upstream_inference_prompt_cost": 0.000248095,
+     "upstream_inference_completions_cost": 2.1e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.7900034160120413,
+   "ttft_any": 1.7900034160120413,
+   "total": 2.483933583003818,
+   "tps": 115.1132319616893,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации (Earnings Before Interest, Taxes, Depreciation & Amortization). На слайде она $0.6M при margin 14%, и инвесторы смотрят на неё, чтобы понять операционную рентабельность и путь к безубыточности.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 4207,
+    "completion_tokens": 80,
+    "total_tokens": 4287,
+    "cost": 0.00053588,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00053588,
+     "upstream_inference_prompt_cost": 0.00050484,
+     "upstream_inference_completions_cost": 3.104e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.4581346659979317,
+   "ttft_any": 2.4581346659979317,
+   "total": 3.0274698749999516,
+   "tps": 143.2990341119104,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Она показывает операционную эффективность бизнеса без учёта финансовой и налоговой нагрузки. На вашем скриншоте EBITDA за Q3 — $0.6M при margin 14%.",
+   "provider": "InferenceNet",
+   "usage": {
+    "prompt_tokens": 4206,
+    "completion_tokens": 82,
+    "total_tokens": 4288,
+    "cost": 0.000536536,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000536536,
+     "upstream_inference_prompt_cost": 0.00050472,
+     "upstream_inference_completions_cost": 3.1816e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.6088346250035102,
+   "ttft_any": 1.6088346250035102,
+   "total": 1.8601684589957586,
+   "tps": 300.02462999580104,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации (Earnings Before Interest, Taxes, Depreciation & Amortization). На вашем скриншоте она $0.6M при margin 14%, и инвесторы как раз смотрят на этот показатель, чтобы оценить путь к безубыточности.",
+   "provider": "Together",
+   "usage": {
+    "prompt_tokens": 4206,
+    "completion_tokens": 75,
+    "total_tokens": 4281,
+    "cost": 0.0006684,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006684,
+     "upstream_inference_prompt_cost": 0.0006309,
+     "upstream_inference_completions_cost": 3.75e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.0957411659910576,
+   "ttft_any": 2.0957411659910576,
+   "total": 2.568800540990196,
+   "tps": 189.6487306357113,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation & Amortization). Показывает операционную рентабельность бизнеса. У вас по слайду она $0.6M с margin 14% — как раз её инвесторы хотят видеть растущей для пути к безубыточности.",
+   "provider": "DigitalOcean",
+   "usage": {
+    "prompt_tokens": 4207,
+    "completion_tokens": 90,
+    "total_tokens": 4297,
+    "cost": 0.00059154375,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00059154375,
+     "upstream_inference_prompt_cost": 0.00055216875,
+     "upstream_inference_completions_cost": 3.9375e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 1.7988207080052234,
+   "ttft_any": 1.7988207080052234,
+   "total": 1.9719822080078302,
+   "tps": 482.85573046451816,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов и амортизации (Earnings Before Interest, Taxes, Depreciation & Amortization). На вашем скриншоте она $0.6M при margin 14%, и инвесторы как раз смотрят на этот показатель, чтобы оценить операционную эффективность и путь к безубыточности.",
+   "provider": "Wafer",
+   "usage": {
+    "prompt_tokens": 4206,
+    "completion_tokens": 81,
+    "total_tokens": 4287,
+    "cost": 0.000264354,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.000264354,
+     "upstream_inference_prompt_cost": 0.000248154,
+     "upstream_inference_completions_cost": 1.62e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  },
+  {
+   "ttft": 2.9579484169953503,
+   "ttft_any": 2.9579484169953503,
+   "total": 3.795983125004568,
+   "tps": 108.71473961889554,
+   "text": "EBITDA — это прибыль до вычета процентов, налогов, износа и амортизации (Earnings Before Interest, Taxes, Depreciation and Amortization). Показывает операционную эффективность бизнеса без учёта структуры финансирования. На вашем слайде EBITDA $0.6M при margin 14% — инвесторы как раз по ней оценят путь к безубыточности.",
+   "provider": "Friendli",
+   "usage": {
+    "prompt_tokens": 4206,
+    "completion_tokens": 91,
+    "total_tokens": 4297,
+    "cost": 0.0006764,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0006764,
+     "upstream_inference_prompt_cost": 0.0006309,
+     "upstream_inference_completions_cost": 4.55e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "error": null
+  }
+ ]
+}

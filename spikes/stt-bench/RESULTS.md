@@ -120,3 +120,40 @@ Drop `NAME.wav` (any rate/channels; resampled to 16 kHz mono) and `NAME.txt` (re
 ## Layout / caveats
 
 `harness/` runner, metrics, report; `adapters/` engines; `results/` JSON per run (`old/` = superseded runs: whisper v1 had a duplicated-sentence bug, `prelim/` = smoke tests); `run_all.sh`, `rerun_whisper.sh`. Weights, `engines/`, `.venv`, and the HF cache were deleted after the run (about 9 GB downloaded; see sizes below) and are gitignored. Known limits: word-lag uses estimated word times; term matching is alignment-based and counts valid transliterations as mismatches; the 'me'/'them' streams were run separately, not concurrently.
+
+## Облако (Deepgram Nova-3 multilingual, Soniox)
+
+Run 2026-10-20 on the same 20 real clips (01-05 x me/them x q/n), 160 ms chunks paced in real time, same harness and references as above (so the same script-deviation noise in WER). Machine was not idle (other agents running), but cloud compute is off-box, so only network/RTT noise applies. Raw JSON: `results/*deepgram-nova3-multi.json` (includes per-word lags).
+
+**Soniox: not measured. Error class = billing.** The WebSocket accepts the key (no auth error) and then returns `error_code 402, organization_balance_exhausted` ("Organization balance exhausted. Please either add funds manually or enable autopay"). The account has no credit; the adapter code is unchanged and untested beyond the handshake. Re-run `--engines soniox` after topping up (the adapter also swallows server errors silently: it printed WER 1.0 with no message, worth fixing).
+
+Deepgram config: `model=nova-3&language=multi`, linear16 16 kHz, interim_results, smart_format, endpointing 300 ms.
+
+| engine | set | clips | WER | CER | word lag p50/p90/p95 (s) | onset->1st partial p50 (s) | final after EOS p50 (s) |
+|---|---|---|---|---|---|---|---|
+| deepgram nova-3 multi | real quiet (_q) | 10 | 0.270 | 0.172 | 0.81/2.86/3.63 | 1.11 | 0.36 |
+| deepgram nova-3 multi | real noisy (_n) | 10 | 0.313 | 0.228 | 0.27/2.02/2.76 | 1.11 | 0.38 |
+| deepgram nova-3 multi | all 20 | 20 | 0.291 | 0.200 | 0.59/2.59/3.34 | 1.11 | 0.36 |
+
+(Lag percentiles are pooled over all words of all clips; the local rows above are median-of-clip p50 / p90, so only roughly comparable. Word lag is relative to estimated spoken-end times, +-0.3 s; the p90+ tail is dominated by the long "me" monologues where Deepgram holds words until an endpoint/final.)
+
+### English terms inside Russian speech (Deepgram)
+
+| set | exact Latin | Cyrillic transliteration | other mismatch | missing | exact % |
+|---|---|---|---|---|---|
+| RU with EN jargon (01-04) | 123 | 37 | 33 | 23 | 57% |
+| English-heavy (05) | 215 | 2 | 25 | 28 | 80% |
+
+Same exact-term rate as Voxtral on 01-04 (57%) and Whisper (54%), far better than Nemotron (21%); on 05 between Whisper (76%) and Voxtral (90%). Cost ~ $0.0077/min streamed, about $0.15 for this run.
+
+### Updated recommendation (local vs cloud)
+
+| role | engine | why |
+|---|---|---|
+| Cloud default (works today) | Deepgram Nova-3 `multi` | WER 0.27-0.31 (on par with best local), word lag p50 ~0.6 s, final 0.36 s, 57%/80% exact EN terms, no RAM/CPU; needs network + user key (BYOK) |
+| Cloud alternative | Soniox stt-rt-v5 | Unmeasured: account balance exhausted (402). Re-test once funded before deciding |
+| Local live default | Nemotron 3.5 streaming + correction pass | Only truly real-time local engine (final 0.14 s) but weak on jargon (21% exact EN) |
+| Local accurate/final pass | Whisper turbo q5 (single stream) | WER 0.23-0.29, lag ~2 s |
+| Local quality leader (needs faster chip) | Voxtral 4-bit | WER 0.19-0.20, 90% on 05, but RTF 1.6 on M4 Air |
+
+Net: for latency x quality on code-switched RU/EN, Deepgram multi matches Voxtral on terms and Whisper/Nemotron on WER at sub-second lag, so it is the default when the user is online with a key; Nemotron+correction stays the offline/private mode. Caveat: WER differences of 0.02-0.04 are within script-deviation noise.
