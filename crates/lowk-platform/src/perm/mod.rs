@@ -8,15 +8,20 @@
 //!   Monitoring), so callers should re-poll `status` on window focus.
 //! * `open_settings` opens the matching System Settings pane.
 //!
-//! macOS System Audio Recording has no public status API (TCC service
+//! macOS System Audio Recording has no public status or request API (TCC service
 //! `kTCCServiceAudioCapture`; it is only evaluated when a process tap is
 //! created). Heuristic: `status(SystemAudio)` reports what the last probe tap
 //! observed, fed in by `lowk-audio` through [`report_system_audio_probe`]:
 //! tap creation failed -> `Denied`; tap delivered non-zero samples ->
 //! `Granted`; only digital silence (or no probe yet) -> `Unknown`, because
 //! silence is also what a denied tap or a quiet system produces.
-//! `request(SystemAudio)` cannot prompt on its own; the prompt appears when the
-//! audio crate creates its tap, so it just returns the cached status.
+//!
+//! `request(SystemAudio)` cannot prompt from here (this crate does not know about
+//! audio): the real flow lives in `lowk-app::perm_request`, which runs
+//! `lowk_audio::probe_system_audio` (a short tap on a quiet tone we play ourselves; creating
+//! the tap raises the genuine macOS prompt), and, when the verdict is `Denied`, opens
+//! [`settings_url`]. Verdicts reach [`set_change_hook`] subscribers, which emit `perm://changed`;
+//! live capture also reports `Working` as soon as real audio arrives.
 use lowk_types::{PermKind, PermState, Result};
 use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -48,15 +53,27 @@ pub enum SystemAudioProbe {
 
 static SYSTEM_AUDIO: AtomicU8 = AtomicU8::new(0);
 
+type ChangeHook = Box<dyn Fn(PermKind, PermState) + Send + Sync>;
+static HOOK: std::sync::OnceLock<ChangeHook> = std::sync::OnceLock::new();
+
+/// Registers the (single) subscriber told when a permission state changes by itself
+/// (today: `SystemAudio`, from probes and live capture). First registration wins.
+pub fn set_change_hook(f: ChangeHook) {
+    let _ = HOOK.set(f);
+}
+
 pub fn report_system_audio_probe(p: SystemAudioProbe) {
-    SYSTEM_AUDIO.store(
-        match p {
-            SystemAudioProbe::Silent => 0,
-            SystemAudioProbe::Working => 1,
-            SystemAudioProbe::Failed => 2,
-        },
-        Ordering::Relaxed,
-    );
+    let new = match p {
+        SystemAudioProbe::Silent => 0,
+        SystemAudioProbe::Working => 1,
+        SystemAudioProbe::Failed => 2,
+    };
+    let old = SYSTEM_AUDIO.swap(new, Ordering::Relaxed);
+    if old != new {
+        if let Some(h) = HOOK.get() {
+            h(PermKind::SystemAudio, system_audio_heuristic());
+        }
+    }
 }
 
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]

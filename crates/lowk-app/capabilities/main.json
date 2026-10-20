@@ -56,6 +56,7 @@
     "allow-settings-get",
     "allow-settings-patch",
     "allow-source-list",
+    "allow-source-list-installed",
     "allow-stealth-selftest",
     "allow-stealth-status",
     "allow-trash-empty",

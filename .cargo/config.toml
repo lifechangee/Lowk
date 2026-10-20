@@ -1,2 +1,7 @@
 [alias]
 xtask = "run --quiet --package xtask --"
+
+# cidre (Core Audio taps in lowk-audio) links the Swift runtime through @rpath;
+# link args of dependencies do not propagate to dependents' binaries and tests.
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-arg=-Wl,-rpath,/usr/lib/swift"]

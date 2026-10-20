@@ -115,24 +115,26 @@ pub struct AudioApp {
     pub pids: Vec<u32>,
 }
 
-/// What a [`SourceInfo`] is.
+/// Kind of an audio source in the picker.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceKind {
     App,
+    /// Everything except our own process tree.
     System,
 }
 
-/// One entry of the source picker (`source_list` = running apps that produce audio,
-/// `source_list_installed` = installed apps for «Другое…»). The UI never asks for an id.
+/// One entry of the audio source picker (`source_list` / `source_list_installed`).
+/// `id` is what goes into `Target::App(id)` (bundle id on macOS, exe path on
+/// Windows) or the literal `"system"` for [`SourceKind::System`].
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct SourceInfo {
-    /// Stable id: bundle id (macOS) / exe path (Windows); `system` for the whole system.
     pub id: String,
     pub name: String,
-    pub bundle_id: Option<String>,
-    pub pid: Option<u32>,
-    /// Small PNG icon, base64 (no `data:` prefix).
+    pub bundle_id: String,
+    /// Main process id, 0 when the app is not running.
+    pub pid: u32,
+    /// Small PNG (<= 64 px) as base64 without the `data:` prefix.
     pub icon_png_b64: Option<String>,
     pub producing_audio: bool,
     pub kind: SourceKind,

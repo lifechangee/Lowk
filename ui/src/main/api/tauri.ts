@@ -2,7 +2,6 @@
 // roadmap defers (documents/search index M2, LLM summary M3, native folder picker) keeps the mock.
 import { commands, EVENTS, on } from '../../lib/ipc';
 import type { AppError, BindReport, EngineDescriptor, FolderMeta, HwInfo, NewFolder, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts, SttEvent } from '../../lib/ipc';
-import { toSourceInfo } from '../source';
 import { MockBackend } from './mock';
 import { folderKey, folderRef, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider } from './types';
 
@@ -69,13 +68,8 @@ export class TauriBackend extends MockBackend {
       .map((c) => ({ group: 'calls' as const, title: c.title, snippet: c.tags.map((t) => '#' + t).join(' '), folder: folderKey(c.folder), call: c.id }));
   }
 
-  // The backend answers `SourceInfo[]` (G3 contract); the older `AudioApp[]` shape is mapped too, and a
-  // build without `source_list_installed` yet just has no «Другое…» entries.
-  override async sourceList(): Promise<SourceInfo[]> { return (ok(await commands.sourceList()) as unknown as Parameters<typeof toSourceInfo>[0][]).map(toSourceInfo); }
-  override async sourceListInstalled(): Promise<SourceInfo[]> {
-    const c = commands as unknown as { sourceListInstalled?: () => Promise<Res<Parameters<typeof toSourceInfo>[0][]>> };
-    return c.sourceListInstalled ? ok(await c.sourceListInstalled()).map(toSourceInfo) : [];
-  }
+  override async sourceList(): Promise<SourceInfo[]> { return ok(await commands.sourceList()); }
+  override async sourceListInstalled(): Promise<SourceInfo[]> { return ok(await commands.sourceListInstalled()); }
   override async engines(): Promise<EngineDescriptor[]> { return commands.engineList(); }
   override async hwProbe(): Promise<HwInfo> { return ok(await commands.hwProbe()).report.info; }
   override async permStatus(): Promise<Record<PermKind, PermState>> {

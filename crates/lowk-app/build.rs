@@ -61,6 +61,7 @@ const COMMANDS: &[&str] = &[
     "session_state",
     "session_snapshot",
     "source_list",
+    "source_list_installed",
     "engine_list",
     "engine_install",
     "demo_start",
@@ -72,10 +73,7 @@ const COMMANDS: &[&str] = &[
 ];
 
 fn main() {
-    // Swift runtime (screencapturekit links through @rpath); dependency link-args do not propagate.
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
-        println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
-    }
+    // The Swift runtime rpath (screencapturekit, cidre) comes from .cargo/config.toml.
     let manifest = tauri_build::AppManifest::new().commands(COMMANDS);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest))
         .expect("tauri build failed");

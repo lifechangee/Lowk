@@ -7,7 +7,7 @@ import { bindWarnings, defaultBinds, formatTrigger, triggerEquals, triggerFromKe
 import { parse } from './router.svelte';
 import { greeting } from './fmt';
 import type { SourceInfo } from '../lib/ipc';
-import { nameFromId, presetInfo, presetsFor, resolveSource, toSourceInfo } from './source';
+import { nameFromId, presetInfo, presetsFor, resolveSource } from './source';
 
 const names = { middle: 'Wheel', back: 'Back', forward: 'Forward', other: (n: number) => `Btn ${n}` };
 
@@ -94,7 +94,7 @@ describe('F7 default binds', () => {
 });
 
 describe('F12 capture source default', () => {
-  const src = (id: string, name: string, producing: boolean): SourceInfo => ({ id, name, bundle_id: id, pid: null, icon_png_b64: null, producing_audio: producing, kind: 'app' });
+  const src = (id: string, name: string, producing: boolean): SourceInfo => ({ id, name, bundle_id: id, pid: 0, icon_png_b64: null, producing_audio: producing, kind: 'app' });
   const apps = [src('zoom', 'Zoom', true), src('teams', 'Teams', false)];
   it('follows the stored choice, else the first app playing audio, else the whole system', () => {
     expect(resolveSource({ kind: 'app', id: 'teams' }, apps)).toBe('app:teams');
@@ -118,9 +118,11 @@ describe('G3 source presets', () => {
     expect(presetInfo(presetsFor('windows')[0]!, 'windows', []).id).toBe('Zoom.exe');
     expect(presetInfo(presetsFor('macos')[1]!, 'macos', [app('com.google.Chrome', 'Google Chrome')]).name).toBe('Google Meet (Chrome)');
   });
-  it('maps the older AudioApp shape and derives a name from an id', () => {
-    expect(toSourceInfo({ id: 'a', name: 'A', pids: [7], producing_audio: true })).toMatchObject({ pid: 7, kind: 'app', icon_png_b64: null });
-    expect(nameFromId('C:\\Apps\\Zoom.exe')).toBe('Zoom');
+});
+
+describe('G3 names', () => {
+  it('derives a display name from an id', () => {
+    expect(nameFromId('C:\\\\Apps\\\\Zoom.exe')).toBe('Zoom');
   });
 });
 

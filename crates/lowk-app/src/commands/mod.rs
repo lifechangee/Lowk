@@ -71,6 +71,7 @@ macro_rules! all_commands {
             crate::commands::session::session_state,
             crate::commands::session::session_snapshot,
             crate::commands::session::source_list,
+            crate::commands::session::source_list_installed,
             crate::commands::session::engine_list,
             crate::commands::session::engine_install,
             crate::commands::session::demo_start,

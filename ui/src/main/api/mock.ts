@@ -152,13 +152,13 @@ export class MockBackend implements Backend {
   async sourceList(): Promise<SourceInfo[]> {
     // ?apps=none mirrors a machine where nothing plays audio right now.
     if (typeof location !== 'undefined' && /[?&]apps=none\b/.test(location.search)) return [];
-    const app = (id: string, name: string, producing: boolean, pid: number | null): SourceInfo => ({ id, name, bundle_id: id, pid, icon_png_b64: null, producing_audio: producing, kind: 'app' });
+    const app = (id: string, name: string, producing: boolean, pid: number): SourceInfo => ({ id, name, bundle_id: id, pid, icon_png_b64: null, producing_audio: producing, kind: 'app' });
     return [app('us.zoom.xos', 'Zoom', true, 4121), app('com.spotify.client', 'Spotify', true, 3310)];
   }
   async sourceListInstalled(): Promise<SourceInfo[]> {
     await delay(60);
     const names: [string, string][] = [['com.apple.Safari', 'Safari'], ['com.google.Chrome', 'Google Chrome'], ['org.mozilla.firefox', 'Firefox'], ['com.apple.Music', 'Music'], ['notion.id', 'Notion'], ['us.zoom.xos', 'Zoom'], ['com.spotify.client', 'Spotify'], ['com.microsoft.teams2', 'Microsoft Teams'], ['com.tinyspeck.slackmacgap', 'Slack'], ['org.videolan.vlc', 'VLC'], ['com.apple.QuickTimePlayerX', 'QuickTime Player'], ['com.loom.desktop', 'Loom']];
-    return names.map(([id, name]) => ({ id, name, bundle_id: id, pid: null, icon_png_b64: null, producing_audio: false, kind: 'app' as const }));
+    return names.map(([id, name]) => ({ id, name, bundle_id: id, pid: 0, icon_png_b64: null, producing_audio: false, kind: 'app' as const }));
   }
   async engines(): Promise<EngineDescriptor[]> {
     return [

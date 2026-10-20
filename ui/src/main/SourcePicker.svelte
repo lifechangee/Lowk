@@ -39,7 +39,7 @@
   const current = $derived.by<SourceInfo | null>(() => {
     if (value === 'system' || value === 'app:') return null;
     const id = value.slice(4);
-    return sources.find(id) ?? { id, name: presetsFor(os).find((p) => p.mac === id || p.win === id)?.name ?? nameFromId(id), bundle_id: null, pid: null, icon_png_b64: null, producing_audio: false, kind: 'app' };
+    return sources.find(id) ?? { id, name: presetsFor(os).find((p) => p.mac === id || p.win === id)?.name ?? nameFromId(id), bundle_id: '', pid: 0, icon_png_b64: null, producing_audio: false, kind: 'app' };
   });
   const installed = $derived(
     (sources.installed ?? []).filter((s) => !query.trim() || s.name.toLowerCase().includes(query.trim().toLowerCase())),
