@@ -73,9 +73,10 @@ pass repairs the accuracy anyway. To revisit with a forced aligner.
 ## 5. Cloud adapters
 
 Soniox (default, `stt-rt-v5`) and Deepgram Nova-3 `language=multi` over blocking
-`tungstenite` + rustls; one connection per stream; reconnect x3; 4xx is fatal. Keys: env /
+`tungstenite` + rustls with the pure-Rust `graviola` crypto provider (no `ring`/aws-lc/openssl, so no C
+toolchain and the Windows target cross-checks from any host; model downloads use `ureq` with the same provider); one connection per stream; reconnect x3; 4xx is fatal. Keys: env /
 `~/.lowk-test-keys` (debug builds or `LOWK_DEV_KEYS=1`), else the keychain item `stt-cloud`;
-never logged. Deepgram verified end to end on a real clip; Soniox authenticates and speaks the
+never logged. Deepgram verified end to end on a real clip (word lag p50 349 ms in one run, 962 ms in another: network and estimator variance); Soniox authenticates and speaks the
 protocol but the account has no balance, so transcripts were not verified.
 
 ## 6. Models on demand
@@ -92,3 +93,5 @@ scripted demo (`LOWK_DEMO=1` forces it).
 Windows runtime untested (compile-checked; worker `vulkan`/`cuda` features unbuilt); worker
 distribution (GitHub Releases + pinned hash) is still manual (`LOWK_STT_WORKER`, next to the
 app, or `<app data>/engines/`); `hw_bench` stays a stub; no forced-alignment latency metric.
+
+Known CI note: `just ci-cross` currently fails in `lowk-capture` (unused variable on Linux, clippy on `win.rs`), code merged from main and outside this work; the STT crates are clean on both targets.

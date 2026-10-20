@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity, clippy::too_many_arguments)]
 //! Replays recordings through the full session path (file audio source -> frame sink ->
 //! engine sidecar -> transcript -> bus -> call journal) and reports word-to-screen latency
 //! and CER against the reference text. No audio is ever played: file sources only.

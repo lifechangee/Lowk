@@ -416,6 +416,7 @@ fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Rece
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use lowk_types::fakes::arc_sink;
 
     #[test]

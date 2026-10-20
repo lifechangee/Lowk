@@ -160,7 +160,13 @@ fn download(
 ) -> Result<()> {
     let have = fs::metadata(part).map(|m| m.len()).unwrap_or(0);
     let have = if have > expect { 0 } else { have };
+    let tls = ureq::tls::TlsConfig::builder()
+        .provider(ureq::tls::TlsProvider::Rustls)
+        .unversioned_rustls_crypto_provider(crate::cloud::tls_provider())
+        .root_certs(ureq::tls::RootCerts::WebPki)
+        .build();
     let agent: ureq::Agent = ureq::Agent::config_builder()
+        .tls_config(tls)
         .timeout_connect(Some(Duration::from_secs(20)))
         .timeout_recv_response(Some(Duration::from_secs(60)))
         .build()
@@ -319,6 +325,21 @@ mod tests {
         assert_eq!(e.code, ErrorCode::DownloadFailed);
         assert_eq!(e.params.get("reason").map(String::as_str), Some("checksum"));
         assert!(!st.path("e", "m.bin").exists() && !st.path("e", "m.part").exists());
+        let _ = fs::remove_dir_all(st.root());
+    }
+
+    /// Real HTTPS download (TLS provider, redirects, SHA pin). Run with `--ignored`.
+    #[test]
+    #[ignore = "needs network"]
+    fn downloads_the_vad_model_over_https() {
+        let st = ModelStore::new(tmp("net"));
+        let specs: Vec<_> = crate::local::nemotron_assets()
+            .into_iter()
+            .filter(|a| a.file.contains("silero"))
+            .collect();
+        st.install("e", &specs, &AtomicBool::new(false), &mut |_, _, _, _| {})
+            .unwrap();
+        assert!(st.verify("e", &specs));
         let _ = fs::remove_dir_all(st.root());
     }
 }
