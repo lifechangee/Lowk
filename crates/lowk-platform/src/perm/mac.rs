@@ -111,7 +111,7 @@ pub fn status(k: PermKind) -> PermState {
 pub fn request(k: PermKind) -> Result<PermState> {
     match k {
         PermKind::Microphone => Ok(mic_request()),
-        // The prompt is raised when lowk-audio creates its process tap.
+        // No prompt from here: lowk-app runs lowk-audio's probe tap (see perm/mod.rs).
         PermKind::SystemAudio => Ok(system_audio_heuristic()),
         PermKind::ScreenRecording => {
             if status(k) != PermState::Granted {

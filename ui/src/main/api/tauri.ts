@@ -68,7 +68,12 @@ export class TauriBackend extends MockBackend {
       .map((c) => ({ group: 'calls' as const, title: c.title, snippet: c.tags.map((t) => '#' + t).join(' '), folder: folderKey(c.folder), call: c.id }));
   }
 
-  override async audioApps(): Promise<AudioApp[]> { return ok(await commands.sourceList()); }
+  // source_list returns SourceInfo (icon, bundle id, System entry); the picker will use it directly.
+  override async audioApps(): Promise<AudioApp[]> {
+    return ok(await commands.sourceList())
+      .filter((s) => s.kind === 'app')
+      .map((s) => ({ id: s.id, name: s.name, producing_audio: s.producing_audio, pids: s.pid ? [s.pid] : [] }));
+  }
   override async engines(): Promise<EngineDescriptor[]> { return commands.engineList(); }
   override async hwProbe(): Promise<HwInfo> { return ok(await commands.hwProbe()).report.info; }
   override async permStatus(): Promise<Record<PermKind, PermState>> {

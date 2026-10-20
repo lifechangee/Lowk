@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-source-list-installed"
+description = "Enables the source_list_installed command without any pre-configured scope."
+commands.allow = ["source_list_installed"]
+
+[[permission]]
+identifier = "deny-source-list-installed"
+description = "Denies the source_list_installed command without any pre-configured scope."
+commands.deny = ["source_list_installed"]
