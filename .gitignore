@@ -28,3 +28,9 @@ ui/playwright-report/
 .env
 *.log
 .claude/
+
+# QA outputs (docs/qa/index.md stays)
+ui/e2e/out/
+docs/qa/report.html
+docs/qa/shots/
+docs/qa/real/

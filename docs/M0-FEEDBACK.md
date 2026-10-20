@@ -6,7 +6,7 @@ Source: owner's hands-on test of `just dev` + screenshots. IDs are referenced by
 |---|---|---|---|
 | F1 | Onboarding | Renders as a card inside the main window ("window in a window") with large outer margins | Onboarding fills the window edge-to-edge as its own screen (or a dedicated window); no nested frame |
 | F2 | Layout | Alignment issues in several places, e.g. header button «●Новый созвон⇧⌘R» has no spacing between dot/text/kbd chip | Consistent spacing on the 4/8 grid; enforced by automated layout checks |
-| F3 | Overlay move | During hold-to-move something is not visible / unclear feedback (owner to clarify) | TBD |
+| F3 | Overlay move | During hold-to-move the yellow «Перемещение» toast at the bottom is clipped/unreadable (screenshot) | Move feedback fully visible inside the overlay bounds |
 | F4 | Overlay modes | Switching Interactive → Passive makes the overlay disappear and reappear (flicker) | Mode switch never hides/re-shows the window; only changes ignoresMouseEvents/focus; zero blank frames |
 | F5 | Adaptive tone | Barely helps; text over busy backgrounds unreadable | Split overlay into regions and adapt each region (gradient scrim), not one global tone |
 | F6 | Settings | Text size control does nothing | Changes overlay + main text size live |
