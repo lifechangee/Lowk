@@ -185,6 +185,74 @@ fn engine_output_reaches_transcript_bus_and_journal() {
     assert!(calls[0].started.ends_with('Z'));
 }
 
+fn correction_rig(f: impl Fn(&str) -> Option<String> + Send + Sync + 'static, delay_ms: u64) -> Rig {
+    rig(|d| {
+        d.corrector = Some(Arc::new(lowk_stt::FakeCorrector::new(
+            Duration::from_millis(delay_ms),
+            f,
+        )));
+    })
+}
+
+#[test]
+fn background_correction_replaces_text_and_journals_only_the_better_one() {
+    let r = correction_rig(|t| Some(format!("{} (whisper)", t)), 60);
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    for i in 0..25 {
+        r.audio.push_frame(frame(Stream::System, 1_000 + i));
+    }
+    // The live text is on screen at once; Ask sees it without waiting for anything.
+    let live = r.session.snapshot().transcript[0].text.clone();
+    assert!(live.starts_with("fake utterance"));
+    r.session.stop().unwrap();
+
+    let snap = r.session.snapshot();
+    assert_eq!(snap.transcript.len(), 1);
+    assert!(snap.transcript[0].text.ends_with("(whisper)"));
+    let revs: Vec<_> = rx
+        .try_iter()
+        .filter_map(|e| match e {
+            AppEvent::Stt(s) => Some((s.rev, s.kind)),
+            _ => None,
+        })
+        .collect();
+    // two partials, the engine final, then the correction as the next revision
+    assert_eq!(revs.last(), Some(&(3, SttKind::Final)));
+    let entries = r.store.entries.lock().unwrap();
+    assert_eq!(entries.len(), 1);
+    assert!(matches!(&entries[0], CallEntry::Final { event } if event.text.ends_with("(whisper)")));
+    let d = r.session.stt_diagnostics().unwrap();
+    assert_eq!(d.engine, "fake");
+}
+
+#[test]
+fn unchanged_or_skipped_correction_keeps_the_live_text_in_the_journal() {
+    let r = correction_rig(|_| None, 10);
+    r.session.start(opts(false)).unwrap();
+    for i in 0..12 {
+        r.audio.push_frame(frame(Stream::Me, 1_000 + i));
+    }
+    r.session.stop().unwrap();
+    let entries = r.store.entries.lock().unwrap();
+    assert_eq!(entries.len(), 1);
+    assert!(matches!(&entries[0], CallEntry::Final { event } if event.text.starts_with("fake utterance")));
+}
+
+#[test]
+fn ask_never_waits_for_correction() {
+    // a corrector that takes 3 s must not delay the Ask
+    let r = correction_rig(|t| Some(t.to_uppercase()), 3000);
+    r.session.start(opts(false)).unwrap();
+    for i in 0..12 {
+        r.audio.push_frame(frame(Stream::System, 1_000 + i));
+    }
+    let t0 = std::time::Instant::now();
+    r.session.ask(brief(None)).unwrap();
+    assert!(t0.elapsed() < Duration::from_millis(500));
+    r.session.stop().unwrap();
+}
+
 #[test]
 fn failed_start_rolls_back_to_idle() {
     let r = rig(|d| {

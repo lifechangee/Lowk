@@ -6,7 +6,8 @@ use crate::qa::{ClosedAnswer, QaOutput, QaTracker};
 use crate::replay::{rebase, Pacer, ReplayItem, ReplayKind, ReplaySource};
 use crate::transcript::{Applied, TranscriptBuf};
 use lowk_audio::{AudioEvent, CaptureConfig, CaptureHandle, FrameSink};
-use lowk_stt::{SttConfig, SttEngine};
+use lowk_stt::ring::PcmRing;
+use lowk_stt::{CorrectionJob, CorrectionSink, Corrector, SttConfig, SttEngine};
 use lowk_types::*;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -36,6 +37,12 @@ pub fn phase_allowed(from: SessionPhase, to: SessionPhase) -> bool {
 
 type SharedEngine = Arc<Mutex<Box<dyn SttEngine>>>;
 type Engines = Arc<HashMap<Stream, SharedEngine>>;
+type Rings = Arc<HashMap<Stream, Mutex<PcmRing>>>;
+
+/// Seconds of audio kept per stream for background correction.
+const RING_SECONDS: u32 = 90;
+/// How long `stop` waits for outstanding corrections before keeping the live text.
+const CORRECTION_GRACE: std::time::Duration = std::time::Duration::from_secs(4);
 
 struct Core {
     state: SessionState,
@@ -45,6 +52,13 @@ struct Core {
     recorder: Option<Box<dyn CallRecorder>>,
     capture: Option<Box<dyn CaptureHandle>>,
     engines: Option<Engines>,
+    /// Background correction (local engines): audio rings, the worker, and finals whose
+    /// journal write waits for the corrected text.
+    rings: Option<Rings>,
+    corrector: Option<Arc<dyn Corrector>>,
+    corr_lang: Option<String>,
+    pending_journal: HashMap<(Stream, UttId), SttEvent>,
+    last_diag: Option<SttDiagnostics>,
     threads: Vec<JoinHandle<()>>,
     demo_thread: Option<JoinHandle<()>>,
     /// First transcript seq not yet sent to the LLM.
@@ -71,6 +85,11 @@ impl Core {
             recorder: None,
             capture: None,
             engines: None,
+            rings: None,
+            corrector: None,
+            corr_lang: None,
+            pending_journal: HashMap::new(),
+            last_diag: None,
             threads: vec![],
             demo_thread: None,
             llm_cursor: 0,
@@ -129,6 +148,7 @@ struct Out {
 }
 
 struct Inner {
+    weak: Weak<Inner>,
     deps: SessionDeps,
     bus: EventBus,
     core: Mutex<Core>,
@@ -146,7 +166,7 @@ struct SessionSink(Weak<Inner>);
 impl SttSink for SessionSink {
     fn emit(&self, ev: SttEvent) {
         if let Some(i) = self.0.upgrade() {
-            i.ingest(ev);
+            i.ingest_inner(ev, true);
         }
     }
     fn error(&self, e: SttError) {
@@ -158,10 +178,19 @@ impl SttSink for SessionSink {
     }
 }
 
+impl CorrectionSink for SessionSink {
+    fn done(&self, stream: Stream, utt: UttId, result: Option<SttEvent>) {
+        if let Some(i) = self.0.upgrade() {
+            i.apply_correction(stream, utt, result);
+        }
+    }
+}
+
 impl Session {
     pub fn new(deps: SessionDeps) -> Self {
         Self {
-            inner: Arc::new(Inner {
+            inner: Arc::new_cyclic(|weak| Inner {
+                weak: weak.clone(),
                 deps,
                 bus: EventBus::default(),
                 core: Mutex::new(Core::new()),
@@ -215,6 +244,14 @@ impl Session {
     }
     pub fn last_call_meta(&self) -> Option<CallMeta> {
         self.inner.core().last_meta.clone()
+    }
+    /// Latency percentiles per stream (live while recording, last values afterwards).
+    pub fn stt_diagnostics(&self) -> Option<SttDiagnostics> {
+        let engines = self.inner.core().engines.clone();
+        if let Some(e) = engines {
+            self.inner.snapshot_diag(&e);
+        }
+        self.inner.core().last_diag.clone()
     }
     pub fn stt_errors(&self) -> Vec<SttError> {
         self.inner.core().stt_errors.clone()
@@ -369,7 +406,7 @@ impl Session {
                 SessionPhase::Idle => return Err(AppError::new(ErrorCode::SessionIdle)),
                 _ => return Err(AppError::new(ErrorCode::SessionBusy)),
             }
-            let delta = c.transcript.since(c.llm_cursor);
+            let delta = c.transcript.snapshot_for_ask(c.llm_cursor);
             let prev = c.llm_cursor;
             c.llm_cursor = c.transcript.next_seq();
             let question = req
@@ -556,10 +593,43 @@ impl Inner {
         let engines: Engines = Arc::new(engines);
         self.core().engines = Some(engines.clone());
 
+        // Background correction (engine #2): local engines only, never required.
+        let local = self
+            .deps
+            .stt
+            .factory(&engine_id)
+            .is_some_and(|f| f.descriptor().kind == EngineKind::Local);
+        let mut rings: Option<Rings> = None;
+        if local && settings.stt.background_correction {
+            if let Some(corr) = self.deps.corrector.clone() {
+                match corr.start() {
+                    Ok(()) => {
+                        rings = Some(Arc::new(
+                            [Stream::Me, Stream::System]
+                                .into_iter()
+                                .map(|s| (s, Mutex::new(PcmRing::new(RING_SECONDS))))
+                                .collect(),
+                        ));
+                        let mut c = self.core();
+                        c.rings = rings.clone();
+                        c.corrector = Some(corr);
+                        c.corr_lang = match settings.stt.languages.as_slice() {
+                            [one] => Some(one.clone()),
+                            _ => None,
+                        };
+                    }
+                    Err(e) => tracing::warn!(?e, "background correction unavailable"),
+                }
+            }
+        }
+
         let paused = self.paused.clone();
         let frame_sink: FrameSink = Arc::new(move |f: Frame16k| {
             if paused.load(Ordering::Relaxed) {
                 return;
+            }
+            if let Some(r) = rings.as_ref().and_then(|r| r.get(&f.stream)) {
+                r.lock().unwrap().push(&f);
             }
             if let Some(e) = engines.get(&f.stream) {
                 if let Err(err) = e.lock().unwrap().push(&f) {
@@ -597,18 +667,73 @@ impl Inner {
             (c.capture.take(), c.engines.take())
         };
         drop(capture);
-        if let Some(engines) = engines {
+        if let Some(engines) = &engines {
+            self.snapshot_diag(engines);
             for e in engines.values() {
                 let mut e = e.lock().unwrap();
                 let _ = e.flush();
                 let _ = e.stop();
             }
         }
+        // Give outstanding corrections a moment, then keep whatever live text is left.
+        let corr = self.core().corrector.take();
+        if let Some(corr) = corr {
+            corr.stop(CORRECTION_GRACE);
+            let (corrected, skipped, lag) = corr.stats();
+            if let Some(d) = self.core().last_diag.as_mut() {
+                d.corrected = corrected;
+                d.correction_skipped = skipped;
+                d.correction_lag = lag;
+            }
+        }
+        let mut c = self.core();
+        c.rings = None;
+        let left: Vec<SttEvent> = c.pending_journal.drain().map(|(_, v)| v).collect();
+        for ev in left {
+            c.push_entry(CallEntry::Final { event: ev });
+        }
     }
 
-    /// An STT event from an engine (or the demo feed, rebased).
+    /// Latency counters of the engines, kept after the session ends.
+    fn snapshot_diag(&self, engines: &Engines) {
+        let mut streams = vec![];
+        let (mut id, mut look) = (String::new(), 0);
+        for (s, e) in engines.iter() {
+            let e = e.lock().unwrap();
+            id = e.descriptor().id.clone();
+            look = look.max(e.lookahead_ms());
+            if let Some(d) = e.stats() {
+                streams.push(StreamDiag { stream: *s, ..d });
+            }
+        }
+        streams.sort_by_key(|d| d.stream as u8);
+        let (corrected, skipped, lag) = self
+            .core()
+            .corrector
+            .as_ref()
+            .map_or((0, 0, Percentiles::default()), |c| c.stats());
+        self.core().last_diag = Some(SttDiagnostics {
+            engine: id,
+            lookahead_ms: look,
+            streams,
+            corrected,
+            correction_skipped: skipped,
+            correction_lag: lag,
+        });
+    }
+
+    /// An STT event from the demo feed (rebased) or a test.
     fn ingest(&self, ev: SttEvent) {
+        self.ingest_inner(ev, false);
+    }
+
+    /// An STT event; `from_engine` finals of local engines are queued for background
+    /// correction (their journal write waits for the better text, but the UI and Ask
+    /// see the live text at once).
+    fn ingest_inner(&self, ev: SttEvent, from_engine: bool) {
         let mut out = Out::default();
+        let mut job = None;
+        let corr;
         {
             let mut c = self.core();
             if c.state.phase == SessionPhase::Idle {
@@ -621,14 +746,76 @@ impl Inner {
             out.events.push(AppEvent::Stt(ev.clone()));
             let qa = c.qa.on_stt(&ev);
             c.absorb_qa(qa, &mut out);
+            corr = c.corrector.clone();
             if ev.kind == SttKind::Final {
-                c.push_entry(CallEntry::Final { event: ev.clone() });
+                let cut = if from_engine && corr.is_some() {
+                    c.rings
+                        .as_ref()
+                        .and_then(|r| r.get(&ev.stream))
+                        .and_then(|r| r.lock().unwrap().cut(ev.t_start_ns, ev.t_audio_end_ns))
+                } else {
+                    None
+                };
+                if let Some(pcm) = cut {
+                    c.pending_journal.insert((ev.stream, ev.utt), ev.clone());
+                    job = Some(CorrectionJob {
+                        stream: ev.stream,
+                        utt: ev.utt,
+                        rev: ev.rev,
+                        t_start_ns: ev.t_start_ns,
+                        t_audio_end_ns: ev.t_audio_end_ns,
+                        pcm,
+                        original: ev.text.clone(),
+                        lang: c.corr_lang.clone(),
+                    });
+                } else {
+                    c.push_entry(CallEntry::Final { event: ev.clone() });
+                }
                 if ev.t_emit_ns >= c.last_materialize + MATERIALIZE_EVERY_NS {
                     c.last_materialize = ev.t_emit_ns;
                     if let Some(r) = c.recorder.as_mut() {
                         let _ = r.materialize();
                     }
                 }
+            }
+        }
+        self.flush(out);
+        if let (Some(job), Some(corr)) = (job, corr) {
+            let backlog = self.backlog_ms(job.stream);
+            let (stream, utt) = (job.stream, job.utt);
+            let sink: Arc<dyn CorrectionSink> = Arc::new(SessionSink(self.weak.clone()));
+            if !corr.submit(job, sink, backlog) {
+                // skipped under load: the live text is final
+                self.apply_correction(stream, utt, None);
+            }
+        }
+    }
+
+    fn backlog_ms(&self, stream: Stream) -> u32 {
+        let engines = self.core().engines.clone();
+        engines
+            .and_then(|e| e.get(&stream).map(|e| e.lock().unwrap().backlog_ms()))
+            .unwrap_or(0)
+    }
+
+    /// A corrected text for an already-final utterance (or `None`: keep the live text).
+    fn apply_correction(&self, stream: Stream, utt: UttId, result: Option<SttEvent>) {
+        let mut out = Out::default();
+        {
+            let mut c = self.core();
+            let orig = c.pending_journal.remove(&(stream, utt));
+            let clock = c.clock;
+            let applied = match (&result, clock) {
+                (Some(ev), Some(clock)) => c.transcript.apply(ev, &clock) != Applied::Stale,
+                _ => false,
+            };
+            match (applied, result, orig) {
+                (true, Some(ev), _) => {
+                    out.events.push(AppEvent::Stt(ev.clone()));
+                    c.push_entry(CallEntry::Final { event: ev });
+                }
+                (_, _, Some(o)) => c.push_entry(CallEntry::Final { event: o }),
+                _ => {}
             }
         }
         self.flush(out);
