@@ -1,6 +1,5 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import todo from './i18n-keys.todo.json';
-import { localDict } from './i18n';
 import { PRESETS, kFromTransparency, menuRgb, normalizeRgb, toneToVars, varsToStyle } from './tone';
 import { OverlayStore, formatElapsed, splitBold } from './store.svelte';
 
@@ -51,10 +50,15 @@ describe('store', () => {
   });
 });
 
-describe('i18n todo', () => {
-  it('matches the local dictionaries', () => {
-    expect(todo.ru).toEqual(localDict.ru);
-    expect(todo.en).toEqual(localDict.en);
-    expect(Object.keys(localDict.ru)).toEqual(Object.keys(localDict.en));
+describe('legibility', () => {
+  it('passes the contrast floor of the backdrop through as --smin', () => {
+    const v = toneToVars({ tone: 'light', rgb: '255,255,255', fg: '10,11,15', inv: '255,255,255', int: '14,130,62', mv: '166,96,0', scrim_min: 0.4 });
+    expect(v.smin).toBe(0.4);
+    expect(varsToStyle(v, 0.1, 13)).toContain('--smin:0.4');
+  });
+  it('keeps text opaque at 90% transparency', () => {
+    const css = readFileSync(new URL('./overlay.css', import.meta.url), 'utf8');
+    const m = /--tx: rgba\(var\(--fg\), calc\(([\d.]+) \+ var\(--k\) \* ([\d.]+)\)\)/.exec(css)!;
+    expect(Number(m[1]) + 0.1 * Number(m[2])).toBeGreaterThanOrEqual(0.9);
   });
 });

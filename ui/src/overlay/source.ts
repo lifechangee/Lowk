@@ -13,4 +13,10 @@ export interface OverlaySource {
   setTemplate(id: string): void;
   /** Pill click / record bind. */
   toggleRecord(): void;
+  /** Esc in interactive mode: back to click-through. */
+  escape?(): void;
+  /** Drag the overlay by its header (interactive mode): pointer deltas in screen points. */
+  dragStart?(): void;
+  dragTo?(dx: number, dy: number): void;
+  dragEnd?(): void;
 }

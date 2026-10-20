@@ -2,27 +2,20 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { en, ru } from '../lib/i18n';
-import dict from './i18n-keys.todo.json';
 import { mergePatch } from './api/mock';
 import { bindWarnings, defaultBinds, formatTrigger, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
 import { parse } from './router.svelte';
 
 const names = { middle: 'Wheel', back: 'Back', forward: 'Forward', other: (n: number) => `Btn ${n}` };
 
-describe('own i18n keys', () => {
-  it('ru and en have identical key sets and no empty values', () => {
-    expect(Object.keys(dict.en).sort()).toEqual(Object.keys(dict.ru).sort());
-    for (const lang of [dict.ru, dict.en]) for (const v of Object.values(lang)) expect(v.trim()).not.toBe('');
-  });
+describe('main i18n keys', () => {
+  const mKeys = Object.keys(ru).filter((k) => k.startsWith('m.'));
   it('has the same placeholders in both languages', () => {
     const ph = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join();
-    for (const k of Object.keys(dict.ru) as (keyof typeof dict.ru)[]) expect(ph(dict.en[k])).toBe(ph(dict.ru[k]));
-  });
-  it('does not shadow keys of the shared dictionary', () => {
-    for (const k of Object.keys(dict.ru)) expect(k in ru || k in en).toBe(false);
+    for (const k of mKeys as (keyof typeof ru)[]) expect(ph(en[k])).toBe(ph(ru[k]));
   });
   it('every literal tm(...) key used in sources exists', () => {
-    const all = new Set([...Object.keys(dict.ru), ...Object.keys(ru)]);
+    const all = new Set(Object.keys(ru));
     const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
     const missing: string[] = [];
     for (const f of walk(new URL('.', import.meta.url).pathname).filter((x) => /\.(svelte|ts)$/.test(x) && !x.endsWith('.test.ts'))) {

@@ -2,7 +2,9 @@
 import { locale } from '../lib/i18n/locale.svelte';
 import type { LangSetting } from '../lib/i18n';
 import type { CallMeta, FolderMeta, Settings, Target } from '../lib/ipc';
-import { api, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type FolderKey, type LiveLine } from './api';
+import { api, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type FolderKey, type LiveLine } from './api';
+import { EVENTS, on } from '../lib/ipc';
+import type { SessionState } from '../lib/ipc';
 import { mergePatch } from './api/mock';
 import { hrefs, router } from './router.svelte';
 
@@ -72,16 +74,29 @@ class Session {
   async start(folder: FolderKey | null, target: Target | null, sourceLabel: string): Promise<void> {
     if (this.phase === 'recording') return;
     const st = await api.sessionStart({ title: null, folder: folder && folder !== SYS_UNSORTED ? folderRef(folder) : null, system: target, mic: null, demo: true });
+    this.#begin(st.call, folder ?? SYS_UNSORTED, sourceLabel);
+    await library.reload();
+  }
+  #begin(call: string | null, folder: FolderKey, sourceLabel: string): void {
     this.phase = 'recording';
-    this.callId = st.call;
-    this.folder = folder ?? SYS_UNSORTED;
+    this.callId = call;
+    this.folder = folder;
     this.sourceLabel = sourceLabel;
     this.startedAt = Date.now();
     this.now = this.startedAt;
     this.lines = [];
     this.#tick = setInterval(() => (this.now = Date.now()), 1000);
     this.#off = api.onLiveLine((l) => this.lines.push({ ...l, at_s: this.elapsed }));
-    await library.reload();
+  }
+  /** Follow a session started or stopped elsewhere (record bind, overlay, demo end). */
+  sync(s: SessionState): void {
+    if (s.phase === 'recording' && this.phase === 'idle') this.#begin(s.call, SYS_UNSORTED, '');
+    else if (s.phase === 'idle' && this.phase === 'recording') {
+      this.#off?.();
+      if (this.#tick) clearInterval(this.#tick);
+      this.phase = 'idle';
+      void library.reload();
+    }
   }
   async stop(): Promise<void> {
     if (this.phase !== 'recording') return;
@@ -113,3 +128,12 @@ class Ui {
   }
 }
 export const ui = new Ui();
+
+/** Backend events that change main-window state (no-op in a plain browser). */
+export function attachEvents(): void {
+  if (!hasTauri) return;
+  let t: ReturnType<typeof setTimeout> | undefined;
+  void on(EVENTS.storeChanged, () => { clearTimeout(t); t = setTimeout(() => void library.reload(), 300); });
+  void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; });
+  void on<SessionState>(EVENTS.sessionState, (s) => session.sync(s));
+}

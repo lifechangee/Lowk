@@ -15,6 +15,9 @@ export const EVENTS = {
   queueChanged: 'queue://changed',
   permChanged: 'perm://changed',
   storeChanged: 'store://changed',
+  settingsChanged: 'settings://changed',
+  sttError: 'stt://error',
+  myAnswer: 'qa://my-answer',
 } as const;
 
 export function on<T>(name: string, handler: (payload: T) => void): Promise<UnlistenFn> {

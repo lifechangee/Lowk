@@ -7,6 +7,6 @@ export function mouseNames(): MouseNames {
     middle: tm('m.mouse.middle'),
     back: tm('m.mouse.back'),
     forward: tm('m.mouse.forward'),
-    other: (n) => tm('m.mouse.other', { n }),
+    other: (n) => tm('m.mouse.btn', { n }),
   };
 }

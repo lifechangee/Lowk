@@ -37,6 +37,12 @@ export class OverlayStore {
   visibility = $state<OverlayVisibility>('recording_only');
   pillEdge = $state<PillEdge>('right');
   isMac = $state(true);
+  /** `true` in the pill window, `false` in the overlay window; `null` = decided by `visibility` (dev stage). */
+  pillWindow = $state<boolean | null>(null);
+  /** The backend owns the «Мой ответ» text (`qa://my-answer`); do not accumulate it locally. */
+  serverMyAnswer = false;
+  /** Self-test sentinel: the overlay paints a magenta block while the app grabs the screen. */
+  sentinel = $state(false);
 
   templates = $state<Template[]>(DEFAULT_TEMPLATES);
   templateId = $state('brief');
@@ -61,7 +67,7 @@ export class OverlayStore {
   template = $derived(this.templates.find((x) => x.id === this.templateId) ?? this.templates[0]);
   recording = $derived(this.phase === 'recording');
   /** Idle + `pill` visibility = the unobtrusive edge strip instead of the full overlay. */
-  showPill = $derived(this.visibility === 'pill' && this.phase !== 'recording' && this.phase !== 'paused');
+  showPill = $derived(this.pillWindow ?? (this.visibility === 'pill' && this.phase !== 'recording' && this.phase !== 'paused'));
 
   #toastTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -72,7 +78,7 @@ export class OverlayStore {
     this.sub = { stream, utt: e.utt, text: e.text, partial };
     if (!partial) {
       if (stream === 'system' && this.stage !== 'hint') this.stage = 'question';
-      if (stream === 'me' && this.armed) {
+      if (stream === 'me' && this.armed && !this.serverMyAnswer) {
         this.myAnswer = (this.myAnswer ? this.myAnswer + ' ' : '') + e.text.trim();
         this.stage = 'my';
       }
@@ -97,6 +103,11 @@ export class OverlayStore {
       this.streaming = false;
       this.answerError = true;
     }
+  }
+
+  applyMyAnswer(text: string): void {
+    this.myAnswer = text;
+    if (text) this.stage = 'my';
   }
 
   applyTone(t: Tone): void {

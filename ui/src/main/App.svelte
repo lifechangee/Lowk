@@ -15,7 +15,7 @@
   import { hrefs, router } from './router.svelte';
   import SearchPalette from './SearchPalette.svelte';
   import SettingsView from './settings/SettingsView.svelte';
-  import { library, prefs, session, ui } from './state.svelte';
+  import { attachEvents, library, prefs, session, ui } from './state.svelte';
   import Home from './home/Home.svelte';
   import Workspace from './workspace/Workspace.svelte';
 
@@ -23,6 +23,7 @@
   const route = $derived(router.route);
 
   onMount(async () => {
+    attachEvents();
     locale.init(await api.localeGet().catch(() => 'en'));
     await Promise.all([prefs.load(), library.reload()]);
     if (!prefs.value.onboarding?.done && router.route.name !== 'onboarding') router.go(hrefs.onboarding(prefs.value.onboarding?.step ?? 0));

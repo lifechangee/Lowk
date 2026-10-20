@@ -6,8 +6,105 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 export const commands = {
 	settingsGet: () => __TAURI_INVOKE<Settings>("settings_get"),
 	settingsPatch: (patch: SettingsPatch) => typedError<Settings, AppError>(__TAURI_INVOKE("settings_patch", { patch })),
-	/**  Resolved UI locale (`ru` | `en`). M0 stub: real detection is `lowk-platform` (WP5). */
+	/**  Raw system locale tag (`ru-RU`); the UI resolves `auto|ru|en` from it. */
 	localeGet: () => __TAURI_INVOKE<string>("locale_get"),
+	secretSet: (providerId: string, value: string) => typedError<null, AppError>(__TAURI_INVOKE("secret_set", { providerId, value })),
+	secretStatus: (providerId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("secret_status", { providerId })),
+	secretDelete: (providerId: string) => typedError<null, AppError>(__TAURI_INVOKE("secret_delete", { providerId })),
+	/**  Quit the whole app (the overlay keeps it alive otherwise). */
+	appQuit: () => __TAURI_INVOKE<void>("app_quit"),
+	/**
+	 *  Opens (or focuses) the main window; used by the second-instance handler,
+	 *  the Dock reopen event and the overlay.
+	 */
+	mainOpen: () => __TAURI_INVOKE<void>("main_open"),
+	/**  Updater skeleton: the plugin is not wired until the minisign key exists. */
+	updateCheck: () => typedError<UpdateStatus, AppError>(__TAURI_INVOKE("update_check")),
+	vaultOpen: (path: string | null) => typedError<VaultInfo, AppError>(__TAURI_INVOKE("vault_open", { path })),
+	vaultInfo: () => __TAURI_INVOKE<{
+	/**  Absolute path of the open vault. */
+	path: string,
+} | null>("vault_info"),
+	folderList: () => typedError<FolderMeta[], AppError>(__TAURI_INVOKE("folder_list")),
+	folderGet: (id: FolderRef) => typedError<FolderDetail, AppError>(__TAURI_INVOKE("folder_get", { id })),
+	folderCreate: (folder: NewFolder) => typedError<FolderMeta, AppError>(__TAURI_INVOKE("folder_create", { folder })),
+	folderUpdate: (id: Ulid, patch: FolderUpdate) => typedError<FolderMeta, AppError>(__TAURI_INVOKE("folder_update", { id, patch })),
+	/**  Moves the folder to the Trash (restorable); never hard-deletes. */
+	folderDelete: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("folder_delete", { id })),
+	callList: (folder: { kind: "user"; id: Ulid } | 
+/**  `sys:unsorted` — calls recorded without a chosen folder. */
+{ kind: "unsorted" } | 
+/**  `sys:trash` — app-level, restorable trash. */
+{ kind: "trash" } | null, includeDeleted: boolean) => typedError<CallMeta[], AppError>(__TAURI_INVOKE("call_list", { folder, includeDeleted })),
+	/**  Ids of calls that already have a non-empty summary. */
+	callSummarized: () => typedError<Ulid[], AppError>(__TAURI_INVOKE("call_summarized")),
+	callGet: (id: Ulid) => typedError<CallDetail, AppError>(__TAURI_INVOKE("call_get", { id })),
+	/**  The raw `.md` (editor and export). */
+	callGetMd: (id: Ulid) => typedError<string, AppError>(__TAURI_INVOKE("call_get_md", { id })),
+	callSaveMd: (id: Ulid, md: string) => typedError<null, AppError>(__TAURI_INVOKE("call_save_md", { id, md })),
+	callMove: (id: Ulid, to: FolderRef) => typedError<CallMeta, AppError>(__TAURI_INVOKE("call_move", { id, to })),
+	/**  Moves to the Trash (restorable). */
+	callDelete: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("call_delete", { id })),
+	callRestore: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("call_restore", { id })),
+	callRename: (id: Ulid, title: string) => typedError<CallMeta, AppError>(__TAURI_INVOKE("call_rename", { id, title })),
+	callSetTags: (id: Ulid, tags: string[]) => typedError<CallMeta, AppError>(__TAURI_INVOKE("call_set_tags", { id, tags })),
+	/**  The only hard delete («Очистить корзину»). Returns the number of items removed. */
+	trashEmpty: () => typedError<number, AppError>(__TAURI_INVOKE("trash_empty")),
+	exportVault: (dest: string, includeService: boolean) => typedError<number, AppError>(__TAURI_INVOKE("export_vault", { dest, includeService })),
+	importVault: (src: string) => typedError<ImportSummary, AppError>(__TAURI_INVOKE("import_vault", { src })),
+	stealthStatus: () => __TAURI_INVOKE<StealthStatus>("stealth_status"),
+	/**
+	 *  Paints the overlay sentinel, grabs the screen like a normal capturer and
+	 *  checks the sentinel is absent (needs Screen Recording on macOS).
+	 */
+	stealthSelftest: () => typedError<SelfTestReport, AppError>(__TAURI_INVOKE("stealth_selftest")),
+	overlaySetMode: (mode: OverlayMode) => typedError<null, AppError>(__TAURI_INVOKE("overlay_set_mode", { mode })),
+	overlayShow: () => typedError<null, AppError>(__TAURI_INVOKE("overlay_show")),
+	overlayHide: () => typedError<null, AppError>(__TAURI_INVOKE("overlay_hide")),
+	/**  Esc in the interactive overlay: back to click-through. */
+	overlayEscape: () => typedError<null, AppError>(__TAURI_INVOKE("overlay_escape")),
+	/**
+	 *  Header drag while interactive (plain pointer drag: the overlay keeps
+	 *  receiving mouse events, unlike the hold-to-move magnet which is click-through).
+	 */
+	overlayDragStart: () => typedError<null, AppError>(__TAURI_INVOKE("overlay_drag_start")),
+	overlayDragTo: (dx: number | null, dy: number | null) => typedError<null, AppError>(__TAURI_INVOKE("overlay_drag_to", { dx, dy })),
+	overlayDragEnd: () => typedError<null, AppError>(__TAURI_INVOKE("overlay_drag_end")),
+	/**  Interactive-mode input row: ask the AI with the typed text. */
+	overlayInputSubmit: (text: string) => typedError<Ulid, AppError>(__TAURI_INVOKE("overlay_input_submit", { text })),
+	/**  Current adaptive tone (a window that loads late missed the events). */
+	overlayTone: () => typedError<Tone, AppError>(__TAURI_INVOKE("overlay_tone")),
+	bindsGet: () => __TAURI_INVOKE<BindsState>("binds_get"),
+	bindsSet: (binds: BindSpec[]) => typedError<BindsState, AppError>(__TAURI_INVOKE("binds_set", { binds })),
+	/**
+	 *  Captures the next combo / lone modifier / mouse button through the
+	 *  low-level hook (Input Monitoring on macOS). `None` = timed out or stopped.
+	 */
+	bindsRecordStart: () => typedError<{ kind: "combo"; mods: Mods; key: KeyCode } | { kind: "modifier_only"; mods: Mods } | { kind: "mouse"; button: MouseBtn; mods: Mods } | null, AppError>(__TAURI_INVOKE("binds_record_start")),
+	bindsRecordStop: () => __TAURI_INVOKE<void>("binds_record_stop"),
+	permStatus: () => __TAURI_INVOKE<Partial<{ [key in PermKind]: PermState }>>("perm_status"),
+	permRequest: (kind: PermKind) => typedError<PermState, AppError>(__TAURI_INVOKE("perm_request", { kind })),
+	permOpenSettings: (kind: PermKind) => __TAURI_INVOKE<void>("perm_open_settings", { kind }),
+	hwProbe: () => typedError<HwProbe, AppError>(__TAURI_INVOKE("hw_probe")),
+	/**  5-10 s engine benchmark: arrives with the first real engines (M1). */
+	hwBench: () => typedError<null, AppError>(__TAURI_INVOKE("hw_bench")),
+	sessionStart: (opts: StartOpts) => typedError<SessionState, AppError>(__TAURI_INVOKE("session_start", { opts })),
+	sessionStop: () => typedError<null, AppError>(__TAURI_INVOKE("session_stop")),
+	sessionPause: () => typedError<null, AppError>(__TAURI_INVOKE("session_pause")),
+	sessionResume: () => typedError<null, AppError>(__TAURI_INVOKE("session_resume")),
+	sessionState: () => __TAURI_INVOKE<SessionState>("session_state"),
+	sessionSnapshot: () => __TAURI_INVOKE<SessionSnapshot>("session_snapshot"),
+	/**  Apps that currently produce audio (empty until `lowk-audio` lands in M1). */
+	sourceList: () => typedError<AudioApp[], AppError>(__TAURI_INVOKE("source_list")),
+	engineList: () => __TAURI_INVOKE<EngineDescriptor[]>("engine_list"),
+	engineInstall: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("engine_install", { id })),
+	/**  The scripted RU/EN demo call (also what the record bind plays in M0). */
+	demoStart: () => typedError<SessionState, AppError>(__TAURI_INVOKE("demo_start")),
+	llmAsk: (typedText: string | null) => typedError<Ulid, AppError>(__TAURI_INVOKE("llm_ask", { typedText })),
+	llmCancel: () => typedError<null, AppError>(__TAURI_INVOKE("llm_cancel")),
+	llmSetTemplate: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("llm_set_template", { id })),
+	captureScreenshot: () => typedError<null, AppError>(__TAURI_INVOKE("capture_screenshot")),
+	queueClear: () => typedError<null, AppError>(__TAURI_INVOKE("queue_clear")),
 };
 
 /* Types */
@@ -27,7 +124,11 @@ export type AppError = {
 export type AppEvent = { type: "stt"; data: SttEvent } | { type: "session"; data: SessionState } | { type: "llm"; data: LlmEvent } | { type: "overlay"; data: OverlayEvent } | { type: "stealth"; data: StealthStatus } | { type: "bind"; data: BindEvent } | { type: "perm"; data: {
 	kind: PermKind,
 	state: PermState,
-} } | { type: "queue"; data: QueueState } | { type: "store"; data: StoreChange } | { type: "level"; data: AudioLevel };
+} } | { type: "queue"; data: QueueState } | { type: "store"; data: StoreChange } | { type: "level"; data: AudioLevel } | 
+/**  «Мой ответ» text grew or its link closed. */
+{ type: "my_answer"; data: QaUpdate } | 
+/**  An STT engine failed (isolated per stream). */
+{ type: "stt_error"; data: SttError };
 
 export type AskRequest = {
 	template_id: string,
@@ -85,6 +186,22 @@ export type BindStatusEntry = {
 	status: BindStatus,
 };
 
+/**  `binds_get` / `binds_set` payload. */
+export type BindsState = {
+	binds: BindSpec[],
+	report: BindReport,
+};
+
+export type CallDetail = {
+	meta: CallMeta,
+	summary: string | null,
+	transcript: Utterance[],
+	qa: QaItem[],
+	shots: ShotItem[],
+	keep_audio: boolean,
+	model: string,
+};
+
 /**  What `CallWriter::push` accepts. */
 export type CallEntry = { type: "final"; event: SttEvent } | { type: "qa"; id: Ulid; at_s: number; template: string; model: string; range: string; question: string; answer: string } | { type: "image"; at_s: number; rel_path: string; source: string; caption: string } | { type: "my_answer"; qa_id: Ulid; at_s: number; text: string };
 
@@ -119,6 +236,8 @@ export type CaptureSettings = {
 
 export type ChunkKind = "speech" | "doc" | "qa" | "image";
 
+export type CloseReason = "next_ask" | "system_question" | "timeout" | "session_end";
+
 export type ContextChunk = {
 	id: string,
 	kind: ChunkKind,
@@ -152,6 +271,11 @@ export type EngineKind = "local" | "cloud";
 
 export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index";
 
+export type FolderDetail = {
+	meta: FolderMeta,
+	instructions: string,
+};
+
 export type FolderMeta = {
 	id: FolderRef,
 	title: string,
@@ -170,6 +294,15 @@ export type FolderRef = { kind: "user"; id: Ulid } |
 /**  `sys:trash` — app-level, restorable trash. */
 { kind: "trash" };
 
+export type FolderUpdate = {
+	title?: string | null,
+	tags?: string[] | null,
+	allow_cloud?: boolean | null,
+	/**  Empty string clears the folder's default template. */
+	default_template?: string | null,
+	instructions?: string | null,
+};
+
 export type GpuInfo = {
 	vendor: string,
 	name: string,
@@ -186,6 +319,28 @@ export type HwInfo = {
 	cpu_features: string[],
 	free_disk_gb: number | null,
 	on_battery: boolean,
+};
+
+/**  `hw_probe` payload: the probe plus the static local-vs-cloud recommendation. */
+export type HwProbe = {
+	report: HwReport,
+	recommendation: Recommendation,
+};
+
+/**  `HwInfo` plus what the recommender needs (`hw_probe` payload). */
+export type HwReport = {
+	info: HwInfo,
+	physical_cores: number,
+	logical_cores: number,
+	/**  `Some(4)` for "Apple M4 Pro"; `None` off Apple Silicon. */
+	apple_silicon_gen: number | null,
+};
+
+export type ImportSummary = {
+	files_copied: number,
+	skipped: number,
+	ids_reassigned: number,
+	folders_merged: number,
 };
 
 /**
@@ -240,6 +395,11 @@ export type NewCall = {
 	/**  Labels written to the `speakers` table, chosen from the UI language. */
 	speaker_me: string,
 	speaker_system: string,
+	/**
+	 *  Session clock (monotonic <-> wall) so `CallEntry::Final` times map to
+	 *  offsets; `None` = the writer starts its own clock now.
+	 */
+	clock?: SessionClock | null,
 };
 
 export type NewFolder = {
@@ -314,11 +474,51 @@ export type Phase = "down" | "up";
 
 export type PillEdge = "left" | "right" | "top" | "bottom";
 
+export type QaItem = {
+	id: string,
+	at_s: number,
+	question: string,
+	question_stream: Stream,
+	answer: string,
+	/**  Display name of the prompt template. */
+	template: string,
+	my_answer: string | null,
+	my_answer_at_s: number | null,
+};
+
+/**  One question/hint/answer triple. */
+export type QaRecord = {
+	qa_id: Ulid,
+	question: string,
+	hint: string,
+	my_answer: string,
+	armed_at: number,
+	/**  Event time of the first collected Me segment. */
+	first_at: number | null,
+	/**  `None` while the link is still collecting. */
+	closed: CloseReason | null,
+};
+
+/**  `qa://my-answer`: the «Мой ответ» text of a link changed or the link closed. */
+export type QaUpdate = {
+	qa_id: Ulid,
+	text: string,
+	closed: CloseReason | null,
+};
+
 /**  `queue://changed`: screenshots waiting for the next Ask. */
 export type QueueState = {
 	shots: number,
 	/**  Small `data:` URI thumbnails, one per queued image. */
 	thumbs: string[],
+};
+
+/**  Machine-readable reason; the UI maps it to copy. */
+export type RecReason = "apple_silicon_capable" | "apple_silicon_limited" | "intel_mac" | "discrete_gpu" | "discrete_gpu_small" | "cpu_only_capable" | "weak_cpu" | "low_ram";
+
+export type Recommendation = {
+	tier: SttTier,
+	reason: RecReason,
 };
 
 export type RetrievalQuery = {
@@ -390,6 +590,16 @@ export type Settings = {
 /**  Partial settings as a JSON merge patch (objects merge, arrays replace). */
 export type SettingsPatch = unknown;
 
+export type ShotItem = {
+	id: string,
+	at_s: number,
+	rel_path: string,
+	title: string,
+	caption: string,
+	/**  `manual` | `auto`. */
+	source: string,
+};
+
 export type StartOpts = {
 	title: string | null,
 	folder: FolderRef | null,
@@ -427,6 +637,14 @@ export type SttBenchmark = {
 	app_version: string,
 };
 
+/**  Engine failure surfaced through the sink (isolated per stream). */
+export type SttError = {
+	stream: Stream,
+	message: string,
+	/**  True when the engine host will restart the worker by itself. */
+	recoverable: boolean,
+};
+
 /**  One revision of one utterance. `stt://segment` payload. */
 export type SttEvent = {
 	stream: Stream,
@@ -456,6 +674,14 @@ export type SttSettings = {
 	benchmark?: SttBenchmark | null,
 };
 
+export type SttTier = 
+/**  Larger local model (accurate/streaming) should run comfortably. */
+"local_high" | 
+/**  Only a small local model is plausible. */
+"local_light" | 
+/**  Recommend cloud transcription. */
+"cloud";
+
 /**  Audio source selection types shared by audio, session and UI. */
 export type Target = 
 /**  Bundle id (macOS) or exe path (Windows). */
@@ -481,6 +707,11 @@ export type Tone = {
 	mv: string,
 	luma: number | null,
 	busy: number | null,
+	/**
+	 *  Minimum scrim opacity (0..1) that keeps WCAG 4.5:1 for the worst-case
+	 *  backdrop pixel. The UI scrim is `max(k * .85, scrim_min)`.
+	 */
+	scrim_min?: number | null,
 };
 
 export type ToneKind = "dark" | "light" | "color";
@@ -513,6 +744,25 @@ export type UpdateSettings = {
 	check_daily?: boolean,
 	/**  RFC 3339 time of the last check. */
 	last_checked?: string | null,
+};
+
+export type UpdateStatus = {
+	/**  False until the release signing keys exist (docs/DECISIONS-M0.md). */
+	enabled: boolean,
+	current: string,
+	available: string | null,
+};
+
+export type Utterance = {
+	at_s: number,
+	speaker: Stream,
+	text: string,
+};
+
+/**  `vault_open` / `vault_info` payload. */
+export type VaultInfo = {
+	/**  Absolute path of the open vault. */
+	path: string,
 };
 
 export type VaultSettings = {

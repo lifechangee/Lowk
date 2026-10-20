@@ -10,13 +10,15 @@ export interface ToneVars {
   mv: string;
   /** Menu surface colour (menus are more opaque than the shell). */
   mrgb: string;
+  /** Minimum scrim opacity (0..1) for WCAG 4.5:1 text over the worst backdrop pixel. */
+  smin: number;
 }
 
 /** Fallback palettes (also used when `tone_mode` forces a fixed palette). Values from mockups v3. */
 export const PRESETS: Record<ToneKind, ToneVars> = {
-  dark: { rgb: '12,12,15', fg: '247,247,249', inv: '0,0,0', int: '94,224,138', mv: '255,194,74', mrgb: '26,26,31' },
-  light: { rgb: '255,255,255', fg: '10,11,15', inv: '255,255,255', int: '14,130,62', mv: '166,96,0', mrgb: '252,252,253' },
-  color: { rgb: '40,14,80', fg: '255,255,255', inv: '30,0,60', int: '90,255,150', mv: '255,214,102', mrgb: '48,22,90' },
+  dark: { rgb: '12,12,15', fg: '247,247,249', inv: '0,0,0', int: '94,224,138', mv: '255,194,74', mrgb: '26,26,31', smin: 0 },
+  light: { rgb: '255,255,255', fg: '10,11,15', inv: '255,255,255', int: '14,130,62', mv: '166,96,0', mrgb: '252,252,253', smin: 0 },
+  color: { rgb: '40,14,80', fg: '255,255,255', inv: '30,0,60', int: '90,255,150', mv: '255,214,102', mrgb: '48,22,90', smin: 0 },
 };
 
 /** Accepts `12,12,15`, `12 12 15`, `rgb(12, 12, 15)` or `#0c0c0f`; returns `r,g,b` or null. */
@@ -45,12 +47,12 @@ export function menuRgb(rgb: string, fg: string): string {
   return a.map((v, i) => Math.round(v + ((b[i] ?? v) - v) * 0.06)).join(',');
 }
 
-export function toneToVars(t: Pick<Tone, 'tone' | 'rgb' | 'fg' | 'inv' | 'int' | 'mv'>): ToneVars {
+export function toneToVars(t: Pick<Tone, 'tone' | 'rgb' | 'fg' | 'inv' | 'int' | 'mv'> & { scrim_min?: number | null }): ToneVars {
   const base = PRESETS[t.tone];
   const pick = (v: string, fb: string) => normalizeRgb(v) ?? fb;
   const rgb = pick(t.rgb, base.rgb);
   const fg = pick(t.fg, base.fg);
-  return { rgb, fg, inv: pick(t.inv, base.inv), int: pick(t.int, base.int), mv: pick(t.mv, base.mv), mrgb: menuRgb(rgb, fg) };
+  return { rgb, fg, inv: pick(t.inv, base.inv), int: pick(t.int, base.int), mv: pick(t.mv, base.mv), mrgb: menuRgb(rgb, fg), smin: Math.min(0.95, Math.max(0, t.scrim_min ?? 0)) };
 }
 
 /** `settings.overlay.opacity` is the 0..90 transparency slider (mockup "Прозрачность"): k = 1 - v/100. */
@@ -60,5 +62,5 @@ export function kFromTransparency(percent: number): number {
 }
 
 export function varsToStyle(v: ToneVars, k: number, fontPx: number): string {
-  return `--rgb:${v.rgb};--fg:${v.fg};--inv:${v.inv};--int:${v.int};--mv:${v.mv};--mrgb:${v.mrgb};--k:${k};--ov-fs:${fontPx}px`;
+  return `--rgb:${v.rgb};--fg:${v.fg};--inv:${v.inv};--int:${v.int};--mv:${v.mv};--mrgb:${v.mrgb};--smin:${v.smin};--k:${k};--ov-fs:${fontPx}px`;
 }
