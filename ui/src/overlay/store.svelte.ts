@@ -1,8 +1,11 @@
 // Overlay view state. Fed by an OverlaySource (mock demo in dev, Tauri events in the app).
 // No business logic: it only folds events into what the components render.
-import type { LlmEvent, OverlayMode, OverlayVisibility, PillEdge, SessionPhase, SttEvent, Template, Tone, ToneKind } from '../lib/ipc/bindings';
+import type { LlmEvent, OverlayMode, OverlayVisibility, PillEdge, SessionPhase, SttEvent, Template, ToneKind } from '../lib/ipc/bindings';
 import type { Lang } from '../lib/i18n';
-import { PRESETS, kFromTransparency, toneToVars, type ToneVars } from './tone';
+import { GRID_COLS, GRID_ROWS, PRESETS, kFromTransparency, parseGrid, toneToVars, type ToneEvent, type ToneVars } from './tone';
+
+/** An LLM event as it arrives; `seq` is the per-request delta counter the backend adds (optional). */
+export type LlmIn = LlmEvent & { seq?: number };
 
 export interface SubLine {
   stream: 'me' | 'system';
@@ -31,6 +34,8 @@ export class OverlayStore {
   elapsedMs = $state(0);
   tone = $state<ToneVars>(PRESETS.dark);
   toneKind = $state<ToneKind>('dark');
+  /** Per-region tones (4x3, row-major) from `overlay://tone`; `null` = only the global tone is known. */
+  grid = $state<ToneVars[] | null>(null);
   /** 0..90 transparency slider value (`settings.overlay.opacity`). */
   transparency = $state(60);
   fontPx = $state(13);
@@ -64,12 +69,17 @@ export class OverlayStore {
   toast = $state<string | null>(null);
 
   k = $derived(kFromTransparency(this.transparency));
+  /** The 12 scrim cells: the grid, or the global tone everywhere when the backend sent none. */
+  cells = $derived(this.grid ?? Array.from({ length: GRID_COLS * GRID_ROWS }, () => this.tone));
   template = $derived(this.templates.find((x) => x.id === this.templateId) ?? this.templates[0]);
   recording = $derived(this.phase === 'recording');
   /** Idle + `pill` visibility = the unobtrusive edge strip instead of the full overlay. */
   showPill = $derived(this.pillWindow ?? (this.visibility === 'pill' && this.phase !== 'recording' && this.phase !== 'paused'));
 
   #toastTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Request being streamed + last delta seq applied: events can arrive twice (F10 defence in depth). */
+  #req: string | null = null;
+  #seq = -1;
 
   // ---- event folding (same shapes as the IPC DTOs) ----
   applyStt(e: SttEvent): void {
@@ -85,8 +95,12 @@ export class OverlayStore {
     }
   }
 
-  applyLlm(e: LlmEvent): void {
+  applyLlm(e: LlmIn): void {
     if (e.type === 'start') {
+      // A repeated `start` for the request already streaming must not wipe the text.
+      if (this.#req === e.req_id) return;
+      this.#req = e.req_id;
+      this.#seq = -1;
       this.answer = '';
       this.answerError = false;
       this.streaming = true;
@@ -95,11 +109,19 @@ export class OverlayStore {
       this.myAnswer = '';
       this.stage = 'hint';
     } else if (e.type === 'delta') {
+      // Deltas of a finished/foreign request and deltas whose seq was already applied are dropped.
+      if (this.#req !== e.req_id || !this.streaming) return;
+      if (typeof e.seq === 'number') {
+        if (e.seq <= this.#seq) return;
+        this.#seq = e.seq;
+      }
       this.answer += e.text;
     } else if (e.type === 'done') {
+      if (!this.streaming || this.#req !== e.req_id) return;
       this.streaming = false;
       this.armed = true;
     } else {
+      if (this.#req !== null && this.#req !== e.req_id) return;
       this.streaming = false;
       this.answerError = true;
     }
@@ -110,9 +132,13 @@ export class OverlayStore {
     if (text) this.stage = 'my';
   }
 
-  applyTone(t: Tone): void {
+  applyTone(t: ToneEvent): void {
     this.toneKind = t.tone;
-    this.tone = toneToVars(t);
+    const global = toneToVars(t);
+    const grid = parseGrid(t);
+    this.grid = grid;
+    // The scrim floor must hold for the worst region, not just the average one.
+    this.tone = grid ? { ...global, smin: Math.max(global.smin, ...grid.map((c) => c.smin)) } : global;
   }
 
   setMode(m: OverlayMode): void {
@@ -144,6 +170,7 @@ export class OverlayStore {
     this.hasAnswered = false;
     this.myAnswer = '';
     this.armed = false;
+    this.#req = null;
     this.stage = 'question';
     this.shots = 0;
     this.thumbs = [];

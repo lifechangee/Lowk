@@ -232,8 +232,12 @@ impl WindowBackend for Win {
                 CAN_KEY.lock().remove(&key);
                 self.win.setIgnoresMouseEvents(true);
                 if self.win.isKeyWindow() {
-                    // Dropping key status hands it back to the still-active app below.
-                    self.win.orderOut(None);
+                    // Drop key status WITHOUT leaving the screen (F4): orderOut/orderFront
+                    // flickered. Sending the window to the back of its (screen-saver) level
+                    // makes AppKit resign key; the window stays on-screen and on top of
+                    // every normal window, and the still-active app below gets key back.
+                    let _ = self.win.makeFirstResponder(None);
+                    self.win.orderBack(None);
                     self.win.orderFrontRegardless();
                 }
                 *self.prev_front_pid.lock() = None;

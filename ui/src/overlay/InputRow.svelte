@@ -20,7 +20,7 @@
   }
 </script>
 
-<div class="inp">
+<div class="inp" data-blk>
   <input bind:this={el} bind:value type="text" placeholder={ot('overlay.input.placeholder', store.lang)} autocomplete="off" spellcheck="false" onkeydown={key} />
   <kbd>↵</kbd><kbd>Esc</kbd>
 </div>

@@ -15,8 +15,6 @@ export interface Known {
 
 export const KNOWN: Known[] = [
   // --- owner feedback (docs/M0-FEEDBACK.md) ---
-  { fid: 'F13', rule: 'overflow', sel: /div\.ov > div\.(toast|badge)/, state: /^overlay\// }, // toast + move badge hang below the 384px window
-  { fid: 'F11', rule: 'contrast', sel: /.*/, state: /^overlay\// }, // overlay text over busy/light content (< 3:1 at 60% opacity); see also the F11 worst-case test
 ];
 
 export function classify(rule: Known['rule'], sel: string, stateKey: string): string | undefined {

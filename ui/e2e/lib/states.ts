@@ -38,7 +38,7 @@ export const MAIN_STATES: MainState[] = [
   ...Array.from({ length: 8 }, (_, i) => ({ id: `onboarding-${i}`, title: `Onboarding step ${i + 1}`, hash: `#/onboarding/${i}`, mockup: 'ob' as const })),
 ];
 
-export type Bg = 'dark' | 'light' | 'color';
+export type Bg = 'dark' | 'light' | 'color' | 'split';
 export interface OverlayState {
   id: string;
   title: string;
@@ -48,6 +48,8 @@ export interface OverlayState {
   /** keyboard presses after load */
   keys?: string[];
   full: boolean; // full bg x opacity grid
+  /** Only these backdrops (default: dark, light, color). */
+  bgs?: Bg[];
 }
 
 export const BGS: Bg[] = ['dark', 'light', 'color'];
@@ -59,5 +61,7 @@ export const OVERLAY_STATES: OverlayState[] = [
   { id: 'interactive', title: 'Interactive (input row)', q: { still: '1', mode: 'interactive' }, full: false },
   { id: 'moving', title: 'Moving (hold-to-move)', q: { still: '1', mode: 'moving' }, full: false },
   { id: 'pill', title: 'Pill', q: { still: '1', view: 'pill' }, pill: true, full: false },
+  { id: 'adaptive', title: 'Adaptive tone grid (dark left, light right, bright bottom)', q: { still: '1' }, full: false, bgs: ['split'] },
+  { id: 'adaptive-moving', title: 'Adaptive grid + moving badge', q: { still: '1', mode: 'moving' }, full: false, bgs: ['split'] },
   { id: 'toast', title: 'Toast (screenshot added)', q: { still: '1' }, keys: ['s'], full: false },
 ];

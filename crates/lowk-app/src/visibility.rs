@@ -67,3 +67,13 @@ pub fn toggle(st: &AppState) -> Result<()> {
     }
     Ok(())
 }
+
+/// F8: after a recording ends, show/focus the main window and tell it to go to
+/// the library home (`session://ended`; the UI routes to `#/`).
+pub fn session_ended(st: &AppState) {
+    crate::windows::open_main(&st.app);
+    st.emitter.broadcast(
+        lowk_types::events::SESSION_ENDED,
+        serde_json::json!({ "route": "home" }),
+    );
+}

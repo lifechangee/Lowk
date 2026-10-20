@@ -61,6 +61,72 @@ export function kFromTransparency(percent: number): number {
   return Math.round((1 - p / 100) * 1000) / 1000;
 }
 
+/** Per-region tone grid (`overlay://tone` -> `grid`), row-major: `cells[row * cols + col]`. */
+export interface ToneGrid {
+  cols: number;
+  rows: number;
+  cells: Tone[];
+}
+
+export type ToneEvent = Tone & { grid?: ToneGrid | null };
+
+export const GRID_COLS = 4;
+export const GRID_ROWS = 3;
+
+/** Reads a valid 4x3 grid off a tone event; anything else (absent, wrong size) means "use the global tone". */
+export function parseGrid(t: ToneEvent): ToneVars[] | null {
+  const g = t.grid;
+  if (!g || g.cols !== GRID_COLS || g.rows !== GRID_ROWS || !Array.isArray(g.cells) || g.cells.length !== GRID_COLS * GRID_ROWS) return null;
+  return g.cells.map((c) => toneToVars(c));
+}
+
+/** Relative luminance (0..1) of an `r,g,b` string. */
+export function luma(rgb: string): number {
+  const [r, g, b] = parts(rgb).map((v) => {
+    const c = (v ?? 0) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+}
+
+export interface BlockTone {
+  /** Text colour inputs for the block (same meaning as `--fg` / `--inv`). */
+  fg: string;
+  inv: string;
+  /** Scrim colour of the representative cell, plus its interactive / moving accents. */
+  rgb: string;
+  int: string;
+  mv: string;
+  /** The cells under the block disagree (dark next to light): the block paints a local scrim so its single text colour stays legible. */
+  mixed: boolean;
+}
+
+/**
+ * Text colour for one text block from the grid cells under its rect (fractions of the overlay,
+ * 0..1). The block follows the cell mix as a whole: the average scrim colour decides light vs dark
+ * text, and the actual cell closest to that average supplies the exact fg/inv values, so a block
+ * straddling a dark and a light cell never flips per word.
+ */
+export function blockTone(cells: ToneVars[], rect: { x0: number; y0: number; x1: number; y1: number }): BlockTone {
+  const c0 = Math.min(GRID_COLS - 1, Math.max(0, Math.floor(rect.x0 * GRID_COLS)));
+  const c1 = Math.min(GRID_COLS - 1, Math.max(c0, Math.ceil(rect.x1 * GRID_COLS) - 1));
+  const r0 = Math.min(GRID_ROWS - 1, Math.max(0, Math.floor(rect.y0 * GRID_ROWS)));
+  const r1 = Math.min(GRID_ROWS - 1, Math.max(r0, Math.ceil(rect.y1 * GRID_ROWS) - 1));
+  const under: ToneVars[] = [];
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) under.push(cells[r * GRID_COLS + c]!);
+  const l = under.map((v) => luma(v.rgb));
+  const avg = l.reduce((a, b) => a + b, 0) / l.length;
+  let best = 0;
+  for (let i = 1; i < under.length; i++) if (Math.abs(l[i]! - avg) < Math.abs(l[best]! - avg)) best = i;
+  const v = under[best]!;
+  return { fg: v.fg, inv: v.inv, rgb: v.rgb, int: v.int, mv: v.mv, mixed: Math.max(...l) - Math.min(...l) > 0.3 };
+}
+
+/** The 12 cell colours as custom properties for the scrim (`--c0`..`--c11`). */
+export function cellsToStyle(cells: ToneVars[]): string {
+  return cells.map((c, i) => `--c${i}:rgb(${c.rgb})`).join(';');
+}
+
 export function varsToStyle(v: ToneVars, k: number, fontPx: number): string {
   return `--rgb:${v.rgb};--fg:${v.fg};--inv:${v.inv};--int:${v.int};--mv:${v.mv};--mrgb:${v.mrgb};--smin:${v.smin};--k:${k};--ov-fs:${fontPx}px`;
 }

@@ -105,7 +105,7 @@ for (const lang of LANGS) {
       test.use({ viewport: { width: size.w, height: size.h }, locale: lang === 'ru' ? 'ru-RU' : 'en-US', timezoneId: 'UTC' });
       for (const st of OVERLAY_STATES) {
         const ops = st.full ? OPACITIES : ([60] as const);
-        for (const bg of BGS) {
+        for (const bg of st.bgs ?? BGS) {
           for (const t of ops) {
             test(`${st.id} ${bg} t${t}`, async ({ page }, info) => {
               await prep(page);

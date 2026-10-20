@@ -336,15 +336,39 @@ pub enum CaptureMonitors {
     Active,
 }
 
+/// What a new recording captures by default (the onboarding choice, F12).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum CaptureSource {
+    /// One call app (recommended: YouTube / music next to the call stay out).
+    OneApp,
+    /// Everything the system plays (Windows 10, or the user's choice).
+    WholeSystem,
+}
+
+impl CaptureSource {
+    /// The mode that matches a concrete `audio.default_source` target.
+    pub fn of_target(t: Option<&Target>) -> Self {
+        match t {
+            Some(Target::WholeSystem) => Self::WholeSystem,
+            _ => Self::OneApp,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(default)]
 pub struct CaptureSettings {
     pub monitors: CaptureMonitors,
+    /// Default source mode of the home screen / settings. Written by onboarding and
+    /// kept in sync with `audio.default_source` by the app. Default: one app.
+    pub default_source: CaptureSource,
 }
 impl Default for CaptureSettings {
     fn default() -> Self {
         Self {
             monitors: CaptureMonitors::All,
+            default_source: CaptureSource::OneApp,
         }
     }
 }
@@ -468,7 +492,7 @@ pub fn default_binds(os: Os) -> Vec<BindSpec> {
         combo(ActionId::ScreenshotArea, primary_shift, "KeyA"),
         combo(ActionId::ToggleInteractive, primary_shift, "KeyI"),
         combo(ActionId::ToggleOverlay, primary, "Backslash"),
-        combo(ActionId::PanicHide, primary_shift, "KeyH"),
+        // F7: PanicHide is deliberately NOT bound by default (action stays, assignable in settings).
         combo(ActionId::ToggleRecord, primary_shift, "KeyR"),
         BindSpec {
             action: ActionId::MoveHold,

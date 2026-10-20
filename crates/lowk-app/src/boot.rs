@@ -19,13 +19,27 @@ type BoxErr = Box<dyn std::error::Error>;
 
 /// Session bus -> visibility. Dispatched to the driver thread so the session
 /// thread never waits for the main thread.
-struct PhaseWatcher(Weak<AppState>);
+struct PhaseWatcher(Weak<AppState>, parking_lot::Mutex<SessionPhase>);
+impl PhaseWatcher {
+    fn new(st: Weak<AppState>) -> Self {
+        Self(st, parking_lot::Mutex::new(SessionPhase::Idle))
+    }
+}
 impl EventSink for PhaseWatcher {
     fn emit(&self, ev: AppEvent) {
         let AppEvent::Session(s) = ev else { return };
+        let prev = std::mem::replace(&mut *self.1.lock(), s.phase);
         if let Some(st) = self.0.upgrade() {
             let st2 = st.clone();
-            st.driver.run(move || visibility::apply(&st2, s.phase));
+            // F8: a recording that just ended (stop button, bind or end of call) brings the
+            // main window to the front on the library home.
+            let ended = s.phase == SessionPhase::Idle && prev != SessionPhase::Idle;
+            st.driver.run(move || {
+                visibility::apply(&st2, s.phase);
+                if ended {
+                    visibility::session_ended(&st2);
+                }
+            });
         }
     }
 }
@@ -69,7 +83,7 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         emitter.clone(),
     ));
     app.manage(state.clone());
-    session.add_sink(Arc::new(PhaseWatcher(Arc::downgrade(&state))));
+    session.add_sink(Arc::new(PhaseWatcher::new(Arc::downgrade(&state))));
 
     // ---- stealth: windows are created hidden, protected before the first show ----
     let overlay = windows::build_overlay(&handle)?;
@@ -176,6 +190,15 @@ fn on_settings(st: &Shared, old: &Settings, new: &Settings) {
         }
         if old.overlay.tone_mode != new.overlay.tone_mode {
             stealth.set_tone_mode(new.overlay.tone_mode);
+        }
+    }
+    // F12: the chosen source (onboarding / settings) and the mode the UI shows never disagree.
+    if old.audio.default_source != new.audio.default_source {
+        let mode = CaptureSource::of_target(new.audio.default_source.as_ref());
+        if new.capture.default_source != mode {
+            let _ = st.settings.patch(SettingsPatch(
+                serde_json::json!({ "capture": { "default_source": mode } }),
+            ));
         }
     }
     if new.binds != *st.applied_binds.lock() {

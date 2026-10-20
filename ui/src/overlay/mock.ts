@@ -1,6 +1,6 @@
 // Mock event source: replays a demo call with RU/EN code-switching through the same handlers
 // the real IPC events use. Runs in `vite dev`; never bundled into the app entry (dynamic import).
-import type { OverlayStore } from './store.svelte';
+import type { LlmIn, OverlayStore } from './store.svelte';
 import type { OverlaySource } from './source';
 import type { Stream } from '../lib/ipc/bindings';
 
@@ -48,8 +48,12 @@ export class MockSource implements OverlaySource {
   #tick: ReturnType<typeof setInterval> | undefined;
   #autoplay: boolean;
 
-  constructor(opts: { autoplay?: boolean } = {}) {
+  /** Test switch: deliver every LLM event twice (double subscription), the F10 failure mode. */
+  #dup: boolean;
+
+  constructor(opts: { autoplay?: boolean; duplicate?: boolean } = {}) {
     this.#autoplay = opts.autoplay ?? true;
+    this.#dup = opts.duplicate ?? false;
   }
 
   start(store: OverlayStore): void {
@@ -85,13 +89,18 @@ export class MockSource implements OverlaySource {
 
   async #answer(text: string, g: number): Promise<void> {
     const s = this.#store;
-    s.applyLlm({ type: 'start', req_id: 'r' + g, qa_id: 'q' + g });
+    const emit = (e: LlmIn) => {
+      s.applyLlm(e);
+      if (this.#dup) s.applyLlm(e);
+    };
+    emit({ type: 'start', req_id: 'r' + g, qa_id: 'q' + g });
     const chunks = text.match(/.{1,6}/gs) ?? [];
+    let seq = 0;
     for (const c of chunks) {
-      s.applyLlm({ type: 'delta', req_id: 'r' + g, text: c });
+      emit({ type: 'delta', req_id: 'r' + g, seq: seq++, text: c });
       await this.#sleep(38, g);
     }
-    s.applyLlm({ type: 'done', req_id: 'r' + g, truncated: false, usage: null });
+    emit({ type: 'done', req_id: 'r' + g, truncated: false, usage: null });
   }
 
   async #run(g: number): Promise<void> {
@@ -150,6 +159,12 @@ export class MockSource implements OverlaySource {
 
   setTemplate(id: string): void {
     this.#store.selectTemplate(id);
+  }
+
+  stopRecording(): void {
+    const s = this.#store;
+    s.phase = 'idle';
+    s.flash(s.lang === 'ru' ? 'Запись остановлена' : 'Recording stopped');
   }
 
   toggleRecord(): void {

@@ -232,11 +232,25 @@ export type CaptureMonitors =
 
 export type CaptureSettings = {
 	monitors?: CaptureMonitors,
+	/**
+	 *  Default source mode of the home screen / settings. Written by onboarding and
+	 *  kept in sync with `audio.default_source` by the app. Default: one app.
+	 */
+	default_source?: CaptureSource,
 };
+
+/**  What a new recording captures by default (the onboarding choice, F12). */
+export type CaptureSource = 
+/**  One call app (recommended: YouTube / music next to the call stay out). */
+"one_app" | 
+/**  Everything the system plays (Windows 10, or the user's choice). */
+"whole_system";
 
 export type ChunkKind = "speech" | "doc" | "qa" | "image";
 
-export type CloseReason = "next_ask" | "system_question" | "timeout" | "session_end";
+export type CloseReason = 
+/**  The only live trigger: the user pressed Ask again. */
+"next_ask" | "session_end";
 
 export type ContextChunk = {
 	id: string,
@@ -712,6 +726,23 @@ export type Tone = {
 	 *  backdrop pixel. The UI scrim is `max(k * .85, scrim_min)`.
 	 */
 	scrim_min?: number | null,
+	/**
+	 *  F5: per-region tones (the region under the overlay split `cols` x `rows`,
+	 *  row-major, top-left first). `None` only from old senders; the UI then uses
+	 *  the global fields above for every region.
+	 */
+	grid?: ToneGrid | null,
+};
+
+/**
+ *  Per-region tones under the overlay. Each cell is a full [`Tone`] with its own
+ *  palette / scrim floor (its own `grid` is always `None`).
+ */
+export type ToneGrid = {
+	cols: number,
+	rows: number,
+	/**  `cols * rows` entries, row-major. */
+	cells: Tone[],
 };
 
 export type ToneKind = "dark" | "light" | "color";
