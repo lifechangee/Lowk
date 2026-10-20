@@ -94,12 +94,25 @@ pub fn demo_start(st: State<'_, Shared>) -> Result<SessionState> {
     demo_start_inner(&st)
 }
 
-/// Apps that currently produce audio (empty until `lowk-audio` lands in M1).
+/// Source picker data: the whole system plus apps that have an audio process right now
+/// (producing ones first). Cheap; the UI may poll at 1 Hz.
 #[tauri::command(async)]
 #[specta::specta]
-pub fn source_list() -> Result<Vec<AudioApp>> {
-    use lowk_audio::AudioBackend;
-    lowk_audio::NoopAudioBackend.list_apps()
+pub async fn source_list() -> Result<Vec<SourceInfo>> {
+    blocking(lowk_audio::list_sources).await
+}
+
+/// Installed apps (with icons), so a call app can be picked before it starts playing.
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn source_list_installed() -> Result<Vec<SourceInfo>> {
+    blocking(lowk_audio::list_installed_sources).await
+}
+
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| AppError::new(ErrorCode::Unknown).with_detail(e.to_string()))?
 }
 
 #[tauri::command(async)]

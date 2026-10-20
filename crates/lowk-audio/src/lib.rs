@@ -1,5 +1,28 @@
-//! Audio capture: per-OS backends, rings, resampling, AEC. M0 stub: trait only
-//! plus a no-op backend. The real backends are seeded from `spikes/audio`.
+//! Audio capture: per-OS backends, rings, resampling, AEC, file replay.
+//!
+//! * macOS: Core Audio process taps + HAL input ([`mac`]).
+//! * Windows: WASAPI process loopback + capture ([`win`]).
+//! * [`FileAudioSource`]: replays WAV/m4a files in real time (tests, QA harness).
+//! * [`FakeAudioBackend`] / [`NoopAudioBackend`]: for dependants' tests.
+//!
+//! Everything funnels through [`pipeline`]: RT callback -> SPSC ring -> per-stream worker
+//! (rubato -> 20 ms `Frame16k`, AEC on Me) -> the session's `FrameSink`.
+pub mod aec;
+pub mod file;
+pub mod pipeline;
+
+#[cfg(target_os = "macos")]
+pub mod mac;
+#[cfg(windows)]
+pub mod win;
+
+pub use file::{FileAudioSource, FileDone};
+pub use lowk_platform::perm::SystemAudioProbe;
+pub use lowk_types::{SourceInfo, SourceKind};
+
+/// `CaptureConfig::mic` value that disables the Me stream (None = default input device).
+pub const MIC_NONE: &str = "none";
+
 use lowk_types::{AecMode, AppError, AudioApp, DeviceInfo, ErrorCode, Frame16k, Result, Stream, Target};
 use std::sync::{Arc, Mutex};
 
@@ -27,7 +50,9 @@ pub type AudioEventSink = Arc<dyn Fn(AudioEvent) + Send + Sync>;
 /// Stops capture when dropped.
 pub trait CaptureHandle: Send {}
 
-/// Implemented by `mac::CoreAudio` and `win::Wasapi` (WP7+/M1).
+/// Implemented by `mac::CoreAudio`, `win::Wasapi`, [`FileAudioSource`] and the fakes.
+/// `CaptureConfig::mic`: `None` = default input, `Some(MIC_NONE)` = no Me stream, else a
+/// device id from `list_mics`. `CaptureConfig::system`: `None` = no System stream.
 pub trait AudioBackend: Send {
     fn list_apps(&self) -> Result<Vec<AudioApp>>;
     fn list_mics(&self) -> Result<Vec<DeviceInfo>>;
@@ -37,6 +62,50 @@ pub trait AudioBackend: Send {
         sink: FrameSink,
         ev: AudioEventSink,
     ) -> Result<Box<dyn CaptureHandle>>;
+}
+
+/// The real capture backend of this OS (a no-op elsewhere).
+pub fn default_backend() -> Box<dyn AudioBackend> {
+    #[cfg(target_os = "macos")]
+    return Box::new(mac::CoreAudio);
+    #[cfg(windows)]
+    return Box::new(win::Wasapi);
+    #[allow(unreachable_code)]
+    Box::new(NoopAudioBackend)
+}
+
+/// Source picker, part 1: the whole system plus apps that have an audio process right now
+/// (producing ones first). Cheap enough to poll at 1 Hz.
+pub fn list_sources() -> Result<Vec<SourceInfo>> {
+    #[cfg(target_os = "macos")]
+    return mac::procs::list_sources();
+    #[cfg(windows)]
+    return win::list_sources();
+    #[allow(unreachable_code)]
+    Ok(vec![])
+}
+
+/// Source picker, part 2: installed apps (so a call app can be chosen before it plays).
+pub fn list_installed_sources() -> Result<Vec<SourceInfo>> {
+    #[cfg(target_os = "macos")]
+    return mac::procs::list_installed();
+    #[cfg(windows)]
+    return win::list_installed();
+    #[allow(unreachable_code)]
+    Ok(vec![])
+}
+
+/// G4: triggers the real macOS "System Audio Recording" prompt by tapping a quiet tone we
+/// play ourselves, and reports whether audio actually arrived. Blocks up to `timeout`
+/// (the user may be answering the prompt). Other OSes have no such permission.
+pub fn probe_system_audio(timeout: std::time::Duration) -> SystemAudioProbe {
+    #[cfg(target_os = "macos")]
+    return mac::probe_system_audio(timeout);
+    #[allow(unreachable_code)]
+    {
+        let _ = timeout;
+        SystemAudioProbe::Working
+    }
 }
 
 /// Backend that lists nothing and captures nothing.

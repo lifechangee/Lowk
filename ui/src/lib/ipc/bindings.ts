@@ -94,8 +94,13 @@ export const commands = {
 	sessionResume: () => typedError<null, AppError>(__TAURI_INVOKE("session_resume")),
 	sessionState: () => __TAURI_INVOKE<SessionState>("session_state"),
 	sessionSnapshot: () => __TAURI_INVOKE<SessionSnapshot>("session_snapshot"),
-	/**  Apps that currently produce audio (empty until `lowk-audio` lands in M1). */
-	sourceList: () => typedError<AudioApp[], AppError>(__TAURI_INVOKE("source_list")),
+	/**
+	 *  Source picker data: the whole system plus apps that have an audio process right now
+	 *  (producing ones first). Cheap; the UI may poll at 1 Hz.
+	 */
+	sourceList: () => typedError<SourceInfo[], AppError>(__TAURI_INVOKE("source_list")),
+	/**  Installed apps (with icons), so a call app can be picked before it starts playing. */
+	sourceListInstalled: () => typedError<SourceInfo[], AppError>(__TAURI_INVOKE("source_list_installed")),
 	engineList: () => __TAURI_INVOKE<EngineDescriptor[]>("engine_list"),
 	engineInstall: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("engine_install", { id })),
 	/**  The scripted RU/EN demo call (also what the record bind plays in M0). */
@@ -657,6 +662,28 @@ export type ShotItem = {
 	/**  `manual` | `auto`. */
 	source: string,
 };
+
+/**
+ *  One entry of the audio source picker (`source_list` / `source_list_installed`).
+ *  `id` is what goes into `Target::App(id)` (bundle id on macOS, exe path on
+ *  Windows) or the literal `"system"` for [`SourceKind::System`].
+ */
+export type SourceInfo = {
+	id: string,
+	name: string,
+	bundle_id: string,
+	/**  Main process id, 0 when the app is not running. */
+	pid: number,
+	/**  Small PNG (<= 64 px) as base64 without the `data:` prefix. */
+	icon_png_b64: string | null,
+	producing_audio: boolean,
+	kind: SourceKind,
+};
+
+/**  Kind of an audio source in the picker. */
+export type SourceKind = "app" | 
+/**  Everything except our own process tree. */
+"system";
 
 export type StartOpts = {
 	title: string | null,
