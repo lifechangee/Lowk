@@ -192,6 +192,8 @@ pub struct SttSettings {
     pub hallucination_phrases: Vec<String>,
     /// Cloud vendor when a cloud engine is selected (`soniox` | `deepgram`).
     pub cloud_vendor: String,
+    /// Re-transcribe finished utterances with Whisper in the background (local engines only).
+    pub background_correction: bool,
     /// Cached hardware benchmark: (engine id, RTF).
     pub benchmark: Option<SttBenchmark>,
 }
@@ -203,6 +205,7 @@ impl Default for SttSettings {
             vocab_hints: vec![],
             hallucination_phrases: vec![],
             cloud_vendor: "soniox".into(),
+            background_correction: true,
             benchmark: None,
         }
     }

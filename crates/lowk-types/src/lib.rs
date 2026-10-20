@@ -70,6 +70,9 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<Recommendation>();
     types.register_mut::<QaRecord>();
     types.register_mut::<EngineDescriptor>();
+    types.register_mut::<EngineInfo>();
+    types.register_mut::<EngineProgress>();
+    types.register_mut::<SttDiagnostics>();
     types.register_mut::<RetrievalQuery>();
     types.register_mut::<ContextChunk>();
     types.register_mut::<AskRequest>();
