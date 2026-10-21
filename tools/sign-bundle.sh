@@ -12,7 +12,7 @@ APP="${1:-target/release/bundle/macos/Lowk.app}"
 BID="$(/usr/bin/plutil -extract CFBundleIdentifier raw "$APP/Contents/Info.plist")"
 IDENT="${LOWK_SIGN_IDENTITY:--}"
 
-if [ "$IDENT" != "-" ] && ! security find-identity -v -p codesigning | grep -q "\"$IDENT\""; then
+if [ "$IDENT" != "-" ] && ! security find-identity -p codesigning | grep -q "\"$IDENT\""; then
   echo "LOWK_SIGN_IDENTITY='$IDENT' is not a valid code-signing identity in your keychains." >&2
   echo "Create it once: docs/setup/macos-signing.md" >&2
   exit 1
