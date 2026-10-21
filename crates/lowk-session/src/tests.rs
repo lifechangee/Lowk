@@ -39,6 +39,7 @@ fn opts(demo: bool) -> StartOpts {
         system: None,
         mic: None,
         demo,
+        languages: None,
     }
 }
 
@@ -573,5 +574,39 @@ fn s5_target_lost_and_restored_reach_the_bus_as_notices() {
     assert_eq!(got, vec![AudioNotice::TargetLost, AudioNotice::TargetRestored]);
     // the call goes on
     assert_eq!(r.session.state().phase, SessionPhase::Recording);
+    r.session.stop().unwrap();
+}
+
+/// Per-call languages: the call stores the picked set limited to what the engine supports
+/// (the fake engine decodes ru + en); no pick = the default set of the settings.
+#[test]
+fn call_languages_follow_the_pick_and_the_engine() {
+    let start_with = |langs: Option<Vec<&str>>| {
+        let r = rig(|_| {});
+        let mut o = opts(false);
+        o.languages = langs.map(|v| v.into_iter().map(String::from).collect());
+        r.session.start(o).unwrap();
+        let l = r.store.calls.lock().unwrap()[0].languages.clone();
+        r.session.stop().unwrap();
+        l
+    };
+    assert_eq!(start_with(None), vec!["ru", "en"]);
+    assert_eq!(start_with(Some(vec!["en"])), vec!["en"]);
+    assert_eq!(start_with(Some(vec!["ru"])), vec!["ru"]);
+    // "pl" is not decodable by the fake engine: dropped; nothing left -> the default set
+    assert_eq!(start_with(Some(vec!["pl", "en"])), vec!["en"]);
+    assert_eq!(start_with(Some(vec!["pl"])), vec!["ru", "en"]);
+    assert_eq!(start_with(Some(vec!["EN-us", "en"])), vec!["en"]);
+}
+
+/// The last pick in the settings (`stt.last_languages`) is what a call without an explicit pick
+/// (record bind) uses; the default only applies while nothing was picked.
+#[test]
+fn remembered_languages_apply_without_an_explicit_pick() {
+    let mut s = Settings::default();
+    s.stt.last_languages = vec!["en".into()];
+    let r = rig(|d| d.settings = Arc::new(MemSettingsStore::new(s)));
+    r.session.start(opts(false)).unwrap();
+    assert_eq!(r.store.calls.lock().unwrap()[0].languages, vec!["en"]);
     r.session.stop().unwrap();
 }

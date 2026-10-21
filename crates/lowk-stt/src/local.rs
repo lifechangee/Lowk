@@ -131,12 +131,8 @@ pub fn nemotron_descriptor() -> EngineDescriptor {
         id: NEMOTRON_ID.into(),
         name: "NVIDIA Nemotron 3.5 ASR Streaming (local)".into(),
         kind: EngineKind::Local,
-        languages: [
-            "ru", "en", "de", "fr", "es", "it", "pt", "nl", "tr", "uk", "pl", "ja", "ko", "zh",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect(),
+        // The model's own prompt table (checked against the GGUF): see `langpolicy::LANGS`.
+        languages: lowk_types::langpolicy::engine_codes(),
         streaming: StreamingMode::Native,
         size_mb: nemotron_assets().iter().map(DownloadSpec::size_mb).sum(),
         license: "OpenMDW-1.1".into(),

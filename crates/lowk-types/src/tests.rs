@@ -201,6 +201,7 @@ fn events_roundtrip_and_names() {
             action: ActionId::Ask,
             phase: Phase::Down,
             t_mono_ns: 5,
+            template: None,
         }),
         AppEvent::Perm {
             kind: PermKind::Microphone,
@@ -236,6 +237,7 @@ fn dto_roundtrips() {
             mods: Mods::NONE,
         },
         swallow: true,
+        template: None,
     });
     roundtrip(&FolderRef::Unsorted);
     roundtrip(&FolderRef::User(Ulid::new()));
@@ -382,4 +384,25 @@ fn s2_migration_repairs_swapped_or_duplicated_screenshot_binds() {
     }
     assert!(s.migrate_binds(Os::Macos));
     assert_eq!(bind_key(&s, ActionId::Screenshot).as_deref(), Some("KeyS"));
+}
+
+#[test]
+fn template_bind_roundtrips_and_old_binds_still_load() {
+    let b = BindSpec::for_template(
+        "my-tpl",
+        Trigger::Combo {
+            mods: Mods::META,
+            key: KeyCode::new("KeyJ"),
+        },
+    );
+    let j = serde_json::to_string(&b).unwrap();
+    assert!(j.contains("\"template\":\"my-tpl\""), "{j}");
+    assert_eq!(serde_json::from_str::<BindSpec>(&j).unwrap(), b);
+    assert_eq!(b.ask_template(), Some("my-tpl"));
+    // a bind written by an older build has no template field
+    let old: BindSpec =
+        serde_json::from_str(r#"{"action":"ask_brief","trigger":{"kind":"modifier_only","mods":{}}}"#)
+            .unwrap();
+    assert_eq!((old.template.clone(), old.ask_template()), (None, Some("brief")));
+    assert!(!old.same_slot(&b) && b.same_slot(&b.clone()));
 }

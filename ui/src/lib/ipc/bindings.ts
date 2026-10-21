@@ -4,8 +4,8 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
-	settingsGet: () => __TAURI_INVOKE<Settings>("settings_get"),
-	settingsPatch: (patch: SettingsPatch) => typedError<Settings, AppError>(__TAURI_INVOKE("settings_patch", { patch })),
+	settingsGet: () => __TAURI_INVOKE<Settings_Serialize>("settings_get"),
+	settingsPatch: (patch: SettingsPatch) => typedError<Settings_Serialize, AppError>(__TAURI_INVOKE("settings_patch", { patch })),
 	/**  Raw system locale tag (`ru-RU`); the UI resolves `auto|ru|en` from it. */
 	localeGet: () => __TAURI_INVOKE<string>("locale_get"),
 	secretSet: (providerId: string, value: string) => typedError<null, AppError>(__TAURI_INVOKE("secret_set", { providerId, value })),
@@ -85,8 +85,8 @@ export const commands = {
 	overlayInputSubmit: (text: string) => typedError<Ulid, AppError>(__TAURI_INVOKE("overlay_input_submit", { text })),
 	/**  Current adaptive tone (a window that loads late missed the events). */
 	overlayTone: () => typedError<Tone, AppError>(__TAURI_INVOKE("overlay_tone")),
-	bindsGet: () => __TAURI_INVOKE<BindsState>("binds_get"),
-	bindsSet: (binds: BindSpec[]) => typedError<BindsState, AppError>(__TAURI_INVOKE("binds_set", { binds })),
+	bindsGet: () => __TAURI_INVOKE<BindsState_Serialize>("binds_get"),
+	bindsSet: (binds: BindSpec_Deserialize[]) => typedError<BindsState_Serialize, AppError>(__TAURI_INVOKE("binds_set", { binds })),
 	/**
 	 *  Captures the next combo / lone modifier / mouse button through the
 	 *  low-level hook (Input Monitoring on macOS). `None` = timed out or stopped.
@@ -145,7 +145,9 @@ export type ActionId = "toggle_record" | "ask" | "screenshot" | "screenshot_area
 /**  G6: hold = the overlay is clickable without taking focus (default Ctrl). */
 "click_hold" | 
 /**  G6: ask with a fixed template, no overlay mode switch needed. */
-"ask_brief" | "ask_complement" | "ask_say" | "ask_factcheck" | "ask_followup" | "ask_recap";
+"ask_brief" | "ask_complement" | "ask_say" | "ask_factcheck" | "ask_followup" | "ask_recap" | 
+/**  Ask with the template named by `BindSpec::template` (any template, including user-created ones). */
+"ask_template";
 
 export type AecMode = "auto" | "on" | "off";
 
@@ -158,7 +160,27 @@ export type AppError = {
 	detail?: string | null,
 };
 
-export type AppEvent = { type: "stt"; data: SttEvent } | { type: "session"; data: SessionState } | { type: "llm"; data: LlmEvent } | { type: "overlay"; data: OverlayEvent } | { type: "stealth"; data: StealthStatus } | { type: "bind"; data: BindEvent } | { type: "perm"; data: {
+export type AppEvent = AppEvent_Serialize | AppEvent_Deserialize;
+
+export type AppEvent_Deserialize = { type: "stt"; data: SttEvent } | { type: "session"; data: SessionState } | { type: "llm"; data: LlmEvent } | { type: "overlay"; data: OverlayEvent } | { type: "stealth"; data: StealthStatus } | { type: "bind"; data: BindEvent_Deserialize } | { type: "perm"; data: {
+	kind: PermKind,
+	state: PermState,
+} } | { type: "queue"; data: QueueState } | { type: "store"; data: StoreChange } | { type: "level"; data: AudioLevel } | 
+/**  «Мой ответ» text grew or its link closed. */
+{ type: "my_answer"; data: QaUpdate } | 
+/**  An STT engine failed (isolated per stream). */
+{ type: "stt_error"; data: SttError } | 
+/**
+ *  The local speech engine is loading its model (true) / is ready (false). Audio captured
+ *  meanwhile is buffered and transcribed once it is.
+ */
+{ type: "stt_loading"; data: boolean } | 
+/**  Model download / verification progress. */
+{ type: "engine_progress"; data: EngineProgress } | 
+/**  The captured app's audio vanished and could not be re-acquired in ~3 s (S5), or came back. */
+{ type: "audio_notice"; data: AudioNotice };
+
+export type AppEvent_Serialize = { type: "stt"; data: SttEvent } | { type: "session"; data: SessionState } | { type: "llm"; data: LlmEvent } | { type: "overlay"; data: OverlayEvent } | { type: "stealth"; data: StealthStatus } | { type: "bind"; data: BindEvent_Serialize } | { type: "perm"; data: {
 	kind: PermKind,
 	state: PermState,
 } } | { type: "queue"; data: QueueState } | { type: "store"; data: StoreChange } | { type: "level"; data: AudioLevel } | 
@@ -205,22 +227,55 @@ export type AudioSettings = {
 	keep_audio?: boolean,
 };
 
-export type BindEvent = {
+export type BindEvent = BindEvent_Serialize | BindEvent_Deserialize;
+
+export type BindEvent_Deserialize = {
 	action: ActionId,
 	phase: Phase,
 	t_mono_ns: number,
+	/**  Set for `ActionId::AskTemplate`. */
+	template?: string | null,
+};
+
+export type BindEvent_Serialize = {
+	action: ActionId,
+	phase: Phase,
+	t_mono_ns: number,
+	/**  Set for `ActionId::AskTemplate`. */
+	template?: string | null,
 };
 
 /**  Result of `InputBackend::set_binds`. */
-export type BindReport = {
-	entries: BindStatusEntry[],
+export type BindReport = BindReport_Serialize | BindReport_Deserialize;
+
+/**  Result of `InputBackend::set_binds`. */
+export type BindReport_Deserialize = {
+	entries: BindStatusEntry_Deserialize[],
 };
 
-export type BindSpec = {
+/**  Result of `InputBackend::set_binds`. */
+export type BindReport_Serialize = {
+	entries: BindStatusEntry_Serialize[],
+};
+
+export type BindSpec = BindSpec_Serialize | BindSpec_Deserialize;
+
+export type BindSpec_Deserialize = {
 	action: ActionId,
 	trigger: Trigger,
 	/**  Swallow the event so other apps do not see it. */
 	swallow?: boolean,
+	/**  Template id for `ActionId::AskTemplate` (any template, built-in or user-created); `None` otherwise. */
+	template?: string | null,
+};
+
+export type BindSpec_Serialize = {
+	action: ActionId,
+	trigger: Trigger,
+	/**  Swallow the event so other apps do not see it. */
+	swallow: boolean,
+	/**  Template id for `ActionId::AskTemplate` (any template, built-in or user-created); `None` otherwise. */
+	template?: string | null,
 };
 
 export type BindStatus = { state: "active" } | 
@@ -229,15 +284,33 @@ export type BindStatus = { state: "active" } |
 /**  Known OS shortcut conflict; text is the English shortcut name. */
 { state: "conflict"; reason: string } | { state: "failed"; reason: string };
 
-export type BindStatusEntry = {
+export type BindStatusEntry = BindStatusEntry_Serialize | BindStatusEntry_Deserialize;
+
+export type BindStatusEntry_Deserialize = {
 	action: ActionId,
+	template?: string | null,
+	status: BindStatus,
+};
+
+export type BindStatusEntry_Serialize = {
+	action: ActionId,
+	template?: string | null,
 	status: BindStatus,
 };
 
 /**  `binds_get` / `binds_set` payload. */
-export type BindsState = {
-	binds: BindSpec[],
-	report: BindReport,
+export type BindsState = BindsState_Serialize | BindsState_Deserialize;
+
+/**  `binds_get` / `binds_set` payload. */
+export type BindsState_Deserialize = {
+	binds: BindSpec_Deserialize[],
+	report: BindReport_Deserialize,
+};
+
+/**  `binds_get` / `binds_set` payload. */
+export type BindsState_Serialize = {
+	binds: BindSpec_Serialize[],
+	report: BindReport_Serialize,
 };
 
 export type CallDetail = {
@@ -346,6 +419,11 @@ export type EngineInfo = {
 	license_url: string,
 	/**  The helper program that runs the engine is missing (local engines; damaged install). */
 	runtime_missing: boolean,
+	/**
+	 *  Extra download that comes with this engine and is still missing (the Whisper correction
+	 *  model while background correction is on), in MB; 0 when nothing more is needed.
+	 */
+	extra_mb?: number,
 };
 
 export type EngineKind = "local" | "cloud";
@@ -684,7 +762,12 @@ export type SessionState = {
 	demo: boolean,
 };
 
-export type Settings = {
+export type Settings = Settings_Serialize | Settings_Deserialize;
+
+/**  Partial settings as a JSON merge patch (objects merge, arrays replace). */
+export type SettingsPatch = unknown;
+
+export type Settings_Deserialize = {
 	schema_version?: number,
 	ui?: UiSettings,
 	onboarding?: OnboardingSettings,
@@ -694,14 +777,27 @@ export type Settings = {
 	llm?: LlmSettings,
 	overlay?: OverlaySettings,
 	capture?: CaptureSettings,
-	binds?: BindSpec[],
+	binds?: BindSpec_Deserialize[],
 	stealth?: StealthSettings,
 	updates?: UpdateSettings,
 	templates?: Template[],
 };
 
-/**  Partial settings as a JSON merge patch (objects merge, arrays replace). */
-export type SettingsPatch = unknown;
+export type Settings_Serialize = {
+	schema_version: number,
+	ui: UiSettings,
+	onboarding: OnboardingSettings,
+	vault: VaultSettings,
+	audio: AudioSettings,
+	stt: SttSettings,
+	llm: LlmSettings,
+	overlay: OverlaySettings,
+	capture: CaptureSettings,
+	binds: BindSpec_Serialize[],
+	stealth: StealthSettings,
+	updates: UpdateSettings,
+	templates: Template[],
+};
 
 export type ShotItem = {
 	id: string,
@@ -741,6 +837,11 @@ export type StartOpts = {
 	system: Target | null,
 	mic: string | null,
 	demo: boolean,
+	/**
+	 *  Languages of this call (primary tags); `None` = the remembered/default set from settings.
+	 *  Limited to what the engine supports; stored in the call frontmatter.
+	 */
+	languages?: string[] | null,
 };
 
 export type StealthSettings = {
@@ -824,7 +925,13 @@ export type SttKind = "partial" | "final";
 export type SttSettings = {
 	/**  Engine id from `EngineRegistry`; empty = chosen by the hardware check. */
 	engine?: string,
+	/**  Default languages of a call (Settings «Языки созвона»). */
 	languages?: string[],
+	/**
+	 *  Languages of the last call the user chose explicitly in the call selector; empty = use `languages`.
+	 *  Changing the default in Settings clears it.
+	 */
+	last_languages?: string[],
 	vocab_hints?: string[],
 	/**  Phrases dropped by the hallucination filter (editable). */
 	hallucination_phrases?: string[],

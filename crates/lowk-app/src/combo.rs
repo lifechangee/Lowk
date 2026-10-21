@@ -14,7 +14,7 @@ use tauri_plugin_global_shortcut::{
 /// plugin's handler (which reports presses). Filled once at startup.
 #[derive(Default)]
 pub struct ComboHub {
-    ids: Mutex<HashMap<u32, ActionId>>,
+    ids: Mutex<HashMap<u32, (ActionId, Option<String>)>>,
     events: Mutex<Option<ComboEvents>>,
 }
 
@@ -32,13 +32,13 @@ impl ComboHub {
 /// The plugin-wide handler (installed by `Builder::with_handler`).
 pub fn on_shortcut(_app: &AppHandle, shortcut: &Shortcut, ev: ShortcutEvent) {
     let h = hub();
-    let Some(action) = h.ids.lock().get(&shortcut.id()).copied() else {
+    let Some((action, template)) = h.ids.lock().get(&shortcut.id()).cloned() else {
         return;
     };
     if let Some(e) = h.events.lock().as_ref() {
         match ev.state {
-            ShortcutState::Pressed => e.pressed(action),
-            ShortcutState::Released => e.released(action),
+            ShortcutState::Pressed => e.pressed(action, template),
+            ShortcutState::Released => e.released(action, template),
         }
     }
 }
@@ -71,10 +71,19 @@ fn modifiers(m: Mods) -> Option<Modifiers> {
 }
 
 impl ComboRegistrar for TauriCombo {
-    fn register(&mut self, action: ActionId, mods: Mods, key: &KeyCode) -> Result<(), String> {
+    fn register(
+        &mut self,
+        action: ActionId,
+        template: Option<&str>,
+        mods: Mods,
+        key: &KeyCode,
+    ) -> Result<(), String> {
         let code: Code = key.0.parse().map_err(|_| format!("unknown key {}", key.0))?;
         let sc = Shortcut::new(modifiers(mods), code);
-        hub().ids.lock().insert(sc.id(), action);
+        hub()
+            .ids
+            .lock()
+            .insert(sc.id(), (action, template.map(str::to_owned)));
         self.app.global_shortcut().register(sc).map_err(|e| e.to_string())
     }
 

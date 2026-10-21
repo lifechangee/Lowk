@@ -574,6 +574,23 @@ impl Inner {
         } else {
             settings.stt.engine.clone()
         };
+        // Languages of this call: the picked set (or the remembered / default one), limited to what the
+        // engine decodes. Drives decoder hints, the foreign-letter guard, Whisper correction and the frontmatter.
+        let engine_langs: Vec<String> = if o.demo {
+            vec![]
+        } else {
+            self.deps
+                .stt
+                .factory(&engine_id)
+                .map(|f| f.descriptor().languages)
+                .unwrap_or_default()
+        };
+        let remembered = &settings.stt.last_languages;
+        let requested: Option<&[String]> = o
+            .languages
+            .as_deref()
+            .or((!remembered.is_empty()).then_some(remembered.as_slice()));
+        let langs = lowk_types::langpolicy::resolve(requested, &settings.stt.languages, &engine_langs);
         let new_call = NewCall {
             title: o.title.clone().unwrap_or_else(|| default_title(wall, o.demo)),
             folder: o.folder.clone().unwrap_or(FolderRef::Unsorted),
@@ -586,7 +603,7 @@ impl Inner {
                 }),
             },
             stt_engine: Some(engine_id.clone()),
-            languages: settings.stt.languages.clone(),
+            languages: langs.clone(),
             speaker_me: me_label.into(),
             speaker_system: sys_label.into(),
             clock: Some(clock),
@@ -610,7 +627,7 @@ impl Inner {
             eng.start(
                 &SttConfig {
                     stream,
-                    langs: settings.stt.languages.clone(),
+                    langs: langs.clone(),
                     vocab_hints: settings.stt.vocab_hints.clone(),
                 },
                 Arc::new(SessionSink(Arc::downgrade(self))),
@@ -641,8 +658,8 @@ impl Inner {
                         let mut c = self.core();
                         c.rings = rings.clone();
                         c.corrector = Some(corr);
-                        c.allowed_langs = settings.stt.languages.clone();
-                        c.corr_lang = match settings.stt.languages.as_slice() {
+                        c.allowed_langs = langs.clone();
+                        c.corr_lang = match langs.as_slice() {
                             [one] => Some(one.clone()),
                             _ => None,
                         };

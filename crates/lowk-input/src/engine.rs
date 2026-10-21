@@ -1,8 +1,8 @@
 //! Shared core between a native hook thread and the control side: owns the
 //! matcher, stamps events, and implements record mode. Hook callbacks call
 //! [`Engine::on_raw`] only; it never blocks on anything but a short mutex.
-use crate::matcher::{Matcher, Raw};
-use lowk_types::{now_mono_ns, ActionId, BindEvent, BindSpec, KeyCode, Mods, MouseBtn, Phase, Trigger};
+use crate::matcher::{Fire, Matcher, Raw};
+use lowk_types::{now_mono_ns, BindEvent, BindSpec, KeyCode, Mods, MouseBtn, Trigger};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
 
@@ -44,12 +44,13 @@ impl Engine {
         self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    fn emit(&self, evs: impl IntoIterator<Item = (ActionId, Phase)>) {
-        for (action, phase) in evs {
+    fn emit(&self, evs: impl IntoIterator<Item = Fire>) {
+        for f in evs {
             let _ = self.tx.send(BindEvent {
-                action,
-                phase,
+                action: f.action,
+                phase: f.phase,
                 t_mono_ns: now_mono_ns(),
+                template: f.template,
             });
         }
     }
@@ -181,6 +182,7 @@ fn take_pending(p: &mut (Vec<&'static str>, Vec<MouseBtn>), raw: &Raw) -> Option
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lowk_types::{ActionId, Phase};
 
     fn engine() -> (Engine, Receiver<BindEvent>) {
         let (tx, rx) = channel();
@@ -194,6 +196,7 @@ mod tests {
             action: ActionId::MoveHold,
             trigger: Trigger::ModifierOnly { mods: Mods::ALT },
             swallow: false,
+            template: None,
         }]);
         e.on_raw(Raw::Mods(Mods::ALT));
         e.on_raw(Raw::Mods(Mods::NONE));
@@ -269,6 +272,7 @@ mod tests {
                 key: KeyCode::new("KeyJ"),
             },
             swallow: false,
+            template: None,
         }]);
         let _rec = e.start_record();
         e.on_raw(Raw::Key {

@@ -148,19 +148,9 @@ impl SidecarEngine {
     }
 }
 
-/// `["ru","en"]` -> `auto`; `["ru"]` -> `ru-RU`.
+/// `["ru","en"]` -> `auto`; `["ru"]` -> `ru-RU`; `["pl"]` -> `pl-PL`.
 pub fn worker_lang(langs: &[LangTag]) -> String {
-    match langs {
-        [one] => match one.as_str() {
-            "ru" => "ru-RU".into(),
-            "en" => "en-US".into(),
-            "de" => "de-DE".into(),
-            "fr" => "fr-FR".into(),
-            "es" => "es-ES".into(),
-            other => other.to_owned(),
-        },
-        _ => "auto".into(),
-    }
+    lowk_types::langpolicy::decoder_lang(langs)
 }
 
 impl SttEngine for SidecarEngine {

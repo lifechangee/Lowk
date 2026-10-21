@@ -20,7 +20,7 @@
   import MoveMenu from './MoveMenu.svelte';
   import { dnd } from './dnd.svelte';
   import SettingsView from './settings/SettingsView.svelte';
-  import { attachEvents, library, prefs, session, ui } from './state.svelte';
+  import { attachEvents, callLangs, library, prefs, session, ui } from './state.svelte';
   import Home from './home/Home.svelte';
   import Workspace from './workspace/Workspace.svelte';
 
@@ -31,6 +31,7 @@
     attachEvents();
     locale.init(await api.localeGet().catch(() => 'en'));
     await Promise.all([prefs.load(), library.reload()]);
+    void callLangs.load();
     if (!prefs.value.onboarding?.done && router.route.name !== 'onboarding') router.go(hrefs.onboarding(prefs.value.onboarding?.step ?? 0));
     ready = true;
   });

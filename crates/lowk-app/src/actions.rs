@@ -11,7 +11,7 @@ pub fn spawn(st: Arc<AppState>, rx: Receiver<BindEvent>) {
         .name("lowk-actions".into())
         .spawn(move || {
             for ev in rx {
-                st.emit(AppEvent::Bind(ev));
+                st.emit(AppEvent::Bind(ev.clone()));
                 dispatch(&st, ev);
             }
         })
@@ -82,6 +82,21 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
             | ActionId::AskRecap => {
                 // G6: a fixed template per bind, no overlay mode switch needed.
                 let template_id = ev.action.template_id().unwrap_or("brief").to_string();
+                st.session.ask(AskRequest {
+                    template_id,
+                    typed_text: None,
+                })?;
+            }
+            ActionId::AskTemplate => {
+                // A bind of any template (built-in or user-created): the id travels with the bind.
+                let Some(template_id) = ev.template.clone() else {
+                    return Err(AppError::new(ErrorCode::InvalidArgument)
+                        .with_detail("ask_template bind without a template"));
+                };
+                if !st.settings.get().templates.iter().any(|t| t.id == template_id) {
+                    // The template was deleted after it got a bind: say so instead of asking with a wrong one.
+                    return Err(AppError::new(ErrorCode::NotFound).with_detail("template of the bind"));
+                }
                 st.session.ask(AskRequest {
                     template_id,
                     typed_text: None,

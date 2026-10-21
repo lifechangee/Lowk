@@ -56,6 +56,20 @@ pub trait Corrector: Send + Sync {
     fn stats(&self) -> (u32, u32, Percentiles);
 }
 
+/// The rule for a Whisper correction: the new text replaces the live one only when it is not damaged
+/// (S1), contains no letter outside the call's languages (S3, `allowed` = the call's language set, so
+/// `ł` passes with `pl` selected and not with `ru+en`), really differs and is plausible.
+pub fn accept_correction(original: &str, raw: &str, allowed: &[String]) -> Option<String> {
+    if lowk_types::text::has_replacement(raw) {
+        return None;
+    }
+    let text = lowk_types::text::clean_speech(raw);
+    let ok = lowk_types::text::foreign_letter_count(&text, allowed) == 0
+        && text != original.trim()
+        && plausible(original, &text);
+    ok.then_some(text)
+}
+
 /// Rejects hallucinated / truncated Whisper output.
 pub fn plausible(original: &str, new: &str) -> bool {
     let (o, n) = (original.trim().chars().count(), new.trim().chars().count());
@@ -239,11 +253,9 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
             .record(q.at.elapsed().as_millis().min(u32::MAX as u128) as u32);
         // S1: a Whisper token boundary inside a multi-byte letter leaves «�»: such a text is
         // damaged, keep the live one instead of storing it.
-        let damaged = lowk_types::text::has_replacement(&r.text);
-        let text = lowk_types::text::clean_speech(&r.text);
-        let foreign = lowk_types::text::foreign_letter_count(&text, &q.job.allowed) > 0;
-        let changed =
-            !damaged && !foreign && text != q.job.original.trim() && plausible(&q.job.original, &text);
+        let accepted = accept_correction(&q.job.original, &r.text, &q.job.allowed);
+        let changed = accepted.is_some();
+        let text = accepted.unwrap_or_default();
         let ev = changed.then(|| SttEvent {
             stream: q.job.stream,
             utt: q.job.utt,
@@ -413,5 +425,37 @@ mod tests {
         };
         assert!(!c.submit(job, Arc::new(S), 0));
         assert_eq!(c.stats().1, 1);
+    }
+
+    #[test]
+    fn correction_rule_follows_the_call_languages() {
+        let l = |v: &[&str]| v.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        let live = "давай обсудим ваши цели на квартал";
+        // Whisper drifted into Polish: rejected for ru+en, accepted when Polish is part of the call
+        let drift = "Dawaj obsudim waszą cele na kwartał";
+        assert_eq!(accept_correction(live, drift, &l(&["ru", "en"])), None);
+        assert_eq!(
+            accept_correction("dawaj obsudim wasze cele na kwartal", drift, &l(&["pl", "en"])).as_deref(),
+            Some(drift)
+        );
+        // a clean Russian correction passes for ru+en and ru, but not for en only (Cyrillic is foreign there)
+        let good = "Давай обсудим ваши цели на квартал.";
+        assert_eq!(
+            accept_correction(live, good, &l(&["ru", "en"])).as_deref(),
+            Some(good)
+        );
+        assert_eq!(accept_correction(live, good, &l(&["ru"])).as_deref(), Some(good));
+        assert_eq!(accept_correction(live, good, &l(&["en"])), None);
+        // damaged text and an unchanged text are never accepted
+        assert_eq!(
+            accept_correction(live, "Давай обсу\u{FFFD}дим ваши цели на квартал", &l(&["ru"])),
+            None
+        );
+        assert_eq!(accept_correction(good, good, &l(&["ru"])), None);
+        // no language list = no letter limit
+        assert_eq!(
+            accept_correction("dawaj obsudim wasze cele", "Dawaj obsudim waszą cele", &[]).as_deref(),
+            Some("Dawaj obsudim waszą cele")
+        );
     }
 }

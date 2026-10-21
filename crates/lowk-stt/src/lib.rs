@@ -147,6 +147,7 @@ impl EngineRegistry {
                     needs_key: f.needs_key(),
                     license_url: f.license_url(),
                     runtime_missing: !f.runtime_available(),
+                    extra_mb: 0,
                     descriptor: d,
                 }
             })

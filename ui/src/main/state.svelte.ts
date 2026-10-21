@@ -9,6 +9,7 @@ import type { SessionState } from '../lib/ipc';
 import { mergePatch } from './api/mock';
 import { hrefs, router } from './router.svelte';
 import { tm } from './i18n';
+import { ALL_LANGS, resolve as resolveLangs, supportedBy } from './langs';
 
 class Library {
   folders = $state<FolderMeta[]>([]);
@@ -71,6 +72,20 @@ class Prefs {
 }
 export const prefs = new Prefs();
 
+/** Call languages: what the engine supports, the default set and the last pick (per-call selector). */
+class CallLangs {
+  supported = $state<string[]>([...ALL_LANGS]);
+  /** Settings «Языки созвона». */
+  default = $derived(resolveLangs(prefs.value.stt?.languages, ['ru', 'en'], this.supported));
+  /** What the per-call selector starts with: the last pick, else the default. */
+  initial = $derived(resolveLangs(prefs.value.stt?.last_languages?.length ? prefs.value.stt.last_languages : prefs.value.stt?.languages, ['ru', 'en'], this.supported));
+
+  async load(): Promise<void> {
+    try { this.supported = supportedBy(await api.engineStatus(), prefs.value.stt?.engine); } catch { /* keep the full list */ }
+  }
+}
+export const callLangs = new CallLangs();
+
 /** G3: running apps that produce audio + (lazily) the installed apps behind «Другое…». */
 class Sources {
   running = $state<SourceInfo[]>([]);
@@ -108,16 +123,19 @@ class Session {
   #tick: ReturnType<typeof setInterval> | null = null;
   #off: (() => void) | null = null;
 
-  async start(folder: FolderKey | null, target: Target | null, sourceLabel: string): Promise<void> {
+  async start(folder: FolderKey | null, target: Target | null, sourceLabel: string, languages: string[] | null = null): Promise<void> {
     if (this.phase === 'recording') return;
+    languages = languages ? [...languages] : null; // plain array, not a reactive proxy (it crosses IPC)
     let st: SessionState;
     try {
-      st = await api.sessionStart({ title: null, folder: folder && folder !== SYS_UNSORTED ? folderRef(folder) : null, system: target, mic: null, demo: false });
+      st = await api.sessionStart({ title: null, folder: folder && folder !== SYS_UNSORTED ? folderRef(folder) : null, system: target, mic: null, demo: false, languages });
     } catch (e) {
       // No engine: the backend already raised the «download the model» prompt (engine://needed); nothing started.
       if (e instanceof CommandError && e.app.code === 'engine_not_ready') return;
       throw e;
     }
+    // The backend remembers the pick as `stt.last_languages`; mirror it so the selector keeps it without a reload.
+    if (languages?.length) prefs.value = mergePatch(prefs.value, { stt: { last_languages: languages } });
     this.#begin(st.call, folder ?? SYS_UNSORTED, sourceLabel);
     await library.reload();
   }

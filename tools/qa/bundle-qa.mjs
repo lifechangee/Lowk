@@ -7,7 +7,9 @@
 //   NEEDS-GRANT  cannot be checked until the OWNER grants the permission to the bundle in System Settings;
 //                this script never touches TCC and never counts it as a pass.
 //
-//   node tools/qa/bundle-qa.mjs [--no-build] [--no-run]     --no-run = static checks only (no launch)
+//   node tools/qa/bundle-qa.mjs [--no-build] [--no-run] [--silent]
+//     --no-run = static checks only (no launch); --silent = launch in the background and synthesize no key presses
+//     (no sound is ever played by this script; --silent keeps the keyboard and the foreground window alone too)
 import { spawnSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -97,7 +99,7 @@ mkdirSync(data, { recursive: true });
 const bindToml = (action, key) => `[[binds]]\naction = "${action}"\nswallow = false\n[binds.trigger]\nkind = "combo"\nkey = "${key}"\n[binds.trigger.mods]\nalt = false\nctrl = false\nmeta = true\nshift = true\n`;
 writeFileSync(join(data, 'settings.toml'), `[onboarding]\ndone = true\nrecording_notice_ack = true\n[vault]\npath = "${work}/vault"\n` + bindToml('screenshot', 'KeyA') + bindToml('screenshot_area', 'KeyS') + bindToml('toggle_record', 'KeyR'));
 const since = Date.now();
-const o = run('open', ['-n', '--env', `LOWK_DATA_DIR=${data}`, '--env', `HOME=${home}`, '--env', 'LOWK_NO_WARMUP=1', APP]);
+const o = run('open', ['-n', ...(has('--silent') ? ['-g'] : []), '--env', `LOWK_DATA_DIR=${data}`, '--env', `HOME=${home}`, '--env', 'LOWK_NO_WARMUP=1', APP]);
 if (o.status !== 0) fail('open the bundle', o.stderr);
 await sleep(9000);
 const alive = run('pgrep', ['-x', 'lowk']).status === 0;
@@ -135,8 +137,12 @@ else if (applied) pass('hold / modifier-only binds are active');
 // A real key press through the OS (System Events) into the bundle: the global shortcut for Record. On a clean
 // profile there is no engine, so the app must refuse and open the prompt (never start a demo call).
 const logNow = () => (existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
-const key = run('osascript', ['-e', 'tell application "System Events" to key code 15 using {command down, shift down}']);
-if (key.status !== 0) {
+const key = has('--silent')
+  ? { status: 1, stderr: '--silent: no key presses' }
+  : run('osascript', ['-e', 'tell application "System Events" to key code 15 using {command down, shift down}']);
+if (has('--silent')) {
+  rec('SKIP', 'real key presses (⌘⇧R / ⌘⇧S / ⌘⇧A)', '--silent: run without it when the keyboard may be used');
+} else if (key.status !== 0) {
   grant('real key press into the bundle (⌘⇧R, Record)', `this terminal/host app has no Accessibility, so it cannot synthesize keys: ${key.stderr.trim().slice(0, 100)}`);
 } else {
   await sleep(2500);
@@ -151,7 +157,7 @@ if (key.status !== 0) {
   const st = existsSync(join(data, 'settings.toml')) ? readFileSync(join(data, 'settings.toml'), 'utf8') : '';
   const keyOf = (action) => new RegExp(`action = "${action}"[\\s\\S]*?key = "(\\w+)"`).exec(st)?.[1];
   check(keyOf('screenshot') === 'KeyS' && keyOf('screenshot_area') === 'KeyA', 'S2: swapped screenshot binds are migrated (⌘⇧S = Скриншот, ⌘⇧A = область)', `screenshot=${keyOf('screenshot')} area=${keyOf('screenshot_area')}`);
-  if (key.status === 0) {
+  if (key.status === 0 && !has('--silent')) {
     // Only the log lines written AFTER each press count, and the exact action name is asserted
     // (the other screenshot action must NOT fire).
     const press = async (code) => {
@@ -164,6 +170,23 @@ if (key.status !== 0) {
     check(s.length === 1 && s[0] === 'Screenshot', 'S2: real ⌘⇧S fires exactly Screenshot (all monitors)', `fired: ${s.join(',') || 'nothing'}`);
     const a = await press(0);
     check(a.length === 1 && a[0] === 'ScreenshotArea', 'S2: real ⌘⇧A fires exactly ScreenshotArea', `fired: ${a.join(',') || 'nothing'}`);
+  }
+}
+
+// Call languages (BRIEF: per-call language selection) against the BUNDLED worker, from files (silent): the
+// language set of a call limits the decoder and the allowed letters. Needs the engine models of this Mac
+// (read only); without them the check is reported, not passed.
+{
+  const models = process.env.LOWK_MODELS ?? join(homedir(), 'Library/Application Support/Lowk/models');
+  if (!existsSync(join(models, 'nemotron-local')) || run('which', ['afconvert']).status !== 0) {
+    grant('call languages replay', `no engine models in ${models} (or no afconvert): install the engine, then rerun`);
+  } else {
+    const py = run('python3', [join(root, 'tools/qa/stt-lang-check.py'), '--quick', 'ru,en', 'pl,en'], { env: { ...process.env, LOWK_STT_WORKER: worker, LOWK_MODELS: models } });
+    const out = (py.stdout ?? '') + (py.stderr ?? '');
+    const sets = [...out.matchAll(/^SET (\S+)\s+mean CER ([\d.]+).*letters outside the set: (\d+)/gm)].map((m) => ({ set: m[1], cer: Number(m[2]), bad: Number(m[3]) }));
+    check(py.status === 0 && sets.length === 2, 'call languages: bundled worker, ru+en and pl+en, no letter outside the selected set', sets.map((x) => `${x.set} cer=${x.cer} foreign=${x.bad}`).join('; ') || out.slice(-200));
+    const ruen = sets.find((x) => x.set === 'ru+en');
+    check(!!ruen && ruen.cer < 0.5, 'call languages: ru+en recognises the owner recordings (CER < 0.5)', ruen ? `cer=${ruen.cer}` : '');
   }
 }
 

@@ -219,6 +219,7 @@ fn run_pair(
             system: them.as_ref().map(|_| Target::WholeSystem),
             mic: me.as_ref().map(|_| "file".to_string()),
             demo: false,
+            languages: None,
         })
         .expect("session start");
     done.wait(Duration::from_secs(600));

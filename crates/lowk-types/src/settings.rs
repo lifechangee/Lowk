@@ -217,7 +217,11 @@ impl Default for AudioSettings {
 pub struct SttSettings {
     /// Engine id from `EngineRegistry`; empty = chosen by the hardware check.
     pub engine: String,
+    /// Default languages of a call (Settings «Языки созвона»).
     pub languages: Vec<LangTag>,
+    /// Languages of the last call the user chose explicitly in the call selector; empty = use `languages`.
+    /// Changing the default in Settings clears it.
+    pub last_languages: Vec<LangTag>,
     pub vocab_hints: Vec<String>,
     /// Phrases dropped by the hallucination filter (editable).
     pub hallucination_phrases: Vec<String>,
@@ -233,6 +237,7 @@ impl Default for SttSettings {
         Self {
             engine: String::new(),
             languages: vec!["ru".into(), "en".into()],
+            last_languages: vec![],
             vocab_hints: vec![],
             hallucination_phrases: vec![],
             cloud_vendor: "soniox".into(),
@@ -522,6 +527,7 @@ pub fn default_binds(os: Os) -> Vec<BindSpec> {
             key: KeyCode::new(key),
         },
         swallow: false,
+        template: None,
     };
     vec![
         // G6: direct binds per template; plain `Ask` (chip template) is assignable but unbound.
@@ -537,12 +543,14 @@ pub fn default_binds(os: Os) -> Vec<BindSpec> {
             action: ActionId::MoveHold,
             trigger: Trigger::ModifierOnly { mods: Mods::ALT },
             swallow: false,
+            template: None,
         },
         // G6: hold Ctrl = clickable without focus. Move (Alt) wins when both are held.
         BindSpec {
             action: ActionId::ClickHold,
             trigger: Trigger::ModifierOnly { mods: Mods::CTRL },
             swallow: false,
+            template: None,
         },
     ]
 }

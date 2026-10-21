@@ -13,6 +13,7 @@ pub mod event;
 pub mod fakes;
 pub mod hw;
 pub mod ids;
+pub mod langpolicy;
 pub mod llm;
 pub mod overlay;
 pub mod perm;

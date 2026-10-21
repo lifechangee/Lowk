@@ -88,6 +88,7 @@ pub fn toggle_record(st: &Arc<AppState>) -> Result<()> {
                 system: None,
                 mic: None,
                 demo: false,
+                languages: None,
             },
         )
         .map(|_| ()),
@@ -99,7 +100,18 @@ pub fn toggle_record(st: &Arc<AppState>) -> Result<()> {
 #[tauri::command(async)]
 #[specta::specta]
 pub fn session_start(st: State<'_, Shared>, opts: StartOpts) -> Result<SessionState> {
-    start(&st, opts)
+    let langs = opts.languages.clone();
+    let state = start(&st, opts)?;
+    // The per-call choice is remembered for the next call (and for a call started by the record bind).
+    if let Some(l) = langs.filter(|l| !l.is_empty()) {
+        let l = lowk_types::langpolicy::normalize(&l);
+        if l != st.settings.get().stt.last_languages {
+            let _ = st.settings.patch(SettingsPatch(
+                serde_json::json!({ "stt": { "last_languages": l } }),
+            ));
+        }
+    }
+    Ok(state)
 }
 
 #[tauri::command(async)]
@@ -144,6 +156,7 @@ pub fn demo_start_inner(st: &AppState) -> Result<SessionState> {
             system: None,
             mic: None,
             demo: true,
+            languages: None,
         },
     )
 }
@@ -187,10 +200,28 @@ pub fn engine_list(st: State<'_, Shared>) -> Vec<EngineDescriptor> {
 #[tauri::command(async)]
 #[specta::specta]
 pub fn engine_status(st: State<'_, Shared>) -> Vec<EngineInfo> {
-    st.engines.infos(
-        &lowk_platform::hw::probe_report(),
-        &st.settings.get().stt.cloud_vendor,
-    )
+    let stt = st.settings.get().stt;
+    let mut infos = st
+        .engines
+        .infos(&lowk_platform::hw::probe_report(), &stt.cloud_vendor);
+    // The live model comes with the Whisper correction model while background correction is on:
+    // the install card must show the real total, not just the first download.
+    if stt.background_correction {
+        if let Some(store) = lowk_stt::ModelStore::default_location() {
+            if !lowk_stt::local::whisper_installed(&store) {
+                let mb: u32 = lowk_stt::local::whisper_assets()
+                    .iter()
+                    .map(|a| a.size_mb())
+                    .sum();
+                for i in &mut infos {
+                    if i.descriptor.id == lowk_stt::local::NEMOTRON_ID {
+                        i.extra_mb = mb;
+                    }
+                }
+            }
+        }
+    }
+    infos
 }
 
 /// Downloads an engine's models into app data (SHA-256 checked); progress arrives as

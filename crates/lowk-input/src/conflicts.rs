@@ -111,7 +111,7 @@ pub fn analyze(os: Os, binds: &[BindSpec]) -> Vec<Conflict> {
     for (i, b) in binds.iter().enumerate() {
         let earlier = binds[..i]
             .iter()
-            .find(|e| e.action == b.action || e.trigger == b.trigger);
+            .find(|e| e.same_slot(b) || e.trigger == b.trigger);
         if let Some(e) = earlier {
             out.push(Conflict {
                 index: i,
@@ -149,6 +149,7 @@ mod tests {
             action: a,
             trigger: t,
             swallow: false,
+            template: None,
         }
     }
 
@@ -195,5 +196,22 @@ mod tests {
         assert!(soft_warning(Os::Windows, &combo(C, "Enter")).is_some());
         assert!(soft_warning(Os::Macos, &combo(MS, "KeyS")).is_some());
         assert!(soft_warning(Os::Macos, &combo(MS, "KeyA")).is_none());
+    }
+
+    #[test]
+    fn two_template_binds_are_two_slots_but_one_trigger_is_a_conflict() {
+        let mut a = spec(ActionId::AskTemplate, combo(Mods::META, "KeyJ"));
+        a.template = Some("one".into());
+        let mut b = spec(ActionId::AskTemplate, combo(Mods::META, "KeyK"));
+        b.template = Some("two".into());
+        assert!(analyze(Os::Macos, &[a.clone(), b.clone()]).is_empty());
+        // same template twice = same slot
+        let mut c = spec(ActionId::AskTemplate, combo(Mods::META, "KeyL"));
+        c.template = Some("one".into());
+        assert_eq!(analyze(Os::Macos, &[a.clone(), c]).len(), 1);
+        // another template on the same trigger = conflict
+        let mut d = spec(ActionId::AskTemplate, combo(Mods::META, "KeyJ"));
+        d.template = Some("three".into());
+        assert_eq!(analyze(Os::Macos, &[a, d]).len(), 1);
     }
 }

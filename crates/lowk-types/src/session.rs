@@ -28,6 +28,10 @@ pub struct StartOpts {
     pub system: Option<Target>,
     pub mic: Option<String>,
     pub demo: bool,
+    /// Languages of this call (primary tags); `None` = the remembered/default set from settings.
+    /// Limited to what the engine supports; stored in the call frontmatter.
+    #[serde(default)]
+    pub languages: Option<Vec<String>>,
 }
 
 /// Full resync payload (`session_snapshot`): lagging subscribers rebuild from it.

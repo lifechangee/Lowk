@@ -4,16 +4,18 @@
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';
   import { api } from '../api';
-  import { bindFor, bindWarnings, defaultBinds, formatTrigger, hasMods, isModifierCode, modsOf, triggerFromKeyEvent, triggerFromMouse, withBind } from '../binds';
+  import { bindFor, bindWarnings, defaultBinds, formatTrigger, hasMods, isModifierCode, modsOf, sameSlot, slotKey, triggerFromKeyEvent, triggerFromMouse, withBind, type Slot } from '../binds';
   import { tm } from '../i18n';
   import type { MKey } from '../i18n';
   import { mouseNames } from '../names';
   import { prefs } from '../state.svelte';
 
-  let { actions, showReset = true, hints = true }: { actions: ActionId[]; showReset?: boolean; hints?: boolean } = $props();
+  type Row = { slot: Slot; label: string; hint?: string };
+  /** `templates`: one row per template (built-in or user-created), each with its own key. */
+  let { actions, templates = [], showReset = true, hints = true }: { actions: ActionId[]; templates?: { slot: Slot; label: string }[]; showReset?: boolean; hints?: boolean } = $props();
 
   const os = api.platform();
-  let rec = $state<ActionId | null>(null);
+  let rec = $state<Slot | null>(null);
   let peak: Mods = {};
   let report = $state<BindReport>({ entries: [] });
 
@@ -25,12 +27,16 @@
 
   const label = (a: ActionId) => tm(`m.act.${a}` as MKey);
   const hint = (a: ActionId): string => (hints && HINTS.has(a) ? tm(`m.act.${a}.hint` as MKey) : '');
+  const rows = $derived<Row[]>([
+    ...actions.map((a) => ({ slot: { action: a } as Slot, label: label(a), hint: hint(a) })),
+    ...templates.map((t) => ({ slot: t.slot, label: t.label })),
+  ]);
   const HINTS = new Set<ActionId>(['ask', 'ask_brief', 'ask_complement', 'click_hold', 'screenshot', 'toggle_interactive', 'move_hold', 'next_template', 'toggle_overlay', 'panic_hide']);
 
-  async function commit(a: ActionId, tr: Trigger | null) {
+  async function commit(a: Slot, tr: Trigger | null) {
     rec = null;
     peak = {};
-    await prefs.patch({ binds: withBind(binds, a, tr) });
+    await prefs.patch({ binds: withBind(binds, a.action, tr, a.template) });
     report = await api.bindReport();
   }
   function stopRec() { rec = null; peak = {}; }
@@ -57,25 +63,27 @@
     commit(rec, tr);
   }
   const reset = () => prefs.patch({ binds: defaultBinds(os) });
-  const status = (a: ActionId) => report.entries.find((x) => x.action === a)?.status;
+  const status = (a: Slot) => report.entries.find((x) => sameSlot(x, a))?.status;
 </script>
 
 <svelte:window onkeydowncapture={onkeydown} onkeyupcapture={onkeyup} onmousedowncapture={onmousedown} oncontextmenu={(e) => rec && e.preventDefault()} onauxclick={(e) => rec && e.preventDefault()} />
 
 <div class="be">
-  {#each actions as a (a)}
-    {@const b = bindFor(binds, a)}
+  {#each rows as row (slotKey(row.slot))}
+    {@const a = row.slot}
+    {@const b = bindFor(binds, a.action, a.template)}
     {@const warns = b ? bindWarnings(b, binds, os) : []}
     {@const st = status(a)}
-    <div class="hk">
-      <span class="l"><span class="n lbl">{label(a)}</span>{#if hint(a)}<small class="lbl">{hint(a)}</small>{/if}</span>
+    {@const on = rec !== null && sameSlot(rec, a)}
+    <div class="hk" data-slot={slotKey(a)}>
+      <span class="l"><span class="n lbl">{row.label}</span>{#if row.hint}<small class="lbl">{row.hint}</small>{/if}</span>
       <div class="ctl">
-        <button class="key" class:rec={rec === a} class:m={b?.trigger.kind === 'mouse'} onclick={(e) => { e.stopPropagation(); rec = rec === a ? null : a; peak = {}; }} aria-label={label(a)}>
-          {#if rec === a}<span class="lbl">{tm('m.pressKey')}</span>
-          {:else if b}{#each formatTrigger(b.trigger, os, mouseNames()) as part, i (i)}<kbd>{part}</kbd>{/each}{#if b.trigger.kind === 'modifier_only' && (a === 'move_hold' || a === 'click_hold')}<span class="hold lbl">{tm('m.hold')}</span>{/if}
+        <button class="key" class:rec={on} class:m={b?.trigger.kind === 'mouse'} onclick={(e) => { e.stopPropagation(); rec = on ? null : a; peak = {}; }} aria-label={row.label}>
+          {#if on}<span class="lbl">{tm('m.pressKey')}</span>
+          {:else if b}{#each formatTrigger(b.trigger, os, mouseNames()) as part, i (i)}<kbd>{part}</kbd>{/each}{#if b.trigger.kind === 'modifier_only' && (a.action === 'move_hold' || a.action === 'click_hold')}<span class="hold lbl">{tm('m.hold')}</span>{/if}
           {:else}<span class="unset lbl">{tm('m.notSet')}</span>{/if}
         </button>
-        {#if b && rec !== a}<button class="clr" aria-label={tm('m.clearBind')} title={tm('m.clearBind')} onclick={() => commit(a, null)}><Icon name="close" size={12} /></button>{:else}<span class="clr"></span>{/if}
+        {#if b && !on}<button class="clr" aria-label={tm('m.clearBind')} title={tm('m.clearBind')} onclick={() => commit(a, null)}><Icon name="close" size={12} /></button>{:else}<span class="clr"></span>{/if}
       </div>
       {#if st && st.state !== 'active' && b}
         <p class="wn">{st.state === 'degraded' ? tm('m.bindDegraded', { perm: tm(`m.perm.${st.reason}` as MKey) }) : tm('m.bindProblem', { reason: st.reason })}</p>
@@ -84,7 +92,7 @@
     </div>
   {/each}
   {#if showReset}<div class="foot"><Button size="sm" icon="restore" onclick={reset}>{tm('settings.hotkeys.reset')}</Button></div>{/if}
-  <p class="note">{tm('onboarding.hotkeys.rebind')}</p>
+  {#if hints}<p class="note">{tm('onboarding.hotkeys.rebind')}</p>{/if}
 </div>
 
 <style>

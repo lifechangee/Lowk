@@ -172,6 +172,10 @@ pub struct EngineInfo {
     pub license_url: String,
     /// The helper program that runs the engine is missing (local engines; damaged install).
     pub runtime_missing: bool,
+    /// Extra download that comes with this engine and is still missing (the Whisper correction
+    /// model while background correction is on), in MB; 0 when nothing more is needed.
+    #[serde(default)]
+    pub extra_mb: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]

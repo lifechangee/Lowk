@@ -158,6 +158,7 @@ impl InputBackend for LowLevelBackend {
                 .zip(st)
                 .map(|(b, status)| BindStatusEntry {
                     action: b.action,
+                    template: b.template.clone(),
                     status,
                 })
                 .collect(),

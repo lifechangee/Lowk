@@ -21,6 +21,12 @@ pub fn binds_get(st: State<'_, Shared>) -> BindsState {
 #[specta::specta]
 pub fn binds_set(st: State<'_, Shared>, binds: Vec<BindSpec>) -> Result<BindsState> {
     for b in &binds {
+        // A template bind must name its template (any id: built-in or user-created).
+        if b.action == ActionId::AskTemplate && b.template.as_deref().is_none_or(str::is_empty) {
+            return Err(
+                AppError::new(ErrorCode::InvalidArgument).with_detail("ask_template needs a template")
+            );
+        }
         if let Trigger::Combo { key, .. } = &b.trigger {
             if !lowk_input::keys::is_known_code(&key.0) {
                 return Err(

@@ -43,48 +43,19 @@ fn clean(s: &str) -> String {
         .join(" ")
 }
 
-/// Is `c` a letter the user's languages (`allowed`, e.g. `ru`,`en`) cannot contain? (S3: language drift.)
-/// MIRROR of `lowk_types::text::is_foreign_letter` (this crate cannot depend on lowk-types): ASCII and
-/// basic Cyrillic always pass, except і ї є ґ ў without uk/be; accented Latin, CJK, Arabic, ... only when
-/// a language using that script is allowed. An empty list allows everything.
-fn is_foreign_letter(c: char, allowed: &[String]) -> bool {
-    if allowed.is_empty() || !c.is_alphabetic() || c.is_ascii() {
-        return false;
-    }
-    let has = |ls: &[&str]| allowed.iter().any(|a| ls.contains(&a.as_str()));
-    match c {
-        'і' | 'ї' | 'є' | 'ґ' | 'І' | 'Ї' | 'Є' | 'Ґ' | 'ў' | 'Ў' => !has(&["uk", "be"]),
-        '\u{0400}'..='\u{04FF}' => false,
-        '\u{00C0}'..='\u{024F}' | '\u{1E00}'..='\u{1EFF}' => !has(&[
-            "de", "fr", "es", "it", "pt", "nl", "tr", "pl", "cs", "sk", "sv", "da", "no", "fi", "hu", "ro",
-            "hr", "sl", "ca", "vi", "lt", "lv", "et",
-        ]),
-        '\u{0370}'..='\u{03FF}' => !has(&["el"]),
-        '\u{0590}'..='\u{05FF}' => !has(&["he"]),
-        '\u{0600}'..='\u{06FF}' | '\u{0750}'..='\u{077F}' => !has(&["ar", "fa", "ur"]),
-        '\u{0900}'..='\u{097F}' => !has(&["hi", "mr", "ne"]),
-        '\u{0E00}'..='\u{0E7F}' => !has(&["th"]),
-        '\u{3040}'..='\u{30FF}' => !has(&["ja"]),
-        '\u{AC00}'..='\u{D7AF}' | '\u{1100}'..='\u{11FF}' => !has(&["ko"]),
-        '\u{4E00}'..='\u{9FFF}' | '\u{3400}'..='\u{4DBF}' => !has(&["zh", "ja"]),
-        _ => true,
-    }
-}
+// The language/script policy is the very file the app uses (std only), so the two cannot drift.
+#[path = "../../../crates/lowk-types/src/langpolicy.rs"]
+#[allow(dead_code)]
+mod langpolicy;
+use langpolicy::strip_foreign;
 
 fn foreign_count(s: &str, allowed: &[String]) -> usize {
-    s.chars().filter(|c| is_foreign_letter(*c, allowed)).count()
+    langpolicy::foreign_letter_count(s, allowed)
 }
 
-/// Drops words that still contain a foreign letter (mirror of `lowk_types::text::strip_foreign`).
-fn strip_foreign(s: &str, allowed: &[String]) -> String {
-    if foreign_count(s, allowed) == 0 {
-        return s.to_owned();
-    }
-    s.split_whitespace()
-        .filter(|w| !w.chars().any(|c| is_foreign_letter(c, allowed)))
-        .filter(|w| w.chars().any(|c| c.is_alphanumeric()))
-        .collect::<Vec<_>>()
-        .join(" ")
+/// Ukrainian letters are looked up as Russian ones only when Russian is allowed and Ukrainian is not.
+fn map_to_russian(allowed: &[String]) -> bool {
+    allowed.iter().any(|a| a == "ru") && !allowed.iter().any(|a| a == "uk" || a == "be")
 }
 
 /// Cheap Russian look-alike for text shown while an utterance is still running.
@@ -253,12 +224,10 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
         })
         .unwrap_or_default();
     // Prompts for the re-decode, in order of preference, for the allowed languages we have one for.
-    let rescue_langs: Vec<&str> = [("ru", "ru-RU"), ("en", "en-US")]
-        .iter()
-        .filter(|(l, _)| allowed.iter().any(|a| a == l))
-        .map(|(_, p)| *p)
-        .collect();
-    let guard = lang == "auto" && !allowed.is_empty();
+    let rescue_langs: Vec<&str> = langpolicy::rescue_tags(&allowed, 4);
+    // The guard also runs with a single-language hint: a hint is only a prompt, the model still writes
+    // Cyrillic on Russian speech under `en-US` (measured: 163 foreign letters on 20 recordings).
+    let guard = !allowed.is_empty();
     let rescue_ru = guard; // keep the audio of the utterance for a possible re-decode
     let thr: f32 = arg(a, "--vad-threshold")
         .and_then(|s| s.parse().ok())
@@ -369,7 +338,7 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
                 if u.result_changed {
                     let mut t = clean(&stream.text().display());
                     if guard && foreign_count(&t, &allowed) > 0 {
-                        if !allowed.iter().any(|a| a == "uk" || a == "be") {
+                        if map_to_russian(&allowed) {
                             t = to_russian_letters(&t);
                         }
                         t = strip_foreign(&t, &allowed);
@@ -450,7 +419,7 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
                 }
             }
             t = best.1;
-            if !allowed.iter().any(|a| a == "uk" || a == "be") {
+            if map_to_russian(&allowed) {
                 t = to_russian_letters(&t);
             }
             t = strip_foreign(&t, &allowed);
@@ -582,6 +551,12 @@ mod tests {
             "Давай rauncie? Ебета."
         );
         assert_eq!(to_russian_letters("Підбегум З фідбиком"), "Пидбегум З фидбиком");
+        assert!(map_to_russian(&ruen));
+        assert!(!map_to_russian(&["ru".into(), "uk".into()]));
+        assert!(!map_to_russian(&["en".into()]));
+        // en-only: Cyrillic is foreign, German umlauts are not wanted, Polish selected allows ł
+        assert_eq!(foreign_count("Привет hello", &["en".into()]), 6);
+        assert_eq!(foreign_count("Bułżą", &["pl".into(), "en".into()]), 0);
     }
 
     #[test]

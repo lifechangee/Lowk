@@ -62,7 +62,7 @@ Also found and fixed: live page duplicated lines when correction re-emitted an u
 5. First Record right after a reboot: watch for a delayed start.
 
 ## M1 polish backlog
-- Engine install card shows 0.8 GB, but with Whisper correction the total download is ~1.4 GB — show the real total (or list both models).
+- ~~Engine install card shows 0.8 GB, but with Whisper correction the total download is ~1.4 GB~~ — fixed: the card shows the real total and both parts (DECISIONS-M1 §9).
 - Memory-pressure skip for warm-up exists on macOS only.
 
 ## Тесты со звуком

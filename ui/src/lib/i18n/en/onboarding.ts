@@ -44,7 +44,7 @@ export const onboarding = {
   'onboarding.hardware.body': 'Lowk will pick where recognition and answers run: on your computer or in the cloud.',
   'onboarding.hardware.local': 'Local',
   'onboarding.hardware.localFit': 'Suitable',
-  'onboarding.hardware.localDesc': 'Whisper Large V3 Turbo runs right on your computer. Free, offline, audio never leaves the device. Download {size}.',
+  'onboarding.hardware.localDesc': 'Recognition runs right on your computer (Nemotron, plus Whisper for background correction). Free, offline, audio never leaves the device. Download {size}.',
   'onboarding.hardware.cloud': 'Cloud',
   'onboarding.hardware.cloudDesc': 'Faster start and less load on the laptop. Needs an API key; audio is sent to the provider.',
   'onboarding.hardware.defaultModel': 'Answers use the cloud model {model} by default. You can enable a local model in Settings.',

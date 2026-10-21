@@ -25,6 +25,9 @@
   });
   $effect(() => { engine; prog = null; error = null; void refresh(); });
 
+  /** Real total of this install: the live model plus the Whisper correction model while it is on and missing. */
+  const extra = $derived(info?.extra_mb ?? 0);
+  const totalGb = $derived((((info?.descriptor.size_mb ?? 0) + extra) / 1000).toFixed(1));
   const mb = (b: number) => Math.round(b / 1048576);
   const pct = $derived(prog && prog.total_bytes > 0 ? Math.min(100, Math.round((prog.done_bytes / prog.total_bytes) * 100)) : 0);
   const reason = (m: string) => (m.includes('checksum') ? tm('m.engine.errChecksum') : m.includes('network') || m.includes('Network') ? tm('m.engine.errNetwork') : tm('m.engine.errGeneric'));
@@ -58,9 +61,9 @@
         <Button size="sm" onclick={() => { cancelled = true; void api.engineInstallCancel(); }}>{tm('common.cancel')}</Button>
       </div>
     {:else if !info.installed}
-      <p class="note">{tm('m.engine.needsDownload', { size: (info.descriptor.size_mb / 1000).toFixed(1) })}</p>
+      <p class="note" data-testid="engine-total">{extra > 0 ? tm('m.engine.needsDownloadBoth', { size: totalGb, live: (info.descriptor.size_mb / 1000).toFixed(1), corr: (extra / 1000).toFixed(1) }) : tm('m.engine.needsDownload', { size: totalGb })}</p>
       <div class="acts">
-        <Button variant="primary" size="sm" onclick={install}>{error ? tm('m.engine.retry') : tm('m.engine.install', { size: (info.descriptor.size_mb / 1000).toFixed(1) })}</Button>
+        <Button variant="primary" size="sm" onclick={install}>{error ? tm('m.engine.retry') : tm('m.engine.install', { size: totalGb })}</Button>
         {#if error !== null}<span class="msg lbl err" role="alert">{reason(error)}</span>{/if}
       </div>
       <p class="note">{tm('m.engine.license', { license: info.descriptor.license })} · {info.license_url}</p>

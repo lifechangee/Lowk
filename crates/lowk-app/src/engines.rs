@@ -270,7 +270,37 @@ impl AppState {
         *self.install_cancel.lock() = Some(cancel.clone());
         let em = self.emitter.clone();
         let engine = id.to_owned();
+        // One progress bar for everything this install downloads (the live model, Silero and, with
+        // background correction on, the Whisper model): `total` is the grand total, `done` cumulative.
+        let with_whisper = id == local::NEMOTRON_ID && self.settings.get().stt.background_correction;
+        let grand_total: u64 = if id == local::NEMOTRON_ID {
+            local::nemotron_assets()
+                .iter()
+                .chain(
+                    if with_whisper {
+                        local::whisper_assets()
+                    } else {
+                        vec![]
+                    }
+                    .iter(),
+                )
+                .map(|a| a.size_bytes)
+                .sum()
+        } else {
+            0
+        };
+        let mut finished: std::collections::HashSet<String> = Default::default();
+        let mut finished_bytes = 0u64;
         let mut report = |file: &str, phase: InstallPhase, done: u64, total: u64| {
+            if phase == InstallPhase::Ready && finished.insert(file.to_owned()) {
+                finished_bytes += total;
+            }
+            let (done, total) = if grand_total > 0 {
+                let inflight = if finished.contains(file) { 0 } else { done };
+                ((finished_bytes + inflight).min(grand_total), grand_total)
+            } else {
+                (done, total)
+            };
             em.emit(AppEvent::EngineProgress(EngineProgress {
                 engine: engine.clone(),
                 file: file.to_owned(),
@@ -281,7 +311,7 @@ impl AppState {
             }))
         };
         let mut res = self.engines.install(id, &cancel, &mut report);
-        if res.is_ok() && id == local::NEMOTRON_ID && self.settings.get().stt.background_correction {
+        if res.is_ok() && with_whisper {
             if let Some(store) = ModelStore::default_location() {
                 res = local::install_whisper(&store, &cancel, &mut report);
             }

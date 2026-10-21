@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { en, ru } from '../lib/i18n';
 import { mergePatch } from './api/mock';
-import { bindWarnings, defaultBinds, formatTrigger, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
+import { bindFor, bindWarnings, defaultBinds, formatTrigger, orphanTemplateBinds, templateSlot, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
 import { parse } from './router.svelte';
 import { greeting } from './fmt';
 import type { SourceInfo } from '../lib/ipc';
@@ -134,5 +134,33 @@ describe('greeting', () => {
     expect(g(5)).toBe(g(11));
     expect(g(12)).toBe(g(17));
     expect(g(18)).toBe(g(23));
+  });
+});
+
+describe('template binds', () => {
+  const k = (key: string) => ({ kind: 'combo' as const, mods: { meta: true }, key });
+  it('a custom template gets its own slot next to the built-in actions', () => {
+    expect(templateSlot('brief')).toEqual({ action: 'ask_brief' });
+    expect(templateSlot('my-tpl')).toEqual({ action: 'ask_template', template: 'my-tpl' });
+    let b = withBind(defaultBinds('macos'), 'ask_template', k('KeyJ'), 'my-tpl');
+    b = withBind(b, 'ask_template', k('KeyK'), 'other');
+    expect(bindFor(b, 'ask_template', 'my-tpl')?.trigger).toMatchObject({ key: 'KeyJ' });
+    expect(bindFor(b, 'ask_template', 'other')?.trigger).toMatchObject({ key: 'KeyK' });
+    expect(bindFor(b, 'ask_template', 'nope')).toBeUndefined();
+    // rebinding one template leaves the other alone; clearing removes only its slot
+    b = withBind(b, 'ask_template', k('KeyL'), 'my-tpl');
+    expect(b.filter((x) => x.action === 'ask_template')).toHaveLength(2);
+    b = withBind(b, 'ask_template', null, 'my-tpl');
+    expect(b.filter((x) => x.action === 'ask_template').map((x) => x.template)).toEqual(['other']);
+  });
+  it('the same trigger on two templates is a duplicate; different slots are not', () => {
+    const b = withBind(withBind([], 'ask_template', k('KeyJ'), 'a'), 'ask_template', k('KeyJ'), 'b');
+    expect(bindWarnings(b[0]!, b, 'macos')).toContain('duplicate');
+    const c = withBind(withBind([], 'ask_template', k('KeyJ'), 'a'), 'ask_template', k('KeyK'), 'b');
+    expect(bindWarnings(c[0]!, c, 'macos')).not.toContain('duplicate');
+  });
+  it('a bind of a deleted template is reported as an orphan', () => {
+    const b = withBind(withBind([], 'ask_template', k('KeyJ'), 'a'), 'ask_template', k('KeyK'), 'gone');
+    expect(orphanTemplateBinds(b, ['a']).map((x) => x.template)).toEqual(['gone']);
   });
 });

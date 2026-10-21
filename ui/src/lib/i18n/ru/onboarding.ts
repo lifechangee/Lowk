@@ -44,7 +44,7 @@ export const onboarding = {
   'onboarding.hardware.body': 'Lowk подберёт, где считать распознавание и ответы: на вашем компьютере или в облаке.',
   'onboarding.hardware.local': 'Локально',
   'onboarding.hardware.localFit': 'Подходит',
-  'onboarding.hardware.localDesc': 'Whisper Large V3 Turbo прямо на вашем компьютере. Бесплатно, офлайн, звук не покидает устройство. Скачать {size}.',
+  'onboarding.hardware.localDesc': 'Распознавание прямо на вашем компьютере (Nemotron, плюс Whisper для фоновой коррекции). Бесплатно, офлайн, звук не покидает устройство. Скачать {size}.',
   'onboarding.hardware.cloud': 'Облако',
   'onboarding.hardware.cloudDesc': 'Быстрее старт и меньше нагрузка на ноутбук. Нужен API-ключ, звук отправляется провайдеру.',
   'onboarding.hardware.defaultModel': 'Для ответов нейронки по умолчанию используется облачная {model}. Локальную модель можно включить в настройках.',

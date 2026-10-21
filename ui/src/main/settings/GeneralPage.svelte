@@ -7,7 +7,8 @@
   import { when } from '../fmt';
   import { tm } from '../i18n';
   import { hrefs, router } from '../router.svelte';
-  import { prefs, sources } from '../state.svelte';
+  import { callLangs, prefs, sources } from '../state.svelte';
+  import LangPicker from '../LangPicker.svelte';
   import { resolveSource } from '../source';
   import SourcePicker from '../SourcePicker.svelte';
 
@@ -19,6 +20,9 @@
 <h2>{tm('m.set.general')}</h2>
 <SettingRow label={tm('settings.language')}>
   <Select label={tm('settings.language')} value={s.ui?.language ?? 'auto'} options={[{ value: 'auto', label: tm('settings.language.auto') }, { value: 'ru', label: tm('settings.language.ru') }, { value: 'en', label: tm('settings.language.en') }]} onchange={(v) => prefs.patch({ ui: { language: v as UiLanguage } })} />
+</SettingRow>
+<SettingRow stack label={tm('m.callLangs')} hint={`${tm('m.callLangsHint')} ${tm('m.callLangsAll')}`}>
+  <LangPicker value={callLangs.default} supported={callLangs.supported} label={tm('m.callLangs')} onchange={(v) => prefs.patch({ stt: { languages: v, last_languages: [] } })} />
 </SettingRow>
 <SettingRow label={tm('m.defaultSource')} hint={tm('m.defaultSourceHint')}>
   <div class="srcw"><SourcePicker size="md" label={tm('m.defaultSource')} value={srcValue} onchange={(v) => prefs.patch({ capture: { default_source: v.startsWith('app:') ? 'one_app' : 'whole_system' }, audio: { default_source: v.startsWith('app:') ? { kind: 'app', id: v.slice(4) } : { kind: 'whole_system' } } })} /></div>

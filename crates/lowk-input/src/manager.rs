@@ -163,6 +163,7 @@ impl InputBackend for InputManager {
                 .zip(status)
                 .map(|(b, s)| BindStatusEntry {
                     action: b.action,
+                    template: b.template.clone(),
                     status: s.unwrap_or(BindStatus::Failed("not routed".into())),
                 })
                 .collect(),
@@ -242,8 +243,8 @@ mod tests {
         let rx = m.events();
         m.set_binds(&[]).unwrap();
         let h = m.combo_events().unwrap();
-        h.pressed(ActionId::Ask);
-        h.released(ActionId::Ask);
+        h.pressed(ActionId::Ask, None);
+        h.released(ActionId::Ask, None);
         assert_eq!(rx.try_recv().unwrap().phase, Phase::Down);
         assert_eq!(rx.try_recv().unwrap().phase, Phase::Up);
     }

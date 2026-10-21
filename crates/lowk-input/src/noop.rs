@@ -30,6 +30,7 @@ impl InputBackend for NoopInputBackend {
                 .iter()
                 .map(|b| BindStatusEntry {
                     action: b.action,
+                    template: b.template.clone(),
                     status: BindStatus::Active,
                 })
                 .collect(),

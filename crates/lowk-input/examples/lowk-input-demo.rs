@@ -46,6 +46,7 @@ fn main() {
                 mods: Mods::NONE,
             },
             swallow: false,
+            template: None,
         });
     }
     let rep = m.set_binds(&binds).expect("set_binds");

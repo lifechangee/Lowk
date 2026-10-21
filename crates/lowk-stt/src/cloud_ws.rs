@@ -112,6 +112,16 @@ impl CloudEngine {
     }
 }
 
+/// Soniox start message: the call's languages become `language_hints`.
+pub(crate) fn soniox_config(key: &str, langs: &[LangTag]) -> serde_json::Value {
+    let hints: Vec<&str> = langs.iter().map(String::as_str).collect();
+    json!({
+        "api_key": key, "model": SONIOX_MODEL, "audio_format": "pcm_s16le",
+        "sample_rate": 16000, "num_channels": 1, "language_hints": hints,
+        "enable_language_identification": true, "enable_endpoint_detection": true,
+    })
+}
+
 struct Conn {
     ws: Ws,
     parser: Parser,
@@ -129,12 +139,7 @@ fn open(
     let (mut ws, first) = match vendor {
         Vendor::Soniox => {
             let mut ws = connect(SONIOX_URL, None)?;
-            let hints: Vec<&str> = langs.iter().map(String::as_str).collect();
-            let cfg = json!({
-                "api_key": key, "model": SONIOX_MODEL, "audio_format": "pcm_s16le",
-                "sample_rate": 16000, "num_channels": 1, "language_hints": hints,
-                "enable_language_identification": true, "enable_endpoint_detection": true,
-            });
+            let cfg = soniox_config(key, langs);
             ws.send(Message::text(cfg.to_string()))
                 .map_err(|e| e.to_string())?;
             (ws, false)
@@ -390,5 +395,27 @@ impl SttEngine for CloudEngine {
 impl Drop for CloudEngine {
     fn drop(&mut self) {
         let _ = self.stop();
+    }
+}
+
+#[cfg(test)]
+mod lang_tests {
+    use super::*;
+
+    #[test]
+    fn soniox_gets_the_call_languages_as_hints() {
+        let l = |v: &[&str]| v.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        assert_eq!(
+            soniox_config("k", &l(&["ru", "en"]))["language_hints"],
+            json!(["ru", "en"])
+        );
+        assert_eq!(soniox_config("k", &l(&["pl"]))["language_hints"], json!(["pl"]));
+    }
+
+    #[test]
+    fn deepgram_single_language_else_multi() {
+        assert!(deepgram_url(&["pl".into()]).contains("language=pl"));
+        assert!(deepgram_url(&["en".into()]).contains("language=en"));
+        assert!(deepgram_url(&["ru".into(), "en".into()]).contains("language=multi"));
     }
 }

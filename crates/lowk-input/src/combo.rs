@@ -12,7 +12,13 @@ use std::sync::Mutex;
 /// Implemented by `lowk-app` over the Tauri global-shortcut plugin.
 pub trait ComboRegistrar: Send {
     /// Register one plain combo. Err = the OS or another app already owns it.
-    fn register(&mut self, action: ActionId, mods: Mods, key: &KeyCode) -> std::result::Result<(), String>;
+    fn register(
+        &mut self,
+        action: ActionId,
+        template: Option<&str>,
+        mods: Mods,
+        key: &KeyCode,
+    ) -> std::result::Result<(), String>;
     /// Drop every registration made through this registrar.
     fn unregister_all(&mut self);
 }
@@ -24,18 +30,19 @@ pub struct ComboEvents {
 }
 
 impl ComboEvents {
-    pub fn send(&self, action: ActionId, phase: Phase) {
+    pub fn send(&self, action: ActionId, template: Option<String>, phase: Phase) {
         let _ = self.tx.send(BindEvent {
             action,
             phase,
             t_mono_ns: now_mono_ns(),
+            template,
         });
     }
-    pub fn pressed(&self, action: ActionId) {
-        self.send(action, Phase::Down)
+    pub fn pressed(&self, action: ActionId, template: Option<String>) {
+        self.send(action, template, Phase::Down)
     }
-    pub fn released(&self, action: ActionId) {
-        self.send(action, Phase::Up)
+    pub fn released(&self, action: ActionId, template: Option<String>) {
+        self.send(action, template, Phase::Up)
     }
 }
 
@@ -73,7 +80,8 @@ impl ComboBackend {
     pub(crate) fn register_one(&mut self, b: &BindSpec) -> std::result::Result<(), String> {
         match &b.trigger {
             Trigger::Combo { mods, key } if crate::keys::is_known_code(&key.0) => {
-                self.registrar.register(b.action, *mods, key)
+                self.registrar
+                    .register(b.action, b.template.as_deref(), *mods, key)
             }
             Trigger::Combo { key, .. } => Err(format!("unknown key {}", key.0)),
             _ => Err("not a plain combo".into()),
@@ -92,6 +100,7 @@ impl InputBackend for ComboBackend {
             .iter()
             .map(|b| BindStatusEntry {
                 action: b.action,
+                template: b.template.clone(),
                 status: match self.register_one(b) {
                     Ok(()) => BindStatus::Active,
                     Err(e) => BindStatus::Failed(e),
@@ -122,7 +131,13 @@ pub(crate) mod fake {
         pub refuse: Arc<Mutex<Vec<ActionId>>>,
     }
     impl ComboRegistrar for FakeRegistrar {
-        fn register(&mut self, a: ActionId, m: Mods, k: &KeyCode) -> std::result::Result<(), String> {
+        fn register(
+            &mut self,
+            a: ActionId,
+            _t: Option<&str>,
+            m: Mods,
+            k: &KeyCode,
+        ) -> std::result::Result<(), String> {
             if self.refuse.lock().unwrap().contains(&a) {
                 return Err("taken".into());
             }

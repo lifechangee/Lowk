@@ -118,3 +118,59 @@ Known CI note: `just ci-cross` currently fails in `lowk-capture` (unused variabl
   cache and compiles the GPU pipelines, then exits (no idle RAM). It is not started, or is killed, when
   free memory drops below 25 % (`kern.memorystatus_level`, macOS; elsewhere no pressure signal yet) and is
   skipped while a call is running. `LOWK_NO_WARMUP=1` disables it.
+
+## 9. Per-call languages (BRIEF, last line) and the polish backlog
+
+**Decision.** A call has a language set. Settings «Языки созвона» holds the default (`stt.languages`;
+onboarding pre-fills system language + English, e.g. ru+en, en, de+en); the «Новый созвон» card and the header
+popover show compact chips pre-filled with the last pick (`stt.last_languages`, written by `session_start`,
+cleared when the default is changed in Settings). `StartOpts.languages` carries the pick; no pick (record bind)
+= last pick, else default. The call frontmatter `languages` stores what was really used.
+
+**What the set drives** (`lowk_types::langpolicy`, one std-only file; the STT worker includes the same file with
+`#[path]`, so the app and the worker cannot drift):
+* **Which languages are offered**: the model's own prompt table, read from the GGUF (`<xx-XX>` tokens): 34
+  languages (ru en uk de fr es it pt nl pl cs sk sl hr sv da no fi hu ro tr lt lv et vi bg el he ar hi th ja ko
+  zh). `EngineDescriptor.languages` = that list; the UI offers the chosen engine's languages; `resolve()` drops
+  the rest again in the session (an unsupported or empty pick falls back to the default, never to nothing).
+  Cloud: Soniox gets the set as `language_hints`, Deepgram `language=<one>` or `multi`.
+* **Decoder hint**: one language -> its prompt (`ru-RU`, `pl-PL`, ...); several -> the auto slot plus the guard.
+* **Allowed letters** (`is_foreign_letter`): ASCII always passes (names, terms, English words inside any call).
+  Cyrillic needs a Cyrillic language in the set (`en` alone treats Cyrillic as foreign); і ї є ґ ў need `uk`/`be`;
+  non-ASCII Latin letters pass only if a selected language writes them (`pl`: ąćęłńóśźż, `de`: äöüß, `tr`: çğıİöşü,
+  ... `vi`: the whole Latin Extended Additional block); Greek/Hebrew/Arabic/Devanagari/Thai/Kana/Hangul/Han need
+  their language. A drifted utterance is decoded again with the prompt of each selected language (at most 4,
+  in the user's order), the cleanest result wins, words still foreign are dropped (S3 mechanics unchanged).
+  The Ukrainian->Russian look-alike mapping for partials only applies when `ru` is selected and `uk`/`be` is not.
+* **Whisper correction**: `corrector::accept_correction` = not damaged, no foreign letter for the call's set,
+  changed, plausible. One language -> Whisper gets that language, several -> auto.
+
+**Replay (files only, nothing played), 20 owner recordings, nemotron, no Whisper, `tools/qa/stt-lang-check.py ru,en ru en`**
+(the tool maps a set to `--lang` via `decoder_lang` and to `--allowed`, counts letters outside the set, fails on any):
+
+| set | mean CER | clips with Russian speech (18) | clips with English speech (2) | letters outside the set |
+|---|---|---|---|---|
+| ru+en | 0.2472 | 0.2449 | 0.2681 | 0 |
+| ru only | 0.3606 | 0.2963 | 0.9391 | 0 |
+| en only | 0.8118 | 0.8727 | 0.2632 | 0 (163 before the guard also ran with a single-language hint) |
+
+Reading: a wrong or too narrow pick costs accuracy exactly where expected (English clips under ru-only, Russian
+clips under en-only: the guard strips the other script instead of printing it), while the right pick is as good
+as ru+en (English clips: 0.2632 en-only vs 0.2681 ru+en). A single-language decoder hint is only a prompt: under
+`en-US` the model still wrote Cyrillic on Russian speech, so the guard now runs for every set.
+
+**Polish backlog.** (1) The engine install card shows the real total: `EngineInfo.extra_mb` = the Whisper model
+while background correction is on and it is missing; text «Загрузка: 1,4 ГБ (0,8 распознавание + 0,6 коррекция
+Whisper)», the button says «Скачать (1,4 ГБ)», onboarding no longer hard-codes 1.6 GB, and the progress bar is
+one cumulative bar over everything the install downloads. (2) Custom templates can be bound: `BindSpec.template`
+(+ `ActionId::AskTemplate`, `BindEvent.template`, `BindStatusEntry.template`); slot identity is (action,
+template). The key editor lists every template (built-in ones keep their dedicated actions), the same trigger
+on two templates is a conflict (`duplicate of ...`, second one skipped), a bind of a deleted template stays
+visible so it can be cleared and fails with `NotFound` rather than asking with another template.
+The memory-pressure skip of the warm-up is still macOS only.
+
+**Checks.** `langpolicy::tests` (per language set), `corrector::tests::correction_rule_follows_the_call_languages`,
+`lowk-session` `call_languages_*` / `remembered_languages_*`, `cloud_ws::lang_tests`, matcher/conflict tests for
+template binds, vitest (`langs.test.ts`, template binds), Playwright `e2e/m1-langs.spec.ts` (RU/EN, card, popover,
+settings, onboarding, install total, template binds), `just qa-bundle` replays the BUNDLED worker for ru+en and
+pl+en. `qa-bundle --silent` launches in the background and synthesizes no key presses (the lecture-safe mode).

@@ -12,7 +12,9 @@
   import { mouseNames } from '../names';
   import { PERM_ORDER, perms } from '../permissions.svelte';
   import { hrefs, router } from '../router.svelte';
-  import { prefs, sources } from '../state.svelte';
+  import { callLangs, prefs, sources } from '../state.svelte';
+  import LangPicker from '../LangPicker.svelte';
+  import { resolve as resolveLangs, systemDefault } from '../langs';
   import { nameFromId, presetInfo, presetsFor, resolveSource } from '../source';
   import SourcePicker from '../SourcePicker.svelte';
   import KeyCard from '../settings/KeyCard.svelte';
@@ -30,6 +32,9 @@
   let captureMode = $state<'app' | 'system'>('app');
   let appId = $state('');
   let engineMode = $state<'local' | 'cloud'>('local');
+  /** Call languages, pre-filled: what is stored once onboarding was done before, else the system language + English. */
+  let callLangsChoice = $state<string[]>(['ru', 'en']);
+  let localTotalMb = $state(1400);
 
   onMount(async () => {
     await sources.refresh();
@@ -39,6 +44,13 @@
     appId = v.startsWith('app:') ? v.slice(4) : '';
     captureMode = appId ? 'app' : 'system';
     perms.refresh();
+    await callLangs.load();
+    const sys = systemDefault(await api.localeGet().catch(() => 'en'), callLangs.supported);
+    callLangsChoice = prefs.value.onboarding?.done ? callLangs.default : resolveLangs(sys, ['en'], callLangs.supported);
+    try {
+      const l = (await api.engineStatus()).find((i) => i.recommended && i.descriptor.kind === 'local');
+      if (l) localTotalMb = l.descriptor.size_mb + (prefs.value.stt?.background_correction === false ? 0 : (l.extra_mb ?? 0));
+    } catch { /* keep the estimate */ }
   });
   // Live permission status while the permissions step is open (focus + light poll).
   $effect(() => (step === 3 ? perms.watch() : undefined));
@@ -65,7 +77,7 @@
     if (step === 4) await prefs.patch({ stt: await chosenEngine() });
     if (step < TOTAL - 1) await go(step + 1);
   }
-  const persistCapture = () => prefs.patch({ capture: { default_source: captureMode === 'app' && appId ? 'one_app' : 'whole_system' }, audio: { default_source: captureMode === 'app' && appId ? { kind: 'app', id: appId } : { kind: 'whole_system' } } });
+  const persistCapture = () => prefs.patch({ stt: { languages: callLangsChoice, last_languages: [] }, capture: { default_source: captureMode === 'app' && appId ? 'one_app' : 'whole_system' }, audio: { default_source: captureMode === 'app' && appId ? { kind: 'app', id: appId } : { kind: 'whole_system' } } });
   /** The REAL registered engine id (an invented placeholder here meant no call ever found an engine). */
   async function chosenEngine(): Promise<{ engine: string; cloud_vendor?: string }> {
     const all = await api.engines();
@@ -133,6 +145,7 @@
         <div class="apps"><SourcePicker allowSystem={false} label={tm('m.audioSource')} value={appId ? `app:${appId}` : 'app:'} onchange={(v) => { captureMode = 'app'; appId = v.slice(4); }} /></div>
         <OptionCard selected={captureMode === 'system'} title={tm('m.sourceSystem')} hint={tm('onboarding.capture.systemHint')} onselect={() => (captureMode = 'system')} />
         <p class="note">{tm('onboarding.capture.micNote')}</p>
+        <div class="card langs"><b class="lbl">{tm('m.callLangsOnb')}</b><p>{tm('m.callLangsOnbHint')}</p><LangPicker value={callLangsChoice} supported={callLangs.supported} label={tm('m.callLangs')} onchange={(v) => (callLangsChoice = v)} /></div>
 
       {:else if step === 3}
         <h1>{tm('onboarding.permissions.title')}</h1>
@@ -153,7 +166,7 @@
           <div><small>{tm('m.hw.os')}</small><b class="lbl">{hw?.os_version ?? '…'}</b></div>
         </div>
         <div class="two">
-          <OptionCard selected={engineMode === 'local'} title={tm('onboarding.hardware.local')} hint={tm('onboarding.hardware.localDesc', { size: '1.6 GB' })} badge={tm('onboarding.hardware.localFit')} onselect={() => (engineMode = 'local')} />
+          <OptionCard selected={engineMode === 'local'} title={tm('onboarding.hardware.local')} hint={tm('onboarding.hardware.localDesc', { size: `${(localTotalMb / 1000).toFixed(1)} GB` })} badge={tm('onboarding.hardware.localFit')} onselect={() => (engineMode = 'local')} />
           <OptionCard selected={engineMode === 'cloud'} title={tm('onboarding.hardware.cloud')} hint={tm('onboarding.hardware.cloudDesc')} onselect={() => (engineMode = 'cloud')} />
         </div>
         <p class="note">{tm('onboarding.hardware.defaultModel', { model: 'DeepSeek V4.1 Flash' })}</p>

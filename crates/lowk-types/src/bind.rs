@@ -28,6 +28,8 @@ pub enum ActionId {
     AskFactcheck,
     AskFollowup,
     AskRecap,
+    /// Ask with the template named by `BindSpec::template` (any template, including user-created ones).
+    AskTemplate,
 }
 
 impl ActionId {
@@ -133,13 +135,51 @@ pub struct BindSpec {
     /// Swallow the event so other apps do not see it.
     #[serde(default)]
     pub swallow: bool,
+    /// Template id for `ActionId::AskTemplate` (any template, built-in or user-created); `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+impl BindSpec {
+    /// Plain bind (no template).
+    pub fn new(action: ActionId, trigger: Trigger) -> Self {
+        Self {
+            action,
+            trigger,
+            swallow: false,
+            template: None,
+        }
+    }
+
+    /// Bind of a template: the dedicated action of a built-in one, `AskTemplate` + id for the rest.
+    pub fn for_template(template_id: &str, trigger: Trigger) -> Self {
+        let mut b = Self::new(ActionId::AskTemplate, trigger);
+        b.template = Some(template_id.to_owned());
+        b
+    }
+
+    /// Same slot = same action and, for `AskTemplate`, same template. One trigger per slot.
+    pub fn same_slot(&self, other: &BindSpec) -> bool {
+        self.action == other.action && self.template == other.template
+    }
+
+    /// Template this bind asks with (`None` for non-ask actions and for plain `Ask`).
+    pub fn ask_template(&self) -> Option<&str> {
+        match self.action {
+            ActionId::AskTemplate => self.template.as_deref(),
+            a => a.template_id(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct BindEvent {
     pub action: ActionId,
     pub phase: Phase,
     pub t_mono_ns: MonoNs,
+    /// Set for `ActionId::AskTemplate`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -156,6 +196,8 @@ pub enum BindStatus {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct BindStatusEntry {
     pub action: ActionId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
     pub status: BindStatus,
 }
 

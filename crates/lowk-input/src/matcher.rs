@@ -23,10 +23,28 @@ pub enum Raw {
     Reset,
 }
 
+/// One bind firing (`template` is set for `ActionId::AskTemplate`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Fire {
+    pub action: ActionId,
+    pub phase: Phase,
+    pub template: Option<String>,
+}
+
+impl Fire {
+    fn of(b: &BindSpec, phase: Phase) -> Self {
+        Fire {
+            action: b.action,
+            phase,
+            template: b.template.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Outcome {
     pub swallow: bool,
-    pub events: Vec<(ActionId, Phase)>,
+    pub events: Vec<Fire>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -90,17 +108,17 @@ impl Matcher {
     }
 
     /// Replace the table; returns `Up` events for anything held under the old one.
-    pub fn set_binds(&mut self, binds: Vec<BindSpec>) -> Vec<(ActionId, Phase)> {
+    pub fn set_binds(&mut self, binds: Vec<BindSpec>) -> Vec<Fire> {
         let out = self.release_all();
         self.binds = binds;
         out
     }
 
-    pub fn release_all(&mut self) -> Vec<(ActionId, Phase)> {
+    pub fn release_all(&mut self) -> Vec<Fire> {
         let out = self
             .active
             .drain(..)
-            .map(|(i, _)| (self.binds[i].action, Phase::Up))
+            .map(|(i, _)| Fire::of(&self.binds[i], Phase::Up))
             .collect();
         self.keys_down.clear();
         self.mouse_down = 0;
@@ -117,7 +135,7 @@ impl Matcher {
         let binds = &self.binds;
         self.active.retain(|&(i, h)| {
             if pred(&binds[i], h) {
-                out.events.push((binds[i].action, Phase::Up));
+                out.events.push(Fire::of(&binds[i], Phase::Up));
                 out.swallow |= swallow_up && binds[i].swallow;
                 false
             } else {
@@ -152,7 +170,7 @@ impl Matcher {
                 for i in 0..self.binds.len() {
                     if let Trigger::Combo { mods, key } = &self.binds[i].trigger {
                         if key.0 == code && *mods == self.mods && !self.is_active(i) {
-                            out.events.push((self.binds[i].action, Phase::Down));
+                            out.events.push(Fire::of(&self.binds[i], Phase::Down));
                             out.swallow |= self.binds[i].swallow;
                             self.active.push((i, Held::Key(code)));
                         }
@@ -180,7 +198,7 @@ impl Matcher {
                 if self.keys_down.is_empty() && self.mouse_down == 0 && m != Mods::NONE {
                     for i in wanted {
                         if !self.is_active(i) {
-                            out.events.push((self.binds[i].action, Phase::Down));
+                            out.events.push(Fire::of(&self.binds[i], Phase::Down));
                             self.active.push((i, Held::Mods));
                         }
                     }
@@ -191,7 +209,7 @@ impl Matcher {
                 for i in 0..self.binds.len() {
                     if let Trigger::Mouse { button: b, mods } = &self.binds[i].trigger {
                         if *b == button && *mods == self.mods && !self.is_active(i) {
-                            out.events.push((self.binds[i].action, Phase::Down));
+                            out.events.push(Fire::of(&self.binds[i], Phase::Down));
                             out.swallow |= self.binds[i].swallow;
                             self.active.push((i, Held::Mouse(button)));
                         }
@@ -210,6 +228,14 @@ impl Matcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn fire(action: ActionId, phase: Phase) -> Fire {
+        Fire {
+            action,
+            phase,
+            template: None,
+        }
+    }
     use lowk_types::KeyCode;
 
     fn combo(a: ActionId, mods: Mods, key: &str, swallow: bool) -> BindSpec {
@@ -220,6 +246,7 @@ mod tests {
                 key: KeyCode::new(key),
             },
             swallow,
+            template: None,
         }
     }
     fn kd(code: &'static str) -> Raw {
@@ -246,6 +273,7 @@ mod tests {
             action: ActionId::MoveHold,
             trigger: Trigger::ModifierOnly { mods: Mods::ALT },
             swallow: false,
+            template: None,
         }
     }
 
@@ -256,7 +284,7 @@ mod tests {
         x.handle(ku("Enter"));
         x.handle(Raw::Mods(Mods::META));
         let o = x.handle(kd("Enter"));
-        assert_eq!(o.events, vec![(ActionId::Ask, Phase::Down)]);
+        assert_eq!(o.events, vec![fire(ActionId::Ask, Phase::Down)]);
         assert!(o.swallow);
         let o = x.handle(Raw::Key {
             code: "Enter",
@@ -265,7 +293,7 @@ mod tests {
         });
         assert!(o.swallow && o.events.is_empty());
         let o = x.handle(ku("Enter"));
-        assert_eq!(o.events, vec![(ActionId::Ask, Phase::Up)]);
+        assert_eq!(o.events, vec![fire(ActionId::Ask, Phase::Up)]);
         assert!(o.swallow);
         x.handle(Raw::Mods(Mods::META_SHIFT));
         assert!(x.handle(kd("Enter")).events.is_empty());
@@ -277,7 +305,7 @@ mod tests {
         x.handle(Raw::Mods(Mods::META));
         x.handle(kd("KeyA"));
         let o = x.handle(Raw::Mods(Mods::NONE));
-        assert_eq!(o.events, vec![(ActionId::Ask, Phase::Up)]);
+        assert_eq!(o.events, vec![fire(ActionId::Ask, Phase::Up)]);
         assert!(x.handle(ku("KeyA")).events.is_empty());
     }
 
@@ -285,10 +313,10 @@ mod tests {
     fn modifier_only_hold() {
         let mut x = m(vec![alt_hold()]);
         let o = x.handle(Raw::Mods(Mods::ALT));
-        assert_eq!(o.events, vec![(ActionId::MoveHold, Phase::Down)]);
+        assert_eq!(o.events, vec![fire(ActionId::MoveHold, Phase::Down)]);
         assert!(!o.swallow);
         let o = x.handle(Raw::Mods(Mods::NONE));
-        assert_eq!(o.events, vec![(ActionId::MoveHold, Phase::Up)]);
+        assert_eq!(o.events, vec![fire(ActionId::MoveHold, Phase::Up)]);
     }
 
     fn ctrl_hold() -> BindSpec {
@@ -296,6 +324,7 @@ mod tests {
             action: ActionId::ClickHold,
             trigger: Trigger::ModifierOnly { mods: Mods::CTRL },
             swallow: false,
+            template: None,
         }
     }
 
@@ -304,7 +333,7 @@ mod tests {
     fn move_wins_over_click_hold() {
         let mut x = m(vec![alt_hold(), ctrl_hold()]);
         let o = x.handle(Raw::Mods(Mods::CTRL));
-        assert_eq!(o.events, vec![(ActionId::ClickHold, Phase::Down)]);
+        assert_eq!(o.events, vec![fire(ActionId::ClickHold, Phase::Down)]);
         let both = Mods {
             ctrl: true,
             alt: true,
@@ -314,20 +343,20 @@ mod tests {
         assert_eq!(
             o.events,
             vec![
-                (ActionId::ClickHold, Phase::Up),
-                (ActionId::MoveHold, Phase::Down)
+                fire(ActionId::ClickHold, Phase::Up),
+                fire(ActionId::MoveHold, Phase::Down)
             ]
         );
         let o = x.handle(Raw::Mods(Mods::CTRL));
         assert_eq!(
             o.events,
             vec![
-                (ActionId::MoveHold, Phase::Up),
-                (ActionId::ClickHold, Phase::Down)
+                fire(ActionId::MoveHold, Phase::Up),
+                fire(ActionId::ClickHold, Phase::Down)
             ]
         );
         let o = x.handle(Raw::Mods(Mods::NONE));
-        assert_eq!(o.events, vec![(ActionId::ClickHold, Phase::Up)]);
+        assert_eq!(o.events, vec![fire(ActionId::ClickHold, Phase::Up)]);
         // Alt first, then Ctrl: the move keeps running.
         x.handle(Raw::Mods(Mods::ALT));
         let o = x.handle(Raw::Mods(both));
@@ -339,7 +368,7 @@ mod tests {
         let mut x = m(vec![alt_hold()]);
         x.handle(Raw::Mods(Mods::ALT));
         let o = x.handle(kd("Tab"));
-        assert_eq!(o.events, vec![(ActionId::MoveHold, Phase::Up)]);
+        assert_eq!(o.events, vec![fire(ActionId::MoveHold, Phase::Up)]);
         x.handle(ku("Tab"));
         x.handle(Raw::Mods(Mods::NONE));
         assert_eq!(x.handle(Raw::Mods(Mods::ALT)).events.len(), 1);
@@ -361,19 +390,20 @@ mod tests {
                 mods: Mods::NONE,
             },
             swallow: true,
+            template: None,
         }]);
         let d = x.handle(Raw::Mouse {
             button: MouseBtn::Back,
             down: true,
         });
         assert!(d.swallow);
-        assert_eq!(d.events, vec![(ActionId::Ask, Phase::Down)]);
+        assert_eq!(d.events, vec![fire(ActionId::Ask, Phase::Down)]);
         let u = x.handle(Raw::Mouse {
             button: MouseBtn::Back,
             down: false,
         });
         assert!(u.swallow);
-        assert_eq!(u.events, vec![(ActionId::Ask, Phase::Up)]);
+        assert_eq!(u.events, vec![fire(ActionId::Ask, Phase::Up)]);
         let o = x.handle(Raw::Mouse {
             button: MouseBtn::Forward,
             down: true,
@@ -386,8 +416,29 @@ mod tests {
         let mut x = m(vec![alt_hold()]);
         x.handle(Raw::Mods(Mods::ALT));
         let o = x.handle(Raw::Reset);
-        assert_eq!(o.events, vec![(ActionId::MoveHold, Phase::Up)]);
+        assert_eq!(o.events, vec![fire(ActionId::MoveHold, Phase::Up)]);
         x.handle(Raw::Mods(Mods::ALT));
-        assert_eq!(x.set_binds(vec![]), vec![(ActionId::MoveHold, Phase::Up)]);
+        assert_eq!(x.set_binds(vec![]), vec![fire(ActionId::MoveHold, Phase::Up)]);
+    }
+
+    #[test]
+    fn template_binds_fire_with_their_template_id() {
+        let mut a = combo(ActionId::AskTemplate, Mods::META, "KeyJ", false);
+        a.template = Some("my-tpl".into());
+        let mut b = combo(ActionId::AskTemplate, Mods::META, "KeyK", false);
+        b.template = Some("other".into());
+        let mut x = m(vec![a, b]);
+        x.handle(Raw::Mods(Mods::META));
+        let o = x.handle(kd("KeyK"));
+        assert_eq!(
+            o.events,
+            vec![Fire {
+                action: ActionId::AskTemplate,
+                phase: Phase::Down,
+                template: Some("other".into())
+            }]
+        );
+        let o = x.handle(kd("KeyJ"));
+        assert_eq!(o.events[0].template.as_deref(), Some("my-tpl"));
     }
 }

@@ -3,7 +3,7 @@ import type { ActionId, BindSpec, MouseBtn, Mods, Os, Trigger } from '../lib/ipc
 
 export const ACTIONS_PRIMARY: ActionId[] = ['ask_brief', 'ask_complement', 'screenshot', 'screenshot_area', 'click_hold', 'toggle_interactive', 'toggle_overlay', 'panic_hide', 'toggle_record', 'move_hold'];
 /** G6: one bind per template; `ask` (the template picked in the overlay chip) stays assignable. */
-export const ACTIONS_EXTRA: ActionId[] = ['ask', 'ask_say', 'ask_factcheck', 'ask_followup', 'ask_recap', 'next_template', 'prev_template', 'cancel_answer', 'clear_shots', 'toggle_main'];
+export const ACTIONS_EXTRA: ActionId[] = ['ask', 'next_template', 'prev_template', 'cancel_answer', 'clear_shots', 'toggle_main'];
 export const ALL_ACTIONS: ActionId[] = [...ACTIONS_PRIMARY, ...ACTIONS_EXTRA];
 
 const combo = (key: string, mods: Mods): Trigger => ({ kind: 'combo', mods, key });
@@ -25,17 +25,39 @@ export function defaultBinds(os: Os): BindSpec[] {
   ];
 }
 
-export function bindFor(binds: BindSpec[] | undefined, action: ActionId): BindSpec | undefined {
-  return binds?.find((b) => b.action === action);
+/** Template ids that have a dedicated action (the same mapping as `ActionId::template_id` in lowk-types). */
+export const TEMPLATE_ACTIONS: Record<string, ActionId> = { brief: 'ask_brief', complement: 'ask_complement', say: 'ask_say', factcheck: 'ask_factcheck', followup: 'ask_followup', recap: 'ask_recap' };
+/** Never offered as a bind: used by the call summary. */
+export const HIDDEN_TEMPLATES = new Set(['summary']);
+
+/** A bindable slot: an action, plus the template id for `ask_template`. */
+export type Slot = { action: ActionId; template?: string | null };
+export const slotKey = (s: Slot): string => (s.template ? `${s.action}:${s.template}` : s.action);
+export const sameSlot = (a: Slot, b: Slot): boolean => a.action === b.action && (a.template ?? null) === (b.template ?? null);
+
+/** The slot of a template: its dedicated action when it has one, else `ask_template` + its id. */
+export function templateSlot(id: string): Slot {
+  const a = TEMPLATE_ACTIONS[id];
+  return a ? { action: a } : { action: 'ask_template', template: id };
 }
 
-/** Replace (or remove, with `trigger = null`) the bind of one action; returns a new list. */
-export function withBind(binds: BindSpec[], action: ActionId, trigger: Trigger | null): BindSpec[] {
-  const rest = binds.filter((b) => b.action !== action);
+export function bindFor(binds: BindSpec[] | undefined, action: ActionId, template?: string | null): BindSpec | undefined {
+  return binds?.find((b) => sameSlot(b, { action, template }));
+}
+
+/** Replace (or remove, with `trigger = null`) the bind of one slot; returns a new list. */
+export function withBind(binds: BindSpec[], action: ActionId, trigger: Trigger | null, template?: string | null): BindSpec[] {
+  const slot: Slot = { action, template };
+  const rest = binds.filter((b) => !sameSlot(b, slot));
   if (!trigger) return rest;
-  const prev = binds.find((b) => b.action === action);
+  const prev = binds.find((b) => sameSlot(b, slot));
   const swallow = trigger.kind === 'mouse' ? true : (prev?.swallow ?? false);
-  return [...rest, { action, trigger, swallow }];
+  return [...rest, template ? { action, trigger, swallow, template } : { action, trigger, swallow }];
+}
+
+/** Binds whose template no longer exists (a deleted custom template): shown so they can be cleared. */
+export function orphanTemplateBinds(binds: BindSpec[], templateIds: string[]): BindSpec[] {
+  return binds.filter((b) => b.action === 'ask_template' && b.template && !templateIds.includes(b.template));
 }
 
 // ---- formatting ---------------------------------------------------------------------------
@@ -134,6 +156,6 @@ export function bindWarnings(spec: BindSpec, all: BindSpec[], os: Os): BindWarni
     if (os === 'windows' && t.mods.meta && ['KeyX', 'KeyL', 'KeyD', 'KeyE', 'KeyR'].includes(t.key)) out.push('os_shortcut');
     if (!hasMods(t.mods) && /^(Key|Digit|Space|Enter)/.test(t.key)) out.push('needs_modifier');
   }
-  if (all.some((o) => o.action !== spec.action && triggerEquals(o.trigger, t))) out.push('duplicate');
+  if (all.some((o) => !sameSlot(o, spec) && triggerEquals(o.trigger, t))) out.push('duplicate');
   return out;
 }

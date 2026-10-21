@@ -56,7 +56,12 @@ export class MockBackend implements Backend {
       binds: defaultBinds(this.#os),
       stealth: { hide_main: false, verify_interval_ms: 5000 },
       updates: { check_daily: true, last_checked: new Date(this.#now - 3 * 3600_000).toISOString() },
-      templates: [],
+      templates: [
+        { id: 'brief', names: { ru: 'Кратко', en: 'Brief' }, instruction: 'Briefly answer the question.' },
+        { id: 'complement', names: { ru: 'Дополни мой ответ', en: 'Complement my answer' }, instruction: 'Complement my answer.', needs_my_answer: true },
+        { id: 'summary', names: { ru: 'Резюме', en: 'Summary' }, instruction: 'Summarise the call.' },
+        { id: 'objection', names: { ru: 'Возражение клиента', en: 'Client objection' }, instruction: 'Suggest a reply to the objection.' },
+      ],
     };
     for (const f of this.#folders) {
       const d = makeFolderDetail(f);
@@ -162,7 +167,7 @@ export class MockBackend implements Backend {
   }
   async engines(): Promise<EngineDescriptor[]> {
     return [
-      { id: 'whisper-large-v3-turbo', name: 'Whisper Large V3 Turbo', kind: 'local', languages: ['*'], streaming: 'pseudo', size_mb: 1600, license: 'MIT' },
+      { id: 'whisper-large-v3-turbo', name: 'Whisper Large V3 Turbo', kind: 'local', languages: ['*'], streaming: 'pseudo', size_mb: 751, license: 'MIT' },
       { id: 'voxtral-mini', name: 'Voxtral Mini', kind: 'local', languages: ['*'], streaming: 'native', size_mb: 2400, license: 'Apache-2.0' },
       { id: 'soniox', name: 'Soniox', kind: 'cloud', languages: ['*'], streaming: 'native', size_mb: 0, license: 'cloud' },
       { id: 'deepgram', name: 'Deepgram', kind: 'cloud', languages: ['*'], streaming: 'native', size_mb: 0, license: 'cloud' },
@@ -179,6 +184,7 @@ export class MockBackend implements Backend {
       recommended: d.id === 'whisper-large-v3-turbo',
       needs_key: d.kind === 'cloud',
       license_url: 'https://openmdw.ai/license/1-1/',
+      extra_mb: d.id === 'whisper-large-v3-turbo' ? 620 : 0,
       runtime_missing: d.kind === 'local' && typeof location !== 'undefined' && /[?&]runtime=missing\b/.test(location.search),
     }));
   }
@@ -239,8 +245,11 @@ export class MockBackend implements Backend {
     const id = '01JC8Z3K6Q9X2M4N7R5T0V' + String(800 + this.#calls.length).padStart(4, '0');
     this.#calls.unshift({
       id, title: opts.title ?? 'Новый созвон', folder: opts.folder ?? { kind: 'unsorted' }, started: new Date().toISOString(), ended: null, duration_s: null,
-      languages: ['ru'], tags: [], sources: { me: 'Microphone', system: null }, stt_engine: 'whisper-large-v3-turbo', path: '', deleted: false,
+      languages: opts.languages?.length ? opts.languages : ['ru'], tags: [], sources: { me: 'Microphone', system: null }, stt_engine: 'whisper-large-v3-turbo', path: '', deleted: false,
     });
+    // QA hook: what the window asked for (languages of the call), like the real backend's frontmatter.
+    (globalThis as { __lowkStartOpts?: StartOpts }).__lowkStartOpts = opts;
+    if (opts.languages?.length) this.#settings = mergePatch(this.#settings, { stt: { last_languages: opts.languages } });
     this.#session = { phase: 'recording', call: id, demo: true };
     let i = 0;
     this.#liveTimer = setInterval(() => { const l = LIVE_LINES[i++ % LIVE_LINES.length]!; this.#live.forEach((cb) => cb(l)); }, 2600);

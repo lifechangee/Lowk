@@ -170,7 +170,7 @@ fn run(st: &Shared, line: &str) -> String {
         "bind" => {
             let mut it = rest.split_whitespace();
             let (Some(a), Some(p)) = (it.next(), it.next()) else {
-                return "usage: bind <action> <down|up>".into();
+                return "usage: bind <action> <down|up> [template-id]".into();
             };
             let Ok(action) = serde_json::from_str::<lowk_types::ActionId>(&format!("\"{a}\"")) else {
                 return format!("unknown action {a}");
@@ -186,6 +186,7 @@ fn run(st: &Shared, line: &str) -> String {
                     action,
                     phase,
                     t_mono_ns: 0,
+                    template: it.next().map(str::to_owned),
                 },
             );
             "ok".into()
