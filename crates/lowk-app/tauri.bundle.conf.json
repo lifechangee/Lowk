@@ -2,7 +2,14 @@
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
     "active": true,
-    "targets": ["app"],
-    "externalBin": ["binaries/lowk-stt-worker"]
+    "targets": [
+      "app"
+    ],
+    "externalBin": [
+      "binaries/lowk-stt-worker"
+    ],
+    "macOS": {
+      "entitlements": "Entitlements.plist"
+    }
   }
 }

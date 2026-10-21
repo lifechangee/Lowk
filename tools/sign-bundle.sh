@@ -30,9 +30,10 @@ done
 # The app itself. Ad-hoc: pin the designated requirement to the identifier (the default would be the
 # cdhash, which changes every build and orphans every TCC grant).
 if [ "$IDENT" = "-" ]; then
-  /usr/bin/codesign --force --sign - --identifier "$BID" -r="designated => identifier \"$BID\"" "$APP"
+  /usr/bin/codesign --force --sign - --identifier "$BID" --entitlements "$(dirname "$0")/../crates/lowk-app/Entitlements.plist" -r="designated => identifier \"$BID\"" "$APP"
 else
-  /usr/bin/codesign --force --sign "$IDENT" --identifier "$BID" "$APP"
+  /usr/bin/codesign --force --sign "$IDENT" --identifier "$BID" --options runtime \
+    --entitlements "$(dirname "$0")/../crates/lowk-app/Entitlements.plist" "$APP"
 fi
 
 /usr/bin/codesign --verify --strict --verbose=2 "$APP"
