@@ -97,6 +97,9 @@ pub enum ErrorCode {
     LlmBadResponse,
     #[error("archive is invalid")]
     ArchiveInvalid,
+    /// The folder is local-only (`allow_cloud = false`) and no local LLM is configured.
+    #[error("folder is local-only and no local model is configured")]
+    LocalOnlyBlocked,
 }
 
 /// Serializable error crossing crate and IPC boundaries.

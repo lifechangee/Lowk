@@ -68,7 +68,7 @@ export class MockBackend implements Backend {
       // ?src=system mirrors the real backend's fresh default (no default_source stored yet) for the QA suite.
       audio: { default_source: typeof location !== 'undefined' && /[?&]src=system\b/.test(location.search) ? null : { kind: 'app', id: 'us.zoom.xos' }, aec: 'auto', keep_audio: false },
       stt: { engine: 'whisper-large-v3-turbo', languages: ['ru', 'en'], cloud_vendor: 'soniox' },
-      llm: { provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4.1-flash', reasoning: false, data_collection_deny: true, default_template: 'brief', summary_model: 'deepseek/deepseek-v4.1-flash-1017', pinned_provider: 'DeepInfra' },
+      llm: { provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4.1-flash-1017', reasoning: false, data_collection_deny: true, default_template: 'brief', summary_model: 'deepseek/deepseek-v4.1-flash-1017', pinned_provider: 'DeepInfra' },
       embedder: { mode: qp('embedder') === 'off' ? 'off' : 'local', model: 'embeddinggemma-2-q8_0', cloud_model: 'openai/text-embedding-3-small' },
       docs: { pinned_budget_tokens: 6000, warn_slow_mb: Number(qp('warnmb') ?? 50), max_file_mb: 500, ocr: true, retrieved_budget_tokens: 3000 },
       overlay: { opacity: 60, font_px: 14, display: 'primary', visibility: 'recording_only', pill_edge: 'right', tone_mode: 'auto' },

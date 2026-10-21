@@ -71,6 +71,11 @@ struct Core {
     range_from: MonoNs,
     last_materialize: MonoNs,
     pending_q: HashMap<QaId, String>,
+    /// Folder of the call being recorded (retrieval scope, local-only policy).
+    folder: FolderRef,
+    /// Chunk ids already sent to the model in this call, and whether a first Ask succeeded.
+    sent_chunks: Vec<String>,
+    asked: bool,
     last_meta: Option<CallMeta>,
     stt_errors: Vec<SttError>,
     /// A local engine is still loading its model (mirrors `AppEvent::SttLoading`).
@@ -104,6 +109,9 @@ impl Core {
             range_from: 0,
             last_materialize: 0,
             pending_q: HashMap::new(),
+            folder: FolderRef::Unsorted,
+            sent_chunks: vec![],
+            asked: false,
             last_meta: None,
             stt_errors: vec![],
             stt_loading: false,
@@ -165,6 +173,8 @@ struct Inner {
     cancel: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     demo_done: AtomicBool,
+    /// Cancel flag of the Ask being generated.
+    ask_cancel: Mutex<Option<Arc<AtomicBool>>>,
 }
 
 pub struct Session {
@@ -207,6 +217,7 @@ impl Session {
                 cancel: Arc::new(AtomicBool::new(false)),
                 paused: Arc::new(AtomicBool::new(false)),
                 demo_done: AtomicBool::new(false),
+                ask_cancel: Mutex::new(None),
             }),
         }
     }
@@ -304,6 +315,7 @@ impl Session {
                 last_materialize: t0_mono,
                 range_from: t0_mono,
                 clock: Some(clock),
+                folder: o.folder.clone().unwrap_or(FolderRef::Unsorted),
                 state: c.state.clone(),
                 ..Core::new()
             };
@@ -405,6 +417,13 @@ impl Session {
         res.map(|_| ())
     }
 
+    /// Stops the Ask being generated (the overlay shows no error for a cancel).
+    pub fn cancel_ask(&self) {
+        if let Some(f) = self.inner.ask_cancel.lock().unwrap().as_ref() {
+            f.store(true, Ordering::SeqCst);
+        }
+    }
+
     /// Ask the AI. Returns the new Q&A id at once; the answer streams as
     /// `AppEvent::Llm` events from a worker thread.
     pub fn ask(&self, req: AskRequest) -> Result<QaId> {
@@ -418,7 +437,7 @@ impl Session {
             .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("template"))?;
         let qa_id = Ulid::new();
         let req_id = Ulid::new();
-        let (delta, prev_cursor, question, my_answer) = {
+        let (delta, prev_cursor, question, my_answer, folder, call, first_turn, sent) = {
             let mut c = inner.core();
             match c.state.phase {
                 SessionPhase::Recording | SessionPhase::Paused => {}
@@ -448,65 +467,109 @@ impl Session {
             } else {
                 None
             };
-            (delta, prev, question.unwrap_or_default(), my)
+            (
+                delta,
+                prev,
+                question.unwrap_or_default(),
+                my,
+                c.folder.clone(),
+                c.state.call,
+                !c.asked,
+                c.sent_chunks.clone(),
+            )
         };
-        let context = inner
-            .deps
-            .retriever
-            .retrieve(&RetrievalQuery {
-                text: question.clone(),
-                scope: RetrievalScope {
-                    folder: None,
-                    call: None,
-                    tags: vec![],
-                    all_folders: false,
-                },
-                budget_tokens: 2000,
-                exclude: vec![],
-                cloud_provider: false,
-                // M3 turns these on when the Ask flow adopts `retrieve_pack`.
-                pinned_budget_tokens: 0,
-                include_folder_context: false,
-                include_previous_calls: false,
-            })
-            .unwrap_or_default();
         inner.qa_begin(qa_id, req_id, &question, now_mono_ns());
-        let hint_req = HintRequest {
-            qa_id,
-            template_id: template.id.clone(),
-            question: question.clone(),
-            typed_text: req.typed_text,
-            delta,
-            context,
-            my_answer,
-        };
+        let cancelled = Arc::new(AtomicBool::new(false));
+        *inner.ask_cancel.lock().unwrap() = Some(cancelled.clone());
+        let typed_text = req.typed_text;
         let me = inner.clone();
         let h = std::thread::Builder::new()
             .name("lowk-ask".into())
             .spawn(move || {
+                let fail = |error: AppError| {
+                    let mut c = me.core();
+                    c.llm_cursor = prev_cursor;
+                    c.pending_q.remove(&qa_id);
+                    c.qa.discard(&qa_id);
+                    drop(c);
+                    me.bus.emit(AppEvent::Llm(LlmEvent::Error { req_id, error }));
+                };
+                // Local-only policy and key checks come first: a refused Ask retrieves and sends nothing.
+                let cloud = match me.deps.hints.preflight(&folder) {
+                    Ok(c) => c,
+                    Err(e) => return fail(e),
+                };
+                let pack = match &folder {
+                    FolderRef::User(fid) => me
+                        .deps
+                        .retriever
+                        .retrieve_pack(&RetrievalQuery {
+                            text: question.clone(),
+                            scope: RetrievalScope {
+                                folder: Some(*fid),
+                                call,
+                                tags: vec![],
+                                all_folders: false,
+                            },
+                            budget_tokens: settings.docs.retrieved_budget_tokens,
+                            exclude: sent.clone(),
+                            cloud_provider: cloud,
+                            pinned_budget_tokens: settings.docs.pinned_budget_tokens,
+                            include_folder_context: first_turn,
+                            include_previous_calls: true,
+                        })
+                        .unwrap_or_else(|e| {
+                            tracing::warn!(?e, "retrieval failed; asking without context");
+                            ContextPack::default()
+                        }),
+                    _ => ContextPack::default(),
+                };
+                let hint_req = HintRequest {
+                    qa_id,
+                    template_id: template.id.clone(),
+                    question: question.clone(),
+                    typed_text,
+                    delta,
+                    pack,
+                    first_turn,
+                    sent_chunk_ids: sent,
+                    folder: folder.clone(),
+                    call,
+                    cancelled,
+                    my_answer,
+                };
+                let mut sources = |s: Vec<SourceRef>, withheld: u32| {
+                    me.bus.emit(AppEvent::Llm(LlmEvent::Sources {
+                        req_id,
+                        sources: s,
+                        withheld,
+                    }));
+                };
                 let mut deltas = |t: &str| {
                     me.bus.emit(AppEvent::Llm(LlmEvent::Delta {
                         req_id,
                         text: t.to_owned(),
                     }));
                 };
-                match me.deps.hints.generate(&hint_req, &mut deltas) {
-                    Ok(answer) => me.qa_finish(
-                        qa_id,
-                        req_id,
-                        &template.id,
-                        &me.deps.hints.model(),
-                        answer,
-                        now_mono_ns(),
-                    ),
-                    Err(error) => {
-                        let mut c = me.core();
-                        c.llm_cursor = prev_cursor;
-                        c.pending_q.remove(&qa_id);
-                        c.qa.discard(&qa_id);
-                        drop(c);
-                        me.bus.emit(AppEvent::Llm(LlmEvent::Error { req_id, error }));
+                match me.deps.hints.generate_ex(&hint_req, &mut sources, &mut deltas) {
+                    Ok(out) => {
+                        {
+                            let mut c = me.core();
+                            c.asked = true;
+                            c.sent_chunks.extend(out.sent_chunk_ids.iter().cloned());
+                        }
+                        me.qa_finish(
+                            qa_id,
+                            req_id,
+                            &template.id,
+                            &me.deps.hints.model(),
+                            out.answer,
+                            out.truncated,
+                            out.usage,
+                            now_mono_ns(),
+                        )
                     }
+                    Err(error) => fail(error),
                 }
             })
             .expect("spawn ask thread");
@@ -961,6 +1024,8 @@ impl Inner {
         template: &str,
         model: &str,
         answer: String,
+        truncated: bool,
+        usage: Option<LlmUsage>,
         armed_at: MonoNs,
     ) {
         let mut out = Out::default();
@@ -989,8 +1054,8 @@ impl Inner {
         }
         out.events.push(AppEvent::Llm(LlmEvent::Done {
             req_id,
-            truncated: false,
-            usage: None,
+            truncated,
+            usage,
         }));
         self.flush(out);
     }
@@ -1021,7 +1086,16 @@ impl Inner {
             }
             ReplayKind::HintDone { qa, answer } => {
                 let (q, r) = ids(*qa);
-                self.qa_finish(q, r, "brief", "demo", answer.clone(), t0 + item.at_ms * NS_PER_MS);
+                self.qa_finish(
+                    q,
+                    r,
+                    "brief",
+                    "demo",
+                    answer.clone(),
+                    false,
+                    None,
+                    t0 + item.at_ms * NS_PER_MS,
+                );
             }
         });
         if finished {

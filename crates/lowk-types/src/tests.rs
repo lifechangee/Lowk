@@ -34,7 +34,7 @@ fn settings_defaults_reflect_brief() {
     );
     assert!(!s.audio.keep_audio);
     assert!(!s.stealth.hide_main);
-    assert_eq!(s.llm.model, "deepseek/deepseek-v4.1-flash");
+    assert_eq!(s.llm.model, DEFAULT_LLM_MODEL_PINNED);
     assert!(!s.llm.reasoning);
     assert_eq!(s.stt.languages, vec!["ru", "en"]);
     assert_eq!(s.templates[0].id, "brief");

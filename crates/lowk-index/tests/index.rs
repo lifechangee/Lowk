@@ -596,3 +596,75 @@ fn background_thread_embeds_and_emits_status() {
         "a Ready status event was emitted"
     );
 }
+
+/// Records every text a "cloud" embedder is asked to encode.
+struct SpyCloud {
+    inner: HashEmbedder,
+    docs: std::sync::Mutex<Vec<String>>,
+    queries: std::sync::Mutex<Vec<String>>,
+}
+impl lowk_index::Embedder for SpyCloud {
+    fn id(&self) -> &str {
+        "spy-cloud"
+    }
+    fn dim(&self) -> usize {
+        self.inner.dim()
+    }
+    fn is_cloud(&self) -> bool {
+        true
+    }
+    fn format_doc(&self, _t: &str, text: &str) -> String {
+        text.to_string()
+    }
+    fn format_query(&self, q: &str) -> String {
+        q.to_string()
+    }
+    fn embed_docs(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
+        // queries and documents both come through here (embed_query default); tell them apart by the caller
+        let mut g = self.docs.lock().unwrap();
+        g.extend(texts.iter().cloned());
+        self.inner.embed_docs(texts)
+    }
+    fn embed_query(&self, text: &str) -> Result<Vec<f32>> {
+        self.queries.lock().unwrap().push(text.to_string());
+        self.inner
+            .embed_docs(&[text.to_string()])
+            .map(|mut v| v.remove(0))
+    }
+}
+
+/// Local-only policy (BRIEF): a folder with `allow_cloud = false` is never sent to a cloud
+/// embedder, neither its chunks nor a retrieval query made from its transcript.
+#[test]
+fn local_only_folders_never_reach_a_cloud_embedder() {
+    let (_d, ix, fa, fb) = fixture();
+    let spy = Arc::new(SpyCloud {
+        inner: HashEmbedder::new(64),
+        docs: Default::default(),
+        queries: Default::default(),
+    });
+    ix.set_embedder(Some(spy.clone()), SemanticState::Off).unwrap();
+    while ix.embed_pending(4).unwrap() > 0 {}
+    let docs = spy.docs.lock().unwrap().join("\n");
+    assert!(docs.contains("webhooks"), "allowed folders are embedded");
+    assert!(
+        !docs.contains("слияние") && !docs.contains("Конфиденциально"),
+        "local-only chunks were sent to the cloud embedder"
+    );
+    // semantic is Ready although the private chunks have no vectors (they are out of scope)
+    assert_eq!(ix.status().semantic, SemanticState::Ready);
+    // retrieval for the private folder: no cloud query
+    let FolderRef::User(b) = fb else { unreachable!() };
+    let before = spy.queries.lock().unwrap().len();
+    let p = ix.retrieve_pack(&rq(Some(b), "бюджет слияние компаний")).unwrap();
+    assert!(!p.relevant.is_empty(), "keyword retrieval still works locally");
+    assert_eq!(
+        spy.queries.lock().unwrap().len(),
+        before,
+        "query leaked to the cloud"
+    );
+    // an allowed folder does use it
+    let FolderRef::User(a) = fa else { unreachable!() };
+    let _ = ix.retrieve_pack(&rq(Some(a), "rate limit per minute")).unwrap();
+    assert!(spy.queries.lock().unwrap().len() > before);
+}

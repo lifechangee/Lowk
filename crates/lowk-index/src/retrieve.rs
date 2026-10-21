@@ -25,6 +25,15 @@ struct FolderInfo {
     instructions: String,
 }
 
+/// The query comes from a local-only folder (its call transcript): it must not be embedded in the cloud.
+fn scope_local_only(q: &RetrievalQuery, folders: &HashMap<String, FolderInfo>) -> bool {
+    q.scope.folder.is_some_and(|f| {
+        folders
+            .get(&folder_key(&FolderRef::User(f)))
+            .is_some_and(|i| !i.allow_cloud)
+    })
+}
+
 fn tail(text: &str) -> &str {
     let t = text.trim();
     let n = t.chars().count();
@@ -92,9 +101,13 @@ impl Index {
             tags: q.scope.tags.clone(),
             ..SearchFilters::default()
         };
-        let (mut cands, _) = self
-            .inner
-            .candidates(tail(&q.text), &filters, SearchMode::Hybrid, 50)?;
+        let (mut cands, _) = self.inner.candidates(
+            tail(&q.text),
+            &filters,
+            SearchMode::Hybrid,
+            50,
+            scope_local_only(q, folders),
+        )?;
         let current = q.scope.call.map(|c| c.to_string());
         let exclude: HashSet<&str> = q.exclude.iter().map(String::as_str).collect();
         let mut withheld = 0u32;

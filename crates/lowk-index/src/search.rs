@@ -196,12 +196,15 @@ impl Inner {
         filters: &SearchFilters,
         mode: SearchMode,
         per_list: usize,
+        no_cloud_query: bool,
     ) -> Result<(Vec<Cand>, SearchMode)> {
         let stems = query_stems(text);
         if stems.is_empty() {
             return Ok((vec![], mode));
         }
-        let use_vec = mode != SearchMode::Keyword && self.semantic_ready();
+        // Local-only policy: the query of a local-only folder never goes to a cloud embedder.
+        let blocked = no_cloud_query && self.embedder.read().as_ref().is_some_and(|e| e.is_cloud());
+        let use_vec = mode != SearchMode::Keyword && !blocked && self.semantic_ready();
         let used = if use_vec { mode } else { SearchMode::Keyword };
         let t = |i: usize| f32::from_bits(self.tuning[i].load(std::sync::atomic::Ordering::Relaxed));
         let (w_fts, w_vec, min_cos) = (t(0), t(1), t(2));
@@ -285,7 +288,7 @@ impl Inner {
                         tracing::warn!(code = ?e.code, "query embedding failed; keyword only");
                         *self.last_error.lock() = Some(e);
                         drop(r);
-                        return self.candidates(text, filters, SearchMode::Keyword, per_list);
+                        return self.candidates(text, filters, SearchMode::Keyword, per_list, no_cloud_query);
                     }
                 }
             }
@@ -392,7 +395,7 @@ impl Inner {
 
     pub(crate) fn search(&self, q: &SearchQuery) -> Result<SearchResults> {
         let t0 = Instant::now();
-        let (cands, used) = self.candidates(&q.text, &q.filters, q.mode, TOP_EACH)?;
+        let (cands, used) = self.candidates(&q.text, &q.filters, q.mode, TOP_EACH, false)?;
         let qstems: HashSet<String> = query_stems(&q.text).into_iter().collect();
 
         // merge neighbouring chunks of one file into one hit

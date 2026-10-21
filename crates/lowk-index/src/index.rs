@@ -239,16 +239,17 @@ impl Inner {
         let pending_files = q("SELECT COUNT(*) FROM files WHERE content_hash=''")?;
         let (pending_vecs, total) = match self.embedder.read().as_ref() {
             Some(e) => {
+                let policy = cloud_policy_sql(e.is_cloud());
                 let total: u32 = r
                     .query_row(
-                        "SELECT COUNT(*) FROM chunks c JOIN files f ON f.fid=c.fid WHERE f.deleted=0",
+                        &format!("SELECT COUNT(*) FROM chunks c JOIN files f ON f.fid=c.fid WHERE f.deleted=0{policy}"),
                         [],
                         |x| x.get::<_, i64>(0),
                     )
                     .map_err(db_err)? as u32;
                 let have: u32 = r
                     .query_row(
-                        "SELECT COUNT(*) FROM vecs v JOIN chunks c ON c.id=v.id JOIN files f ON f.fid=c.fid WHERE v.model=?1 AND f.deleted=0",
+                        &format!("SELECT COUNT(*) FROM vecs v JOIN chunks c ON c.id=v.id JOIN files f ON f.fid=c.fid WHERE v.model=?1 AND f.deleted=0{policy}"),
                         [e.id()],
                         |x| x.get::<_, i64>(0),
                     )
@@ -311,15 +312,15 @@ impl Inner {
         };
         let rows: Vec<(i64, i64, String, String, String)> = {
             let r = self.r.lock();
-            let mut st = r
-                .prepare(
-                    "SELECT c.id, c.fid, c.text, f.title, c.heading FROM chunks c
-                     JOIN files f ON f.fid=c.fid
-                     LEFT JOIN vecs v ON v.id=c.id AND v.model=?1
-                     WHERE v.id IS NULL AND f.deleted=0 AND c.id>?2
-                     ORDER BY c.id LIMIT ?3",
-                )
-                .map_err(db_err)?;
+            let sql = format!(
+                "SELECT c.id, c.fid, c.text, f.title, c.heading FROM chunks c
+                 JOIN files f ON f.fid=c.fid
+                 LEFT JOIN vecs v ON v.id=c.id AND v.model=?1
+                 WHERE v.id IS NULL AND f.deleted=0 AND c.id>?2{}
+                 ORDER BY c.id LIMIT ?3",
+                cloud_policy_sql(emb.is_cloud())
+            );
+            let mut st = r.prepare(&sql).map_err(db_err)?;
             let it = st
                 .query_map(params![emb.id(), *cursor, max as i64], |x| {
                     Ok((x.get(0)?, x.get(1)?, x.get(2)?, x.get(3)?, x.get(4)?))
@@ -367,6 +368,16 @@ impl Inner {
         self.generation.fetch_add(1, Ordering::Relaxed);
         *cursor = rows.last().map(|r| r.0).unwrap_or(*cursor);
         Ok(rows.len())
+    }
+}
+
+/// Local-only policy: a cloud embedder never sees chunks of folders with `allow_cloud = 0`
+/// (nor of files whose folder is unknown to the index).
+pub(crate) fn cloud_policy_sql(cloud: bool) -> &'static str {
+    if cloud {
+        " AND EXISTS (SELECT 1 FROM folders fo WHERE fo.key=f.folder AND fo.allow_cloud=1)"
+    } else {
+        ""
     }
 }
 

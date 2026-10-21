@@ -42,6 +42,9 @@ impl CloudEmbedder {
 }
 
 impl Embedder for CloudEmbedder {
+    fn is_cloud(&self) -> bool {
+        true
+    }
     fn id(&self) -> &str {
         &self.id
     }

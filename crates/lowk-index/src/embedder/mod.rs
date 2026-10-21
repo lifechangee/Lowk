@@ -18,6 +18,11 @@ pub trait Embedder: Send + Sync {
     /// Stable id stored with every vector; a change means a background re-embed.
     fn id(&self) -> &str;
     fn dim(&self) -> usize;
+    /// True when text leaves the machine. Chunks of folders with `allow_cloud = false` are never
+    /// embedded by a cloud embedder, and retrieval for such a folder never sends its query there.
+    fn is_cloud(&self) -> bool {
+        false
+    }
     /// Model-specific document prefix (EmbeddingGemma: `title: T | text: X`).
     fn format_doc(&self, title: &str, text: &str) -> String {
         let t = if title.trim().is_empty() { "none" } else { title };

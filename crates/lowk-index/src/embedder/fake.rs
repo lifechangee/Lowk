@@ -7,6 +7,7 @@ use lowk_types::Result;
 use std::collections::HashMap;
 
 pub struct HashEmbedder {
+    cloud: bool,
     dim: usize,
     syn: HashMap<String, String>,
     id: String,
@@ -15,10 +16,17 @@ pub struct HashEmbedder {
 impl HashEmbedder {
     pub fn new(dim: usize) -> Self {
         Self {
+            cloud: false,
             dim,
             syn: HashMap::new(),
             id: format!("hash-test-{dim}"),
         }
+    }
+    /// Behaves like a cloud embedder for policy tests (`is_cloud`), and records what it was asked.
+    pub fn pretend_cloud(mut self) -> Self {
+        self.cloud = true;
+        self.id.push_str("-cloud");
+        self
     }
     /// Words (stems are taken) in one group map to the same concept: a poor man's semantics.
     pub fn with_synonyms(mut self, groups: &[&[&str]]) -> Self {
@@ -54,6 +62,9 @@ impl HashEmbedder {
 }
 
 impl Embedder for HashEmbedder {
+    fn is_cloud(&self) -> bool {
+        self.cloud
+    }
     fn id(&self) -> &str {
         &self.id
     }

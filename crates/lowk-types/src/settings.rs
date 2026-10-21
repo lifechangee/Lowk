@@ -13,7 +13,11 @@ use std::collections::BTreeMap;
 pub const SETTINGS_SCHEMA_VERSION: u32 = 1;
 /// Symbolic default; `lowk-platform` resolves `~/Documents` (Windows: known folder).
 pub const DEFAULT_VAULT_PATH: &str = "~/Documents/Lowk";
-pub const DEFAULT_LLM_MODEL: &str = "deepseek/deepseek-v4.1-flash";
+/// Live answers use the version-pinned snapshot too (BRIEF, bench 2026-10-21: 1.2 s TTFT p50). The plain
+/// `deepseek/deepseek-v4.1-flash` slug routes to a different host on every call (2.3 s p50, p95 6 s+).
+pub const DEFAULT_LLM_MODEL: &str = "deepseek/deepseek-v4.1-flash-1017";
+/// The unpinned slug older builds wrote as the default; `lowk-app` migrates it to `DEFAULT_LLM_MODEL`.
+pub const LEGACY_LLM_MODEL: &str = "deepseek/deepseek-v4.1-flash";
 pub const DEFAULT_OPENROUTER_URL: &str = "https://openrouter.ai/api/v1";
 /// Version- and provider-pinned default for M2/M3 cloud calls (summary, tags, Ask).
 pub const DEFAULT_LLM_MODEL_PINNED: &str = "deepseek/deepseek-v4.1-flash-1017";
@@ -292,6 +296,11 @@ pub struct LlmSettings {
     /// OpenRouter upstream provider to pin (`provider.order` + no fallbacks); set after the
     /// latency probe, `None` = not probed yet.
     pub pinned_provider: Option<String>,
+    /// Local OpenAI-compatible server (Ollama `http://localhost:11434/v1`, LM Studio
+    /// `http://localhost:1234/v1`) used for folders marked local-only. Empty = not configured:
+    /// asking in a local-only folder is then disabled (never sent to the cloud).
+    pub local_base_url: String,
+    pub local_model: String,
 }
 impl Default for LlmSettings {
     fn default() -> Self {
@@ -304,6 +313,8 @@ impl Default for LlmSettings {
             default_template: TEMPLATE_BRIEF.into(),
             summary_model: DEFAULT_LLM_MODEL_PINNED.into(),
             pinned_provider: None,
+            local_base_url: String::new(),
+            local_model: String::new(),
         }
     }
 }

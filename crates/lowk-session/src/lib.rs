@@ -11,7 +11,8 @@ mod transcript;
 
 pub use bus::EventBus;
 pub use deps::{
-    CallRecorder, CallStore, HintGenerator, HintRequest, MemCallStore, NullCallStore, SessionDeps, StubHints,
+    CallRecorder, CallStore, HintGenerator, HintOutcome, HintRequest, MemCallStore, NullCallStore,
+    SessionDeps, StubHints,
 };
 pub use lowk_types::{CloseReason, QaRecord, QaUpdate};
 pub use qa::QaTracker;

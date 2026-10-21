@@ -4,9 +4,10 @@ use crate::replay::DemoPace;
 use lowk_audio::{AudioBackend, NoopAudioBackend};
 use lowk_stt::{Corrector, EngineRegistry, FakeEngineFactory};
 use lowk_types::{
-    CallEntry, CallId, CallMeta, ContextChunk, MainThread, NewCall, QaId, Result, Retriever, SettingsStore,
-    TranscriptLine, Ulid,
+    CallEntry, CallId, CallMeta, ContextPack, FolderRef, LlmUsage, MainThread, NewCall, QaId, Result,
+    Retriever, SettingsStore, SourceRef, TranscriptLine, Ulid,
 };
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 /// Write side of one live call (implemented over `lowk_store::CallWriter`).
@@ -93,15 +94,56 @@ pub struct HintRequest {
     pub typed_text: Option<String>,
     /// Transcript since the last successful Ask (incl. provisional lines).
     pub delta: Vec<TranscriptLine>,
-    pub context: Vec<ContextChunk>,
+    /// Retrieval result: folder instructions, pinned documents, relevant chunks of documents and
+    /// previous calls of the folder (empty when nothing was found or the folder is Unsorted).
+    pub pack: ContextPack,
+    /// First Ask of this call: instructions and pinned documents belong into this turn; later
+    /// turns carry only new chunks (the generator keeps the append-only conversation).
+    pub first_turn: bool,
+    /// Chunk ids already sent in this call (not resent, not listed as sources again).
+    pub sent_chunk_ids: Vec<String>,
+    pub folder: FolderRef,
+    pub call: Option<CallId>,
+    /// Set by `Session::cancel_ask`; generators stop streaming when it turns true.
+    pub cancelled: Arc<AtomicBool>,
     /// Set for templates with `needs_my_answer`: what the user said so far.
     pub my_answer: Option<String>,
+}
+
+/// What a finished generation tells the session.
+#[derive(Clone, Debug, Default)]
+pub struct HintOutcome {
+    pub answer: String,
+    /// Chunk ids this turn carried (the session adds them to the call's sent set).
+    pub sent_chunk_ids: Vec<String>,
+    pub truncated: bool,
+    pub usage: Option<LlmUsage>,
 }
 
 /// Implemented over `lowk_llm::ChatClient` + `PromptBuilder` by the app.
 pub trait HintGenerator: Send + Sync {
     /// Streams text deltas to `on_delta`, returns the full answer.
     fn generate(&self, req: &HintRequest, on_delta: &mut dyn FnMut(&str)) -> Result<String>;
+    /// Streaming variant used by the session: `on_sources` is called once, before the first delta.
+    /// The default adapts `generate` (no sources).
+    fn generate_ex(
+        &self,
+        req: &HintRequest,
+        _on_sources: &mut dyn FnMut(Vec<SourceRef>, u32),
+        on_delta: &mut dyn FnMut(&str),
+    ) -> Result<HintOutcome> {
+        let answer = self.generate(req, on_delta)?;
+        Ok(HintOutcome {
+            answer,
+            ..HintOutcome::default()
+        })
+    }
+    /// Called before retrieval. `Ok(cloud)`: whether a request for `folder` leaves the machine
+    /// (retrieval then withholds local-only folders). `Err`: the Ask is refused at once
+    /// (`ApiKeyMissing`, `LocalOnlyBlocked`) and nothing is sent anywhere.
+    fn preflight(&self, _folder: &FolderRef) -> Result<bool> {
+        Ok(false)
+    }
     fn model(&self) -> String {
         "stub".into()
     }

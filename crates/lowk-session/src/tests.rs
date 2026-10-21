@@ -610,3 +610,168 @@ fn remembered_languages_apply_without_an_explicit_pick() {
     assert_eq!(r.store.calls.lock().unwrap()[0].languages, vec!["en"]);
     r.session.stop().unwrap();
 }
+
+/// Records what the session asked the retriever and what the generator was given.
+#[derive(Default)]
+struct SpyRetriever {
+    queries: Mutex<Vec<RetrievalQuery>>,
+}
+impl Retriever for SpyRetriever {
+    fn retrieve(&self, q: &RetrievalQuery) -> Result<Vec<ContextChunk>> {
+        self.queries.lock().unwrap().push(q.clone());
+        lowk_types::fakes::FakeRetriever.retrieve(q)
+    }
+    fn retrieve_pack(&self, q: &RetrievalQuery) -> Result<ContextPack> {
+        self.queries.lock().unwrap().push(q.clone());
+        lowk_types::fakes::FakeRetriever.retrieve_pack(q)
+    }
+}
+struct SpyHandle(Arc<SpyRetriever>);
+impl Retriever for SpyHandle {
+    fn retrieve(&self, q: &RetrievalQuery) -> Result<Vec<ContextChunk>> {
+        self.0.retrieve(q)
+    }
+    fn retrieve_pack(&self, q: &RetrievalQuery) -> Result<ContextPack> {
+        self.0.retrieve_pack(q)
+    }
+}
+
+struct SeenHints {
+    seen: Mutex<Vec<HintRequest>>,
+    /// `Some(code)`: preflight refuses (local-only without a local model, no key).
+    refuse: Option<ErrorCode>,
+    cloud: bool,
+}
+impl HintGenerator for SeenHints {
+    fn generate(&self, _r: &HintRequest, _d: &mut dyn FnMut(&str)) -> Result<String> {
+        unreachable!("the session uses generate_ex")
+    }
+    fn preflight(&self, _f: &FolderRef) -> Result<bool> {
+        match self.refuse {
+            Some(c) => Err(AppError::new(c)),
+            None => Ok(self.cloud),
+        }
+    }
+    fn generate_ex(
+        &self,
+        req: &HintRequest,
+        on_sources: &mut dyn FnMut(Vec<SourceRef>, u32),
+        on_delta: &mut dyn FnMut(&str),
+    ) -> Result<HintOutcome> {
+        self.seen.lock().unwrap().push(req.clone());
+        let mut ids = vec![];
+        let mut srcs = vec![];
+        for c in req
+            .pack
+            .instructions
+            .iter()
+            .chain(&req.pack.pinned)
+            .chain(&req.pack.relevant)
+        {
+            ids.push(c.id.clone());
+            srcs.push(c.source_ref.clone());
+        }
+        on_sources(srcs, req.pack.withheld);
+        on_delta("ответ");
+        Ok(HintOutcome {
+            answer: "ответ".into(),
+            sent_chunk_ids: ids,
+            ..HintOutcome::default()
+        })
+    }
+}
+
+fn user_folder_opts() -> StartOpts {
+    StartOpts {
+        folder: Some(FolderRef::User(Ulid::from_parts(5, 5))),
+        ..opts(false)
+    }
+}
+
+fn wait_llm_end(rx: &Receiver<AppEvent>) -> Vec<LlmEvent> {
+    let mut seen = vec![];
+    loop {
+        match rx.recv_timeout(Duration::from_secs(5)).expect("llm end") {
+            AppEvent::Llm(e) => {
+                let end = matches!(e, LlmEvent::Done { .. } | LlmEvent::Error { .. });
+                seen.push(e);
+                if end {
+                    return seen;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+#[test]
+fn ask_uses_the_retrieval_pack_and_emits_sources_before_the_first_delta() {
+    let spy = Arc::new(SpyRetriever::default());
+    let hints = Arc::new(SeenHints {
+        seen: Mutex::new(vec![]),
+        refuse: None,
+        cloud: true,
+    });
+    let (s2, h2) = (spy.clone(), hints.clone());
+    let r = rig(move |d| {
+        d.retriever = Arc::new(SpyHandle(s2));
+        d.hints = h2;
+    });
+    let rx = r.session.subscribe();
+    r.session.start(user_folder_opts()).unwrap();
+    r.session.ask(brief(Some("Что такое EBITDA?"))).unwrap();
+    let evs = wait_llm_end(&rx);
+    let kinds: Vec<&str> = evs
+        .iter()
+        .map(|e| match e {
+            LlmEvent::Start { .. } => "start",
+            LlmEvent::Sources { .. } => "sources",
+            LlmEvent::Delta { .. } => "delta",
+            LlmEvent::Done { .. } => "done",
+            LlmEvent::Error { .. } => "error",
+        })
+        .collect();
+    assert_eq!(kinds, ["start", "sources", "delta", "done"]);
+    let LlmEvent::Sources { sources, .. } = &evs[1] else {
+        unreachable!()
+    };
+    assert_eq!(sources.len(), 3, "instructions, pinned doc, relevant doc");
+    // first turn: folder context, cloud flag, folder scope, previous calls
+    let q1 = spy.queries.lock().unwrap()[0].clone();
+    assert!(q1.include_folder_context && q1.include_previous_calls && q1.cloud_provider);
+    assert_eq!(q1.scope.folder, Some(Ulid::from_parts(5, 5)));
+    assert_eq!(q1.scope.call, r.session.state().call);
+    assert!(q1.exclude.is_empty());
+    // second turn: no folder context again, the first turn's chunks are excluded
+    r.session.ask(brief(Some("А ARR?"))).unwrap();
+    wait_llm_end(&rx);
+    let q2 = spy.queries.lock().unwrap()[1].clone();
+    assert!(!q2.include_folder_context);
+    assert_eq!(q2.exclude.len(), 3);
+    assert!(!hints.seen.lock().unwrap()[1].first_turn);
+    r.session.stop().unwrap();
+}
+
+#[test]
+fn refused_ask_retrieves_and_sends_nothing() {
+    let spy = Arc::new(SpyRetriever::default());
+    let hints = Arc::new(SeenHints {
+        seen: Mutex::new(vec![]),
+        refuse: Some(ErrorCode::LocalOnlyBlocked),
+        cloud: true,
+    });
+    let (s2, h2) = (spy.clone(), hints.clone());
+    let r = rig(move |d| {
+        d.retriever = Arc::new(SpyHandle(s2));
+        d.hints = h2;
+    });
+    let rx = r.session.subscribe();
+    r.session.start(user_folder_opts()).unwrap();
+    r.session.ask(brief(Some("секрет?"))).unwrap();
+    let evs = wait_llm_end(&rx);
+    assert!(matches!(&evs[1], LlmEvent::Error { error, .. } if error.code == ErrorCode::LocalOnlyBlocked));
+    assert!(spy.queries.lock().unwrap().is_empty(), "no retrieval for a refused ask");
+    assert!(hints.seen.lock().unwrap().is_empty(), "the generator never ran");
+    assert!(r.session.qa_records().is_empty());
+    r.session.stop().unwrap();
+}
