@@ -179,6 +179,7 @@ export const m = {
   'm.nav.hotkeys': 'Горячие клавиши',
   'm.nav.appearance': 'Оверлей',
   'm.nav.providers': 'Нейронка и распознавание',
+  'm.nav.knowledge': 'Документы и поиск',
   'm.nav.storage': 'Хранение',
   'm.nav.permissions': 'Разрешения',
   'm.perm.microphone': 'Микрофон',

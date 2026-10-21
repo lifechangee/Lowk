@@ -9,6 +9,7 @@ const chip = (page: Page, code: string) => page.locator(`[data-testid=lang-picke
 
 test('new call card: ru+en by default, picks are sent with the call and remembered for the next one', async ({ page }) => {
   await page.goto('/main.html?lang=en#/');
+  await page.locator('.side .nc button.btn.primary').click();
   await expect(chip(page, 'ru')).toHaveAttribute('aria-pressed', 'true');
   await expect(chip(page, 'en')).toHaveAttribute('aria-pressed', 'true');
   await expect(chip(page, 'pl')).toHaveAttribute('aria-pressed', 'false');
@@ -18,13 +19,16 @@ test('new call card: ru+en by default, picks are sent with the call and remember
   await page.getByRole('button', { name: /Start recording/ }).first().click();
   await expect.poll(() => started(page)).toEqual(['en', 'pl']);
   // stop; the selector keeps the last choice (not the settings default)
-  await page.locator('section').getByRole('button', { name: 'Stop', exact: true }).click();
+  await page.locator('.recpill').getByRole('button', { name: 'Stop', exact: true }).click();
+  await page.waitForSelector('.side .nc button.btn.primary');
+  await page.locator('.side .nc button.btn.primary').click();
   await expect(chip(page, 'pl')).toHaveAttribute('aria-pressed', 'true');
   await expect(chip(page, 'ru')).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('at least one language stays selected; «More…» lists every language the engine supports', async ({ page }) => {
   await page.goto('/main.html?lang=en#/');
+  await page.locator('.side .nc button.btn.primary').click();
   await chip(page, 'ru').click();
   await chip(page, 'en').click();
   await expect(chip(page, 'en')).toHaveAttribute('aria-pressed', 'true');
@@ -42,13 +46,14 @@ test('settings: the default languages persist and are what the card starts with'
   await g.locator('[data-lang=de]').click();
   await g.locator('[data-lang=ru]').click();
   await page.evaluate(() => (location.hash = '#/'));
+  await page.locator('.side .nc button.btn.primary').click();
   await expect(chip(page, 'de')).toHaveAttribute('aria-pressed', 'true');
   await expect(chip(page, 'ru')).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('header popover has the same language selector', async ({ page }) => {
   await page.goto('/main.html?lang=en#/settings/hotkeys');
-  await page.locator('.tb button.btn.primary').click();
+  await page.locator('.side .nc button.btn.primary').click();
   const np = page.locator('.np');
   await expect(np.locator('[data-lang=ru]')).toHaveAttribute('aria-pressed', 'true');
   await np.locator('[data-lang=en]').click();
@@ -58,9 +63,10 @@ test('header popover has the same language selector', async ({ page }) => {
 
 test('russian UI: language names and labels are translated', async ({ page }) => {
   await page.goto('/main.html?lang=ru#/');
+  await page.locator('.side .nc button.btn.primary').click();
   await expect(chip(page, 'ru')).toHaveText('Русский');
   await expect(chip(page, 'en')).toHaveText('Английский');
-  await expect(page.locator('.nc')).toContainText('Языки');
+  await expect(page.locator('.np')).toContainText('Языки');
 });
 
 test('onboarding capture step offers the languages, pre-filled with system language + English', async ({ page }) => {

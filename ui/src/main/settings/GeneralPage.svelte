@@ -8,6 +8,7 @@
   import { tm } from '../i18n';
   import { hrefs, router } from '../router.svelte';
   import { callLangs, prefs, sources } from '../state.svelte';
+  import { tour } from '../tour/tour.svelte';
   import LangPicker from '../LangPicker.svelte';
   import { resolveSource } from '../source';
   import SourcePicker from '../SourcePicker.svelte';
@@ -45,6 +46,9 @@
 <h2 class="gap">{tm('m.set.setup')}</h2>
 <SettingRow label={tm('m.rerunOnboarding')} hint={tm('m.rerunOnboardingHint')}>
   <Button onclick={() => router.go(hrefs.onboarding(0))}>{tm('common.start')}</Button>
+</SettingRow>
+<SettingRow label={tm('tour.settings.label')} hint={tm('tour.settings.hint')}>
+  <Button icon="play" onclick={() => { router.go(hrefs.home); tour.start(); }}>{tm('tour.settings.show')}</Button>
 </SettingRow>
 
 <style>

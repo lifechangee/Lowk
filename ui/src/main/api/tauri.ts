@@ -1,15 +1,12 @@
-// Real backend: every method that has a command in the generated bindings calls it. Only what the
-// roadmap defers (documents/search index M2, LLM summary M3, native folder picker) keeps the mock.
+// Real backend: every method that has a command in the generated bindings calls it. No silent fallbacks:
+// M2 commands that the backend has not implemented yet fail with their `not_implemented` AppError, which the UI shows.
+// Only the native file dialogs (no dialog plugin in the shell yet) and the live-demo feed keep the mock.
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AppError, BindReport, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, NewFolder, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts, SttEvent } from '../../lib/ipc';
+import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { MockBackend } from './mock';
-import { folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider } from './types';
+import { CommandError, folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider } from './types';
 
-export class CommandError extends Error {
-  constructor(readonly app: AppError) {
-    super(app.code);
-  }
-}
+export { CommandError };
 
 type Res<T> = { status: 'ok'; data: T } | { status: 'error'; error: AppError };
 function ok<T>(r: Res<T>): T {
@@ -43,7 +40,7 @@ export class TauriBackend extends MockBackend {
     if (ref.kind !== 'user') return null;
     try {
       const d = ok(await commands.folderGet(ref));
-      return { meta: d.meta, instructions: d.instructions, docs: [] };
+      return { meta: d.meta, instructions: d.instructions };
     } catch { return null; }
   }
   override async callGet(id: string): Promise<CallDetail | null> {
@@ -59,15 +56,6 @@ export class TauriBackend extends MockBackend {
   override async callRename(id: string, title: string): Promise<void> { ok(await commands.callRename(id, title)); }
   override async trashEmpty(): Promise<void> { ok(await commands.trashEmpty()); }
   override async exportMarkdown(id: string): Promise<string> { return ok(await commands.callGetMd(id)); }
-  override async search(query: string): Promise<SearchHit[]> {
-    const q = query.trim().toLowerCase();
-    const calls = ok(await commands.callList(null, false));
-    return calls
-      .filter((c) => !q || c.title.toLowerCase().includes(q) || c.tags.some((t) => t.toLowerCase().includes(q)))
-      .slice(0, 12)
-      .map((c) => ({ group: 'calls' as const, title: c.title, snippet: c.tags.map((t) => '#' + t).join(' '), folder: folderKey(c.folder), call: c.id }));
-  }
-
   override async sourceList(): Promise<SourceInfo[]> { return ok(await commands.sourceList()); }
   override async sourceListInstalled(): Promise<SourceInfo[]> { return ok(await commands.sourceListInstalled()); }
   override async engines(): Promise<EngineDescriptor[]> { return commands.engineList(); }
@@ -103,7 +91,10 @@ export class TauriBackend extends MockBackend {
   override async secretStatus(p: SecretProvider): Promise<boolean> { return ok(await commands.secretStatus(p)); }
   override async secretSet(p: SecretProvider, value: string): Promise<void> { ok(await commands.secretSet(p, value)); }
   override async secretDelete(p: SecretProvider): Promise<void> { ok(await commands.secretDelete(p)); }
-  override async secretCheck(p: SecretProvider): Promise<{ ok: boolean; balance?: string }> { return { ok: await this.secretStatus(p) }; }
+  override async secretCheck(p: SecretProvider): Promise<{ ok: boolean; balance?: string; error?: AppError }> {
+    if (p !== 'openrouter') return { ok: await this.secretStatus(p) };
+    try { await this.llmKeyTest(); return { ok: true }; } catch (e) { return { ok: false, error: e instanceof CommandError ? e.app : { code: 'unknown' } }; }
+  }
   override async pickVaultDir(): Promise<string | null> { return null; }
   override async bindReport(): Promise<BindReport> { return (await commands.bindsGet()).report; }
 
@@ -115,4 +106,58 @@ export class TauriBackend extends MockBackend {
     void on<SttEvent>(EVENTS.sttSegment, (e) => { if (e.kind === 'final' && e.text.trim()) cb({ speaker: e.stream, text: e.text.trim(), utt: e.utt }); }).then((u) => (dead ? u() : (off = u)));
     return () => { dead = true; off?.(); };
   }
+
+  // ---- M2 ----
+  static #listen<T>(name: string, cb: (p: T) => void): () => void {
+    let off: (() => void) | undefined;
+    let dead = false;
+    void on<T>(name, cb).then((u) => (dead ? u() : (off = u)));
+    return () => { dead = true; off?.(); };
+  }
+  override async docList(folder: FolderKey): Promise<Document[]> { return ok(await commands.docList(folderRef(folder))); }
+  override async docGet(id: string): Promise<Document | null> { try { return ok(await commands.docGet(id)); } catch { return null; } }
+  override async pickDocuments(): Promise<PickedFile[] | null> { throw new CommandError({ code: 'not_implemented', detail: 'native file dialog' }); }
+  override onFileDrop(cb: (files: PickedFile[]) => void): () => void {
+    let off: (() => void) | undefined;
+    let dead = false;
+    void import('@tauri-apps/api/webview').then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
+      if (e.payload.type === 'drop') cb(e.payload.paths.map((path) => ({ path, name: path.split(/[\\/]/).pop() ?? path, size_bytes: 0 })));
+    })).then((u) => (dead ? u() : (off = u))).catch(() => undefined);
+    return () => { dead = true; off?.(); };
+  }
+  override async docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean }): Promise<Document[]> {
+    return ok(await commands.docImport(files.map((f) => ({ folder: folderRef(folder), source_path: f.path, title: null, pin: !!opts?.pin, tags: [] }))));
+  }
+  override async docGetMd(id: string): Promise<string> { return ok(await commands.docGetMd(id)); }
+  override async docSaveMd(id: string, md: string): Promise<Document> { return ok(await commands.docSaveMd(id, md)); }
+  override async docPatch(id: string, patch: DocPatch): Promise<Document> { return ok(await commands.docPatch(id, patch)); }
+  override async docDelete(id: string): Promise<void> { ok(await commands.docDelete(id)); }
+  override async docRestore(id: string): Promise<Document> { return ok(await commands.docRestore(id)); }
+  override async docRetry(id: string): Promise<Document> { return ok(await commands.docRetry(id)); }
+  override async docCancel(id: string): Promise<void> { ok(await commands.docCancel(id)); }
+  override async docsPinnedUsage(folder: FolderKey): Promise<PinnedUsage> { return ok(await commands.docsPinnedUsage(folderRef(folder))); }
+  override onDocProgress(cb: (p: IngestProgress) => void): () => void { return TauriBackend.#listen('doc://progress', cb); }
+
+  override async searchQuery(q: SearchQuery): Promise<SearchResults> { return ok(await commands.searchQuery(q)); }
+  override async indexStatus(): Promise<IndexStatus> { return ok(await commands.indexStatus()); }
+  override async indexRebuild(scope: ReindexScope): Promise<void> { ok(await commands.indexRebuild(scope)); }
+  override onIndexStatus(cb: (s: IndexStatus) => void): () => void { return TauriBackend.#listen('index://status', cb); }
+  override async embedderInfo(): Promise<EmbedderInfo> { return ok(await commands.embedderInfo()); }
+  override async embedderInstall(): Promise<void> { ok(await commands.embedderInstall()); }
+  override async embedderInstallCancel(): Promise<void> { ok(await commands.embedderInstallCancel()); }
+
+  override async llmSummarize(call: string): Promise<void> { ok(await commands.llmSummarize(call)); }
+  override async llmSummarizeCancel(call: string): Promise<void> { ok(await commands.llmSummarizeCancel(call)); }
+  override onSummaryEvent(cb: (e: SummaryEvent) => void): () => void { return TauriBackend.#listen('summary://event', cb); }
+  override async llmSuggestTags(call: string): Promise<TagSuggestion[]> { return ok(await commands.llmSuggestTags(call)); }
+  override async callSetTags(id: string, tags: string[]): Promise<void> { ok(await commands.callSetTags(id, tags)); }
+  override async llmProviderStatus(): Promise<LlmProviderStatus> { return ok(await commands.llmProviderStatus()); }
+  override async llmKeyTest(): Promise<void> { ok(await commands.llmKeyTest()); }
+
+  override async pickSavePath(_defaultName: string): Promise<string | null> { throw new CommandError({ code: 'not_implemented', detail: 'native file dialog' }); }
+  override async pickOpenPath(_extension: string): Promise<string | null> { throw new CommandError({ code: 'not_implemented', detail: 'native file dialog' }); }
+  override async folderExport(folder: string, dest: string): Promise<number> { return ok(await commands.folderExport(folder, dest)); }
+  override async folderImport(src: string): Promise<ImportSummary> { return ok(await commands.folderImport(src)); }
+  override async exportVault(dest: string): Promise<number> { return ok(await commands.exportVault(dest, false)); }
+  override async importVault(src: string): Promise<ImportSummary> { return ok(await commands.importVault(src)); }
 }

@@ -1,9 +1,8 @@
 // View state for the main window. No business logic: everything goes through `api`.
 import { locale } from '../lib/i18n/locale.svelte';
 import type { Key, LangSetting } from '../lib/i18n';
-import type { CallMeta, FolderMeta, Settings, SourceInfo, Target } from '../lib/ipc';
-import { api, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type EngineNeeded, type FolderKey, type LiveLine } from './api';
-import { CommandError } from './api/tauri';
+import type { CallMeta, FolderMeta, IndexStatus, Settings, SourceInfo, Target } from '../lib/ipc';
+import { api, CommandError, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type EngineNeeded, type FolderKey, type LiveLine } from './api';
 import { EVENTS, on } from '../lib/ipc';
 import type { SessionState } from '../lib/ipc';
 import { mergePatch } from './api/mock';
@@ -195,20 +194,38 @@ class Ui {
   /** Open «Переместить в…» menu (context menu or the ⋯ button). */
   moveMenu = $state<{ id: string; x: number; y: number } | null>(null);
   openMove(id: string, x: number, y: number): void { this.moveMenu = { id, x, y }; }
-  callTab = $state<'transcript' | 'summary' | 'qa' | 'shots' | 'md'>('transcript');
+  callTab = $state<'transcript' | 'summary' | 'qa' | 'shots' | 'sources' | 'md'>('transcript');
   /** G5: the header «Новый созвон» popover (never shown on the library home). */
   newCallOpen = $state(false);
+  /** Folder the popover starts with when opened from a folder's empty state («Новый созвон здесь»). */
+  newCallFolder = $state<string | null>(null);
+  /** The «Новая папка» dialog (sidebar «+», empty states). */
+  newFolderOpen = $state(false);
   /** A real call cannot start: the prompt to download the model / pick a cloud engine (`engine://needed`). */
   engineNeeded = $state<EngineNeeded | null>(null);
   toast = $state<string | null>(null);
+  /** An action shown inside the toast (e.g. «Отменить» after moving a document to the trash). */
+  toastAction = $state<{ label: string; run: () => void } | null>(null);
   #timer: ReturnType<typeof setTimeout> | null = null;
-  notify(msg: string): void {
+  notify(msg: string, action: { label: string; run: () => void } | null = null): void {
     this.toast = msg;
+    this.toastAction = action;
     if (this.#timer) clearTimeout(this.#timer);
-    this.#timer = setTimeout(() => (this.toast = null), 3200);
+    this.#timer = setTimeout(() => { this.toast = null; this.toastAction = null; }, action ? 6000 : 3200);
   }
 }
 export const ui = new Ui();
+
+/** Search index status (`index://status`): drives the «keyword only» notice and the embedder card. */
+class Index {
+  status = $state<IndexStatus | null>(null);
+  async refresh(): Promise<void> {
+    try { this.status = await api.indexStatus(); } catch { this.status = null; }
+  }
+  /** The semantic half is not available: results are keyword-only until it is built. */
+  keywordOnly = $derived(this.status !== null && this.status.semantic.state !== 'ready');
+}
+export const index = new Index();
 
 /** Bring the main window to the front (the backend also does this; plain browsers have no window). */
 export async function focusMainWindow(): Promise<void> {

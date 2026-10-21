@@ -33,7 +33,7 @@
   .btn > :global(.bl) { display: inline-flex; align-items: center; gap: var(--s2); min-width: 0; }
   .btn:hover { border-color: var(--tx3); }
   .btn:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; }
-  .btn[disabled] { opacity: 0.4; pointer-events: none; }
+  .btn[disabled] { pointer-events: none; color: var(--tx3) !important; background: var(--hv) !important; border-color: var(--line) !important; filter: none !important; }
   .block { width: 100%; justify-content: flex-start; }
   .sm { height: 28px; padding: 0 var(--s3); font-size: 12px; }
   .lg { height: 44px; padding: 0 var(--s6); font-size: 14px; border-radius: var(--r-lg); }
@@ -44,4 +44,5 @@
   .danger { color: #ff8f90; }
   .danger:hover { border-color: rgba(255, 77, 79, 0.5); }
   .on { border-color: var(--ac); color: var(--ac); }
+  .primary.on { color: var(--acfg); filter: brightness(1.12); }
 </style>

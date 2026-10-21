@@ -1,11 +1,16 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command WP6 has not wired yet. Mutations are real within the page's life.
-import type { BindReport, CallMeta, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, NewFolder, Os, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts } from '../../lib/ipc';
+import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
-import { LIVE_LINES, makeCalls, makeDetail, makeFolderDetail, makeFolders, summarizedIds } from './fixtures';
-import { folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type DocItem, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider, type EngineNeeded } from './types';
+import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
+import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
 
 const delay = (ms = 30) => new Promise<void>((r) => setTimeout(r, ms));
+/** QA switches (browser mock only): `?summary=hold|nokey|offline`, `?embedder=missing|building|off|fail|hold`, `?docs=hold`, `?empty=1`, `?warnmb=1`. */
+const qp = (name: string): string | null => (typeof location === 'undefined' ? null : new URLSearchParams(location.search).get(name));
+const appErr = (code: AppError['code']): CommandError => new CommandError({ code, params: {}, detail: null });
+type Searchable = { kind: ChunkKind; text: string; source: SourceRef; folder: FolderMeta | null; when: string; tags: string[]; id: string };
+const docUlid = (n: number): string => `01JC8Z3K6Q9X2M4N7R5T0V${String(n).padStart(4, '0')}`;
 
 /** RFC 7386 merge patch (objects merge, arrays and scalars replace, null deletes). */
 export function mergePatch<T>(target: T, patch: unknown): T {
@@ -32,25 +37,40 @@ export class MockBackend implements Backend {
   #details = new Map<string, CallDetail>();
   #summaries = new Set<string>(summarizedIds(this.#calls));
   #instructions = new Map<string, string>();
-  #docs = new Map<string, DocItem[]>();
   #secrets = new Set<SecretProvider>();
   #perms: Record<PermKind, PermState> = { microphone: 'not_determined', system_audio: 'unknown', screen_recording: 'denied', input_monitoring: 'not_determined', accessibility: 'denied' };
   #settings: Settings;
   #live = new Set<(l: LiveLine) => void>();
   #liveTimer: ReturnType<typeof setInterval> | null = null;
   #session: SessionState = { phase: 'idle', call: null, demo: false };
+  // ---- M2 ----
+  #documents: Document[] = makeDocuments(this.#now);
+  #docMds = new Map<string, string>();
+  #docSubs = new Set<(p: IngestProgress) => void>();
+  #docTimers = new Map<string, ReturnType<typeof setInterval>>();
+  #docProgress = new Map<string, { done: number; total: number; eta: number | null }>([[docUlid(408), { done: 120, total: 300, eta: 95 }]]);
+  #idxSubs = new Set<(s: IndexStatus) => void>();
+  #embInstalled = !['missing', 'fail', 'hold'].includes(qp('embedder') ?? '');
+  #embInstalling = false;
+  #embCancel = false;
+  #summaryText = new Map<string, string>();
+  #sumSubs = new Set<(e: SummaryEvent) => void>();
+  #sumTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  #docSeq = 900;
 
   constructor() {
     const fresh = typeof location !== 'undefined' && /[?&]fresh\b/.test(location.search);
     this.#settings = {
       schema_version: 1,
       ui: { language: 'auto', font_px: 14 },
-      onboarding: { step: 0, done: !fresh, recording_notice_ack: !fresh },
+      onboarding: { step: 0, done: !fresh, recording_notice_ack: !fresh, tour_done: !fresh },
       vault: { path: '~/Documents/Lowk', unsorted_dir: 'Unsorted', trash_dir: 'Trash' },
       // ?src=system mirrors the real backend's fresh default (no default_source stored yet) for the QA suite.
       audio: { default_source: typeof location !== 'undefined' && /[?&]src=system\b/.test(location.search) ? null : { kind: 'app', id: 'us.zoom.xos' }, aec: 'auto', keep_audio: false },
       stt: { engine: 'whisper-large-v3-turbo', languages: ['ru', 'en'], cloud_vendor: 'soniox' },
-      llm: { provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4.1-flash', reasoning: false, data_collection_deny: true, default_template: 'brief' },
+      llm: { provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4.1-flash', reasoning: false, data_collection_deny: true, default_template: 'brief', summary_model: 'deepseek/deepseek-v4.1-flash-1017', pinned_provider: 'DeepInfra' },
+      embedder: { mode: qp('embedder') === 'off' ? 'off' : 'local', model: 'embeddinggemma-2-q8_0', cloud_model: 'openai/text-embedding-3-small' },
+      docs: { pinned_budget_tokens: 6000, warn_slow_mb: Number(qp('warnmb') ?? 50), max_file_mb: 500, ocr: true, retrieved_budget_tokens: 3000 },
       overlay: { opacity: 60, font_px: 14, display: 'primary', visibility: 'recording_only', pill_edge: 'right', tone_mode: 'auto' },
       capture: { monitors: 'all' },
       binds: defaultBinds(this.#os),
@@ -63,12 +83,8 @@ export class MockBackend implements Backend {
         { id: 'objection', names: { ru: 'Возражение клиента', en: 'Client objection' }, instruction: 'Suggest a reply to the objection.' },
       ],
     };
-    for (const f of this.#folders) {
-      const d = makeFolderDetail(f);
-      const id = folderKey(f.id);
-      this.#instructions.set(id, d.instructions);
-      this.#docs.set(id, [...d.docs]);
-    }
+    if (qp('empty')) { this.#folders = []; this.#calls = []; this.#documents = []; }
+    for (const f of this.#folders) this.#instructions.set(folderKey(f.id), makeFolderDetail(f).instructions);
   }
 
   platform(): Os { return this.#os; }
@@ -92,21 +108,20 @@ export class MockBackend implements Backend {
   async folderGet(key: FolderKey): Promise<FolderDetail | null> {
     const meta = this.#counts().find((f) => folderKey(f.id) === key);
     if (!meta) return null;
-    return { meta, instructions: this.#instructions.get(key) ?? '', docs: [...(this.#docs.get(key) ?? [])] };
+    return { meta, instructions: this.#instructions.get(key) ?? '' };
   }
   async callGet(id: string): Promise<CallDetail | null> {
     const meta = this.#calls.find((c) => c.id === id);
     if (!meta) return null;
     let d = this.#details.get(id);
     if (!d) { d = makeDetail(meta); this.#details.set(id, d); }
-    return { ...structuredClone(d), meta: structuredClone(meta), summary: this.#summaries.has(id) ? (d.summary ?? makeDetail(meta).summary ?? SUMMARY_TEXT) : null };
+    return { ...structuredClone(d), meta: structuredClone(meta), summary: this.#summaries.has(id) ? (this.#summaryText.get(id) ?? d.summary ?? this.#summaryFor(meta)) : null };
   }
   async folderCreate(input: NewFolder): Promise<FolderMeta> {
     const id = '01JC8Z3K6Q9X2M4N7R5T0V' + String(900 + this.#folders.length).padStart(4, '0');
     const meta: FolderMeta = { id: { kind: 'user', id }, title: input.title, tags: input.tags, allow_cloud: input.allow_cloud, default_template: null, path: input.title, call_count: 0 };
     this.#folders.push(meta);
     this.#instructions.set(id, input.instructions);
-    this.#docs.set(id, []);
     return meta;
   }
   async folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean }): Promise<void> {
@@ -116,23 +131,12 @@ export class MockBackend implements Backend {
     if (patch.tags) f.tags = patch.tags;
     if (patch.allow_cloud !== undefined) f.allow_cloud = patch.allow_cloud;
   }
-  async docAdd(folderId: string, fileName: string): Promise<DocItem> {
-    const ext = (fileName.split('.').pop() ?? 'txt').toLowerCase();
-    const doc: DocItem = { id: crypto.randomUUID(), name: fileName, ext: (['pdf', 'docx', 'md', 'txt'].includes(ext) ? ext : 'txt') as DocItem['ext'], pages: null, state: 'indexing' };
-    this.#docs.set(folderId, [...(this.#docs.get(folderId) ?? []), doc]);
-    return doc;
-  }
   #call(id: string): CallMeta | undefined { return this.#calls.find((c) => c.id === id); }
   async callTrash(id: string): Promise<void> { const c = this.#call(id); if (c) c.deleted = true; }
   async callRestore(id: string): Promise<void> { const c = this.#call(id); if (c) c.deleted = false; }
   async callMove(id: string, folder: FolderKey): Promise<void> { const c = this.#call(id); if (c) c.folder = folderRef(folder); }
   async callRename(id: string, title: string): Promise<void> { const c = this.#call(id); if (c) c.title = title; }
   async trashEmpty(): Promise<void> { this.#calls = this.#calls.filter((c) => !c.deleted); }
-  async summaryGenerate(id: string): Promise<string> {
-    await delay(1300);
-    this.#summaries.add(id);
-    return SUMMARY_TEXT;
-  }
   async exportMarkdown(id: string): Promise<string> {
     const d = await this.callGet(id);
     if (!d) return '';
@@ -141,17 +145,6 @@ export class MockBackend implements Backend {
     for (const u of d.transcript) lines.push(`[${hms(u.at_s)}] **${u.speaker === 'me' ? 'Я' : 'Система'}:** ${u.text}`, '');
     for (const q of d.qa) lines.push(`> [!lowk-qa] id=${q.id} at=${hms(q.at_s)}`, `> **Вопрос:** ${q.question}`, `> **Подсказка ИИ:** ${q.answer}`, ...(q.my_answer ? [`> **Мой ответ:** ${q.my_answer}`] : []), '');
     return lines.join('\n');
-  }
-  async search(query: string): Promise<SearchHit[]> {
-    const q = query.trim().toLowerCase();
-    const hits: SearchHit[] = [];
-    for (const c of this.#calls.filter((x) => !x.deleted)) {
-      const d = makeDetail(c);
-      const line = d.transcript.find((u) => u.text.toLowerCase().includes(q));
-      if (!q || c.title.toLowerCase().includes(q) || line) hits.push({ group: 'calls', title: c.title, snippet: line && q ? line.text : c.tags.map((t) => '#' + t).join(' '), folder: folderKey(c.folder), call: c.id });
-    }
-    for (const [fid, docs] of this.#docs) for (const d of docs) if (!q || d.name.toLowerCase().includes(q)) hits.push({ group: 'docs', title: d.name, snippet: d.pages ? `p. ${d.pages}` : '', folder: fid, call: null });
-    return hits.slice(0, 12);
   }
 
   async sourceList(): Promise<SourceInfo[]> {
@@ -229,7 +222,13 @@ export class MockBackend implements Backend {
   async secretStatus(p: SecretProvider): Promise<boolean> { return this.#secrets.has(p); }
   async secretSet(p: SecretProvider, value: string): Promise<void> { if (value.trim()) this.#secrets.add(p); }
   async secretDelete(p: SecretProvider): Promise<void> { this.#secrets.delete(p); }
-  async secretCheck(p: SecretProvider): Promise<{ ok: boolean; balance?: string }> { await delay(500); return this.#secrets.has(p) ? { ok: true, balance: '$4.20' } : { ok: false }; }
+  async secretCheck(p: SecretProvider): Promise<{ ok: boolean; balance?: string; error?: AppError }> {
+    if (p === 'openrouter') {
+      try { await this.llmKeyTest(); return { ok: true, balance: '$4.20' }; } catch (e) { return { ok: false, error: e instanceof CommandError ? e.app : { code: 'unknown' } }; }
+    }
+    await delay(500);
+    return this.#secrets.has(p) ? { ok: true } : { ok: false };
+  }
   async pickVaultDir(): Promise<string | null> { return this.#os === 'windows' ? 'D:\\Notes\\Lowk' : '~/Obsidian/Lowk'; }
   async revealPath(_path: string): Promise<void> { await delay(); }
   async bindReport(): Promise<BindReport> {
@@ -239,6 +238,339 @@ export class MockBackend implements Backend {
         status: b.action === 'move_hold' && this.#perms.input_monitoring !== 'granted' && this.#os === 'macos' ? { state: 'degraded' as const, reason: 'input_monitoring' as const } : { state: 'active' as const },
       })),
     };
+  }
+
+  // ================= M2: documents =================
+  #doc(id: string): Document {
+    const d = this.#documents.find((x) => x.id === id);
+    if (!d) throw appErr('not_found');
+    return d;
+  }
+  #emitDoc(d: Document, done = 0, total = 0, eta: number | null = null): void {
+    const p: IngestProgress = { doc: d.id, folder: d.folder, status: d.status, done, total, eta_s: eta, error: d.error };
+    if (d.status === 'converting' || d.status === 'queued') this.#docProgress.set(d.id, { done, total, eta });
+    else this.#docProgress.delete(d.id);
+    for (const f of this.#docSubs) f(structuredClone(p));
+    this.#emitIndex();
+  }
+  async docList(folder: FolderKey): Promise<Document[]> {
+    await delay();
+    return structuredClone(this.#documents.filter((d) => !d.deleted && folderKey(d.folder) === folder).sort((a, b) => b.added.localeCompare(a.added)));
+  }
+  async docGet(id: string): Promise<Document | null> {
+    const d = this.#documents.find((x) => x.id === id);
+    return d ? structuredClone(d) : null;
+  }
+  async pickDocuments(): Promise<PickedFile[] | null> {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true;
+      input.onchange = () => resolve(input.files?.length ? [...input.files].map((f) => ({ name: f.name, path: f.name, size_bytes: f.size })) : null);
+      input.oncancel = () => resolve(null);
+      input.click();
+    });
+  }
+  onFileDrop(_cb: (files: PickedFile[]) => void): () => void { return () => undefined; }
+  async docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean }): Promise<Document[]> {
+    const out: Document[] = [];
+    const warnMb = this.#settings.docs?.warn_slow_mb ?? 50;
+    for (const f of files) {
+      const kind = kindOfFile(f.name);
+      const stem = f.name.replace(/\.[^.]+$/, '');
+      const doc: Document = {
+        id: '01JC8Z3K6Q9X2M4N7R5D0C' + String(this.#docSeq++).padStart(4, '0'), folder: folderRef(folder), title: stem, kind: kind ?? 'txt', file_name: f.name,
+        md_path: `Docs/${stem}.md`, original_path: `Docs/${f.name}`, size_bytes: f.size_bytes, pages: null, status: 'queued', error: null,
+        warnings: f.size_bytes > warnMb * 1048576 ? [{ code: 'large_file', page: null, detail: null }] : [], pinned: !!opts?.pin, tokens: 0, tags: [],
+        added: new Date().toISOString(), source_sha256: 'beef'.repeat(16), converter: '', deleted: false,
+      };
+      this.#documents.push(doc);
+      if (!kind) {
+        doc.status = 'failed';
+        doc.error = { code: 'doc_unsupported', params: { ext: (f.name.split('.').pop() ?? '').toLowerCase() }, detail: null };
+        queueMicrotask(() => this.#emitDoc(doc));
+      } else this.#run(doc.id);
+      out.push(structuredClone(doc));
+    }
+    return out;
+  }
+  /** Fake conversion: queued -> converting (page by page) -> indexing -> ready, or a failure keyed on the file name. */
+  #run(id: string): void {
+    const first = this.#doc(id);
+    const sizes: Partial<Record<Document['kind'], number>> = { pdf: 12, pptx: 10, keynote: 10, xlsx: 3 };
+    const total = first.pages ?? sizes[first.kind] ?? 1;
+    const hold = qp('docs') === 'hold';
+    const failCode: AppError['code'] | null = /encrypted|защищ/i.test(first.file_name) ? 'doc_encrypted' : /empty|пуст/i.test(first.file_name) ? 'doc_empty' : /ocr-fail/i.test(first.file_name) ? 'ocr_failed' : null;
+    let done = 0;
+    first.status = 'queued';
+    first.error = null;
+    this.#emitDoc(first, 0, total);
+    clearInterval(this.#docTimers.get(id));
+    const t = setInterval(() => {
+      const d = this.#documents.find((x) => x.id === id);
+      if (!d || d.status === 'cancelled') { clearInterval(t); return; }
+      const stop = () => { clearInterval(t); this.#docTimers.delete(id); };
+      if (d.status === 'queued') { d.status = 'converting'; this.#emitDoc(d, 0, total); return; }
+      if (d.status === 'converting') {
+        done = Math.min(total, done + Math.max(1, Math.ceil(total / 6)));
+        if (failCode && done >= total * 0.4) { d.status = 'failed'; d.error = { code: failCode, params: {}, detail: null }; stop(); this.#emitDoc(d, done, total); return; }
+        if (hold && done >= total * 0.4) { stop(); this.#emitDoc(d, done, total, 40); return; }
+        if (done >= total) { d.status = 'indexing'; this.#emitDoc(d, total, total); return; }
+        this.#emitDoc(d, done, total, Math.round((total - done) * 0.8));
+        return;
+      }
+      if (d.status === 'indexing') {
+        d.status = 'ready';
+        d.pages = d.kind === 'txt' || d.kind === 'md' || d.kind === 'image' ? null : total;
+        d.tokens = Math.max(200, total * 180);
+        d.converter = d.kind === 'pdf' ? 'pdf-text' : d.kind;
+        stop();
+        this.#emitDoc(d, total, total);
+      }
+    }, 220);
+    this.#docTimers.set(id, t);
+  }
+  async docGetMd(id: string): Promise<string> { return this.#docMds.get(id) ?? docMd(this.#doc(id)); }
+  async docSaveMd(id: string, md: string): Promise<Document> {
+    const d = this.#doc(id);
+    this.#docMds.set(id, md);
+    d.status = 'indexing';
+    d.tokens = Math.ceil(md.length / 4);
+    this.#emitDoc(d);
+    setTimeout(() => { d.status = 'ready'; this.#emitDoc(d); }, 400);
+    return structuredClone(d);
+  }
+  async docPatch(id: string, patch: DocPatch): Promise<Document> {
+    const d = this.#doc(id);
+    if (patch.title != null) d.title = patch.title;
+    if (patch.tags != null) d.tags = patch.tags;
+    if (patch.pinned != null) d.pinned = patch.pinned;
+    if (patch.folder != null) d.folder = patch.folder;
+    this.#emitIndex();
+    return structuredClone(d);
+  }
+  async docDelete(id: string): Promise<void> { this.#doc(id).deleted = true; this.#emitIndex(); }
+  async docRestore(id: string): Promise<Document> { const d = this.#doc(id); d.deleted = false; this.#emitIndex(); return structuredClone(d); }
+  async docRetry(id: string): Promise<Document> { const d = this.#doc(id); this.#run(id); return structuredClone(d); }
+  async docCancel(id: string): Promise<void> {
+    const d = this.#doc(id);
+    clearInterval(this.#docTimers.get(id));
+    d.status = 'cancelled';
+    this.#emitDoc(d);
+  }
+  async docsPinnedUsage(folder: FolderKey): Promise<PinnedUsage> {
+    const pinned = this.#documents.filter((d) => !d.deleted && d.pinned && d.status === 'ready' && folderKey(d.folder) === folder);
+    const tokens = pinned.reduce((n, d) => n + d.tokens, 0);
+    const budget = this.#settings.docs?.pinned_budget_tokens ?? 6000;
+    return { count: pinned.length, tokens, budget_tokens: budget, over_budget: tokens > budget };
+  }
+  onDocProgress(cb: (p: IngestProgress) => void): () => void {
+    this.#docSubs.add(cb);
+    // Late subscribers learn where the in-flight conversions stand (the real backend repeats `doc://progress` often enough).
+    queueMicrotask(() => {
+      for (const [id, p] of this.#docProgress) {
+        const d = this.#documents.find((x) => x.id === id);
+        if (d && (d.status === 'converting' || d.status === 'queued')) cb({ doc: id, folder: d.folder, status: d.status, done: p.done, total: p.total, eta_s: p.eta, error: null });
+      }
+    });
+    return () => this.#docSubs.delete(cb);
+  }
+
+  // ================= M2: search + embedder =================
+  #semantic(): SemanticState {
+    if (this.#settings.embedder?.mode === 'off') return { state: 'off' };
+    if (!this.#embInstalled) return { state: 'model_missing' };
+    if (this.#building) return { state: 'building', done: 1240, total: 1840 };
+    if (qp('embedder') === 'failed') return { state: 'failed', error: { code: 'embed_failed', params: {}, detail: null } };
+    return { state: 'ready' };
+  }
+  #building = qp('embedder') === 'building';
+  #status(): IndexStatus {
+    const calls = this.#calls.filter((c) => !c.deleted).length;
+    const docs = this.#documents.filter((d) => !d.deleted && d.status === 'ready').length;
+    return {
+      files: calls + docs, chunks: 1840, pending: this.#documents.filter((d) => ['queued', 'converting', 'indexing'].includes(d.status)).length,
+      semantic: this.#semantic(), embedder_model: this.#settings.embedder?.mode === 'off' ? null : (this.#settings.embedder?.model ?? null), last_error: null,
+    };
+  }
+  #emitIndex(): void { for (const f of this.#idxSubs) f(this.#status()); }
+  async indexStatus(): Promise<IndexStatus> { return this.#status(); }
+  async indexRebuild(_scope: ReindexScope): Promise<void> {
+    this.#building = true;
+    this.#emitIndex();
+    await delay(900);
+    this.#building = false;
+    this.#emitIndex();
+  }
+  onIndexStatus(cb: (s: IndexStatus) => void): () => void { this.#idxSubs.add(cb); return () => this.#idxSubs.delete(cb); }
+
+  #searchable(includeTrash: boolean): Searchable[] {
+    const out: Searchable[] = [];
+    const meta = (ref: SourceRef['folder']) => this.#folders.find((f) => folderKey(f.id) === folderKey(ref)) ?? null;
+    for (const c of this.#calls.filter((x) => includeTrash || !x.deleted)) {
+      const d = makeDetail(c);
+      const base = { folder: meta(c.folder), when: c.started, tags: c.tags };
+      const src = (at: number | null, kind: SourceRef['kind'] = 'call'): SourceRef => ({ kind, id: c.id, folder: c.folder, title: c.title, at_s: at, page: null, heading_path: [], chunk_id: null, pinned: false });
+      d.transcript.forEach((u, i) => out.push({ ...base, id: `${c.id}:s${i}`, kind: 'speech', text: u.text, source: src(u.at_s) }));
+      d.qa.forEach((q) => out.push({ ...base, id: `${c.id}:q${q.id}`, kind: 'qa', text: `${q.question} ${q.answer.replace(/\*\*/g, '')}`, source: src(q.at_s) }));
+      d.shots.forEach((s) => out.push({ ...base, id: `${c.id}:i${s.id}`, kind: 'image', text: `${s.title}. ${s.caption}`, source: src(s.at_s, 'image') }));
+    }
+    for (const d of this.#documents.filter((x) => (includeTrash || !x.deleted) && x.status === 'ready')) {
+      const pages = (this.#docMds.get(d.id) ?? docMd(d)).split(/<!-- p:(\d+) -->/);
+      for (let i = 1; i < pages.length; i += 2) {
+        const page = Number(pages[i]);
+        out.push({ id: `${d.id}:p${page}`, kind: 'doc', text: (pages[i + 1] ?? '').replace(/^#+\s.*$/gm, '').replace(/\s+/g, ' ').trim(), source: { kind: 'doc', id: d.id, folder: d.folder, title: d.title, at_s: null, page, heading_path: [], chunk_id: null, pinned: d.pinned }, folder: meta(d.folder), when: d.added, tags: d.tags });
+      }
+    }
+    return out;
+  }
+  async searchQuery(q: SearchQuery): Promise<SearchResults> {
+    await delay(40);
+    const terms = q.text.toLowerCase().split(/\s+/).filter(Boolean);
+    const f = q.filters;
+    const folders = f.folders?.length ? new Set(f.folders.map(folderKey)) : null;
+    const kinds = f.kinds?.length ? new Set(f.kinds) : null;
+    const perDoc = new Map<string, number>();
+    const scored: { score: number; item: Searchable }[] = [];
+    for (const item of terms.length ? this.#searchable(f.include_trash ?? false) : []) {
+      const low = item.text.toLowerCase();
+      if (!terms.every((t) => low.includes(t))) continue;
+      if (folders && !folders.has(folderKey(item.source.folder))) continue;
+      if (kinds && !kinds.has(item.kind)) continue;
+      if (f.tags?.length && !f.tags.every((t) => item.tags.includes(t))) continue;
+      if (f.from && item.when.slice(0, 10) < f.from.slice(0, 10)) continue;
+      if (f.to && item.when.slice(0, 10) > f.to.slice(0, 10)) continue;
+      if (item.kind === 'doc') {
+        const n = perDoc.get(item.source.id) ?? 0;
+        if (n >= 2) continue;
+        perDoc.set(item.source.id, n + 1);
+      }
+      const count = terms.reduce((n, t) => n + low.split(t).length - 1, 0);
+      scored.push({ score: count + (item.kind === 'doc' ? 0.5 : 0) + (item.kind === 'qa' ? -0.25 : 0), item });
+    }
+    scored.sort((a, b) => b.score - a.score || b.item.when.localeCompare(a.item.when) || a.item.id.localeCompare(b.item.id));
+    const facets = new Map<string, { folder: SourceRef['folder']; count: number }>();
+    for (const { item } of scored) { const k = folderKey(item.source.folder); const e = facets.get(k) ?? { folder: item.source.folder, count: 0 }; e.count++; facets.set(k, e); }
+    const hits: SearchHit[] = scored.slice(q.offset, q.offset + q.limit).map(({ score, item }) => {
+      const low = item.text.toLowerCase();
+      const at = Math.min(...terms.map((t) => low.indexOf(t)).filter((i) => i >= 0));
+      const from = Math.max(0, at - 48);
+      const to = Math.min(item.text.length, at + 120);
+      const lead = from > 0 ? '… ' : '';
+      const snippet = lead + item.text.slice(from, to) + (to < item.text.length ? ' …' : '');
+      const sl = snippet.toLowerCase();
+      const highlights: [number, number][] = [];
+      for (const t of terms) for (let i = sl.indexOf(t); i >= 0; i = sl.indexOf(t, i + t.length)) highlights.push([i, i + t.length]);
+      highlights.sort((a, b) => a[0] - b[0]);
+      return { chunk_id: item.id, kind: item.kind, source: item.source, folder_title: item.folder?.title ?? '', snippet, highlights, tags: item.tags, when: item.when, score };
+    });
+    const ready = this.#semantic().state === 'ready';
+    return { hits, total: scored.length, took_ms: 12, mode_used: ready && q.mode !== 'keyword' ? q.mode : 'keyword', facets: [...facets.values()] };
+  }
+  async embedderInfo(): Promise<EmbedderInfo> {
+    return { id: 'embeddinggemma-2-q8_0', name: 'EmbeddingGemma 2 (Q8_0)', dim: 768, size_mb: 310, installed: this.#embInstalled, installing: this.#embInstalling, license: 'Gemma Terms of Use', license_url: 'https://ai.google.dev/gemma/terms' };
+  }
+  async embedderInstall(): Promise<void> {
+    this.#embCancel = false;
+    this.#embInstalling = true;
+    const total = 310 * 1024 * 1024;
+    const mode = qp('embedder');
+    for (let i = 1; i <= 10; i++) {
+      await delay(60);
+      if (mode === 'hold' && i >= 4) { while (!this.#embCancel) await delay(60); }
+      if (this.#embCancel) { this.#embInstalling = false; throw appErr('ingest_cancelled'); }
+      for (const f of this.#engineSubs) f({ engine: 'embedder', file: 'embeddinggemma.gguf', phase: i === 10 ? 'verifying' : 'downloading', done_bytes: (total / 10) * i, total_bytes: total, message: null });
+      if (mode === 'fail' && i === 6) {
+        this.#embInstalling = false;
+        for (const f of this.#engineSubs) f({ engine: 'embedder', file: '', phase: 'failed', done_bytes: 0, total_bytes: 0, message: 'checksum' });
+        throw appErr('download_failed');
+      }
+    }
+    this.#embInstalled = true;
+    this.#embInstalling = false;
+    this.#building = true;
+    for (const f of this.#engineSubs) f({ engine: 'embedder', file: 'embeddinggemma.gguf', phase: 'ready', done_bytes: total, total_bytes: total, message: null });
+    this.#emitIndex();
+    setTimeout(() => { this.#building = false; this.#emitIndex(); }, 1500);
+  }
+  async embedderInstallCancel(): Promise<void> { this.#embCancel = true; }
+
+  // ================= M2: summary, tags, provider =================
+  #summaryFor(meta: CallMeta): string { return meta.languages[0] === 'en' ? SUMMARY_MD_EN : SUMMARY_MD; }
+  #sumEmit(e: SummaryEvent): void { for (const f of this.#sumSubs) f(e); }
+  onSummaryEvent(cb: (e: SummaryEvent) => void): () => void { this.#sumSubs.add(cb); return () => this.#sumSubs.delete(cb); }
+  async llmSummarize(call: string): Promise<void> {
+    const meta = this.#call(call);
+    if (!meta) throw appErr('not_found');
+    const mode = qp('summary');
+    if (mode === 'nokey' && !this.#secrets.has('openrouter')) {
+      this.#sumEmit({ type: 'start', call });
+      await delay(200);
+      this.#sumEmit({ type: 'error', call, error: { code: 'api_key_missing', params: {}, detail: null } });
+      return;
+    }
+    const failure = ({ offline: 'network', provider: 'llm_provider', bad: 'llm_bad_response' } as Record<string, AppError['code']>)[mode ?? ''];
+    this.#sumEmit({ type: 'start', call });
+    if (failure) {
+      await delay(250);
+      this.#sumEmit({ type: 'error', call, error: { code: failure, params: {}, detail: null } });
+      return;
+    }
+    const md = this.#summaryFor(meta);
+    const lines = md.split('\n');
+    let i = 0;
+    const step = () => {
+      if (mode === 'hold' && i >= 4) return;
+      if (i < lines.length) {
+        this.#sumEmit({ type: 'delta', call, text: lines[i]! + (i < lines.length - 1 ? '\n' : '') });
+        i++;
+        this.#sumTimers.set(call, setTimeout(step, 60));
+        return;
+      }
+      this.#summaries.add(call);
+      this.#summaryText.set(call, md);
+      const summary: Summary = { call, key_points: [], decisions: [], tasks: [], questions: [], md, model: this.#settings.llm?.summary_model ?? '', generated_at: new Date().toISOString() };
+      this.#sumEmit({ type: 'done', call, summary });
+    };
+    this.#sumTimers.set(call, setTimeout(step, 200));
+  }
+  async llmSummarizeCancel(call: string): Promise<void> {
+    clearTimeout(this.#sumTimers.get(call));
+    this.#sumEmit({ type: 'error', call, error: { code: 'llm_cancelled', params: {}, detail: null } });
+  }
+  async llmSuggestTags(call: string): Promise<TagSuggestion[]> {
+    await delay(300);
+    if (qp('tags') === 'fail') throw appErr('network');
+    const have = new Set(this.#call(call)?.tags ?? []);
+    return TAG_SUGGESTIONS.filter((t) => !have.has(t.tag)).map((t) => ({ tag: t.tag, confidence: t.confidence, existing: t.existing, reason: t.reason }));
+  }
+  async callSetTags(id: string, tags: string[]): Promise<void> {
+    const c = this.#call(id);
+    if (c) c.tags = [...new Set(tags.map((t) => t.trim()).filter(Boolean))];
+  }
+  async llmProviderStatus(): Promise<LlmProviderStatus> {
+    return { provider: 'openrouter', model: this.#settings.llm?.summary_model ?? '', pinned_provider: this.#settings.llm?.pinned_provider ?? null, key_present: this.#secrets.has('openrouter') };
+  }
+  async llmKeyTest(): Promise<void> {
+    await delay(400);
+    if (!this.#secrets.has('openrouter')) throw appErr('api_key_missing');
+    if (qp('key') === 'bad') throw appErr('llm_provider');
+  }
+
+  // ================= M2: export / import =================
+  async pickSavePath(defaultName: string): Promise<string | null> { return `~/Downloads/${defaultName}`; }
+  async pickOpenPath(extension: string): Promise<string | null> { return `~/Downloads/lowk-export.${extension}`; }
+  async folderExport(_folder: string, _dest: string): Promise<number> { await delay(400); return 14; }
+  async folderImport(_src: string): Promise<ImportSummary> {
+    await delay(400);
+    if (qp('import') === 'fail') throw appErr('archive_invalid');
+    return { files_copied: 14, skipped: 1, ids_reassigned: 2, folders_merged: 0 };
+  }
+  async exportVault(_dest: string): Promise<number> { await delay(500); return 212; }
+  async importVault(_src: string): Promise<ImportSummary> {
+    await delay(500);
+    if (qp('import') === 'fail') throw appErr('archive_invalid');
+    return { files_copied: 212, skipped: 0, ids_reassigned: 5, folders_merged: 3 };
   }
 
   async sessionStart(opts: StartOpts): Promise<SessionState> {
@@ -265,5 +597,4 @@ export class MockBackend implements Backend {
   onLiveLine(cb: (l: LiveLine) => void): () => void { this.#live.add(cb); return () => this.#live.delete(cb); }
 }
 
-const SUMMARY_TEXT = '- Цель Q4: рост выручки выше 30% без роста CAC; ставка на partner-канал (дешевле на 20–25%).\n- EBITDA margin B2B за Q3: 23,4% (около 25% без one-off миграции CRM).\n- Следующий шаг: обсудить бюджет на партнёров.';
 export { SYS_TRASH, SYS_UNSORTED };

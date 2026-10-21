@@ -34,6 +34,16 @@
     info: '<circle cx="8" cy="8" r="6"/><path d="M8 7.5V11M8 5.2v.01"/>',
     pencil: '<path d="m10.5 3 2.5 2.5L5.5 13H3v-2.5z"/>',
     more: '<circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/>',
+    help: '<circle cx="8" cy="8" r="6"/><path d="M6.2 6.2a1.9 1.9 0 0 1 3.6.7c0 1.3-1.8 1.4-1.8 2.6M8 11.5v.01"/>',
+    star: '<path d="m8 2 1.8 3.8 4.2.5-3.1 2.9.8 4.1L8 11.2l-3.7 2.1.8-4.1L2 6.3l4.2-.5z"/>',
+    'star-fill': '<path fill="currentColor" d="m8 2 1.8 3.8 4.2.5-3.1 2.9.8 4.1L8 11.2l-3.7 2.1.8-4.1L2 6.3l4.2-.5z"/>',
+    upload: '<path d="M8 11.5v-8M4.5 6.5 8 3l3.5 3.5M3 13.5h10"/>',
+    copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/>',
+    'chevron-left': '<path d="m10 3.5-4.5 4.5 4.5 4.5"/>',
+    calendar: '<rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/>',
+    panel: '<rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M10 3v10"/>',
+    tag: '<path d="M2.5 8.2V3.5a1 1 0 0 1 1-1h4.7l5.3 5.3a1 1 0 0 1 0 1.4l-4.3 4.3a1 1 0 0 1-1.4 0z"/><circle cx="5.5" cy="5.5" r=".8"/>',
+    play: '<path d="M5 3.5v9l7.5-4.5z"/>',
     cpu: '<rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.5v2M9.5 1.5v2M6.5 12.5v2M9.5 12.5v2M1.5 6.5h2M1.5 9.5h2M12.5 6.5h2M12.5 9.5h2"/>',
   } as const;
 

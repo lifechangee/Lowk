@@ -24,7 +24,10 @@
   const engine = $derived(engines.find((e) => e.id === engineId));
   const providers: LlmProvider[] = ['openrouter', 'ollama', 'lmstudio', 'llama_server', 'custom'];
   let model = $state('');
+  let summaryModel = $state('');
+  let pinned = $state('');
   $effect(() => { model = prefs.value.llm?.model ?? ''; });
+  $effect(() => { summaryModel = prefs.value.llm?.summary_model ?? ''; pinned = prefs.value.llm?.pinned_provider ?? ''; });
   const pickEngine = (id: string) => {
     const e = engines.find((x) => x.id === id);
     prefs.patch({ stt: e?.kind === 'cloud' ? { engine: id, cloud_vendor: id } : { engine: id } });
@@ -44,6 +47,12 @@
 </SettingRow>
 <SettingRow label={tm('m.noDataCollection')} hint={tm('m.noDataCollectionHint')}>
   <Toggle checked={llm.data_collection_deny ?? true} label={tm('m.noDataCollection')} onchange={(v) => prefs.patch({ llm: { data_collection_deny: v } })} />
+</SettingRow>
+<SettingRow label={tm('summary.settings.model')} hint={tm('summary.settings.modelHint')}>
+  <TextInput bind:value={summaryModel} mono label={tm('summary.settings.model')} onenter={() => prefs.patch({ llm: { summary_model: summaryModel.trim() } })} oninput={() => {}} />
+</SettingRow>
+<SettingRow label={tm('summary.settings.pinned')} hint={tm('summary.settings.pinnedHint')}>
+  <TextInput bind:value={pinned} mono label={tm('summary.settings.pinned')} placeholder={tm('summary.settings.pinnedAuto')} onenter={() => prefs.patch({ llm: { pinned_provider: pinned.trim() || null } })} oninput={() => {}} />
 </SettingRow>
 <KeyCard provider="openrouter" title={tm('settings.apiKey')} placeholder="sk-or-v1-…" />
 

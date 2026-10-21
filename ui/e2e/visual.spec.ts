@@ -6,10 +6,13 @@ import { BGS, LANGS, MAIN_STATES, OPACITIES, OVERLAY_STATES, SIZES, type Lang } 
 import { classify } from './known';
 
 const MAIN_GRID = ['.app', '.tb', '.content'];
-const MAIN_GRID_SIZE = ['button.btn', '.gear', '.wm', '.recpill', '.tabrow'];
+const MAIN_GRID_SIZE = ['button.btn', '.recpill', '.tabrow'];
 const MAIN_GRID_PAD = ['.rail', '.nav', '.tabsbar', '.win', '.step', '.chead', '.livebar'];
 const MAIN_IGNORE: string[] = [];
 const OVERLAY_IGNORE = ['.bar'];
+
+/** The mock picks Meta binds on a Mac user agent (webkit) and Ctrl elsewhere (chromium reports Windows). */
+const mod = (page: Page) => page.evaluate(() => (/Macintosh|Mac OS/.test(navigator.userAgent) ? 'Meta' : 'Control'));
 
 async function prep(page: Page) {
   await page.clock.setFixedTime(new Date('2026-10-20T12:00:00Z'));
@@ -18,6 +21,80 @@ async function prep(page: Page) {
 async function settle(page: Page) {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(250);
+}
+
+
+const BIG = { name: 'Годовой отчёт.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(2 * 1048576, 1) };
+
+async function act(page: Page, a: string | undefined) {
+  if (!a) return;
+  const newCall = () => page.locator('.side .nc button.btn.primary').click();
+  if (a === 'tab-summary') await page.getByRole('tab').nth(1).click();
+  if (a === 'tab-qa') await page.getByRole('tab').nth(2).click();
+  if (a === 'tab-shots') await page.getByRole('tab').nth(3).click();
+  if (a === 'tab-sources') await page.getByRole('tab').nth(4).click();
+  if (a === 'search') { await page.keyboard.press('Control+k'); await page.waitForSelector('.pal input'); }
+  if (a.startsWith('palette-q:')) {
+    await page.keyboard.press('Control+k');
+    await page.locator('.pal input').fill(a.slice(10));
+    await page.waitForSelector('.pal .hit, [data-testid=palette-empty]');
+  }
+  if (a === 'move-menu') { await page.locator('.tbl .tr').first().click({ button: 'right' }); await page.waitForSelector('[role=menu]'); }
+  if (a === 'drag') {
+    const row = page.locator('.tbl .tr', { hasText: /Быстрый|подрядчиком/ }).first();
+    await row.scrollIntoViewIfNeeded();
+    const from = (await row.boundingBox())!;
+    await page.mouse.move(from.x + 40, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 60, from.y + from.height / 2 + 6, { steps: 3 });
+    const to = (await page.locator('.side .f[data-drop]').first().boundingBox())!;
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 6 });
+    await page.waitForSelector('.dropping');
+  }
+  if (a === 'new-call-popover') { await newCall(); await page.waitForSelector('.np'); }
+  if (a === 'source-picker' || a === 'source-other') {
+    await newCall();
+    await page.locator('.np .trig').click();
+    await page.waitForSelector('[role=listbox]');
+    await page.addStyleTag({ content: '.np > .btn { visibility: hidden }' }); // the open list covers the Start button
+    if (a === 'source-other') {
+      await page.getByRole('option', { name: /Other…|Другое…/ }).click();
+      await page.waitForSelector('.modal .list button');
+    }
+  }
+  if (a === 'recording') { await newCall(); await page.locator('.np button.btn.primary').click(); await page.waitForTimeout(700); }
+  if (a === 'slow-warning') { const ch = page.waitForEvent('filechooser'); await page.getByRole('button', { name: /Add document|Добавить документ/ }).click(); (await ch).setFiles(BIG); await page.waitForSelector('.modal'); }
+  if (a === 'doc-menu') { await page.locator('[data-doc] [aria-haspopup=menu]').first().click(); await page.waitForSelector('[role=menu]'); }
+  if (a === 'doc-edit') { await page.getByRole('button', { name: /Edit|Править/ }).click(); await page.waitForSelector('.cm-editor, textarea.fb'); }
+  if (a === 'call-menu') { await page.getByTestId('call-menu').click(); await page.waitForSelector('[role=menu]'); }
+  if (a === 'call-props') { await page.getByTestId('call-menu').click(); await page.getByRole('menuitem').first().click(); await page.waitForSelector('[data-testid=call-props]'); }
+  if (a === 'summary-stream') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=md] ul'); await page.waitForTimeout(500); }
+  if (a === 'summary-done') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=tag-suggestions] .sg', { timeout: 15000 }); }
+  if (a === 'summary-error') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=summary-error]'); }
+  if (a === 'embedder-install' || a === 'embedder-fail') {
+    await page.getByRole('button', { name: /Download|Скачать/ }).click();
+    await page.waitForSelector(a === 'embedder-install' ? '[data-testid=embedder-model] [role=progressbar]' : '[data-testid=embedder-model] [role=alert]');
+    await page.waitForTimeout(a === 'embedder-install' ? 500 : 100);
+  }
+  if (a === 'export-vault') { await page.getByRole('button', { name: /Export…|Экспорт…/ }).click(); await page.waitForSelector('[data-testid=transfer-result]'); }
+  if (a === 'import-vault') { await page.getByRole('button', { name: /Import…|Импорт…/ }).first().click(); await page.waitForSelector('[data-testid=transfer-result]'); }
+  if (a === 'key-test') {
+    await page.locator('input[type=password]').first().fill('sk-or-test');
+    await page.getByRole('button', { name: /^(Save|Сохранить)$/ }).first().click();
+    await page.getByRole('button', { name: /^(Check|Проверить)$/ }).first().click();
+    await page.waitForSelector('.msg');
+  }
+  if (a === 'tour-offer') { await page.locator('.nav button.primary').click(); await page.waitForSelector('[data-testid=tour-offer]'); }
+  if (a.startsWith('tour-') && /^tour-\d$/.test(a)) { await openTour(page, Number(a.slice(5))); }
+  if (a === 'tour-try-ask') { await openTour(page, 2); await page.keyboard.press((await mod(page)) + '+Enter'); await page.waitForSelector('[data-testid=thumb-answer]'); await page.waitForTimeout(1500); }
+  if (a === 'tour-try-hold') { await openTour(page, 3); await page.keyboard.down('Alt'); await page.mouse.move(700, 400); await page.mouse.move(760, 420); await page.waitForSelector('[data-moving]'); }
+  if (a === 'tour-try-shot') { await openTour(page, 4); await page.keyboard.press((await mod(page)) + '+Shift+KeyS'); await page.waitForSelector('[data-testid=thumb-shots]'); }
+}
+
+async function openTour(page: Page, step: number) {
+  await page.getByTestId('tour-open').click();
+  await page.waitForSelector('[data-testid=tour-card]');
+  for (let i = 0; i < step; i++) await page.locator('[data-testid=tour-card] .foot button.primary').click();
 }
 
 async function analyse(page: Page, o: { project: string; group: string; id: string; title: string; lang: Lang; size: string; root: string; ignore: string[]; grid: string[]; gridSize?: string[]; gridPad?: string[]; mockup: 'ov' | 'mn' | 'ob'; mask?: string[]; baseline: boolean }) {
@@ -55,52 +132,14 @@ for (const lang of LANGS) {
       for (const st of MAIN_STATES) {
         test(`${st.id}`, async ({ page }, info) => {
           await prep(page);
-          await page.goto(`/main.html?lang=${lang}${st.hash}`);
+          await page.goto(`/main.html?lang=${lang}${st.q ?? ''}${st.hash}`);
           await page.waitForSelector('.app, .win');
           await settle(page);
-          if (st.act === 'tab-summary') await page.locator('[role=tab]').nth(1).click();
-          if (st.act === 'tab-qa') await page.locator('[role=tab]').nth(2).click();
-          if (st.act === 'tab-shots') await page.locator('[role=tab]').nth(3).click();
-          if (st.act === 'search') {
-            await page.keyboard.press('Control+k');
-            await page.waitForSelector('input');
-          }
-          if (st.act === 'move-menu') {
-            await page.locator('.tbl .tr').first().click({ button: 'right' });
-            await page.waitForSelector('[role=menu]');
-          }
-          if (st.act === 'drag') {
-            const row = page.locator('.tbl .tr', { hasText: /Быстрый|подрядчиком/ }).first();
-            await row.scrollIntoViewIfNeeded();
-            const from = (await row.boundingBox())!;
-            await page.mouse.move(from.x + 40, from.y + from.height / 2);
-            await page.mouse.down();
-            await page.mouse.move(from.x + 60, from.y + from.height / 2 + 6, { steps: 3 });
-            await page.locator('.fc[data-drop]').first().evaluate((el) => el.scrollIntoView({ block: 'center' })); // the list autoscrolls the same way
-            const to = (await page.locator('.fc[data-drop]').first().boundingBox())!;
-            await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 6 });
-            await page.waitForSelector('.dropping');
-          }
-          if (st.act === 'new-call-popover') {
-            await page.locator('.tb button.btn.primary').click();
-            await page.waitForSelector('.np');
-          }
-          if (st.act === 'source-picker' || st.act === 'source-other') {
-            await page.locator('.nc .trig').click();
-            await page.waitForSelector('[role=listbox]');
-            if (st.act === 'source-other') {
-              await page.getByRole('option', { name: /Other…|Другое…/ }).click();
-              await page.waitForSelector('.modal .list button');
-            }
-          }
-          if (st.act === 'recording') {
-            await page.locator('.nc button.primary, .nc .btn.primary, header ~ * button.primary').first().click({ timeout: 3000 }).catch(() => {});
-            await page.waitForTimeout(700);
-          }
+          await act(page, st.act);
           await settle(page);
           await analyse(page, {
             project: info.project.name, group: 'main', id: st.id, title: st.title, lang, size: size.id,
-            root: 'body', ignore: MAIN_IGNORE, grid: MAIN_GRID, gridSize: MAIN_GRID_SIZE, gridPad: MAIN_GRID_PAD, mockup: st.mockup, baseline: size.id === 'L' && st.act !== 'recording',
+            root: 'body', ignore: MAIN_IGNORE, grid: MAIN_GRID, gridSize: MAIN_GRID_SIZE, gridPad: MAIN_GRID_PAD, mockup: st.mockup, baseline: size.id === 'L' && !['recording', 'summary-stream', 'tour-try-ask', 'tour-try-hold'].includes(st.act ?? ''),
           });
         });
       }
