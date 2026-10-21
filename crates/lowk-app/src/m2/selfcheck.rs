@@ -112,10 +112,6 @@ fn q(text: &str, mode: SearchMode) -> SearchQuery {
     }
 }
 
-fn find_dbg(svc: &Services, t: &str) -> Vec<(String, Option<u32>)> {
-    svc.index.search(&q(t, SearchMode::Keyword)).unwrap().hits.iter().map(|h| (h.source.title.clone(), h.source.page)).collect()
-}
-
 fn new_folder(v: &Vault, title: &str, cloud: bool, ins: &str) -> FolderRef {
     v.create_folder(NewFolder {
         title: title.into(),
@@ -322,15 +318,10 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
         );
     }
 
-    if let Some(d) = ready.get("text.pdf") { eprintln!("DBG pdfmd {:?}", svc.vault.read_doc_md(&d.id).map(|m| m.chars().take(600).collect::<String>())); eprintln!("DBG status {:?} {:?}", svc.vault.get_doc(&d.id).map(|d| d.status), svc.index.status()); }
-    for w in ["квазар", "Протокол", "договор", "поставки", "Phase", "codeword", "квазар-3"] {
-        let h = find_dbg(&svc, w);
-        eprintln!("DBG {w}: {:?}", h);
-    }
     // ---- 3. search ----------------------------------------------------------------------
     let find = |svc: &Services, text: &str| svc.index.search(&q(text, SearchMode::Keyword)).expect("search");
     let pdf_id = ready.get("text.pdf").map(|d| d.id);
-    let hit = find(&svc, "квазар-3");
+    let hit = find(&svc, "Поставщик обязуется передать товар");
     r.add(
         pdf_id.is_some_and(|id| hit.hits.iter().any(|h| h.source.id == id && h.source.kind == RefKind::Doc && h.source.page.is_some())),
         "search finds the PDF (with its page)",
@@ -343,7 +334,7 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
         "search finds the XLSX",
         format!("{} hits", hit.hits.len()),
     );
-    let hit = find(&svc, "Протокол встречи");
+    let hit = find(&svc, "Участники обсудили план запуска");
     r.add(
         ready.get("sample.docx").is_some_and(|d| hit.hits.iter().any(|h| h.source.id == d.id)),
         "search finds the DOCX",
@@ -420,14 +411,14 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
     r.add(found.is_some(), "a finished call is indexed incrementally", "");
 
     // ---- 5. the index rebuilds from the vault ----------------------------------------------
-    let before: Vec<String> = find(&svc, "квазар-3").hits.iter().map(|h| h.chunk_id.clone()).collect();
+    let before: Vec<String> = find(&svc, "Поставщик обязуется передать товар").hits.iter().map(|h| h.chunk_id.clone()).collect();
     drop(svc);
     for suffix in ["", "-wal", "-shm"] {
         let _ = std::fs::remove_file(format!("{}{suffix}", super::index_path(&vault).display()));
     }
     let svc = Services::start(ctx.env.clone(), vault.clone()).expect("restart");
     let after = wait(Duration::from_secs(60), || {
-        let a: Vec<String> = find(&svc, "квазар-3").hits.iter().map(|h| h.chunk_id.clone()).collect();
+        let a: Vec<String> = find(&svc, "Поставщик обязуется передать товар").hits.iter().map(|h| h.chunk_id.clone()).collect();
         (!a.is_empty()).then_some(a)
     });
     r.add(
