@@ -156,3 +156,6 @@ Deliver:
 | Index drift after sleep/sync/external edits | Start-up reconcile by `blake3`, watcher with debounce, full rebuild command. |
 | Pinned docs blow the prompt | Hard token budget with visible meter and `pinned_dropped`; delta is never cut for retrieved/pinned context (ARCHITECTURE 5.2). |
 | UI scope (variant A is a reshell of the main window) | WP-A owns it alone; visual/lint suite from QA.md is the gate; mock IPC keeps it independent of backend timing. |
+
+## M2 follow-ups
+- WP-D live TTFT 2.3 s vs 1.2 s in spikes/llm-bench (provider selection; one of four providers returned HTTP 400) — re-check pinning/provider order during WP-E.
