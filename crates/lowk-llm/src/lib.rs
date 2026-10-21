@@ -1,47 +1,67 @@
-//! OpenAI-compatible streaming client, ChatLedger, PromptBuilder. M0 stub.
-use lowk_types::Result;
+//! Lowk LLM layer: OpenAI-compatible SSE client (OpenRouter, Ollama, LM Studio, llama-server),
+//! append-only `ChatLedger`, `PromptBuilder` (context pack in, source refs out), summary and
+//! tag suggestions (`LlmService`), latency probe. No OS code, no vault access, no keychain:
+//! the caller passes the API key in.
+mod client;
+mod config;
+mod ledger;
+pub mod mock;
+mod probe;
+mod prompt;
+mod sse;
+mod summary;
+mod tags;
 
-/// Append-only ledger of serialized messages (prompt-cache prefix stays
-/// byte-identical). Messages are stored as final bytes, never re-rendered.
-#[derive(Default, Debug, Clone)]
-pub struct ChatLedger {
-    messages: Vec<String>,
-}
-impl ChatLedger {
-    pub fn append(&mut self, serialized: String) {
-        self.messages.push(serialized);
-    }
-    pub fn messages(&self) -> &[String] {
-        &self.messages
-    }
+pub use client::{ChatClient, FakeLlm, OpenAiClient, StreamOutcome};
+pub use config::{ChatOptions, LlmConfig, ProviderKind, FALLBACK_MODEL};
+pub use ledger::ChatLedger;
+pub use probe::{list_providers, probe_fastest_provider, ProbeOptions, ProbeResult, ProbeSample};
+pub use prompt::{BuildInput, BuiltTurn, ImagePart, PromptBuilder, SYSTEM_PROMPT};
+pub use sse::{SseEvent, SseParser};
+pub use summary::{parse_summary, pick_language, split_parts, Lang};
+pub use tags::{normalize_tag, parse_tags};
+
+use lowk_types::{LlmService, Result, SummarizeInput, Summary, TagInput, TagSuggestion};
+
+/// `LlmService` over any OpenAI-compatible backend (cloud: OpenRouter with the pinned model).
+pub struct CloudLlm {
+    client: OpenAiClient,
 }
 
-pub trait ChatClient: Send + Sync {
-    /// Streams a completion; `on_delta` receives text deltas. Cancel by drop.
-    fn stream(&self, ledger: &ChatLedger, on_delta: &mut dyn FnMut(&str)) -> Result<String>;
-}
-
-/// Answers with a fixed string, streamed in small pieces.
-pub struct FakeLlm(pub String);
-impl ChatClient for FakeLlm {
-    fn stream(&self, _ledger: &ChatLedger, on_delta: &mut dyn FnMut(&str)) -> Result<String> {
-        for w in self.0.split_inclusive(' ') {
-            on_delta(w);
+impl CloudLlm {
+    pub fn new(cfg: LlmConfig) -> Self {
+        Self {
+            client: OpenAiClient::new(cfg),
         }
-        Ok(self.0.clone())
+    }
+
+    pub fn client(&self) -> &OpenAiClient {
+        &self.client
+    }
+
+    /// Cheap check for the Settings "test key" button: a tiny real request.
+    pub fn test_key(&self) -> Result<()> {
+        let mut l = ChatLedger::new();
+        l.append_user("Reply: ok");
+        let opts = ChatOptions {
+            max_tokens: Some(4),
+            ..ChatOptions::default()
+        };
+        self.client.complete(&l, &opts, &mut |_| {}, &|| true).map(|_| ())
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl LlmService for CloudLlm {
+    fn summarize(
+        &self,
+        input: &SummarizeInput,
+        on_delta: &mut dyn FnMut(&str),
+        should_continue: &dyn Fn() -> bool,
+    ) -> Result<Summary> {
+        summary::run(&self.client, input, on_delta, should_continue)
+    }
 
-    #[test]
-    fn ledger_prefix_is_stable() {
-        let mut l = ChatLedger::default();
-        l.append("a".into());
-        let before = l.messages().to_vec();
-        l.append("b".into());
-        assert_eq!(&l.messages()[..1], &before[..]);
+    fn suggest_tags(&self, input: &TagInput) -> Result<Vec<TagSuggestion>> {
+        tags::run(&self.client, input)
     }
 }

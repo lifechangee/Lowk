@@ -2648,6 +2648,12 @@ name = "lowk-llm"
 version = "0.0.1"
 dependencies = [
  "lowk-types",
+ "rustls",
+ "rustls-graviola",
+ "serde_json",
+ "time",
+ "tracing",
+ "ureq",
 ]
 
 [[package]]
