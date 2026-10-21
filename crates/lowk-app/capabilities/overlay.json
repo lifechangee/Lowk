@@ -30,6 +30,7 @@
     "allow-capture-screenshot",
     "allow-queue-clear",
     "allow-binds-get",
-    "allow-main-open"
+    "allow-main-open",
+    "allow-source-open"
   ]
 }

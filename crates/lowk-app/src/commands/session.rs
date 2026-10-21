@@ -259,8 +259,9 @@ pub fn llm_ask(st: State<'_, Shared>, typed_text: Option<String>) -> Result<QaId
 
 #[tauri::command(async)]
 #[specta::specta]
-pub fn llm_cancel() -> Result<()> {
-    Err(AppError::not_implemented())
+pub fn llm_cancel(st: State<'_, Shared>) -> Result<()> {
+    st.session.cancel_ask();
+    Ok(())
 }
 
 #[tauri::command(async)]

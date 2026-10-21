@@ -70,6 +70,11 @@ pub struct AppState {
     pub install_cancel: Mutex<Option<Arc<AtomicBool>>>,
     /// G7: screenshots waiting for the next Ask (in memory only).
     pub shots: Mutex<Vec<lowk_capture::CapturedShot>>,
+    /// M2 environment (settings, event sink, keys, model store) and the per-vault services.
+    pub env: crate::m2::Env,
+    pub m2: RwLock<Option<Arc<crate::m2::Services>>>,
+    /// The open vault's index, shared with the session's retriever.
+    pub index_slot: Arc<RwLock<Option<lowk_index::Index>>>,
     watcher_stop: Mutex<Option<Arc<AtomicBool>>>,
 }
 
@@ -82,6 +87,8 @@ impl AppState {
         input: InputManager,
         emitter: Arc<UiEmitter>,
         engines: Arc<lowk_stt::EngineRegistry>,
+        env: crate::m2::Env,
+        index_slot: Arc<RwLock<Option<lowk_index::Index>>>,
     ) -> Self {
         let template = settings.get().llm.default_template;
         Self {
@@ -105,6 +112,9 @@ impl AppState {
             engines,
             install_cancel: Mutex::new(None),
             shots: Mutex::new(vec![]),
+            env,
+            m2: RwLock::new(None),
+            index_slot,
             watcher_stop: Mutex::new(None),
         }
     }
@@ -117,6 +127,18 @@ impl AppState {
 
     pub fn vault(&self) -> Result<Vault> {
         self.vault
+            .read()
+            .clone()
+            .ok_or_else(|| AppError::new(ErrorCode::VaultNotOpen))
+    }
+
+    /// The services of the open vault (documents, index, summary); opens the configured vault on first use.
+    pub fn svc(&self) -> Result<Arc<crate::m2::Services>> {
+        if let Some(s) = self.m2.read().clone() {
+            return Ok(s);
+        }
+        self.open_vault(None)?;
+        self.m2
             .read()
             .clone()
             .ok_or_else(|| AppError::new(ErrorCode::VaultNotOpen))
@@ -140,7 +162,20 @@ impl AppState {
             stop.store(true, Ordering::SeqCst);
         }
         self.start_watcher(&vault);
-        *self.vault.write() = Some(vault);
+        *self.vault.write() = Some(vault.clone());
+        match crate::m2::Services::start(self.env.clone(), vault) {
+            Ok(svc) => {
+                *self.index_slot.write() = Some(svc.index.clone());
+                svc.spawn_provider_probe();
+                *self.m2.write() = Some(svc);
+            }
+            Err(e) => {
+                // never a silent fallback: search and documents report this error
+                tracing::error!(?e, "index services could not start");
+                *self.index_slot.write() = None;
+                *self.m2.write() = None;
+            }
+        }
         if want != self.settings.get().vault.path {
             let _ = self
                 .settings

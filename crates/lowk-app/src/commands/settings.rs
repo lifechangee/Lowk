@@ -35,8 +35,18 @@ fn provider(p: &str) -> Result<&str> {
 
 #[tauri::command(async)]
 #[specta::specta]
-pub fn secret_set(provider_id: String, value: String) -> Result<()> {
-    lowk_platform::secrets::set(provider(&provider_id)?, value.trim())
+pub fn secret_set(st: State<'_, Shared>, provider_id: String, value: String) -> Result<()> {
+    lowk_platform::secrets::set(provider(&provider_id)?, value.trim())?;
+    if provider_id == "openrouter" {
+        if let Some(svc) = st.m2.read().clone() {
+            // a new key: pin the fastest provider, and let the cloud embedder (if chosen) start
+            svc.spawn_provider_probe();
+            if st.settings.get().embedder.mode == EmbedderMode::Cloud {
+                svc.apply_embedder();
+            }
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command(async)]

@@ -335,10 +335,19 @@ pub fn trash_empty(st: State<'_, Shared>) -> Result<u32> {
     Ok(vault(&st)?.empty_trash()? as u32)
 }
 
+/// `*.zip` writes a zip (Obsidian opens the unzipped result as is); anything else copies the vault to
+/// a new directory.
 #[tauri::command(async)]
 #[specta::specta]
 pub fn export_vault(st: State<'_, Shared>, dest: String, include_service: bool) -> Result<u32> {
-    Ok(vault(&st)?.export_vault(&PathBuf::from(dest), include_service)? as u32)
+    let v = vault(&st)?;
+    let dest = PathBuf::from(dest);
+    let n = if dest.extension().is_some_and(|e| e.eq_ignore_ascii_case("zip")) {
+        v.export_vault_zip(&dest, include_service)?
+    } else {
+        v.export_vault(&dest, include_service)?
+    };
+    Ok(n as u32)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
@@ -349,14 +358,30 @@ pub struct ImportSummary {
     pub folders_merged: u32,
 }
 
-#[tauri::command(async)]
-#[specta::specta]
-pub fn import_vault(st: State<'_, Shared>, src: String) -> Result<ImportSummary> {
-    let r = vault(&st)?.import_vault(&PathBuf::from(src))?;
+/// A zip (folder or vault export) or a vault directory is merged into the open vault; the index
+/// catches up by itself (imports are not reported by the watcher, so a reconcile is requested).
+pub(crate) fn import_any(st: &AppState, src: &std::path::Path) -> Result<ImportSummary> {
+    let v = vault(st)?;
+    let r = if src.is_file() { v.import_zip(src)? } else { v.import_vault(src)? };
+    if let Ok(svc) = st.svc() {
+        svc.request_reconcile();
+    }
+    // tell the UI to reload its lists
+    st.emit(AppEvent::Store(StoreChange {
+        kind: StoreChangeKind::Updated,
+        id: Ulid::new(),
+        is_folder: true,
+    }));
     Ok(ImportSummary {
         files_copied: r.files_copied as u32,
         skipped: r.skipped as u32,
         ids_reassigned: r.ids_reassigned as u32,
         folders_merged: r.folders_merged as u32,
     })
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn import_vault(st: State<'_, Shared>, src: String) -> Result<ImportSummary> {
+    import_any(&st, &PathBuf::from(src))
 }

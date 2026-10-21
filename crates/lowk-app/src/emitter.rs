@@ -17,6 +17,8 @@ pub struct UiEmitter {
     /// Latest unsent partial per utterance. The lock is held while sending so a
     /// stale partial can never overtake the final of the same utterance.
     pending: Mutex<HashMap<(Stream, UttId), SttEvent>>,
+    /// Every store change (ours and the watcher's) also reaches the index feed.
+    store_tap: std::sync::OnceLock<Box<dyn Fn(&lowk_types::StoreChange) + Send + Sync>>,
 }
 
 fn payload(ev: &AppEvent) -> Value {
@@ -73,6 +75,7 @@ impl UiEmitter {
         let e = Arc::new(Self {
             app,
             pending: Mutex::new(HashMap::new()),
+            store_tap: std::sync::OnceLock::new(),
         });
         let weak = Arc::downgrade(&e);
         std::thread::Builder::new()
@@ -105,6 +108,15 @@ impl UiEmitter {
         }
     }
 
+    /// A plain named event to the main window only.
+    pub fn to_main(&self, name: &str, p: Value) {
+        self.send(name, &[MAIN], &p);
+    }
+
+    pub fn set_store_tap(&self, f: Box<dyn Fn(&lowk_types::StoreChange) + Send + Sync>) {
+        let _ = self.store_tap.set(f);
+    }
+
     /// Emit a plain named event to all windows (e.g. `settings://changed`).
     pub fn broadcast(&self, name: &str, p: Value) {
         self.send(name, &[OVERLAY, MAIN, PILL], &p);
@@ -113,6 +125,11 @@ impl UiEmitter {
 
 impl EventSink for UiEmitter {
     fn emit(&self, ev: AppEvent) {
+        if let AppEvent::Store(c) = &ev {
+            if let Some(t) = self.store_tap.get() {
+                t(c);
+            }
+        }
         if let AppEvent::Stt(e) = &ev {
             let key = (e.stream, e.utt);
             let mut g = self.pending.lock();

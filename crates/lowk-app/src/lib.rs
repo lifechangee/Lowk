@@ -9,6 +9,7 @@ mod combo;
 mod commands;
 mod emitter;
 mod engines;
+pub mod m2;
 mod mainthread;
 #[cfg(any(debug_assertions, feature = "qa"))]
 mod probe;
@@ -104,6 +105,7 @@ pub fn run() {
         }));
     }
     let app = tb
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(combo::on_shortcut)

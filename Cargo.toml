@@ -112,6 +112,8 @@ tauri = { version = "2.12", features = ["macos-private-api"] }
 tauri-build = "2.7"
 tauri-plugin-global-shortcut = "2.4"
 tauri-plugin-single-instance = "2.5"
+# M2 WP-E: native file dialogs («Добавить документ», export / import zip)
+tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2.14"
 raw-window-handle = "0.6"
 

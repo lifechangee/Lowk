@@ -105,6 +105,7 @@ macro_rules! all_commands {
             crate::commands::search::embedder_info,
             crate::commands::search::embedder_install,
             crate::commands::search::embedder_install_cancel,
+            crate::commands::search::source_open,
             crate::commands::ai::llm_summarize,
             crate::commands::ai::llm_summarize_cancel,
             crate::commands::ai::llm_suggest_tags,

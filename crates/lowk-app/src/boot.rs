@@ -9,7 +9,6 @@ use lowk_input::InputManager;
 use lowk_session::{Session, SessionDeps};
 use lowk_stealth::{create_stealth, RawWindows, StealthConfig};
 use lowk_store::FileSettingsStore;
-use lowk_types::fakes::NoopRetriever;
 use lowk_types::*;
 use parking_lot::RwLock;
 use std::sync::{Arc, Weak};
@@ -31,6 +30,11 @@ impl EventSink for PhaseWatcher {
         let prev = std::mem::replace(&mut *self.1.lock(), s.phase);
         if let Some(st) = self.0.upgrade() {
             let st2 = st.clone();
+            // Indexing yields to live transcription: background embedding pauses while a call runs.
+            if let Some(svc) = st.m2.read().clone() {
+                svc.index
+                    .pause_embedding(!matches!(s.phase, SessionPhase::Idle));
+            }
             // F8: a recording that just ended (stop button, bind or end of call) brings the
             // main window to the front on the library home.
             let ended = s.phase == SessionPhase::Idle && prev != SessionPhase::Idle;
@@ -54,12 +58,25 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     }
     let emitter = UiEmitter::new(handle.clone());
     let vault = Arc::new(RwLock::new(None));
+    migrate_settings(&settings);
 
+    // M2: documents, index, embedder, LLM routing. The retriever and the hint generator are the
+    // real ones; there is no stub path (no key means a clear error in the overlay).
+    let index_slot: Arc<RwLock<Option<lowk_index::Index>>> = Arc::new(RwLock::new(None));
+    let m2_env = crate::m2::Env {
+        settings: settings.clone() as Arc<dyn SettingsStore>,
+        sink: emitter.clone(),
+        keys: Arc::new(crate::m2::SystemKeys),
+        models: lowk_index::embedder::models::ModelStore::default_location()
+            .unwrap_or_else(|| lowk_index::embedder::models::ModelStore::new(data_dir().unwrap_or_default().join("models"))),
+        embed_worker: None,
+    };
     let mut deps = SessionDeps::new(
         main_thread.clone(),
-        Arc::new(NoopRetriever),
+        Arc::new(crate::m2::DynRetriever(index_slot.clone())),
         settings.clone() as Arc<dyn SettingsStore>,
     );
+    deps.hints = Arc::new(crate::m2::hints::LlmHints::new(m2_env.clone(), vault.clone()));
     deps.store = Arc::new(VaultCallStore {
         vault: vault.clone(),
         emitter: emitter.clone(),
@@ -103,8 +120,21 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         input,
         emitter.clone(),
         engines,
+        m2_env,
+        index_slot,
     ));
     app.manage(state.clone());
+    {
+        // every store change (commands, call recorder, vault watcher) also feeds the index
+        let weak = Arc::downgrade(&state);
+        emitter.set_store_tap(Box::new(move |c| {
+            if let Some(st) = weak.upgrade() {
+                if let Some(svc) = st.m2.read().clone() {
+                    svc.on_store_change(c);
+                }
+            }
+        }));
+    }
     session.add_sink(Arc::new(PhaseWatcher::new(Arc::downgrade(&state))));
 
     // ---- stealth: windows are created hidden, protected before the first show ----
@@ -270,11 +300,23 @@ fn spawn_settings_watcher(st: Shared) {
         .expect("spawn settings watcher");
 }
 
+/// Settings written by older builds.
+fn migrate_settings(settings: &lowk_store::FileSettingsStore) {
+    // the unpinned slug was the default for a while (2.3 s TTFT p50 vs 1.2 s pinned)
+    if settings.get().llm.model == LEGACY_LLM_MODEL {
+        tracing::info!("migrating llm.model to the version-pinned default");
+        let _ = settings.patch(SettingsPatch(serde_json::json!({ "llm": { "model": DEFAULT_LLM_MODEL } })));
+    }
+}
+
 fn on_settings(st: &Shared, old: &Settings, new: &Settings) {
     st.emitter.broadcast(
         lowk_types::events::SETTINGS_CHANGED,
         serde_json::to_value(new).unwrap_or_default(),
     );
+    if let Some(svc) = st.m2.read().clone() {
+        svc.on_settings(old, new);
+    }
     if let Ok(stealth) = st.stealth() {
         if old.stealth.hide_main != new.stealth.hide_main {
             if let Err(e) = stealth.set_hide_main(new.stealth.hide_main) {
