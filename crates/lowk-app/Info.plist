@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Lowk transcribes what you say during a call (your voice is labelled «Я»). Audio stays on this Mac unless you choose a cloud engine.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Lowk transcribes the sound of the call app you choose (labelled «Система»). Audio stays on this Mac unless you choose a cloud engine.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Lowk takes screenshots you request and adapts its overlay to what's behind it. Lowk's own windows are never included.</string>
+</dict>
+</plist>
