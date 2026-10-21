@@ -159,3 +159,5 @@ Deliver:
 
 ## M2 follow-ups
 - WP-D live TTFT 2.3 s vs 1.2 s in spikes/llm-bench (provider selection; one of four providers returned HTTP 400) — re-check pinning/provider order during WP-E.
+- WP-C embedder runs as a llama-server sidecar: WP-E must bundle/distribute it like lowk-stt-worker (size, SHA pin, Windows build) and include it in qa-bundle.
+- WP-C not done: bge-m3 / e5 comparison, i5-10400F timing.
