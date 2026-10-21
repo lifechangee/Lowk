@@ -152,12 +152,18 @@ if (key.status !== 0) {
   const keyOf = (action) => new RegExp(`action = "${action}"[\\s\\S]*?key = "(\\w+)"`).exec(st)?.[1];
   check(keyOf('screenshot') === 'KeyS' && keyOf('screenshot_area') === 'KeyA', 'S2: swapped screenshot binds are migrated (⌘⇧S = Скриншот, ⌘⇧A = область)', `screenshot=${keyOf('screenshot')} area=${keyOf('screenshot_area')}`);
   if (key.status === 0) {
-    run('osascript', ['-e', 'tell application "System Events" to key code 1 using {command down, shift down}']);
-    await sleep(1200);
-    check(/bind event.*action=Screenshot phase=Down/.test(logNow()), 'S2: real ⌘⇧S fires Screenshot (all monitors)');
-    run('osascript', ['-e', 'tell application "System Events" to key code 0 using {command down, shift down}']);
-    await sleep(1200);
-    check(/bind event.*action=ScreenshotArea phase=Down/.test(logNow()), 'S2: real ⌘⇧A fires ScreenshotArea');
+    // Only the log lines written AFTER each press count, and the exact action name is asserted
+    // (the other screenshot action must NOT fire).
+    const press = async (code) => {
+      const before = logNow().length;
+      run('osascript', ['-e', `tell application "System Events" to key code ${code} using {command down, shift down}`]);
+      await sleep(1500);
+      return [...logNow().slice(before).matchAll(/bind event action=(\w+) phase=Down/g)].map((m) => m[1]);
+    };
+    const s = await press(1);
+    check(s.length === 1 && s[0] === 'Screenshot', 'S2: real ⌘⇧S fires exactly Screenshot (all monitors)', `fired: ${s.join(',') || 'nothing'}`);
+    const a = await press(0);
+    check(a.length === 1 && a[0] === 'ScreenshotArea', 'S2: real ⌘⇧A fires exactly ScreenshotArea', `fired: ${a.join(',') || 'nothing'}`);
   }
 }
 

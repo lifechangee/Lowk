@@ -33,6 +33,9 @@ pub struct CorrectionJob {
     pub original: String,
     /// Single configured language (`ru`), `None` = let Whisper detect.
     pub lang: Option<String>,
+    /// Languages the user speaks; a correction with letters outside them (Whisper auto-detect
+    /// drifting into Polish, Arabic, ...) is rejected and the live text kept (S3).
+    pub allowed: Vec<String>,
 }
 
 pub trait CorrectionSink: Send + Sync {
@@ -238,7 +241,9 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
         // damaged, keep the live one instead of storing it.
         let damaged = lowk_types::text::has_replacement(&r.text);
         let text = lowk_types::text::clean_speech(&r.text);
-        let changed = !damaged && text != q.job.original.trim() && plausible(&q.job.original, &text);
+        let foreign = lowk_types::text::foreign_letter_count(&text, &q.job.allowed) > 0;
+        let changed =
+            !damaged && !foreign && text != q.job.original.trim() && plausible(&q.job.original, &text);
         let ev = changed.then(|| SttEvent {
             stream: q.job.stream,
             utt: q.job.utt,
@@ -404,6 +409,7 @@ mod tests {
             pcm: vec![0.0; 32000],
             original: "x".into(),
             lang: None,
+            allowed: vec![],
         };
         assert!(!c.submit(job, Arc::new(S), 0));
         assert_eq!(c.stats().1, 1);

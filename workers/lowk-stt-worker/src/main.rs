@@ -43,14 +43,48 @@ fn clean(s: &str) -> String {
         .join(" ")
 }
 
-/// Letters the user's languages cannot contain (S3: language drift). Ukrainian/Belarusian-only
-/// Cyrillic letters always count; accented Latin (Finnish «ä», French «é», ...) counts unless the
-/// user speaks a language that uses it (`latin_ext`).
-fn has_foreign_letters(s: &str, latin_ext: bool) -> bool {
-    s.chars().any(|c| {
-        matches!(c, 'і' | 'ї' | 'є' | 'ґ' | 'І' | 'Ї' | 'Є' | 'Ґ' | 'ў' | 'Ў')
-            || (!latin_ext && c.is_alphabetic() && !c.is_ascii() && !('\u{0400}'..='\u{04FF}').contains(&c))
-    })
+/// Is `c` a letter the user's languages (`allowed`, e.g. `ru`,`en`) cannot contain? (S3: language drift.)
+/// MIRROR of `lowk_types::text::is_foreign_letter` (this crate cannot depend on lowk-types): ASCII and
+/// basic Cyrillic always pass, except і ї є ґ ў without uk/be; accented Latin, CJK, Arabic, ... only when
+/// a language using that script is allowed. An empty list allows everything.
+fn is_foreign_letter(c: char, allowed: &[String]) -> bool {
+    if allowed.is_empty() || !c.is_alphabetic() || c.is_ascii() {
+        return false;
+    }
+    let has = |ls: &[&str]| allowed.iter().any(|a| ls.contains(&a.as_str()));
+    match c {
+        'і' | 'ї' | 'є' | 'ґ' | 'І' | 'Ї' | 'Є' | 'Ґ' | 'ў' | 'Ў' => !has(&["uk", "be"]),
+        '\u{0400}'..='\u{04FF}' => false,
+        '\u{00C0}'..='\u{024F}' | '\u{1E00}'..='\u{1EFF}' => !has(&[
+            "de", "fr", "es", "it", "pt", "nl", "tr", "pl", "cs", "sk", "sv", "da", "no", "fi", "hu", "ro",
+            "hr", "sl", "ca", "vi", "lt", "lv", "et",
+        ]),
+        '\u{0370}'..='\u{03FF}' => !has(&["el"]),
+        '\u{0590}'..='\u{05FF}' => !has(&["he"]),
+        '\u{0600}'..='\u{06FF}' | '\u{0750}'..='\u{077F}' => !has(&["ar", "fa", "ur"]),
+        '\u{0900}'..='\u{097F}' => !has(&["hi", "mr", "ne"]),
+        '\u{0E00}'..='\u{0E7F}' => !has(&["th"]),
+        '\u{3040}'..='\u{30FF}' => !has(&["ja"]),
+        '\u{AC00}'..='\u{D7AF}' | '\u{1100}'..='\u{11FF}' => !has(&["ko"]),
+        '\u{4E00}'..='\u{9FFF}' | '\u{3400}'..='\u{4DBF}' => !has(&["zh", "ja"]),
+        _ => true,
+    }
+}
+
+fn foreign_count(s: &str, allowed: &[String]) -> usize {
+    s.chars().filter(|c| is_foreign_letter(*c, allowed)).count()
+}
+
+/// Drops words that still contain a foreign letter (mirror of `lowk_types::text::strip_foreign`).
+fn strip_foreign(s: &str, allowed: &[String]) -> String {
+    if foreign_count(s, allowed) == 0 {
+        return s.to_owned();
+    }
+    s.split_whitespace()
+        .filter(|w| !w.chars().any(|c| is_foreign_letter(c, allowed)))
+        .filter(|w| w.chars().any(|c| c.is_alphanumeric()))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Cheap Russian look-alike for text shown while an utterance is still running.
@@ -75,7 +109,10 @@ fn emit(v: Value) {
 }
 
 fn arg(a: &[String], key: &str) -> Option<String> {
-    a.iter().position(|x| x == key).and_then(|i| a.get(i + 1)).cloned()
+    a.iter()
+        .position(|x| x == key)
+        .and_then(|i| a.get(i + 1))
+        .cloned()
 }
 
 fn i16_to_f32(b: &[u8]) -> Vec<f32> {
@@ -105,7 +142,10 @@ fn spawn_reader() -> Receiver<Msg> {
                     t_ns: u64::from_le_bytes(p[..8].try_into().unwrap()),
                     pcm: i16_to_f32(&p[8..]),
                 },
-                2 => match serde_json::from_slice::<Value>(&p).ok().and_then(|v| v["op"].as_str().map(str::to_owned)) {
+                2 => match serde_json::from_slice::<Value>(&p)
+                    .ok()
+                    .and_then(|v| v["op"].as_str().map(str::to_owned))
+                {
                     Some(op) if op == "flush" => Msg::Flush,
                     Some(op) if op == "stop" => Msg::Stop,
                     _ => continue,
@@ -194,22 +234,42 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
     let lang = arg(a, "--lang").unwrap_or_else(|| "auto".into());
     let right: i32 = arg(a, "--right").and_then(|s| s.parse().ok()).unwrap_or(6);
     let chunk_ms: usize = arg(a, "--chunk-ms").and_then(|s| s.parse().ok()).unwrap_or(160);
-    let hang: u32 = arg(a, "--hang-ms").and_then(|s| s.parse::<u32>().ok()).unwrap_or(480) / chunk_ms as u32;
-    let max_utt_ns: u64 = arg(a, "--max-utt-s").and_then(|s| s.parse::<u64>().ok()).unwrap_or(25) * 1_000_000_000;
+    let hang: u32 = arg(a, "--hang-ms")
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(480)
+        / chunk_ms as u32;
+    let max_utt_ns: u64 = arg(a, "--max-utt-s")
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(25)
+        * 1_000_000_000;
     // S3: languages the user speaks. Auto language detection drifts into Ukrainian on Russian speech;
     // when Russian is allowed and Ukrainian is not, such an utterance is decoded again with the ru-RU prompt.
     let allowed: Vec<String> = arg(a, "--allowed")
-        .map(|v| v.split(',').map(|x| x.trim().to_lowercase()).filter(|x| !x.is_empty()).collect())
+        .map(|v| {
+            v.split(',')
+                .map(|x| x.trim().to_lowercase())
+                .filter(|x| !x.is_empty())
+                .collect()
+        })
         .unwrap_or_default();
-    let latin_ext = allowed
+    // Prompts for the re-decode, in order of preference, for the allowed languages we have one for.
+    let rescue_langs: Vec<&str> = [("ru", "ru-RU"), ("en", "en-US")]
         .iter()
-        .any(|l| matches!(l.as_str(), "de" | "fr" | "es" | "it" | "pt" | "nl" | "tr" | "pl" | "cs" | "sv"));
-    let rescue_ru = lang == "auto" && allowed.iter().any(|l| l == "ru") && !allowed.iter().any(|l| l == "uk");
-    let thr: f32 = arg(a, "--vad-threshold").and_then(|s| s.parse().ok()).unwrap_or(0.5);
+        .filter(|(l, _)| allowed.iter().any(|a| a == l))
+        .map(|(_, p)| *p)
+        .collect();
+    let guard = lang == "auto" && !allowed.is_empty();
+    let rescue_ru = guard; // keep the audio of the utterance for a possible re-decode
+    let thr: f32 = arg(a, "--vad-threshold")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.5);
 
     let asr = Model::load(&model)?;
     let vad = Model::load(&vad_path)?;
-    if let Some(ms) = std::env::var("LOWK_QA_LOAD_DELAY_MS").ok().and_then(|v| v.parse::<u64>().ok()) {
+    if let Some(ms) = std::env::var("LOWK_QA_LOAD_DELAY_MS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+    {
         std::thread::sleep(std::time::Duration::from_millis(ms));
     }
     let mut asr_s = asr.session()?;
@@ -225,10 +285,6 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
         })),
         ..Default::default()
     };
-    let run_ru = RunOptions {
-        language: Some("ru-RU".into()),
-        ..Default::default()
-    };
     // Warm-up: compiles the Metal pipelines so the first utterance is not billed for it.
     {
         let mut s = asr_s.stream(&run, &so)?;
@@ -241,7 +297,11 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
     emit(json!({"ev":"ready","backend":asr.backend()}));
 
     let rx = spawn_reader();
-    let mut ch = Chunker { n: chunk_ms * 16, buf: vec![], t0: 0 };
+    let mut ch = Chunker {
+        n: chunk_ms * 16,
+        buf: vec![],
+        t0: 0,
+    };
     let mut pending = VecDeque::new();
     let mut preroll: VecDeque<Chunk> = VecDeque::new();
     let mut utt: u64 = 0;
@@ -280,21 +340,39 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
         first.push(c);
         let mut silent = 0u32;
         let mut stop_all = false;
-        let mut kept: Vec<Chunk> = if rescue_ru { first.iter().map(|c| Chunk { t0: c.t0, t1: c.t1, pcm: c.pcm.clone() }).collect() } else { vec![] };
+        let mut kept: Vec<Chunk> = if rescue_ru {
+            first
+                .iter()
+                .map(|c| Chunk {
+                    t0: c.t0,
+                    t1: c.t1,
+                    pcm: c.pcm.clone(),
+                })
+                .collect()
+        } else {
+            vec![]
+        };
         let mut todo: VecDeque<Chunk> = first.into();
         loop {
             while let Some(c) = todo.pop_front() {
                 t_end = c.t1;
                 if rescue_ru && !kept.iter().any(|k| k.t0 == c.t0) {
-                    kept.push(Chunk { t0: c.t0, t1: c.t1, pcm: c.pcm.clone() });
+                    kept.push(Chunk {
+                        t0: c.t0,
+                        t1: c.t1,
+                        pcm: c.pcm.clone(),
+                    });
                 }
                 let ta = std::time::Instant::now();
                 let u = stream.feed(&c.pcm)?;
                 asr_t += ta.elapsed().as_secs_f64();
                 if u.result_changed {
                     let mut t = clean(&stream.text().display());
-                    if rescue_ru && has_foreign_letters(&t, latin_ext) {
-                        t = to_russian_letters(&t);
+                    if guard && foreign_count(&t, &allowed) > 0 {
+                        if !allowed.iter().any(|a| a == "uk" || a == "be") {
+                            t = to_russian_letters(&t);
+                        }
+                        t = strip_foreign(&t, &allowed);
                     }
                     if !t.is_empty() && t != last {
                         last = t.clone();
@@ -327,7 +405,11 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
                         while let Some(c) = todo.pop_front() {
                             t_end = c.t1;
                             if rescue_ru && !kept.iter().any(|k| k.t0 == c.t0) {
-                                kept.push(Chunk { t0: c.t0, t1: c.t1, pcm: c.pcm.clone() });
+                                kept.push(Chunk {
+                                    t0: c.t0,
+                                    t1: c.t1,
+                                    pcm: c.pcm.clone(),
+                                });
                             }
                             stream.feed(&c.pcm)?;
                         }
@@ -344,16 +426,34 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
         stream.finalize()?;
         let mut t = clean(&stream.text().full);
         drop(stream);
-        if rescue_ru && has_foreign_letters(&t, latin_ext) {
-            // S3: drifted into Ukrainian letters: decode the same audio again, Russian prompt.
-            let mut again = String::new();
-            if let Ok(mut s2) = asr_s.stream(&run_ru, &so) {
-                let ok = kept.iter().all(|c| s2.feed(&c.pcm).is_ok());
-                if ok && s2.finalize().is_ok() {
-                    again = clean(&s2.text().full);
+        if guard && foreign_count(&t, &allowed) > 0 {
+            // S3: drifted into letters outside the user's languages: decode the same audio again with each
+            // allowed language's prompt and keep the cleanest text; whatever is still foreign is dropped.
+            let mut best = (foreign_count(&t, &allowed), t.clone());
+            for l in &rescue_langs {
+                let o = RunOptions {
+                    language: Some((*l).into()),
+                    ..Default::default()
+                };
+                if let Ok(mut s2) = asr_s.stream(&o, &so) {
+                    let ok = kept.iter().all(|c| s2.feed(&c.pcm).is_ok());
+                    if ok && s2.finalize().is_ok() {
+                        let again = clean(&s2.text().full);
+                        let n = foreign_count(&again, &allowed);
+                        if !again.is_empty() && n < best.0 {
+                            best = (n, again);
+                        }
+                    }
+                }
+                if best.0 == 0 {
+                    break;
                 }
             }
-            t = if again.is_empty() { to_russian_letters(&t) } else { again };
+            t = best.1;
+            if !allowed.iter().any(|a| a == "uk" || a == "be") {
+                t = to_russian_letters(&t);
+            }
+            t = strip_foreign(&t, &allowed);
         }
         if !t.is_empty() {
             emit(json!({"ev":"stt","kind":"final","utt":utt,"rev":rev,"text":t,
@@ -373,9 +473,18 @@ fn run_correct(a: &[String]) -> Result<(), BoxErr> {
         Some("cpu-accel") => Backend::CpuAccel,
         _ => Backend::Auto,
     };
-    let m = Model::load_with(&model, &ModelOptions { backend, ..Default::default() })?;
+    let m = Model::load_with(
+        &model,
+        &ModelOptions {
+            backend,
+            ..Default::default()
+        },
+    )?;
     let threads: i32 = arg(a, "--threads").and_then(|s| s.parse().ok()).unwrap_or(0);
-    let mut s = m.session_with(&SessionOptions { n_threads: threads, ..Default::default() })?;
+    let mut s = m.session_with(&SessionOptions {
+        n_threads: threads,
+        ..Default::default()
+    })?;
     emit(json!({"ev":"ready","backend":m.backend()}));
     let rx = spawn_reader();
     let prompt = arg(a, "--prompt");
@@ -384,7 +493,11 @@ fn run_correct(a: &[String]) -> Result<(), BoxErr> {
             Msg::Utt { id, lang, pcm } => {
                 let t = std::time::Instant::now();
                 let opts = RunOptions {
-                    language: if lang.is_empty() || lang == "auto" { None } else { Some(lang) },
+                    language: if lang.is_empty() || lang == "auto" {
+                        None
+                    } else {
+                        Some(lang)
+                    },
                     family: prompt.as_ref().map(|p| {
                         transcribe_cpp::RunExtension::Whisper(WhisperRunOptions {
                             initial_prompt: Some(p.clone()),
@@ -456,18 +569,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn s3_ukrainian_letters_are_detected_and_mapped_to_russian() {
-        assert!(has_foreign_letters("Підбегум от Sales", false));
-        assert!(has_foreign_letters("З фідбиком", true));
-        assert!(!has_foreign_letters("Подведём итоги от Sales, ёжик", false));
-        assert!(has_foreign_letters("Esimerkiksi on vähän", false));
-        assert!(!has_foreign_letters("Schöne Grüße", true));
+    fn s3_foreign_letters_are_detected_stripped_and_mapped() {
+        let ruen: Vec<String> = vec!["ru".into(), "en".into()];
+        assert!(foreign_count("Підбегум от Sales", &ruen) > 0);
+        assert_eq!(foreign_count("Подведём итоги от Sales, ёжик", &ruen), 0);
+        assert_eq!(foreign_count("Bułżą rauncie? Ебета.", &ruen), 3);
+        assert_eq!(foreign_count("Okay 可 我 أ", &ruen), 3);
+        assert_eq!(foreign_count("Schöne Grüße", &["de".into()]), 0);
+        assert_eq!(foreign_count("x ł", &[]), 0);
+        assert_eq!(
+            strip_foreign("Давай Bułżą rauncie? Ебета.", &ruen),
+            "Давай rauncie? Ебета."
+        );
         assert_eq!(to_russian_letters("Підбегум З фідбиком"), "Пидбегум З фидбиком");
     }
 
     #[test]
     fn s1_clean_drops_replacement_and_control_characters() {
-        assert_eq!(clean("А, о\u{FFFD}кей.  Расскажи\u{7} ко\u{FFFD}"), "А, окей. Расскажи ко");
+        assert_eq!(
+            clean("А, о\u{FFFD}кей.  Расскажи\u{7} ко\u{FFFD}"),
+            "А, окей. Расскажи ко"
+        );
         assert_eq!(clean("  \u{FFFD} "), "");
     }
 }

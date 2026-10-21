@@ -15,10 +15,62 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// Consecutive same-speaker finals closer than this merge into one paragraph.
-const MERGE_GAP_S: u32 = 12;
-/// A turn longer than this starts a new timestamp.
-const MAX_TURN_S: u32 = 30;
+/// Consecutive same-speaker finals closer than this merge into one line, but only while the
+/// previous one ends mid-sentence (no `.?!…`): a finished sentence/utterance gets its own line.
+const MERGE_GAP_S: u32 = 2;
+/// A line spanning more than this starts a new timestamp; a longer final is split at sentence ends.
+const MAX_TURN_S: u32 = 15;
+
+/// Splits one final that spans more than `MAX_TURN_S` into sentence groups of about equal length,
+/// each stamped by its character share of the audio span. Always returns at least one segment.
+fn segment(text: &str, at: u32, end: u32) -> Vec<(String, u32)> {
+    let span = end.saturating_sub(at);
+    if span <= MAX_TURN_S {
+        return vec![(text.to_string(), at)];
+    }
+    let mut sentences: Vec<String> = vec![];
+    let mut cur = String::new();
+    let mut it = text.chars().peekable();
+    while let Some(c) = it.next() {
+        cur.push(c);
+        if matches!(c, '.' | '?' | '!' | '…') && it.peek().is_none_or(|n| n.is_whitespace()) {
+            sentences.push(std::mem::take(&mut cur).trim().to_string());
+        }
+    }
+    if !cur.trim().is_empty() {
+        sentences.push(cur.trim().to_string());
+    }
+    let groups = span.div_ceil(MAX_TURN_S).max(1) as usize;
+    let total: usize = sentences
+        .iter()
+        .map(|x| x.chars().count() + 1)
+        .sum::<usize>()
+        .max(1);
+    let per = total / groups + 1;
+    let (mut out, mut acc, mut used, mut start_chars) = (vec![], String::new(), 0usize, 0usize);
+    for sn in sentences {
+        if acc.is_empty() {
+            start_chars = used;
+        }
+        used += sn.chars().count() + 1;
+        if !acc.is_empty() {
+            acc.push(' ');
+        }
+        acc.push_str(&sn);
+        if used - start_chars >= per {
+            let t = at + (span as u64 * start_chars as u64 / total as u64) as u32;
+            out.push((std::mem::take(&mut acc), t));
+        }
+    }
+    if !acc.is_empty() {
+        let t = at + (span as u64 * start_chars as u64 / total as u64) as u32;
+        out.push((acc, t));
+    }
+    if out.is_empty() {
+        out.push((text.to_string(), at));
+    }
+    out
+}
 const SYNC_EVERY: Duration = Duration::from_secs(1);
 const MATERIALIZE_EVERY: Duration = Duration::from_secs(20);
 
@@ -98,58 +150,9 @@ impl Model {
                 if cleaned.is_empty() {
                     return Ok(());
                 }
-                let text = cleaned.as_str();
-                let (last_end, last_at) = (self.last_end, self.last_at);
-                let blocks = self.doc.blocks_mut();
-                // S6: lines are ordered by audio time, not by when their final arrived. A Me final
-                // that lands after a later System line (or after a Q&A block asked meanwhile)
-                // goes back where it was spoken.
-                let block_at = |b: &Block| match b {
-                    Block::Turn { at_s, .. } => Some(*at_s),
-                    Block::Qa(q) => Some(q.at_s),
-                    Block::Image(i) => Some(i.at_s),
-                    Block::Raw(_) => None,
-                };
-                let mut pos = blocks.len();
-                while pos > 0 && block_at(&blocks[pos - 1]).is_some_and(|t| t > at) {
-                    pos -= 1;
+                for (text, at) in segment(&cleaned, at, end) {
+                    self.add_turn(sp.clone(), at, end, &text);
                 }
-                if pos < blocks.len() {
-                    blocks.insert(
-                        pos,
-                        Block::Turn {
-                            at_s: at,
-                            speaker: sp,
-                            text: text.to_string(),
-                        },
-                    );
-                    self.last_end = self.last_end.max(end);
-                    return Ok(());
-                }
-                if let Some(Block::Turn {
-                    at_s,
-                    speaker,
-                    text: t,
-                }) = blocks.last_mut()
-                {
-                    if *speaker == sp
-                        && at.saturating_sub(last_end) <= MERGE_GAP_S
-                        && at.saturating_sub(*at_s) < MAX_TURN_S
-                    {
-                        t.push(' ');
-                        t.push_str(text);
-                        self.last_end = end.max(last_end);
-                        return Ok(());
-                    }
-                }
-                let _ = last_at;
-                blocks.push(Block::Turn {
-                    at_s: at,
-                    speaker: sp,
-                    text: text.to_string(),
-                });
-                self.last_end = end;
-                self.last_at = at;
             }
             CallEntry::Qa {
                 id,
@@ -204,6 +207,62 @@ impl Model {
             }
         }
         Ok(())
+    }
+
+    /// Adds one finished line, ordered by audio time (S6) and merged into the previous one only
+    /// while that is the same speaker, mid-sentence, close in time and short (segmentation).
+    fn add_turn(&mut self, sp: Speaker, at: u32, end: u32, text: &str) {
+        let (last_end, _last_at) = (self.last_end, self.last_at);
+        let blocks = self.doc.blocks_mut();
+        // S6: lines are ordered by audio time, not by when their final arrived. A Me final
+        // that lands after a later System line (or after a Q&A block asked meanwhile)
+        // goes back where it was spoken.
+        let block_at = |b: &Block| match b {
+            Block::Turn { at_s, .. } => Some(*at_s),
+            Block::Qa(q) => Some(q.at_s),
+            Block::Image(i) => Some(i.at_s),
+            Block::Raw(_) => None,
+        };
+        let mut pos = blocks.len();
+        while pos > 0 && block_at(&blocks[pos - 1]).is_some_and(|t| t > at) {
+            pos -= 1;
+        }
+        if pos < blocks.len() {
+            blocks.insert(
+                pos,
+                Block::Turn {
+                    at_s: at,
+                    speaker: sp,
+                    text: text.to_string(),
+                },
+            );
+            self.last_end = self.last_end.max(end);
+            return;
+        }
+        if let Some(Block::Turn {
+            at_s,
+            speaker,
+            text: t,
+        }) = blocks.last_mut()
+        {
+            if *speaker == sp
+                && at.saturating_sub(last_end) <= MERGE_GAP_S
+                && end.saturating_sub(*at_s) <= MAX_TURN_S
+                && !t.ends_with(['.', '?', '!', '…'])
+            {
+                t.push(' ');
+                t.push_str(text);
+                self.last_end = end.max(last_end);
+                return;
+            }
+        }
+        blocks.push(Block::Turn {
+            at_s: at,
+            speaker: sp,
+            text: text.to_string(),
+        });
+        self.last_end = end;
+        self.last_at = at;
     }
 
     fn last_offset(&self) -> u32 {
@@ -522,3 +581,29 @@ const _: fn() = || {
     let _ = fm::quote;
     let _ = Part::Other(String::new(), String::new());
 };
+
+#[cfg(test)]
+mod segment_tests {
+    use super::*;
+
+    #[test]
+    fn short_final_is_one_segment() {
+        assert_eq!(
+            segment("Привет. Как дела?", 3, 9),
+            vec![("Привет. Как дела?".to_string(), 3)]
+        );
+    }
+
+    #[test]
+    fn long_monologue_is_split_at_sentences_with_increasing_stamps() {
+        let t = "Спасибо, что нашёл время. Давай сразу к цифрам. Какой у вас сейчас ARR? А burn rate какой? \
+                 Тогда какой runway? Четыре месяца — это мало. Вы уже в раунде? Давай про unit economics. \
+                 LTV к CAC какой? А EBITDA когда будет положительной?";
+        let segs = segment(t, 100, 145);
+        assert!(segs.len() >= 3, "{segs:?}");
+        assert!(segs.windows(2).all(|w| w[0].1 < w[1].1));
+        assert_eq!(segs[0].1, 100);
+        assert!(segs.iter().all(|s| s.0.ends_with(['.', '?', '!'])));
+        assert_eq!(segs.iter().map(|s| s.0.as_str()).collect::<Vec<_>>().join(" "), t);
+    }
+}

@@ -70,6 +70,54 @@ pub fn clean_speech(s: &str) -> String {
     out
 }
 
+/// S3 (language drift): is `c` a letter the user's languages (`allowed`, BCP-47 primary tags such as
+/// `ru`, `en`) cannot contain? ASCII and basic Cyrillic are always fine, except the Ukrainian/Belarusian
+/// letters (і ї є ґ ў) unless `uk`/`be` is allowed. Accented Latin, CJK, Arabic, ... only when a language
+/// that uses that script is allowed. An empty list allows everything.
+/// (Mirrored in `workers/lowk-stt-worker/src/main.rs`, which cannot depend on this crate.)
+pub fn is_foreign_letter(c: char, allowed: &[String]) -> bool {
+    if allowed.is_empty() || !c.is_alphabetic() || c.is_ascii() {
+        return false;
+    }
+    let has = |ls: &[&str]| allowed.iter().any(|a| ls.contains(&a.as_str()));
+    match c {
+        'і' | 'ї' | 'є' | 'ґ' | 'І' | 'Ї' | 'Є' | 'Ґ' | 'ў' | 'Ў' => !has(&["uk", "be"]),
+        '\u{0400}'..='\u{04FF}' => false,
+        '\u{00C0}'..='\u{024F}' | '\u{1E00}'..='\u{1EFF}' => !has(&[
+            "de", "fr", "es", "it", "pt", "nl", "tr", "pl", "cs", "sk", "sv", "da", "no", "fi", "hu", "ro",
+            "hr", "sl", "ca", "vi", "lt", "lv", "et",
+        ]),
+        '\u{0370}'..='\u{03FF}' => !has(&["el"]),
+        '\u{0590}'..='\u{05FF}' => !has(&["he"]),
+        '\u{0600}'..='\u{06FF}' | '\u{0750}'..='\u{077F}' => !has(&["ar", "fa", "ur"]),
+        '\u{0900}'..='\u{097F}' => !has(&["hi", "mr", "ne"]),
+        '\u{0E00}'..='\u{0E7F}' => !has(&["th"]),
+        '\u{3040}'..='\u{30FF}' => !has(&["ja"]),
+        '\u{AC00}'..='\u{D7AF}' | '\u{1100}'..='\u{11FF}' => !has(&["ko"]),
+        '\u{4E00}'..='\u{9FFF}' | '\u{3400}'..='\u{4DBF}' => !has(&["zh", "ja"]),
+        _ => true,
+    }
+}
+
+/// Number of letters outside the user's languages (see `is_foreign_letter`).
+pub fn foreign_letter_count(s: &str, allowed: &[String]) -> usize {
+    s.chars().filter(|c| is_foreign_letter(*c, allowed)).count()
+}
+
+/// Last resort when a re-decode still has foreign letters: drops every word that contains one
+/// (a half-garbled word is worse than a gap) and tidies the punctuation left behind.
+pub fn strip_foreign(s: &str, allowed: &[String]) -> String {
+    if foreign_letter_count(s, allowed) == 0 {
+        return s.to_owned();
+    }
+    let kept: Vec<&str> = s
+        .split_whitespace()
+        .filter(|w| !w.chars().any(|c| is_foreign_letter(c, allowed)))
+        .filter(|w| w.chars().any(|c| c.is_alphanumeric()))
+        .collect();
+    kept.join(" ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -161,5 +209,22 @@ mod tests {
             assert!(!has_replacement(&c));
             assert!(!c.starts_with(' ') && !c.ends_with(' ') && !c.contains("  "));
         }
+    }
+
+    #[test]
+    fn s3_foreign_letters_for_ru_en() {
+        let a: Vec<String> = vec!["ru".into(), "en".into()];
+        assert_eq!(
+            foreign_letter_count("Bułżą rauncie? Ебета. Let's go, ёжик", &a),
+            3
+        );
+        assert_eq!(foreign_letter_count("Підбегум 可 أ č", &a), 4);
+        assert_eq!(foreign_letter_count("Schöne Grüße", &["de".into()]), 0);
+        assert_eq!(foreign_letter_count("anything ł", &[]), 0);
+        assert_eq!(
+            strip_foreign("Давай Bułżą rauncie? Ебета.", &a),
+            "Давай rauncie? Ебета."
+        );
+        assert_eq!(strip_foreign("Okay 可 我 now", &a), "Okay now");
     }
 }

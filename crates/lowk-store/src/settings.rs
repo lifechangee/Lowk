@@ -131,14 +131,19 @@ impl FileSettingsStore {
     /// Re-read the file after an external edit; notifies subscribers on change.
     pub fn reload(&self) -> Result<Settings> {
         let text = fs::read_to_string(&self.path)?;
-        let (s, raw) = Self::parse(&text)?;
+        let (mut s, raw) = Self::parse(&text)?;
         *self.raw.lock() = raw;
+        // S2: an externally restored old file (swapped screenshot binds) is repaired like on open.
+        let migrated = s.migrate_binds(Os::current());
         let changed = {
             let mut cur = self.cur.lock();
             let changed = *cur != s;
             *cur = s.clone();
             changed
         };
+        if migrated {
+            self.write()?;
+        }
         if changed {
             self.notify(&s);
         }

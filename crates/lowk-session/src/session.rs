@@ -60,6 +60,7 @@ struct Core {
     rings: Option<Rings>,
     corrector: Option<Arc<dyn Corrector>>,
     corr_lang: Option<String>,
+    allowed_langs: Vec<String>,
     pending_journal: HashMap<(Stream, UttId), SttEvent>,
     last_diag: Option<SttDiagnostics>,
     threads: Vec<JoinHandle<()>>,
@@ -94,6 +95,7 @@ impl Core {
             rings: None,
             corrector: None,
             corr_lang: None,
+            allowed_langs: vec![],
             pending_journal: HashMap::new(),
             last_diag: None,
             threads: vec![],
@@ -639,6 +641,7 @@ impl Inner {
                         let mut c = self.core();
                         c.rings = rings.clone();
                         c.corrector = Some(corr);
+                        c.allowed_langs = settings.stt.languages.clone();
                         c.corr_lang = match settings.stt.languages.as_slice() {
                             [one] => Some(one.clone()),
                             _ => None,
@@ -861,6 +864,7 @@ impl Inner {
                         pcm,
                         original: ev.text.clone(),
                         lang: c.corr_lang.clone(),
+                        allowed: c.allowed_langs.clone(),
                     });
                 } else {
                     c.push_entry(CallEntry::Final { event: ev.clone() });
