@@ -222,6 +222,18 @@ pub fn sanitize_ids(raw: &[u32], live: Option<&[u32]>) -> Vec<u32> {
     v
 }
 
+/// Tap description for a target: private and explicitly CATapUnmuted so capture never changes
+/// what the user hears (whole-system and per-app, any output device).
+pub(crate) fn build_desc(target: &TapTarget, arr: &ns::Array<ns::Number>) -> arc::R<ca::TapDesc> {
+    let mut desc = match target {
+        TapTarget::System(_) => ca::TapDesc::with_mono_global_tap_excluding_processes(arr),
+        TapTarget::Procs(_) => ca::TapDesc::with_mono_mixdown_of_processes(arr),
+    };
+    desc.set_private(true);
+    desc.set_mute_behavior(ca::TapMuteBehavior::Unmuted);
+    desc
+}
+
 pub fn start_tap(target: &TapTarget, ring: RingIn) -> Result<TapSession> {
     let live: Option<Vec<u32>> = ca::Process::list()
         .ok()
@@ -236,16 +248,10 @@ pub fn start_tap(target: &TapTarget, ring: RingIn) -> Result<TapSession> {
     };
     let refs: Vec<&ns::Number> = nums.iter().map(|n| &**n).collect();
     let arr = ns::Array::from_slice(&refs);
-    let mut desc = match target {
-        TapTarget::System(_) => ca::TapDesc::with_mono_global_tap_excluding_processes(&arr),
-        TapTarget::Procs(p) => {
-            if p.is_empty() {
-                return Err(AppError::new(ErrorCode::AudioTargetLost).with_detail("no audio process objects"));
-            }
-            ca::TapDesc::with_mono_mixdown_of_processes(&arr)
-        }
-    };
-    desc.set_private(true);
+    if matches!(target, TapTarget::Procs(p) if p.is_empty()) {
+        return Err(AppError::new(ErrorCode::AudioTargetLost).with_detail("no audio process objects"));
+    }
+    let desc = build_desc(target, &arr);
     let tap = desc
         .create_process_tap()
         .map_err(|e| err("AudioHardwareCreateProcessTap", e))?;
@@ -337,6 +343,46 @@ mod tests {
     fn stale_ids_are_filtered_against_live_list() {
         assert_eq!(sanitize_ids(&[3, 9, 12], Some(&[3, 12, 40])), vec![3, 12]);
         assert!(sanitize_ids(&[9], Some(&[])).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod mute_tests {
+    use super::*;
+
+    #[test]
+    fn tap_description_is_unmuted_for_every_target_kind() {
+        let arr = ns::Array::<ns::Number>::new();
+        for t in [TapTarget::System(vec![]), TapTarget::Procs(vec![])] {
+            let d = build_desc(&t, &arr);
+            assert_eq!(d.mute_behavior(), ca::TapMuteBehavior::Unmuted, "{t:?}");
+            assert!(d.is_private());
+        }
+    }
+}
+
+/// Audible QA helper (driven by tools/audio/no-mute.sh, opt-in): holds a real tap open.
+#[cfg(test)]
+mod audible_hold {
+    use super::*;
+
+    #[test]
+    #[ignore = "audible QA: run through tools/audio/no-mute.sh"]
+    fn hold_tap_open() {
+        let secs: u64 = std::env::var("LOWK_HOLD_SECS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(6);
+        let target = match std::env::var("LOWK_HOLD_PIDS") {
+            Ok(p) if !p.is_empty() => {
+                let ids: Vec<u32> = p.split(',').filter_map(|x| x.parse().ok()).collect();
+                TapTarget::Procs(ids)
+            }
+            _ => TapTarget::System(vec![]),
+        };
+        let (ring, _rx) = RingIn::new(Default::default(), 48_000);
+        let _t = start_tap(&target, ring).expect("tap");
+        std::thread::sleep(std::time::Duration::from_secs(secs));
     }
 }
 
