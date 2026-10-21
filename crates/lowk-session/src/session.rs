@@ -1017,6 +1017,7 @@ impl Inner {
         self.flush(out);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn qa_finish(
         &self,
         qa_id: QaId,

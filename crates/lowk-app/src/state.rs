@@ -79,6 +79,7 @@ pub struct AppState {
 }
 
 impl AppState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         app: AppHandle,
         settings: Arc<FileSettingsStore>,

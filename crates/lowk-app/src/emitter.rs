@@ -12,13 +12,15 @@ const OVERLAY: &str = "overlay";
 const MAIN: &str = "main";
 const PILL: &str = "pill";
 
+type StoreTap = Box<dyn Fn(&lowk_types::StoreChange) + Send + Sync>;
+
 pub struct UiEmitter {
     app: AppHandle,
     /// Latest unsent partial per utterance. The lock is held while sending so a
     /// stale partial can never overtake the final of the same utterance.
     pending: Mutex<HashMap<(Stream, UttId), SttEvent>>,
     /// Every store change (ours and the watcher's) also reaches the index feed.
-    store_tap: std::sync::OnceLock<Box<dyn Fn(&lowk_types::StoreChange) + Send + Sync>>,
+    store_tap: std::sync::OnceLock<StoreTap>,
 }
 
 fn payload(ev: &AppEvent) -> Value {
@@ -113,7 +115,7 @@ impl UiEmitter {
         self.send(name, &[MAIN], &p);
     }
 
-    pub fn set_store_tap(&self, f: Box<dyn Fn(&lowk_types::StoreChange) + Send + Sync>) {
+    pub fn set_store_tap(&self, f: StoreTap) {
         let _ = self.store_tap.set(f);
     }
 

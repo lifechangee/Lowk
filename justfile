@@ -15,9 +15,11 @@ dev: setup
 # Build the local speech worker and stage it as the Tauri sidecar (needs CMake; Metal on macOS).
 worker:
     tools/build-worker.sh
+    tools/build-embed-worker.sh
 
 # Production build: the app bundle (macOS: target/release/bundle/macos/Lowk.app) with the
-# STT worker inside (externalBin, Contents/MacOS/lowk-stt-worker). Models are downloaded on demand.
+# STT worker and the embedder sidecar inside (externalBin, Contents/MacOS/lowk-stt-worker, lowk-embed-worker).
+# Models are downloaded on demand.
 # macOS: signed with LOWK_SIGN_IDENTITY (a "Lowk Dev" code-signing cert, docs/setup/macos-signing.md) so privacy
 # grants survive rebuilds; without it the app is ad-hoc signed with Identifier = bundle id (tools/sign-bundle.sh).
 build: setup worker

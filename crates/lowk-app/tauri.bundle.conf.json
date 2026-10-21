@@ -6,7 +6,8 @@
       "app"
     ],
     "externalBin": [
-      "binaries/lowk-stt-worker"
+      "binaries/lowk-stt-worker",
+      "binaries/lowk-embed-worker"
     ],
     "macOS": {
       "entitlements": "Entitlements.plist"

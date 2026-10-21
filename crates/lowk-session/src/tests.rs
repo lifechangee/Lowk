@@ -691,15 +691,12 @@ fn user_folder_opts() -> StartOpts {
 fn wait_llm_end(rx: &Receiver<AppEvent>) -> Vec<LlmEvent> {
     let mut seen = vec![];
     loop {
-        match rx.recv_timeout(Duration::from_secs(5)).expect("llm end") {
-            AppEvent::Llm(e) => {
-                let end = matches!(e, LlmEvent::Done { .. } | LlmEvent::Error { .. });
-                seen.push(e);
-                if end {
-                    return seen;
-                }
+        if let AppEvent::Llm(e) = rx.recv_timeout(Duration::from_secs(5)).expect("llm end") {
+            let end = matches!(e, LlmEvent::Done { .. } | LlmEvent::Error { .. });
+            seen.push(e);
+            if end {
+                return seen;
             }
-            _ => {}
         }
     }
 }
