@@ -18,7 +18,10 @@
   let report = $state<BindReport>({ entries: [] });
 
   const binds = $derived<BindSpec[]>(prefs.value.binds ?? []);
-  onMount(async () => { report = await api.bindReport(); });
+  onMount(() => {
+    void api.bindReport().then((r) => (report = r));
+    return api.onBindReport((r) => (report = r));
+  });
 
   const label = (a: ActionId) => tm(`m.act.${a}` as MKey);
   const hint = (a: ActionId): string => (hints && HINTS.has(a) ? tm(`m.act.${a}.hint` as MKey) : '');

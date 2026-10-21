@@ -68,4 +68,5 @@ export const overlay = {
   'overlay.state.idle': 'Not recording',
   'overlay.action.stop': 'Stop recording',
   'overlay.state.paused': 'Paused',
+  'overlay.hint.degraded': 'Holding {key} does not work: enable “Input Monitoring” in Lowk → Permissions',
 } as const;

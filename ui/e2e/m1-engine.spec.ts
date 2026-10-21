@@ -11,10 +11,10 @@ async function openCard(page: import('@playwright/test').Page, query = '') {
   return card;
 }
 
-test('engine card: not installed says what the record button does, installs with progress, ends installed', async ({ page }) => {
+test('engine card: not installed says recording cannot start, installs with progress, ends installed', async ({ page }) => {
   const card = await openCard(page);
   await expect(card).toContainText('Not installed');
-  await expect(card).toContainText('scripted demo');
+  await expect(card).toContainText('cannot start until the model is installed');
   await card.getByRole('button', { name: /Download/ }).click();
   await expect(card.getByRole('progressbar')).toBeVisible();
   await expect(card.getByRole('button', { name: 'Cancel' })).toBeVisible();

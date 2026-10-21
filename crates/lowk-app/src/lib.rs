@@ -40,11 +40,51 @@ pub fn export_bindings(path: &std::path::Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
+/// stderr plus `<data dir>/lowk.log` (a bundle launched from Finder has no terminal; this is what
+/// «why does X not work in the real app» is answered from). The file restarts past 2 MB.
+struct Tee;
+static LOG: std::sync::OnceLock<Option<std::sync::Mutex<std::fs::File>>> = std::sync::OnceLock::new();
+fn log() -> Option<std::sync::MutexGuard<'static, std::fs::File>> {
+    LOG.get_or_init(|| log_file().map(std::sync::Mutex::new))
+        .as_ref()
+        .and_then(|m| m.lock().ok())
+}
+impl std::io::Write for Tee {
+    fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+        if let Some(mut f) = log() {
+            let _ = f.write_all(b);
+        }
+        std::io::stderr().write(b)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        if let Some(mut f) = log() {
+            let _ = f.flush();
+        }
+        std::io::stderr().flush()
+    }
+}
+
+fn log_file() -> Option<std::fs::File> {
+    let dir = state::data_dir().ok()?;
+    std::fs::create_dir_all(&dir).ok()?;
+    let path = dir.join("lowk.log");
+    let big = std::fs::metadata(&path).is_ok_and(|m| m.len() > 2_000_000);
+    let mut o = std::fs::OpenOptions::new();
+    o.create(true).write(true);
+    if big {
+        o.truncate(true);
+    } else {
+        o.append(true);
+    }
+    o.open(path).ok()
+}
+
 fn init_tracing() {
     use tracing_subscriber::EnvFilter;
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
-        .with_writer(std::io::stderr)
+        .with_ansi(false)
+        .with_writer(|| Tee)
         .try_init();
 }
 

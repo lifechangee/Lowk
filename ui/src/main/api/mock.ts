@@ -3,7 +3,7 @@
 import type { BindReport, CallMeta, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, NewFolder, Os, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { LIVE_LINES, makeCalls, makeDetail, makeFolderDetail, makeFolders, summarizedIds } from './fixtures';
-import { folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type DocItem, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider } from './types';
+import { folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type DocItem, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider, type EngineNeeded } from './types';
 
 const delay = (ms = 30) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -216,6 +216,10 @@ export class MockBackend implements Backend {
   }
   async permRequest(kind: PermKind): Promise<PermState> { await delay(200); this.#perms[kind] = 'granted'; return 'granted'; }
   async permOpenSettings(_kind: PermKind): Promise<void> { await delay(); }
+  async appRelaunch(): Promise<void> { await delay(); }
+  /** Backend asks for the «download the model / choose cloud» prompt (a real call cannot start). */
+  onEngineNeeded(_cb: (e: EngineNeeded) => void): () => void { return () => undefined; }
+  onBindReport(_cb: (r: BindReport) => void): () => void { return () => undefined; }
   async secretStatus(p: SecretProvider): Promise<boolean> { return this.#secrets.has(p); }
   async secretSet(p: SecretProvider, value: string): Promise<void> { if (value.trim()) this.#secrets.add(p); }
   async secretDelete(p: SecretProvider): Promise<void> { this.#secrets.delete(p); }

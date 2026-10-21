@@ -25,6 +25,8 @@
       <span class="toast" role="status">{store.toast}</span>
     {:else if store.mode === 'moving'}
       <span class="badge" role="status">{ot('overlay.move.badge', lang, { key: k.move })}</span>
+    {:else if store.holdDegraded}
+      <span class="lbl warn" role="status" data-testid="hold-degraded">{ot('overlay.hint.degraded', lang, { key: k.move })}</span>
     {:else}
       <span class="lbl">{ot('overlay.hint.move', lang, { key: k.move, type: k.interactive })}</span>
     {/if}

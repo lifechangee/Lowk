@@ -121,6 +121,11 @@ export interface Backend {
   permStatus(): Promise<Record<PermKind, PermState>>;
   permRequest(kind: PermKind): Promise<PermState>;
   permOpenSettings(kind: PermKind): Promise<void>;
+  /** Quit and start Lowk again (macOS applies some grants only to a fresh process). */
+  appRelaunch(): Promise<void>;
+  onEngineNeeded(cb: (e: EngineNeeded) => void): () => void;
+  /** `binds://report`: live status of every bind (degraded = a permission is missing). */
+  onBindReport(cb: (r: BindReport) => void): () => void;
   secretStatus(provider: SecretProvider): Promise<boolean>;
   secretSet(provider: SecretProvider, value: string): Promise<void>;
   secretDelete(provider: SecretProvider): Promise<void>;
@@ -134,3 +139,6 @@ export interface Backend {
   /** Live transcript feed for the call page while recording. Returns an unsubscribe fn. */
   onLiveLine(cb: (line: LiveLine) => void): () => void;
 }
+
+/** `engine://needed`: a real call cannot start; what the prompt should offer. */
+export type EngineNeeded = { engine: string; kind: 'local' | 'cloud' | 'none'; size_mb: number };

@@ -3,7 +3,7 @@ use super::system_audio_heuristic;
 use lowk_types::{PermKind, PermState, Result};
 use objc2::msg_send;
 use objc2::runtime::{AnyClass, AnyObject, Bool};
-use std::ffi::c_char;
+use std::ffi::{c_char, c_void};
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -25,6 +25,47 @@ const HID_LISTEN_EVENT: u32 = 1;
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
     fn AXIsProcessTrusted() -> bool;
+    fn AXIsProcessTrustedWithOptions(options: *const c_void) -> bool;
+    static kAXTrustedCheckOptionPrompt: *const c_void;
+}
+
+#[link(name = "CoreFoundation", kind = "framework")]
+extern "C" {
+    static kCFBooleanTrue: *const c_void;
+    static kCFTypeDictionaryKeyCallBacks: c_void;
+    static kCFTypeDictionaryValueCallBacks: c_void;
+    fn CFDictionaryCreate(
+        alloc: *const c_void,
+        keys: *const *const c_void,
+        values: *const *const c_void,
+        n: isize,
+        key_cb: *const c_void,
+        val_cb: *const c_void,
+    ) -> *const c_void;
+    fn CFRelease(cf: *const c_void);
+}
+
+/// `AXIsProcessTrustedWithOptions({prompt: true})`: shows the system dialog and, more importantly,
+/// LISTS the app in Privacy > Accessibility (without this call the pane has no Lowk row to switch on).
+fn accessibility_prompt() -> bool {
+    // SAFETY: a one-entry CFDictionary of CF constants, released after the call.
+    unsafe {
+        let keys = [kAXTrustedCheckOptionPrompt];
+        let vals = [kCFBooleanTrue];
+        let d = CFDictionaryCreate(
+            std::ptr::null(),
+            keys.as_ptr(),
+            vals.as_ptr(),
+            1,
+            &kCFTypeDictionaryKeyCallBacks,
+            &kCFTypeDictionaryValueCallBacks,
+        );
+        let r = AXIsProcessTrustedWithOptions(d);
+        if !d.is_null() {
+            CFRelease(d);
+        }
+        r
+    }
 }
 
 #[link(name = "AVFoundation", kind = "framework")]
@@ -127,10 +168,10 @@ pub fn request(k: PermKind) -> Result<PermState> {
             }
             Ok(status(k))
         }
-        // Prompting needs AXIsProcessTrustedWithOptions(prompt=true); we send the
-        // user to the pane instead (it lists the app after the first check).
+        // The prompt call is what adds Lowk to the Accessibility list; the pane opens too.
         PermKind::Accessibility => {
             if status(k) != PermState::Granted {
+                accessibility_prompt();
                 super::open_settings(k);
             }
             Ok(status(k))

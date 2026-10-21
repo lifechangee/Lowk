@@ -9,6 +9,7 @@ const COMMANDS: &[&str] = &[
     "secret_status",
     "secret_delete",
     "app_quit",
+    "app_relaunch",
     "main_open",
     "update_check",
     "vault_open",

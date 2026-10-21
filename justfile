@@ -18,8 +18,19 @@ worker:
 
 # Production build: the app bundle (macOS: target/release/bundle/macos/Lowk.app) with the
 # STT worker inside (externalBin, Contents/MacOS/lowk-stt-worker). Models are downloaded on demand.
+# macOS: signed with LOWK_SIGN_IDENTITY (a "Lowk Dev" code-signing cert, docs/setup/macos-signing.md) so privacy
+# grants survive rebuilds; without it the app is ad-hoc signed with Identifier = bundle id (tools/sign-bundle.sh).
 build: setup worker
-    cd crates/lowk-app && cargo tauri build --config tauri.bundle.conf.json --bundles app
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd crates/lowk-app
+    cfg=(--config tauri.bundle.conf.json)
+    if [ -n "${LOWK_SIGN_IDENTITY:-}" ]; then
+      cfg+=(--config "{\"bundle\":{\"macOS\":{\"signingIdentity\":\"$LOWK_SIGN_IDENTITY\"}}}")
+    fi
+    cargo tauri build "${cfg[@]}" --bundles app
+    cd ../..
+    if [ "$(uname -s)" = Darwin ]; then tools/sign-bundle.sh; fi
 
 # Regenerate the typed IPC bindings (ui/src/lib/ipc/bindings.ts).
 bindings:
@@ -52,6 +63,12 @@ qa-app:
 # Gallery: docs/qa/report.html from the latest runs.
 qa-report:
     node tools/qa/report.mjs
+
+# Builds the signed bundle (`just build`) and checks THE BUNDLE, not a dev build: Info.plist privacy keys,
+# codesign Identifier == bundle id, clean-profile launch, no demo, bind/permission status. Permissions the
+# bundle lacks are reported as NEEDS-GRANT (owner action), never as a pass. `--no-build`, `--no-run` supported.
+qa-bundle *args:
+    node tools/qa/bundle-qa.mjs {{args}}
 
 # CI guard: the qa feature can never reach a release build.
 qa-guard:

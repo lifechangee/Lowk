@@ -3,7 +3,7 @@
 import { commands, EVENTS, on } from '../../lib/ipc';
 import type { AppError, BindReport, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, NewFolder, PermKind, PermState, SessionState, Settings, SourceInfo, StartOpts, SttEvent } from '../../lib/ipc';
 import { MockBackend } from './mock';
-import { folderKey, folderRef, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider } from './types';
+import { folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type SearchHit, type SecretProvider } from './types';
 
 export class CommandError extends Error {
   constructor(readonly app: AppError) {
@@ -87,6 +87,19 @@ export class TauriBackend extends MockBackend {
   }
   override async permRequest(kind: PermKind): Promise<PermState> { return ok(await commands.permRequest(kind)); }
   override async permOpenSettings(kind: PermKind): Promise<void> { await commands.permOpenSettings(kind); }
+  override async appRelaunch(): Promise<void> { await commands.appRelaunch(); }
+  override onEngineNeeded(cb: (e: EngineNeeded) => void): () => void {
+    let off: (() => void) | undefined;
+    let dead = false;
+    void on<EngineNeeded>('engine://needed', cb).then((u) => (dead ? u() : (off = u)));
+    return () => { dead = true; off?.(); };
+  }
+  override onBindReport(cb: (r: BindReport) => void): () => void {
+    let off: (() => void) | undefined;
+    let dead = false;
+    void on<BindReport>('binds://report', cb).then((u) => (dead ? u() : (off = u)));
+    return () => { dead = true; off?.(); };
+  }
   override async secretStatus(p: SecretProvider): Promise<boolean> { return ok(await commands.secretStatus(p)); }
   override async secretSet(p: SecretProvider, value: string): Promise<void> { ok(await commands.secretSet(p, value)); }
   override async secretDelete(p: SecretProvider): Promise<void> { ok(await commands.secretDelete(p)); }

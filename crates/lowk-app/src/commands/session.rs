@@ -5,21 +5,75 @@ use lowk_types::*;
 use std::sync::Arc;
 use tauri::State;
 
-/// A call is real when an engine is ready (assets installed / key present); otherwise the
-/// scripted demo runs, so the app stays usable before onboarding installs an engine.
-/// `LOWK_DEMO=1` forces the demo (QA, screenshots).
-fn effective(st: &AppState, mut o: StartOpts) -> StartOpts {
-    if std::env::var_os("LOWK_DEMO").is_some() || !st.engine_ready() {
-        o.demo = true;
+/// The scripted demo exists only in dev/QA builds: the `qa` feature (which also falls back to it
+/// while no engine is installed, so the harness needs no model) or a debug build with
+/// `LOWK_DEMO=1`. A shipped build never fakes a call (M1 fix report, C).
+pub(crate) fn demo_allowed() -> bool {
+    cfg!(feature = "qa") || (cfg!(debug_assertions) && std::env::var_os("LOWK_DEMO").is_some())
+}
+
+/// What the owner needs to see when a real call cannot start: the engine a call would use,
+/// whether it is a download (size) or a cloud key. Sent as `engine://needed` to the main window.
+#[derive(serde::Serialize)]
+struct EngineNeeded {
+    engine: String,
+    kind: &'static str,
+    size_mb: u32,
+}
+
+fn announce_engine_needed(st: &AppState) {
+    let id = st.effective_engine().unwrap_or_default();
+    tracing::info!(engine = %id, "record refused: no speech engine ready; showing the download / cloud prompt");
+    let (kind, size_mb) = st
+        .engines
+        .available()
+        .into_iter()
+        .find(|d| d.id == id)
+        .map_or(("none", 0), |d| {
+            (
+                if d.kind == EngineKind::Local {
+                    "local"
+                } else {
+                    "cloud"
+                },
+                d.size_mb,
+            )
+        });
+    st.emitter.broadcast(
+        "engine://needed",
+        serde_json::to_value(EngineNeeded {
+            engine: id,
+            kind,
+            size_mb,
+        })
+        .unwrap_or_default(),
+    );
+    crate::windows::open_main(&st.app);
+}
+
+/// A call is real or does not start: no engine ready -> `EngineNotReady` and the download /
+/// cloud prompt. The demo is reachable only where `demo_allowed()`.
+fn effective(st: &AppState, mut o: StartOpts) -> Result<StartOpts> {
+    if demo_allowed() {
+        if std::env::var_os("LOWK_DEMO").is_some() || !st.engine_ready() {
+            o.demo = true;
+        }
+        return Ok(o);
     }
-    o
+    o.demo = false;
+    if !st.engine_ready() {
+        announce_engine_needed(st);
+        return Err(AppError::new(ErrorCode::EngineNotReady));
+    }
+    Ok(o)
 }
 
 fn start(st: &AppState, o: StartOpts) -> Result<SessionState> {
     if st.vault.read().is_none() {
         st.open_vault(None)?;
     }
-    let o = effective(st, o);
+    st.heal_engine_setting();
+    let o = effective(st, o)?;
     st.session.start(o)?;
     Ok(st.session.state())
 }
@@ -79,6 +133,9 @@ pub fn session_snapshot(st: State<'_, Shared>) -> SessionSnapshot {
 }
 
 pub fn demo_start_inner(st: &AppState) -> Result<SessionState> {
+    if !demo_allowed() {
+        return Err(AppError::new(ErrorCode::Unsupported).with_detail("demo is a dev/QA feature"));
+    }
     start(
         st,
         StartOpts {
@@ -91,7 +148,7 @@ pub fn demo_start_inner(st: &AppState) -> Result<SessionState> {
     )
 }
 
-/// The scripted RU/EN demo call (also what the record bind plays in M0).
+/// The scripted RU/EN demo call (dev/QA builds only).
 #[tauri::command(async)]
 #[specta::specta]
 pub fn demo_start(st: State<'_, Shared>) -> Result<SessionState> {

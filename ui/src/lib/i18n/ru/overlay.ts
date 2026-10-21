@@ -68,4 +68,5 @@ export const overlay = {
   'overlay.state.idle': 'Не записывается',
   'overlay.action.stop': 'Остановить запись',
   'overlay.state.paused': 'Пауза',
+  'overlay.hint.degraded': 'Удержание {key} не работает: включите «Мониторинг ввода» в Lowk → Разрешения',
 } as const;

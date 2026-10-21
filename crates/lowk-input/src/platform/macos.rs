@@ -53,6 +53,7 @@ extern "C" {
     fn CFRunLoopRun();
     fn CFRunLoopStop(rl: CFTypeRef);
     fn CFRelease(cf: CFTypeRef);
+    fn CFRetain(cf: CFTypeRef) -> CFTypeRef;
 }
 
 #[link(name = "ApplicationServices", kind = "framework")]
@@ -195,6 +196,9 @@ fn tap_thread(engine: Arc<Engine>, active: bool, tx: mpsc::Sender<Result<Started
         (*ctx).tap.store(tap, Ordering::Release);
         let src = CFMachPortCreateRunLoopSource(null_mut(), tap, 0);
         let rl = CFRunLoopGetCurrent();
+        // Kept alive until `stop` has joined this thread: CFRunLoopStop on a run loop whose thread
+        // already exited (the tap was invalidated) is a pointer-authentication trap that aborts the app.
+        CFRetain(rl);
         CFRunLoopAddSource(rl, src, kCFRunLoopCommonModes);
         CGEventTapEnable(tap, true);
         let _ = tx.send(Ok(Started {
@@ -229,9 +233,13 @@ pub fn start(engine: Arc<Engine>, want_swallow: bool) -> Result<(HookHandle, Hoo
     let stop = Box::new(move || {
         // CFRunLoopStop is a no-op until the loop is running: retry until the thread exits.
         for _ in 0..200 {
-            unsafe { CFRunLoopStop(rl as CFTypeRef) };
+            if !join.is_finished() {
+                unsafe { CFRunLoopStop(rl as CFTypeRef) };
+            }
             if join.is_finished() {
                 let _ = join.join();
+                // SAFETY: balances the CFRetain taken on the tap thread.
+                unsafe { CFRelease(rl as CFTypeRef) };
                 return;
             }
             std::thread::sleep(Duration::from_millis(10));

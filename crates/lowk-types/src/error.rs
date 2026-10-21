@@ -51,6 +51,8 @@ pub enum ErrorCode {
     SttEngine,
     #[error("speech engine backlog")]
     SttBacklog,
+    #[error("speech engine is not installed or has no key")]
+    EngineNotReady,
     #[error("engine asset download failed")]
     DownloadFailed,
     #[error("network error")]

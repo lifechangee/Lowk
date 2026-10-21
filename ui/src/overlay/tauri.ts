@@ -1,7 +1,7 @@
 // Real source: backend events -> store, user actions -> typed commands (generated bindings).
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { EVENTS, on, commands } from '../lib/ipc';
-import type { ActionId, LlmEvent, OverlayMode, QaUpdate, QueueState, SessionState, Settings, SttEvent } from '../lib/ipc/bindings';
+import type { BindReport, ActionId, LlmEvent, OverlayMode, QaUpdate, QueueState, SessionState, Settings, SttEvent } from '../lib/ipc/bindings';
 import { bindFor, triggerText } from '../main/binds';
 import { resolveLang, setLang } from '../lib/i18n';
 import type { OverlayStore } from './store.svelte';
@@ -45,6 +45,15 @@ export class TauriSource implements OverlaySource {
       // The close update of the PREVIOUS link arrives right after the new Ask's `start`; it must not
       // bring the old text back under the new question.
       if (!e.closed) store.applyMyAnswer(e.text);
+    }));
+    const holdOff = (r: BindReport) => (store.holdDegraded = r.entries.some((e) => (e.action === 'move_hold' || e.action === 'click_hold') && e.status.state !== 'active'));
+    add(on<BindReport>('binds://report', holdOff));
+    void commands.bindsGet().then((b) => holdOff(b.report)).catch(() => {});
+    add(on<{ perm: string }>('binds://failed', (e) => {
+      const ru = store.lang === 'ru';
+      const names: Record<string, [string, string]> = { screen_recording: ['Запись экрана', 'Screen Recording'], input_monitoring: ['Мониторинг ввода', 'Input Monitoring'], accessibility: ['Универсальный доступ', 'Accessibility'], microphone: ['Микрофон', 'Microphone'], system_audio: ['Системный звук', 'System Audio'] };
+      const n = names[e.perm]?.[ru ? 0 : 1] ?? e.perm;
+      store.flash(ru ? `Нужно разрешение «${n}» (Lowk → Разрешения)` : `Needs “${n}” permission (Lowk → Permissions)`);
     }));
     add(on<boolean>('overlay://sentinel', (on_) => (store.sentinel = on_)));
     add(on<Settings>(EVENTS.settingsChanged, (s) => this.#applySettings(s)));
@@ -110,7 +119,7 @@ export class TauriSource implements OverlaySource {
   setTemplate = (id: string) => quiet(commands.llmSetTemplate(id));
   toggleRecord = () => {
     const recording = this.#store?.phase === 'recording' || this.#store?.phase === 'paused';
-    quiet(recording ? commands.sessionStop() : commands.sessionStart({ title: null, folder: null, system: null, mic: null, demo: true }));
+    quiet(recording ? commands.sessionStop() : commands.sessionStart({ title: null, folder: null, system: null, mic: null, demo: false }));
   };
   stopRecording = () => quiet(commands.sessionStop());
   escape = () => quiet(commands.overlayEscape());

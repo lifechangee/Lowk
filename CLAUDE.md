@@ -4,3 +4,9 @@
 - Product decisions: docs/BRIEF.md. Architecture: docs/ARCHITECTURE.md. QA workflow and what "green" means: docs/QA.md.
 - "Green" = `just ci` (incl. `just ci-cross`) + a green GitHub Actions run.
 - Keep the repo tidy: remove temp files, models, venvs and stray processes you created.
+
+## Release gate (owner-facing builds)
+- Never hand the owner a dev-mode build. Owner builds = bundled, signed `Lowk.app` (`just build`).
+- Before the owner sees a build: `just qa-bundle` green on the BUNDLED app from a clean profile, plus the orchestrator's own smoke test of the bundled app (computer use) covering every previously working feature.
+- No silent fallbacks to demo/fake data in user-facing builds. Demo lives only behind the `qa` feature.
+- Every bug the owner reports gets a permanent regression check that runs against the bundle.

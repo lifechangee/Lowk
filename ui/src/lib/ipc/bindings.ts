@@ -14,6 +14,13 @@ export const commands = {
 	/**  Quit the whole app (the overlay keeps it alive otherwise). */
 	appQuit: () => __TAURI_INVOKE<void>("app_quit"),
 	/**
+	 *  Relaunches Lowk (macOS applies Screen Recording / Input Monitoring / Accessibility grants
+	 *  only to a freshly started process). From a bundle: a detached `open` starts the new instance
+	 *  after this one has exited (the single-instance guard would otherwise hand off to the dying
+	 *  one); in dev: plain `restart`.
+	 */
+	appRelaunch: () => __TAURI_INVOKE<void>("app_relaunch"),
+	/**
 	 *  Opens (or focuses) the main window; used by the second-instance handler,
 	 *  the Dock reopen event and the overlay.
 	 */
@@ -124,7 +131,7 @@ export const commands = {
 	correction_skipped: number,
 	correction_lag: Percentiles,
 } | null>("stt_diagnostics"),
-	/**  The scripted RU/EN demo call (also what the record bind plays in M0). */
+	/**  The scripted RU/EN demo call (dev/QA builds only). */
 	demoStart: () => typedError<SessionState, AppError>(__TAURI_INVOKE("demo_start")),
 	llmAsk: (typedText: string | null) => typedError<Ulid, AppError>(__TAURI_INVOKE("llm_ask", { typedText })),
 	llmCancel: () => typedError<null, AppError>(__TAURI_INVOKE("llm_cancel")),
@@ -351,7 +358,7 @@ export type EngineProgress = {
 	message: string | null,
 };
 
-export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index";
+export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index";
 
 /**  Static pre-filter result of `SttEngineFactory::fitness`. */
 export type Fitness = { kind: "recommended" } | { kind: "possible" } | { kind: "unsupported"; reason: string };

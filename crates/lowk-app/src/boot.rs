@@ -144,8 +144,12 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         }
     }
 
+    state.heal_engine_setting();
+    log_startup_facts(&state);
+
     // ---- input ----
     apply_binds(&state);
+    spawn_input_recheck(state.clone());
     actions::spawn(state.clone(), bind_rx);
 
     #[cfg(debug_assertions)]
@@ -173,17 +177,83 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     Ok(())
 }
 
-/// (Re)apply `settings.binds` through the input manager and cache the report.
+/// One greppable block in `lowk.log` per launch: what the bundle can actually do on this Mac.
+/// `tools/qa/bundle-qa.mjs` reads it (a bundle has no other observable surface).
+fn log_startup_facts(st: &AppState) {
+    let perms: Vec<String> = lowk_platform::perm::ALL
+        .iter()
+        .map(|k| format!("{k:?}={:?}", lowk_platform::perm::status(*k)))
+        .collect();
+    tracing::info!(
+        version = env!("CARGO_PKG_VERSION"),
+        demo_allowed = crate::commands::session::demo_allowed(),
+        engine = ?st.effective_engine(),
+        engine_ready = st.engine_ready(),
+        worker = ?lowk_stt::local::find_worker(),
+        "startup: engine"
+    );
+    tracing::info!(perms = %perms.join(" "), "startup: permissions");
+}
+
+/// (Re)apply `settings.binds` through the input manager, cache the report, log what is
+/// degraded (bundle diagnostics: dev builds inherit the host app's permissions, bundles do not)
+/// and tell the windows (`binds://report`) so the overlay hint and Settings show the truth.
 pub fn apply_binds(st: &AppState) {
     let binds = st.settings.get().binds;
     let r = st.input.lock().set_binds(&binds);
     match r {
         Ok(rep) => {
+            for e in &rep.entries {
+                match &e.status {
+                    BindStatus::Active => tracing::debug!(action = ?e.action, "bind active"),
+                    other => tracing::warn!(action = ?e.action, status = ?other, "bind not fully active"),
+                }
+            }
+            tracing::info!(
+                total = rep.entries.len(),
+                active = rep
+                    .entries
+                    .iter()
+                    .filter(|e| e.status == BindStatus::Active)
+                    .count(),
+                "binds applied"
+            );
+            st.emitter
+                .broadcast("binds://report", serde_json::to_value(&rep).unwrap_or_default());
             *st.binds_report.lock() = rep;
             *st.applied_binds.lock() = binds;
         }
         Err(e) => tracing::error!(%e, "binds not applied"),
     }
+}
+
+/// Hold / modifier-only / mouse binds need Input Monitoring. When the user grants it later
+/// the hook must start without a manual step: poll the permission cheaply and re-apply once.
+fn spawn_input_recheck(st: Shared) {
+    std::thread::Builder::new()
+        .name("lowk-input-recheck".into())
+        .spawn(move || {
+            let mut last = lowk_input::platform::permissions();
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(2));
+                let now = lowk_input::platform::permissions();
+                if now == last {
+                    continue;
+                }
+                last = now;
+                let degraded = st
+                    .binds_report
+                    .lock()
+                    .entries
+                    .iter()
+                    .any(|e| matches!(e.status, BindStatus::Degraded(_)));
+                if degraded {
+                    tracing::info!(?now, "input permission changed; re-applying binds");
+                    apply_binds(&st);
+                }
+            }
+        })
+        .expect("spawn input recheck");
 }
 
 fn spawn_settings_watcher(st: Shared) {

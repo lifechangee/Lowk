@@ -19,6 +19,7 @@ macro_rules! all_commands {
             crate::commands::settings::secret_status,
             crate::commands::settings::secret_delete,
             crate::commands::settings::app_quit,
+            crate::commands::settings::app_relaunch,
             crate::commands::settings::main_open,
             crate::commands::settings::update_check,
             crate::commands::vault::vault_open,

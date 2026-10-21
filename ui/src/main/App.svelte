@@ -15,6 +15,7 @@
   import Onboarding from './onboarding/Onboarding.svelte';
   import { hrefs, router } from './router.svelte';
   import SearchPalette from './SearchPalette.svelte';
+  import EngineNeededDialog from './EngineNeededDialog.svelte';
   import NewCallPopover from './NewCallPopover.svelte';
   import MoveMenu from './MoveMenu.svelte';
   import { dnd } from './dnd.svelte';
@@ -107,6 +108,7 @@
     </div>
   {/if}
   <SearchPalette />
+  <EngineNeededDialog />
   <MoveMenu />
   {#if dnd.call}
     <div class="ghost pop" style:left="{(dnd.x + 12) / zoom}px" style:top="{(dnd.y + 12) / zoom}px"><Icon name="doc" size={14} /><span class="lbl">{dnd.call.title}</span></div>

@@ -52,6 +52,8 @@ export class OverlayStore {
   serverMyAnswer = false;
   /** Self-test sentinel: the overlay paints a magenta block while the app grabs the screen. */
   sentinel = $state(false);
+  /** Hold / modifier-only binds are off because Input Monitoring is missing (hook could not start). */
+  holdDegraded = $state(false);
 
   templates = $state<Template[]>(DEFAULT_TEMPLATES);
   templateId = $state('brief');

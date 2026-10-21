@@ -8,6 +8,7 @@
   "permissions": [
     "core:event:default",
     "allow-app-quit",
+    "allow-app-relaunch",
     "allow-binds-get",
     "allow-binds-record-start",
     "allow-binds-record-stop",

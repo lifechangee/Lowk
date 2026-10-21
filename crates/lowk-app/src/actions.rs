@@ -23,6 +23,8 @@ const HOVER_DELAY: std::time::Duration = std::time::Duration::from_millis(140);
 
 pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
     let down = ev.phase == Phase::Down;
+    // Action names only (never key content): proves in lowk.log that a press reached the app.
+    tracing::info!(action = ?ev.action, phase = ?ev.phase, "bind event");
     let r: Result<()> = (|| {
         match ev.action {
             ActionId::MoveHold => {
@@ -113,6 +115,22 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
         // SessionIdle for Ask outside a recording is normal; everything else is worth a log line.
         if e.code != ErrorCode::SessionIdle {
             tracing::warn!(action = ?ev.action, %e, "bind action failed");
+            // A key that does nothing and says nothing reads as «hotkeys are dead»: tell the windows
+            // why (a missing permission) so the overlay / main window can say it.
+            let perm = match e.code {
+                ErrorCode::PermScreenRecording => Some("screen_recording"),
+                ErrorCode::PermInputMonitoring => Some("input_monitoring"),
+                ErrorCode::PermAccessibility => Some("accessibility"),
+                ErrorCode::PermMicrophone => Some("microphone"),
+                ErrorCode::PermSystemAudio => Some("system_audio"),
+                _ => None,
+            };
+            if let Some(perm) = perm {
+                st.emitter.broadcast(
+                    "binds://failed",
+                    serde_json::json!({ "action": ev.action, "perm": perm }),
+                );
+            }
         }
     }
 }

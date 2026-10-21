@@ -17,6 +17,7 @@
   import SourcePicker from '../SourcePicker.svelte';
   import KeyCard from '../settings/KeyCard.svelte';
   import BindEditor from '../settings/BindEditor.svelte';
+  import PermRow from '../settings/PermRow.svelte';
 
   let { step }: { step: number } = $props();
   const TOTAL = 8;
@@ -39,6 +40,8 @@
     captureMode = appId ? 'app' : 'system';
     perms.refresh();
   });
+  // Live permission status while the permissions step is open (focus + light poll).
+  $effect(() => (step === 3 ? perms.watch() : undefined));
 
   const ack = $derived(prefs.value.onboarding?.recording_notice_ack ?? false);
   const canNext = $derived(step !== 1 || ack);
@@ -59,10 +62,20 @@
   }
   async function next() {
     if (step === 2) await persistCapture();
-    if (step === 4) await prefs.patch({ stt: { engine: engineMode === 'local' ? 'whisper-large-v3-turbo' : 'soniox' } });
+    if (step === 4) await prefs.patch({ stt: await chosenEngine() });
     if (step < TOTAL - 1) await go(step + 1);
   }
   const persistCapture = () => prefs.patch({ capture: { default_source: captureMode === 'app' && appId ? 'one_app' : 'whole_system' }, audio: { default_source: captureMode === 'app' && appId ? { kind: 'app', id: appId } : { kind: 'whole_system' } } });
+  /** The REAL registered engine id (an invented placeholder here meant no call ever found an engine). */
+  async function chosenEngine(): Promise<{ engine: string; cloud_vendor?: string }> {
+    const all = await api.engines();
+    if (engineMode === 'cloud') {
+      const c = all.find((e) => e.kind === 'cloud' && e.id === (prefs.value.stt?.cloud_vendor || 'soniox')) ?? all.find((e) => e.kind === 'cloud');
+      return c ? { engine: c.id, cloud_vendor: c.id } : { engine: '' };
+    }
+    const rec = (await api.engineStatus()).find((i) => i.recommended && i.descriptor.kind === 'local');
+    return { engine: rec?.descriptor.id ?? all.find((e) => e.kind === 'local')?.id ?? '' };
+  }
   async function skip() {
     if (step === 2) await persistCapture();
     skipped = new Set([...skipped, step]);
@@ -73,7 +86,6 @@
     router.go(hrefs.home);
   }
 
-  const permIcons: Record<string, IconName> = { microphone: 'mic', system_audio: 'monitor', screen_recording: 'eye', input_monitoring: 'keyboard', accessibility: 'shield' };
   const shownPerms = $derived(PERM_ORDER.filter((k) => perms.state[k] !== 'not_applicable'));
   const langOptions: { v: UiLanguage; title: Key | MKey; hint: Key | MKey }[] = [
     { v: 'auto', title: 'settings.language.auto', hint: 'settings.language.autoHint' },
@@ -125,14 +137,8 @@
       {:else if step === 3}
         <h1>{tm('onboarding.permissions.title')}</h1>
         <p class="lead">{tm('onboarding.permissions.body')}</p>
-        {#each shownPerms as k (k)}
-          <div class="perm">
-            <span class="ic"><Icon name={permIcons[k]!} size={18} /></span>
-            <div class="t"><b class="lbl">{tm(`m.perm.${k}` as MKey)}</b><small class="lbl">{tm(`m.perm.${k}.why` as MKey)}</small></div>
-            {#if perms.state[k] === 'granted'}<span class="pill lbl"><Icon name="check" size={12} />{tm('onboarding.permissions.granted')}</span>
-            {:else}<Button size="sm" onclick={() => perms.request(k)}>{tm('onboarding.permissions.allow')}</Button>{/if}
-          </div>
-        {/each}
+        {#each shownPerms as k (k)}<PermRow kind={k} />{/each}
+        {#if perms.anyNeedsRestart}<div class="restart" role="status"><span class="lbl">{tm('m.perm.restartNeeded')}</span><Button size="sm" variant="primary" onclick={() => perms.relaunch()}>{tm('m.perm.relaunch')}</Button></div>{/if}
         <div class="all"><Button variant="primary" icon="shield" onclick={() => perms.requestAll()}>{tm('m.ob.allowAll')}</Button></div>
         <p class="note">{tm('onboarding.permissions.windowsNote')}</p>
 
@@ -222,13 +228,8 @@
   .bx { width: 20px; height: 20px; border-radius: var(--r-sm); border: 1.5px solid var(--tx3); display: grid; place-items: center; flex: none; color: var(--acfg); }
   .chk.on .bx { background: var(--ac); border-color: var(--ac); }
   .apps { margin: var(--s1) 0 var(--s3); }
-  .perm { display: flex; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); margin-bottom: var(--s2); }
-  .ic { width: 36px; height: 36px; border-radius: var(--r-lg); background: var(--hv); display: grid; place-items: center; color: var(--tx2); flex: none; border: 1px solid var(--line); }
-  .t { flex: 1; min-width: 0; }
-  .t b { display: block; font-weight: 600; }
-  .t small { display: block; color: var(--tx2); font-size: 12px; }
-  .pill { display: inline-flex; align-items: center; gap: var(--s1); font-size: 12px; height: 20px; padding: 0 var(--s3); border-radius: 99px; background: var(--acbg); color: var(--ac); font-weight: 600; max-width: 40%; }
   .all { margin-top: var(--s3); }
+  .restart { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4); border: 1px solid var(--warn); border-radius: var(--r-lg); margin-top: var(--s3); font-size: 13px; }
   .scan { height: 4px; border-radius: 99px; background: var(--line); overflow: hidden; margin-bottom: var(--s4); }
   .scan i { display: block; height: 100%; background: var(--ac); transition: width 1.4s; }
   .hw { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); margin-bottom: var(--s4); }

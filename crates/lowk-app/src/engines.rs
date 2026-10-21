@@ -223,11 +223,25 @@ impl AppState {
     /// The engine a new call would use: the user's choice, else the hardware check's pick.
     pub fn effective_engine(&self) -> Option<String> {
         let s = self.settings.get().stt;
-        if !s.engine.is_empty() {
+        // A stored id that is not a registered engine (an old onboarding wrote a placeholder)
+        // means «auto», never «nothing»: otherwise every call silently had no engine.
+        if !s.engine.is_empty() && self.engines.factory(&s.engine).is_some() {
             return Some(s.engine);
         }
         self.engines
             .recommended(&lowk_platform::hw::probe_report(), &s.cloud_vendor)
+    }
+
+    /// Resets a stored engine id that is not a registered engine to «auto» (empty). Old
+    /// onboarding builds wrote the placeholder `whisper-large-v3-turbo`, so no call ever found an engine.
+    pub fn heal_engine_setting(&self) {
+        let cur = self.settings.get().stt.engine;
+        if !cur.is_empty() && self.engines.factory(&cur).is_none() {
+            tracing::warn!(engine = %cur, "unknown stt engine in settings; reset to auto");
+            let _ = self
+                .settings
+                .patch(SettingsPatch(serde_json::json!({ "stt": { "engine": "" } })));
+        }
     }
 
     /// True when a real call can start now (assets present, worker found / key available).

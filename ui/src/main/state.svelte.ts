@@ -1,8 +1,9 @@
 // View state for the main window. No business logic: everything goes through `api`.
 import { locale } from '../lib/i18n/locale.svelte';
-import type { LangSetting } from '../lib/i18n';
+import type { Key, LangSetting } from '../lib/i18n';
 import type { CallMeta, FolderMeta, Settings, SourceInfo, Target } from '../lib/ipc';
-import { api, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type FolderKey, type LiveLine } from './api';
+import { api, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type EngineNeeded, type FolderKey, type LiveLine } from './api';
+import { CommandError } from './api/tauri';
 import { EVENTS, on } from '../lib/ipc';
 import type { SessionState } from '../lib/ipc';
 import { mergePatch } from './api/mock';
@@ -109,7 +110,14 @@ class Session {
 
   async start(folder: FolderKey | null, target: Target | null, sourceLabel: string): Promise<void> {
     if (this.phase === 'recording') return;
-    const st = await api.sessionStart({ title: null, folder: folder && folder !== SYS_UNSORTED ? folderRef(folder) : null, system: target, mic: null, demo: true });
+    let st: SessionState;
+    try {
+      st = await api.sessionStart({ title: null, folder: folder && folder !== SYS_UNSORTED ? folderRef(folder) : null, system: target, mic: null, demo: false });
+    } catch (e) {
+      // No engine: the backend already raised the «download the model» prompt (engine://needed); nothing started.
+      if (e instanceof CommandError && e.app.code === 'engine_not_ready') return;
+      throw e;
+    }
     this.#begin(st.call, folder ?? SYS_UNSORTED, sourceLabel);
     await library.reload();
   }
@@ -172,6 +180,8 @@ class Ui {
   callTab = $state<'transcript' | 'summary' | 'qa' | 'shots' | 'md'>('transcript');
   /** G5: the header «Новый созвон» popover (never shown on the library home). */
   newCallOpen = $state(false);
+  /** A real call cannot start: the prompt to download the model / pick a cloud engine (`engine://needed`). */
+  engineNeeded = $state<EngineNeeded | null>(null);
   toast = $state<string | null>(null);
   #timer: ReturnType<typeof setTimeout> | null = null;
   notify(msg: string): void {
@@ -201,6 +211,8 @@ export function attachEvents(): void {
   void on(EVENTS.storeChanged, () => { clearTimeout(t); t = setTimeout(() => void library.reload(), 300); });
   void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; locale.setSetting((s.ui?.language ?? 'auto') as LangSetting); });
   void on<SessionState>(EVENTS.sessionState, (s) => { if (s.phase === 'idle') session.sttLoading = false; session.sync(s); });
+  api.onEngineNeeded((e) => (ui.engineNeeded = e));
+  void on<{ perm: string }>('binds://failed', (e) => ui.notify(tm('m.bindFailedPerm', { perm: tm(`m.perm.${e.perm}` as Key) })));
   void on<{ loading: boolean }>(EVENTS.sttLoading, (e) => (session.sttLoading = e.loading));
   // go home even when the library reload fails (e.g. the vault is busy writing the just-ended call)
   void on<{ route?: string }>(EVENTS.sessionEnded, () => { void library.reload().catch(() => undefined).then(() => { router.go(hrefs.home); }); });
