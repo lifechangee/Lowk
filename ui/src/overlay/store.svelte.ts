@@ -1,6 +1,6 @@
 // Overlay view state. Fed by an OverlaySource (mock demo in dev, Tauri events in the app).
 // No business logic: it only folds events into what the components render.
-import type { LlmEvent, OverlayMode, OverlayVisibility, PillEdge, SessionPhase, SttEvent, Template, ToneKind } from '../lib/ipc/bindings';
+import type { SourceRef, LlmEvent, OverlayMode, OverlayVisibility, PillEdge, SessionPhase, SttEvent, Template, ToneKind } from '../lib/ipc/bindings';
 import type { Lang } from '../lib/i18n';
 import { keyLabels, type KeyLabels } from './keys';
 import { GRID_COLS, GRID_ROWS, PRESETS, kFromTransparency, parseGrid, toneToVars, type ToneEvent, type ToneVars } from './tone';
@@ -71,6 +71,11 @@ export class OverlayStore {
   answer = $state('');
   streaming = $state(false);
   answerError = $state(false);
+  /** `error.code` of the failed ask (`api_key_missing`, `local_only_blocked`, ...); null = generic. */
+  errorCode = $state<string | null>(null);
+  /** What the answer is grounded on (`llm://sources`), shown as chips under the answer. */
+  sources = $state<SourceRef[]>([]);
+  withheld = $state(0);
   hasAnswered = $state(false);
   model = $state('DeepSeek V4.1 Flash');
   myAnswer = $state('');
@@ -121,11 +126,18 @@ export class OverlayStore {
       this.#seq = -1;
       this.answer = '';
       this.answerError = false;
+      this.errorCode = null;
+      this.sources = [];
+      this.withheld = 0;
       this.streaming = true;
       this.hasAnswered = true;
       this.armed = false;
       this.myAnswer = '';
       this.stage = 'hint';
+    } else if (e.type === 'sources') {
+      if (this.#req !== e.req_id) return;
+      this.sources = e.sources;
+      this.withheld = e.withheld;
     } else if (e.type === 'delta') {
       // Deltas of a finished/foreign request and deltas whose seq was already applied are dropped.
       if (this.#req !== e.req_id || !this.streaming) return;
@@ -141,7 +153,10 @@ export class OverlayStore {
     } else {
       if (this.#req !== null && this.#req !== e.req_id) return;
       this.streaming = false;
+      // a cancelled ask is not an error; a refused one says why (no key, local-only folder)
+      if (e.error.code === 'llm_cancelled') return;
       this.answerError = true;
+      this.errorCode = e.error.code;
     }
   }
 
@@ -188,6 +203,9 @@ export class OverlayStore {
     this.answer = '';
     this.streaming = false;
     this.answerError = false;
+    this.errorCode = null;
+    this.sources = [];
+    this.withheld = 0;
     this.hasAnswered = false;
     this.myAnswer = '';
     this.armed = false;

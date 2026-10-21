@@ -110,7 +110,7 @@
     <div class="scrim" style={scrimStyle} aria-hidden="true"><i class="r0"></i><i class="r1"></i><i class="r2"></i></div>
     <Header {store} {source} />
     <Subtitle {store} />
-    <Answer {store} />
+    <Answer {store} {source} />
     <MyAnswer {store} />
     {#if store.mode === 'interactive'}<InputRow {store} {source} />{/if}
     <Hints {store} />

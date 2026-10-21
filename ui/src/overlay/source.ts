@@ -13,6 +13,10 @@ export interface OverlaySource {
   /** Interactive-mode input row submit. */
   submitText(text: string): void;
   setTemplate(id: string): void;
+  /** A source chip: open the call / document in the main window. */
+  openSource?(s: import('../lib/ipc/bindings').SourceRef): void;
+  /** «No API key» link: main window on Settings > Providers. */
+  openSettings?(): void;
   /** Pill click / record bind. */
   toggleRecord(): void;
   /** Stop-recording button in the header (`session_stop`). */

@@ -54,7 +54,15 @@ pub fn doc_save_md(st: State<'_, Shared>, id: DocId, md: String) -> Result<Docum
 #[specta::specta]
 pub fn doc_patch(st: State<'_, Shared>, id: DocId, patch: DocPatch) -> Result<Document> {
     let d = st.svc()?.vault.patch_doc(&id, &patch)?;
-    changed(&st, if patch.folder.is_some() { StoreChangeKind::Moved } else { StoreChangeKind::Updated }, id);
+    changed(
+        &st,
+        if patch.folder.is_some() {
+            StoreChangeKind::Moved
+        } else {
+            StoreChangeKind::Updated
+        },
+        id,
+    );
     Ok(d)
 }
 

@@ -74,7 +74,15 @@ pub(crate) fn spawn_workers(svc: Weak<Services>, rx: Receiver<DocId>) {
 }
 
 impl Services {
-    fn progress(&self, d: &Document, status: IngestStatus, done: u32, total: u32, eta: Option<u32>, error: Option<AppError>) {
+    fn progress(
+        &self,
+        d: &Document,
+        status: IngestStatus,
+        done: u32,
+        total: u32,
+        eta: Option<u32>,
+        error: Option<AppError>,
+    ) {
         self.env.emit(AppEvent::Ingest(IngestProgress {
             doc: d.id,
             folder: d.folder.clone(),
@@ -128,9 +136,7 @@ impl Services {
     }
 
     pub fn retry_doc(&self, id: &DocId) -> Result<Document> {
-        let d = self
-            .vault
-            .set_doc_status(id, IngestStatus::Queued, None)?;
+        let d = self.vault.set_doc_status(id, IngestStatus::Queued, None)?;
         self.progress(&d, IngestStatus::Queued, 0, 0, None, None);
         self.ingest.enqueue(*id);
         Ok(d)
@@ -143,7 +149,14 @@ impl Services {
         let d = self.vault.get_doc(id)?;
         if d.status == IngestStatus::Queued {
             let d = self.vault.set_doc_status(id, IngestStatus::Cancelled, None)?;
-            self.progress(&d, IngestStatus::Cancelled, 0, 0, None, Some(AppError::new(ErrorCode::IngestCancelled)));
+            self.progress(
+                &d,
+                IngestStatus::Cancelled,
+                0,
+                0,
+                None,
+                Some(AppError::new(ErrorCode::IngestCancelled)),
+            );
         }
         Ok(())
     }
@@ -159,7 +172,14 @@ impl Services {
         self.ingest.cancels.lock().remove(&id);
         match r {
             Ok(saved) => {
-                self.progress(&saved, IngestStatus::Indexing, saved.pages.unwrap_or(0), saved.pages.unwrap_or(0), None, None);
+                self.progress(
+                    &saved,
+                    IngestStatus::Indexing,
+                    saved.pages.unwrap_or(0),
+                    saved.pages.unwrap_or(0),
+                    None,
+                    None,
+                );
                 let _ = self.feed.send(Job::Item(id));
             }
             Err(e) if e.code == ErrorCode::IngestCancelled => {
@@ -169,7 +189,10 @@ impl Services {
             }
             Err(e) => {
                 tracing::warn!(?e, doc = %id, "conversion failed");
-                if let Ok(d) = self.vault.set_doc_status(&id, IngestStatus::Failed, Some(e.clone())) {
+                if let Ok(d) = self
+                    .vault
+                    .set_doc_status(&id, IngestStatus::Failed, Some(e.clone()))
+                {
                     self.progress(&d, IngestStatus::Failed, 0, 0, None, Some(e));
                 }
             }
@@ -178,7 +201,8 @@ impl Services {
 
     fn convert_inner(&self, doc: &Document, cancel: &Arc<AtomicBool>) -> Result<Document> {
         let s = self.settings();
-        self.vault.set_doc_status(&doc.id, IngestStatus::Converting, None)?;
+        self.vault
+            .set_doc_status(&doc.id, IngestStatus::Converting, None)?;
         self.progress(doc, IngestStatus::Converting, 0, 0, None, None);
         let (_, original) = self.vault.doc_paths(&doc.id)?;
         let ing = Ingestor::new().with_limits(Limits::from_mb(s.docs.warn_slow_mb, s.docs.max_file_mb));
@@ -202,7 +226,9 @@ impl Services {
             });
             self.progress(doc, IngestStatus::Converting, done, total, eta, None);
         };
-        let out = lowk_types::DocIngestor::convert(&ing, &req, &mut on_progress, &|| !cancel.load(Ordering::SeqCst))?;
+        let out = lowk_types::DocIngestor::convert(&ing, &req, &mut on_progress, &|| {
+            !cancel.load(Ordering::SeqCst)
+        })?;
         self.vault.save_converted_doc(&doc.id, &out)
     }
 }

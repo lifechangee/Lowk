@@ -1,7 +1,7 @@
 // Real source: backend events -> store, user actions -> typed commands (generated bindings).
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { EVENTS, on, commands } from '../lib/ipc';
-import type { BindReport, ActionId, LlmEvent, OverlayMode, QaUpdate, QueueState, SessionState, Settings, SttEvent } from '../lib/ipc/bindings';
+import type { SourceRef, BindReport, ActionId, LlmEvent, OverlayMode, QaUpdate, QueueState, SessionState, Settings, SttEvent } from '../lib/ipc/bindings';
 import { bindFor, triggerText } from '../main/binds';
 import { resolveLang, setLang } from '../lib/i18n';
 import type { OverlayStore } from './store.svelte';
@@ -35,9 +35,9 @@ export class TauriSource implements OverlaySource {
     add(on<SttEvent>(EVENTS.sttSegment, (e) => store.applyStt(e)));
     add(on<{ loading: boolean }>(EVENTS.sttLoading, (e) => (store.sttLoading = e.loading)));
     add(on<{ kind: 'target_lost' | 'target_restored' }>(EVENTS.audioNotice, (e) => (store.audioLost = e.kind === 'target_lost')));
-    for (const n of ['start', 'delta', 'done', 'error'] as const) {
-      add(on<{ recoverable: boolean }>(EVENTS.sttError, (e) => (store.sttError = { recoverable: e.recoverable })));
-    add(on<Omit<LlmEvent, 'type'>>(`llm://${n}`, (e) => store.applyLlm({ ...e, type: n } as LlmEvent)));
+    add(on<{ recoverable: boolean }>(EVENTS.sttError, (e) => (store.sttError = { recoverable: e.recoverable })));
+    for (const n of ['start', 'sources', 'delta', 'done', 'error'] as const) {
+      add(on<Omit<LlmEvent, 'type'>>(`llm://${n}`, (e) => store.applyLlm({ ...e, type: n } as LlmEvent)));
     }
     add(on<{ mode: OverlayMode } | OverlayMode>(EVENTS.overlayMode, (e) => store.setMode(typeof e === 'string' ? e : e.mode)));
     add(on<ToneEvent>(EVENTS.overlayTone, (e) => store.applyTone(e)));
@@ -115,6 +115,8 @@ export class TauriSource implements OverlaySource {
       else this.#store?.flash(this.#store.lang === 'ru' ? 'Скриншот добавлен' : 'Screenshot added');
     }).catch(() => {});
   };
+  openSource = (s: SourceRef) => quiet(commands.sourceOpen(s));
+  openSettings = () => quiet(commands.settingsOpen('providers'));
   clearQueue = () => quiet(commands.queueClear());
   submitText = (text: string) => quiet(commands.overlayInputSubmit(text));
   setTemplate = (id: string) => quiet(commands.llmSetTemplate(id));

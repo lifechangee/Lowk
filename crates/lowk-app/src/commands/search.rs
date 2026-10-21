@@ -67,3 +67,19 @@ pub fn source_open(st: State<'_, Shared>, source: SourceRef) -> Result<()> {
     });
     Ok(())
 }
+
+/// Opens the main window on a Settings page (the overlay's «no API key» message links here).
+#[tauri::command(async)]
+#[specta::specta]
+pub fn settings_open(st: State<'_, Shared>, page: String) -> Result<()> {
+    let existed = st.app.get_webview_window("main").is_some();
+    crate::windows::open_main(&st.app);
+    let st2: Shared = st.inner().clone();
+    let delay = if existed { 120 } else { 1500 };
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(delay));
+        st2.emitter
+            .to_main("nav://settings", serde_json::json!({ "page": page }));
+    });
+    Ok(())
+}

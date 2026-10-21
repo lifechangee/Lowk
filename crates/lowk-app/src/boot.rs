@@ -32,8 +32,7 @@ impl EventSink for PhaseWatcher {
             let st2 = st.clone();
             // Indexing yields to live transcription: background embedding pauses while a call runs.
             if let Some(svc) = st.m2.read().clone() {
-                svc.index
-                    .pause_embedding(!matches!(s.phase, SessionPhase::Idle));
+                svc.index.pause_embedding(!matches!(s.phase, SessionPhase::Idle));
             }
             // F8: a recording that just ended (stop button, bind or end of call) brings the
             // main window to the front on the library home.
@@ -67,8 +66,9 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         settings: settings.clone() as Arc<dyn SettingsStore>,
         sink: emitter.clone(),
         keys: Arc::new(crate::m2::SystemKeys),
-        models: lowk_index::embedder::models::ModelStore::default_location()
-            .unwrap_or_else(|| lowk_index::embedder::models::ModelStore::new(data_dir().unwrap_or_default().join("models"))),
+        models: lowk_index::embedder::models::ModelStore::default_location().unwrap_or_else(|| {
+            lowk_index::embedder::models::ModelStore::new(data_dir().unwrap_or_default().join("models"))
+        }),
         embed_worker: None,
     };
     let mut deps = SessionDeps::new(
@@ -305,7 +305,9 @@ fn migrate_settings(settings: &lowk_store::FileSettingsStore) {
     // the unpinned slug was the default for a while (2.3 s TTFT p50 vs 1.2 s pinned)
     if settings.get().llm.model == LEGACY_LLM_MODEL {
         tracing::info!("migrating llm.model to the version-pinned default");
-        let _ = settings.patch(SettingsPatch(serde_json::json!({ "llm": { "model": DEFAULT_LLM_MODEL } })));
+        let _ = settings.patch(SettingsPatch(
+            serde_json::json!({ "llm": { "model": DEFAULT_LLM_MODEL } }),
+        ));
     }
 }
 

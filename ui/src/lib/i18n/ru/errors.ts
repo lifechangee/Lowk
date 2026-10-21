@@ -45,5 +45,6 @@ export const errors = {
   'error.embedder_missing': 'Модель семантического поиска не установлена',
   'error.embed_failed': 'Не удалось построить семантический индекс. Обычный поиск работает',
   'error.llm_bad_response': 'Модель вернула ответ в неожиданном виде. Повторите',
+  'error.local_only_blocked': 'Папка только локальная: подключите локальную модель (Ollama / LM Studio) в Настройках',
   'error.archive_invalid': 'Архив повреждён или это не архив Lowk',
 } as const;

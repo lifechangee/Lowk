@@ -143,3 +143,30 @@ describe('S5 audio notice', () => {
     expect(s.audioLost).toBe(false);
   });
 });
+
+describe('sources and refusals (M2)', () => {
+  it('keeps the sources of the current answer and clears them on the next ask', () => {
+    const s = new OverlayStore();
+    const src = { kind: 'doc', id: 'd1', folder: { kind: 'unsorted' }, title: 'Spec.pdf', at_s: null, page: 12, heading_path: [], chunk_id: null, pinned: false } as never;
+    s.applyLlm({ type: 'start', req_id: 'r1', qa_id: 'q1' });
+    s.applyLlm({ type: 'sources', req_id: 'other', sources: [src], withheld: 0 });
+    expect(s.sources).toHaveLength(0);
+    s.applyLlm({ type: 'sources', req_id: 'r1', sources: [src], withheld: 2 });
+    expect(s.sources).toHaveLength(1);
+    expect(s.withheld).toBe(2);
+    s.applyLlm({ type: 'start', req_id: 'r2', qa_id: 'q2' });
+    expect(s.sources).toHaveLength(0);
+  });
+
+  it('shows why an ask was refused; a cancel is not an error', () => {
+    const s = new OverlayStore();
+    s.applyLlm({ type: 'start', req_id: 'r1', qa_id: 'q1' });
+    s.applyLlm({ type: 'error', req_id: 'r1', error: { code: 'api_key_missing', params: {}, detail: null } });
+    expect(s.answerError).toBe(true);
+    expect(s.errorCode).toBe('api_key_missing');
+    s.applyLlm({ type: 'start', req_id: 'r2', qa_id: 'q2' });
+    s.applyLlm({ type: 'error', req_id: 'r2', error: { code: 'llm_cancelled', params: {}, detail: null } });
+    expect(s.answerError).toBe(false);
+    expect(s.streaming).toBe(false);
+  });
+});

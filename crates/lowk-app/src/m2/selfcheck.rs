@@ -153,7 +153,9 @@ fn stub(answer: &'static [&'static str]) -> MockServer {
             let n = req.json()["input"].as_array().map_or(1, Vec::len);
             let data: Vec<serde_json::Value> = (0..n)
                 .map(|i| {
-                    let v: Vec<f32> = (0..512).map(|k| (((k + i * 7) % 13) as f32 - 6.0) / 7.0).collect();
+                    let v: Vec<f32> = (0..512)
+                        .map(|k| (((k + i * 7) % 13) as f32 - 6.0) / 7.0)
+                        .collect();
                     serde_json::json!({ "index": i, "embedding": v })
                 })
                 .collect();
@@ -162,7 +164,8 @@ fn stub(answer: &'static [&'static str]) -> MockServer {
         if req.body.contains("<vocabulary>") {
             return Reply::answer(&["{\"tags\":[{\"tag\":\"договор\",\"confidence\":0.9}]}"]);
         }
-        if req.body.contains("## Главное") || req.body.contains("key points") || req.body.contains("Summary") {
+        if req.body.contains("## Главное") || req.body.contains("key points") || req.body.contains("Summary")
+        {
             return Reply::answer(&[
                 "## Главное\n- Обсудили договор поставки\n",
                 "## Решения\n- Подписать в пятницу\n## Задачи\n- **Аня:** отправить смету\n## Вопросы ко мне\n- **Когда подписание?** → Мой ответ: в пятницу\n",
@@ -172,8 +175,17 @@ fn stub(answer: &'static [&'static str]) -> MockServer {
     })
 }
 
-fn hint_req(svc: &Services, folder: &FolderRef, text: &str, template: &str, first: bool, cloud: bool) -> HintRequest {
-    let FolderRef::User(fid) = folder else { unreachable!() };
+fn hint_req(
+    svc: &Services,
+    folder: &FolderRef,
+    text: &str,
+    template: &str,
+    first: bool,
+    cloud: bool,
+) -> HintRequest {
+    let FolderRef::User(fid) = folder else {
+        unreachable!()
+    };
     let s = svc.settings();
     let pack = svc
         .index
@@ -267,17 +279,33 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
                 .unwrap_or(false);
             r.add(ok, "embed worker runs", w.display().to_string());
         }
-        None if o.require_worker => r.add(false, "embed worker runs", "lowk-embed-worker not found next to the executable"),
+        None if o.require_worker => r.add(
+            false,
+            "embed worker runs",
+            "lowk-embed-worker not found next to the executable",
+        ),
         None => r.skip("embed worker runs", "no worker in this environment"),
     }
 
     let vault = Vault::open(&tmp.join("vault")).expect("vault");
     let svc = Services::start(ctx.env.clone(), vault.clone()).expect("services");
-    let docs = new_folder(&vault, "Client Acme", true, "Клиент Acme: отвечай формально, коротко.");
+    let docs = new_folder(
+        &vault,
+        "Client Acme",
+        true,
+        "Клиент Acme: отвечай формально, коротко.",
+    );
     let private = new_folder(&vault, "Private", false, "Секретный проект: только локально.");
 
     // ---- 2. ingest ----------------------------------------------------------------------
-    let mut files = vec!["text.pdf", "sample.xlsx", "sample.docx", "sample.pptx", "sample.csv", "sample.md"];
+    let mut files = vec![
+        "text.pdf",
+        "sample.xlsx",
+        "sample.docx",
+        "sample.pptx",
+        "sample.csv",
+        "sample.md",
+    ];
     if o.ocr {
         files.push("scanned.pdf");
     }
@@ -286,20 +314,36 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
         match import(&svc, &docs, &o.fixtures, f, *f == "sample.md") {
             Ok(d) => match wait_ready(&svc, &d.id, 120) {
                 Some(d) if d.status == IngestStatus::Ready => {
-                    r.add(true, &format!("ingest {f}"), format!("{} pages={:?} converter={}", d.title, d.pages, d.converter));
+                    r.add(
+                        true,
+                        &format!("ingest {f}"),
+                        format!("{} pages={:?} converter={}", d.title, d.pages, d.converter),
+                    );
                     ready.insert(*f, d);
                 }
-                Some(d) => r.add(false, &format!("ingest {f}"), format!("{:?} {:?}", d.status, d.error)),
+                Some(d) => r.add(
+                    false,
+                    &format!("ingest {f}"),
+                    format!("{:?} {:?}", d.status, d.error),
+                ),
                 None => r.add(false, &format!("ingest {f}"), "timed out"),
             },
             Err(e) => r.add(false, &format!("ingest {f}"), e.to_string()),
         }
     }
     if let Some(d) = ready.get("text.pdf") {
-        r.add(d.pages == Some(3), "pdf keeps its page count", format!("{:?}", d.pages));
+        r.add(
+            d.pages == Some(3),
+            "pdf keeps its page count",
+            format!("{:?}", d.pages),
+        );
     }
     if let Some(d) = ready.get("sample.xlsx") {
-        r.add(d.pages == Some(2), "xlsx keeps its sheet count", format!("{:?}", d.pages));
+        r.add(
+            d.pages == Some(2),
+            "xlsx keeps its sheet count",
+            format!("{:?}", d.pages),
+        );
     }
     {
         let ev = ctx.sink.0.lock();
@@ -312,7 +356,10 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
             .collect();
         let has = |s| statuses.contains(&s);
         r.add(
-            has(IngestStatus::Queued) && has(IngestStatus::Converting) && has(IngestStatus::Indexing) && has(IngestStatus::Ready),
+            has(IngestStatus::Queued)
+                && has(IngestStatus::Converting)
+                && has(IngestStatus::Indexing)
+                && has(IngestStatus::Ready),
             "ingest progress events",
             format!("{} events", statuses.len()),
         );
@@ -323,9 +370,23 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
     let pdf_id = ready.get("text.pdf").map(|d| d.id);
     let hit = find(&svc, "Поставщик обязуется передать товар");
     r.add(
-        pdf_id.is_some_and(|id| hit.hits.iter().any(|h| h.source.id == id && h.source.kind == RefKind::Doc && h.source.page.is_some())),
+        pdf_id.is_some_and(|id| {
+            hit.hits
+                .iter()
+                .any(|h| h.source.id == id && h.source.kind == RefKind::Doc && h.source.page.is_some())
+        }),
         "search finds the PDF (with its page)",
-        format!("{:?}", hit.hits.iter().map(|h| (h.source.title.clone(), h.source.page, h.snippet.chars().take(40).collect::<String>())).collect::<Vec<_>>()),
+        format!(
+            "{:?}",
+            hit.hits
+                .iter()
+                .map(|h| (
+                    h.source.title.clone(),
+                    h.source.page,
+                    h.snippet.chars().take(40).collect::<String>()
+                ))
+                .collect::<Vec<_>>()
+        ),
     );
     let xl_id = ready.get("sample.xlsx").map(|d| d.id);
     let hit = find(&svc, "Яблоки");
@@ -336,14 +397,25 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
     );
     let hit = find(&svc, "Участники обсудили план запуска");
     r.add(
-        ready.get("sample.docx").is_some_and(|d| hit.hits.iter().any(|h| h.source.id == d.id)),
+        ready
+            .get("sample.docx")
+            .is_some_and(|d| hit.hits.iter().any(|h| h.source.id == d.id)),
         "search finds the DOCX",
-        format!("{} hits; md={:?}", hit.hits.len(), ready.get("sample.docx").and_then(|d| svc.vault.read_doc_md(&d.id).ok()).map(|m| m.chars().take(200).collect::<String>())),
+        format!(
+            "{} hits; md={:?}",
+            hit.hits.len(),
+            ready
+                .get("sample.docx")
+                .and_then(|d| svc.vault.read_doc_md(&d.id).ok())
+                .map(|m| m.chars().take(200).collect::<String>())
+        ),
     );
     if o.ocr {
         let hit = find(&svc, "Scanned invoice");
         r.add(
-            ready.get("scanned.pdf").is_some_and(|d| hit.hits.iter().any(|h| h.source.id == d.id)),
+            ready
+                .get("scanned.pdf")
+                .is_some_and(|d| hit.hits.iter().any(|h| h.source.id == d.id)),
             "search finds the scanned PDF (OCR)",
             format!("{} hits", hit.hits.len()),
         );
@@ -358,7 +430,10 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
                     title: "Созвон с Acme".into(),
                     folder: docs.clone(),
                     started,
-                    sources: CallSources { me: None, system: None },
+                    sources: CallSources {
+                        me: None,
+                        system: None,
+                    },
                     stt_engine: None,
                     languages: vec!["ru".into()],
                     speaker_me: "Я".into(),
@@ -372,7 +447,10 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
             )
             .expect("begin call");
         for (i, (s, t)) in [
-            (Stream::System, "Давайте обсудим договор поставки и сроки подписания контракта."),
+            (
+                Stream::System,
+                "Давайте обсудим договор поставки и сроки подписания контракта.",
+            ),
             (Stream::Me, "Подписание возможно в пятницу, смету отправит Аня."),
         ]
         .into_iter()
@@ -406,19 +484,31 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
         is_folder: false,
     });
     let found = wait(Duration::from_secs(10), || {
-        find(&svc, "подписания контракта").hits.iter().any(|h| h.source.id == call.id).then_some(())
+        find(&svc, "подписания контракта")
+            .hits
+            .iter()
+            .any(|h| h.source.id == call.id)
+            .then_some(())
     });
     r.add(found.is_some(), "a finished call is indexed incrementally", "");
 
     // ---- 5. the index rebuilds from the vault ----------------------------------------------
-    let before: Vec<String> = find(&svc, "Поставщик обязуется передать товар").hits.iter().map(|h| h.chunk_id.clone()).collect();
+    let before: Vec<String> = find(&svc, "Поставщик обязуется передать товар")
+        .hits
+        .iter()
+        .map(|h| h.chunk_id.clone())
+        .collect();
     drop(svc);
     for suffix in ["", "-wal", "-shm"] {
         let _ = std::fs::remove_file(format!("{}{suffix}", super::index_path(&vault).display()));
     }
     let svc = Services::start(ctx.env.clone(), vault.clone()).expect("restart");
     let after = wait(Duration::from_secs(60), || {
-        let a: Vec<String> = find(&svc, "Поставщик обязуется передать товар").hits.iter().map(|h| h.chunk_id.clone()).collect();
+        let a: Vec<String> = find(&svc, "Поставщик обязуется передать товар")
+            .hits
+            .iter()
+            .map(|h| h.chunk_id.clone())
+            .collect();
         (!a.is_empty()).then_some(a)
     });
     r.add(
@@ -442,29 +532,51 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
             r.add(
                 ready_sem.is_some(),
                 "embedder warm: all chunks embedded",
-                format!("{:?} in {} ms", svc.index.status().semantic, t0.elapsed().as_millis()),
+                format!(
+                    "{:?} in {} ms",
+                    svc.index.status().semantic,
+                    t0.elapsed().as_millis()
+                ),
             );
             // no shared stems with the document text: only meaning connects them
-            let res = svc.index.search(&q("условия оплаты по контракту на поставку", SearchMode::Hybrid)).expect("hybrid");
+            let res = svc
+                .index
+                .search(&q("условия оплаты по контракту на поставку", SearchMode::Hybrid))
+                .expect("hybrid");
             r.add(
-                res.mode_used == SearchMode::Hybrid && pdf_id.is_some_and(|id| res.hits.iter().take(3).any(|h| h.source.id == id)),
+                res.mode_used == SearchMode::Hybrid
+                    && pdf_id.is_some_and(|id| res.hits.iter().take(3).any(|h| h.source.id == id)),
                 "hybrid search finds the PDF by meaning",
-                format!("mode={:?} top={:?}", res.mode_used, res.hits.first().map(|h| h.source.title.clone())),
+                format!(
+                    "mode={:?} top={:?}",
+                    res.mode_used,
+                    res.hits.first().map(|h| h.source.title.clone())
+                ),
             );
         }
     }
 
     // ---- 7. Ask flow against a stub: sources, template, language, key, pin -------------------
     let srv = stub(&["Ответ: ", "по документу ", "оплата 1 250 000 руб."]);
-    patch(&ctx, serde_json::json!({
-        "llm": { "base_url": srv.base_url(), "pinned_provider": "StubHost" },
-        "templates": [
-            { "id": "brief", "names": { "ru": "Кратко", "en": "Brief" }, "instruction": "Ответь кратко." },
-            { "id": "pirate", "names": { "ru": "Пират", "en": "Pirate" }, "instruction": "Отвечай как пират, одним предложением." }
-        ]
-    }));
+    patch(
+        &ctx,
+        serde_json::json!({
+            "llm": { "base_url": srv.base_url(), "pinned_provider": "StubHost" },
+            "templates": [
+                { "id": "brief", "names": { "ru": "Кратко", "en": "Brief" }, "instruction": "Ответь кратко." },
+                { "id": "pirate", "names": { "ru": "Пират", "en": "Pirate" }, "instruction": "Отвечай как пират, одним предложением." }
+            ]
+        }),
+    );
     let hints = LlmHints::new(ctx.env.clone(), Arc::new(RwLock::new(Some(vault.clone()))));
-    let req = hint_req(&svc, &docs, "Какие условия оплаты по договору поставки?", "pirate", true, true);
+    let req = hint_req(
+        &svc,
+        &docs,
+        "Какие условия оплаты по договору поставки?",
+        "pirate",
+        true,
+        true,
+    );
     let mut deltas: Vec<String> = vec![];
     let mut srcs: Vec<SourceRef> = vec![];
     let order = std::cell::RefCell::new(vec![]);
@@ -481,8 +593,19 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
     );
     match out {
         Ok(o) => {
-            r.add(o.answer.contains("1 250 000") && deltas.len() > 1, "ask streams the answer", format!("{} deltas", deltas.len()));
-            r.add(order.borrow().first() == Some(&"sources"), "sources arrive before the first delta", format!("{:?}", order.borrow()).chars().take(60).collect::<String>());
+            r.add(
+                o.answer.contains("1 250 000") && deltas.len() > 1,
+                "ask streams the answer",
+                format!("{} deltas", deltas.len()),
+            );
+            r.add(
+                order.borrow().first() == Some(&"sources"),
+                "sources arrive before the first delta",
+                format!("{:?}", order.borrow())
+                    .chars()
+                    .take(60)
+                    .collect::<String>(),
+            );
             r.add(
                 pdf_id.is_some_and(|id| srcs.iter().any(|s| s.id == id && s.kind == RefKind::Doc))
                     && srcs.iter().any(|s| s.kind == RefKind::Instructions),
@@ -509,17 +632,26 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
             "",
         );
         r.add(
-            j["messages"][0]["content"].as_str().is_some_and(|s| s.contains("language of that question")),
+            j["messages"][0]["content"]
+                .as_str()
+                .is_some_and(|s| s.contains("language of that question")),
             "system prompt answers in the question's language",
             "",
         );
-        r.add(chat.header("authorization") == Some("Bearer sk-or-selfcheck"), "BYOK key sent as bearer", "");
+        r.add(
+            chat.header("authorization") == Some("Bearer sk-or-selfcheck"),
+            "BYOK key sent as bearer",
+            "",
+        );
     } else {
         r.add(false, "ask reached the stub", "no chat request");
     }
     // no key -> refused with ApiKeyMissing before anything is sent
     let nokey = make_ctx(&tmp.join("nokey"), None, models.clone());
-    patch(&nokey, serde_json::json!({ "llm": { "base_url": srv.base_url() } }));
+    patch(
+        &nokey,
+        serde_json::json!({ "llm": { "base_url": srv.base_url() } }),
+    );
     let h2 = LlmHints::new(nokey.env.clone(), Arc::new(RwLock::new(Some(vault.clone()))));
     r.add(
         h2.preflight(&docs).err().map(|e| e.code) == Some(ErrorCode::ApiKeyMissing),
@@ -530,7 +662,13 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
     // ---- 8. local-only folders never reach the cloud ----------------------------------------
     let secret_doc = import(&svc, &private, &o.fixtures, "sample.txt", true).expect("import private");
     let secret_ready = wait_ready(&svc, &secret_doc.id, 60);
-    r.add(secret_ready.as_ref().is_some_and(|d| d.status == IngestStatus::Ready), "private folder document converts locally", "");
+    r.add(
+        secret_ready
+            .as_ref()
+            .is_some_and(|d| d.status == IngestStatus::Ready),
+        "private folder document converts locally",
+        "",
+    );
     let n_chat = srv.chat_requests().len();
     let preflight = hints.preflight(&private);
     r.add(
@@ -547,12 +685,18 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
     );
     let cloud_pack = hint_req(&svc, &private, "квазар", "brief", true, true).pack;
     r.add(
-        cloud_pack.relevant.is_empty() && cloud_pack.pinned.is_empty() && cloud_pack.instructions.is_none() && cloud_pack.withheld > 0,
+        cloud_pack.relevant.is_empty()
+            && cloud_pack.pinned.is_empty()
+            && cloud_pack.instructions.is_none()
+            && cloud_pack.withheld > 0,
         "retrieval withholds a local-only folder from a cloud provider",
         format!("withheld={}", cloud_pack.withheld),
     );
     // cloud embeddings: chunks of the private folder are never sent
-    patch(&ctx, serde_json::json!({ "embedder": { "mode": "cloud", "cloud_model": "stub/embed" } }));
+    patch(
+        &ctx,
+        serde_json::json!({ "embedder": { "mode": "cloud", "cloud_model": "stub/embed" } }),
+    );
     svc.apply_embedder(); // the app's settings watcher does this on a change
     let embedded = wait(Duration::from_secs(60), || {
         (svc.index.status().semantic == SemanticState::Ready).then_some(())
@@ -569,7 +713,10 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
         format!("{} bytes sent", emb_bodies.len()),
     );
     // a configured local LLM serves the local-only folder
-    patch(&ctx, serde_json::json!({ "llm": { "local_base_url": srv.base_url(), "local_model": "gemma-local" } }));
+    patch(
+        &ctx,
+        serde_json::json!({ "llm": { "local_base_url": srv.base_url(), "local_model": "gemma-local" } }),
+    );
     let n_chat = srv.chat_requests().len();
     let req = hint_req(&svc, &private, "расскажи про квазар", "brief", true, false);
     let mut got = String::new();
@@ -578,12 +725,17 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
     r.add(
         res.is_ok()
             && last.as_ref().is_some_and(|l| {
-                l.json()["model"] == "gemma-local" && l.header("authorization").is_none() && l.body.contains("квазар-txt")
+                l.json()["model"] == "gemma-local"
+                    && l.header("authorization").is_none()
+                    && l.body.contains("квазар-txt")
             }),
         "local-only folder is served by the configured local LLM (no key sent)",
         format!("{:?}", res.err().map(|e| e.code)),
     );
-    patch(&ctx, serde_json::json!({ "llm": { "local_base_url": "", "local_model": "" }, "embedder": { "mode": "off" } }));
+    patch(
+        &ctx,
+        serde_json::json!({ "llm": { "local_base_url": "", "local_model": "" }, "embedder": { "mode": "off" } }),
+    );
 
     // ---- 9. summary and tags (stub) ------------------------------------------------------------
     ctx.sink.0.lock().clear();
@@ -599,7 +751,11 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
             match done {
                 Some(Ok(s)) => {
                     let md = vault.read_call(&call.id).map(|c| c.md).unwrap_or_default();
-                    r.add(md.contains("Обсудили договор поставки") && !s.key_points.is_empty(), "summary is written into ## Summary", format!("{} key points", s.key_points.len()));
+                    r.add(
+                        md.contains("Обсудили договор поставки") && !s.key_points.is_empty(),
+                        "summary is written into ## Summary",
+                        format!("{} key points", s.key_points.len()),
+                    );
                 }
                 other => r.add(false, "summary is written into ## Summary", format!("{other:?}")),
             }
@@ -607,7 +763,11 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
         Err(e) => r.add(false, "summary starts", e.to_string()),
     }
     match svc.suggest_tags(&call.id) {
-        Ok(t) => r.add(!t.is_empty(), "tag suggestions", t.iter().map(|x| x.tag.clone()).collect::<Vec<_>>().join(",")),
+        Ok(t) => r.add(
+            !t.is_empty(),
+            "tag suggestions",
+            t.iter().map(|x| x.tag.clone()).collect::<Vec<_>>().join(","),
+        ),
         Err(e) => r.add(false, "tag suggestions", e.to_string()),
     }
     let blocked = {
@@ -618,14 +778,20 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
                     title: "Секретный созвон".into(),
                     folder: private.clone(),
                     started: "2026-10-21T11:00:00+00:00".into(),
-                    sources: CallSources { me: None, system: None },
+                    sources: CallSources {
+                        me: None,
+                        system: None,
+                    },
                     stt_engine: None,
                     languages: vec!["ru".into()],
                     speaker_me: "Я".into(),
                     speaker_system: "Система".into(),
                     clock: None,
                 },
-                SessionClock { t0_mono: 0, t0_wall_ms: 0 },
+                SessionClock {
+                    t0_mono: 0,
+                    t0_wall_ms: 0,
+                },
             )
             .expect("begin private call");
         w.push(CallEntry::Final {
@@ -655,13 +821,29 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
 
     // ---- 10. export / import round trip ---------------------------------------------------------
     let zip = tmp.join("acme.zip");
-    let FolderRef::User(did) = &docs else { unreachable!() };
+    let FolderRef::User(did) = &docs else {
+        unreachable!()
+    };
     match vault.export_folder_zip(did, &zip) {
         Ok(n) => {
             let v2 = Vault::open(&tmp.join("vault2")).expect("vault2");
             let rep = v2.import_zip(&zip);
-            let n_docs = v2.folders().map(|f| f.iter().map(|f| v2.list_docs(&f.id).map(|d| d.len()).unwrap_or(0)).sum::<usize>()).unwrap_or(0);
-            r.add(rep.is_ok() && n_docs == ready.len(), "folder export/import round trip", format!("{n} files, {n_docs} documents back, {:?}", rep.err().map(|e| e.code)));
+            let n_docs = v2
+                .folders()
+                .map(|f| {
+                    f.iter()
+                        .map(|f| v2.list_docs(&f.id).map(|d| d.len()).unwrap_or(0))
+                        .sum::<usize>()
+                })
+                .unwrap_or(0);
+            r.add(
+                rep.is_ok() && n_docs == ready.len(),
+                "folder export/import round trip",
+                format!(
+                    "{n} files, {n_docs} documents back, {:?}",
+                    rep.err().map(|e| e.code)
+                ),
+            );
         }
         Err(e) => r.add(false, "folder export/import round trip", e.to_string()),
     }
@@ -672,7 +854,14 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
         Some(k) => {
             let live = make_ctx(&tmp.join("live"), Some(k.clone()), models.clone());
             let h = LlmHints::new(live.env.clone(), Arc::new(RwLock::new(Some(vault.clone()))));
-            let mut req = hint_req(&svc, &docs, "Какие условия оплаты по договору поставки?", "brief", true, true);
+            let mut req = hint_req(
+                &svc,
+                &docs,
+                "Какие условия оплаты по договору поставки?",
+                "brief",
+                true,
+                true,
+            );
             req.delta[0].text = "Какие условия оплаты по договору поставки?".into();
             let t0 = Instant::now();
             let mut first: Option<Duration> = None;
@@ -686,7 +875,11 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
                 Ok(o) => r.add(
                     n > 1 && srcs > 0 && !o.answer.trim().is_empty(),
                     "live ask: streamed answer with sources",
-                    format!("ttft={} ms, {n} deltas, {srcs} sources, model={}", first.map_or(0, |d| d.as_millis()), h.model()),
+                    format!(
+                        "ttft={} ms, {n} deltas, {srcs} sources, model={}",
+                        first.map_or(0, |d| d.as_millis()),
+                        h.model()
+                    ),
                 ),
                 Err(e) => r.add(false, "live ask: streamed answer with sources", e.to_string()),
             }
@@ -702,13 +895,21 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
 /// `lowk --selfcheck-m2 --fixtures DIR [--model GGUF] [--ocr] [--require-worker] [--live]`.
 /// Exit code 0 = no failed check. The live key comes from the environment (`OPENROUTER_API_KEY`).
 pub fn main(args: &[String]) -> i32 {
-    let arg = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
+    let arg = |k: &str| {
+        args.iter()
+            .position(|a| a == k)
+            .and_then(|i| args.get(i + 1))
+            .cloned()
+    };
     let has = |k: &str| args.iter().any(|a| a == k);
     let Some(fixtures) = arg("--fixtures") else {
         eprintln!("usage: lowk --selfcheck-m2 --fixtures <fixtures/ingest> [--model <gguf>] [--ocr] [--require-worker] [--live]");
         return 2;
     };
-    let live_key = has("--live").then(|| std::env::var("OPENROUTER_API_KEY").ok()).flatten().filter(|k| !k.is_empty());
+    let live_key = has("--live")
+        .then(|| std::env::var("OPENROUTER_API_KEY").ok())
+        .flatten()
+        .filter(|k| !k.is_empty());
     let checks = run_checks(&Options {
         fixtures: PathBuf::from(fixtures),
         model: arg("--model").map(PathBuf::from),

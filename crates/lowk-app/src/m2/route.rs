@@ -82,13 +82,15 @@ pub fn resolve(s: &LlmSettings, local_only: bool, key: Option<String>, purpose: 
         let url = s.local_base_url.trim();
         let model = s.local_model.trim();
         if url.is_empty() || model.is_empty() || !is_local_url(url) {
-            return Err(AppError::new(ErrorCode::LocalOnlyBlocked).with_detail(if url.is_empty() {
-                "no local LLM configured"
-            } else if !is_local_url(url) {
-                "the local LLM URL is not a local address"
-            } else {
-                "no local model name configured"
-            }));
+            return Err(
+                AppError::new(ErrorCode::LocalOnlyBlocked).with_detail(if url.is_empty() {
+                    "no local LLM configured"
+                } else if !is_local_url(url) {
+                    "the local LLM URL is not a local address"
+                } else {
+                    "no local model name configured"
+                }),
+            );
         }
         let mut cfg = LlmConfig::new(ProviderKind::Custom, url, model);
         cfg.reasoning = false;
@@ -144,7 +146,13 @@ mod tests {
     #[test]
     fn local_only_folder_never_gets_a_cloud_route() {
         // cloud provider + local-only folder + no local LLM: refused, even with a valid key
-        let e = resolve(&cloud(), true, Some("sk-or-x".into()), &Purpose::Ask { session_id: None }).unwrap_err();
+        let e = resolve(
+            &cloud(),
+            true,
+            Some("sk-or-x".into()),
+            &Purpose::Ask { session_id: None },
+        )
+        .unwrap_err();
         assert_eq!(e.code, ErrorCode::LocalOnlyBlocked);
         let e = resolve(&cloud(), true, Some("sk-or-x".into()), &Purpose::Summary).unwrap_err();
         assert_eq!(e.code, ErrorCode::LocalOnlyBlocked);
@@ -153,7 +161,9 @@ mod tests {
         s.local_base_url = "https://api.example.com/v1".into();
         s.local_model = "m".into();
         assert_eq!(
-            resolve(&s, true, Some("k".into()), &Purpose::Summary).unwrap_err().code,
+            resolve(&s, true, Some("k".into()), &Purpose::Summary)
+                .unwrap_err()
+                .code,
             ErrorCode::LocalOnlyBlocked
         );
         // model name missing
@@ -165,11 +175,22 @@ mod tests {
         );
         // configured: routes to the local server, no key, not cloud
         s.local_model = "gemma3".into();
-        let r = resolve(&s, true, Some("sk-or-x".into()), &Purpose::Ask { session_id: Some("c".into()) }).unwrap();
+        let r = resolve(
+            &s,
+            true,
+            Some("sk-or-x".into()),
+            &Purpose::Ask {
+                session_id: Some("c".into()),
+            },
+        )
+        .unwrap();
         assert!(!r.cloud);
         assert_eq!(r.cfg.base_url, "http://localhost:11434/v1");
         assert_eq!(r.cfg.model, "gemma3");
-        assert!(r.cfg.api_key.is_none(), "the OpenRouter key never goes to a local server");
+        assert!(
+            r.cfg.api_key.is_none(),
+            "the OpenRouter key never goes to a local server"
+        );
         assert!(r.cfg.fallback_model.is_none());
     }
 
@@ -199,9 +220,23 @@ mod tests {
     fn cloud_route_needs_the_key_and_uses_the_pinned_model() {
         let e = resolve(&cloud(), false, None, &Purpose::Ask { session_id: None }).unwrap_err();
         assert_eq!(e.code, ErrorCode::ApiKeyMissing);
-        let e = resolve(&cloud(), false, Some("  ".into()), &Purpose::Ask { session_id: None }).unwrap_err();
+        let e = resolve(
+            &cloud(),
+            false,
+            Some("  ".into()),
+            &Purpose::Ask { session_id: None },
+        )
+        .unwrap_err();
         assert_eq!(e.code, ErrorCode::ApiKeyMissing);
-        let r = resolve(&cloud(), false, Some("k".into()), &Purpose::Ask { session_id: Some("c".into()) }).unwrap();
+        let r = resolve(
+            &cloud(),
+            false,
+            Some("k".into()),
+            &Purpose::Ask {
+                session_id: Some("c".into()),
+            },
+        )
+        .unwrap();
         assert!(r.cloud);
         assert_eq!(r.cfg.model, lowk_types::DEFAULT_LLM_MODEL_PINNED);
         assert_eq!(r.cfg.session_id.as_deref(), Some("c"));

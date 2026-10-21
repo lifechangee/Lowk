@@ -45,5 +45,6 @@ export const errors = {
   'error.embedder_missing': 'The semantic search model is not installed',
   'error.embed_failed': 'Could not build the semantic index. Keyword search still works',
   'error.llm_bad_response': 'The model replied in an unexpected shape. Try again',
+  'error.local_only_blocked': 'This folder is local-only: connect a local model (Ollama / LM Studio) in Settings',
   'error.archive_invalid': 'The archive is damaged or is not a Lowk archive',
 } as const;

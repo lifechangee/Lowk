@@ -164,7 +164,12 @@ impl Services {
 
     fn index_folder_one(&self, id: &Ulid) -> Result<()> {
         use SearchIndex as _;
-        if let Some(f) = self.vault.folders()?.into_iter().find(|f| f.id == FolderRef::User(*id)) {
+        if let Some(f) = self
+            .vault
+            .folders()?
+            .into_iter()
+            .find(|f| f.id == FolderRef::User(*id))
+        {
             self.index.upsert_folder(&index_folder(&self.vault, &f))?;
         }
         Ok(())
@@ -225,7 +230,12 @@ impl Services {
         for id in &gone {
             self.index.remove(id, true)?;
         }
-        tracing::info!(upserted, removed = gone.len(), known = known.len(), "index reconciled with the vault");
+        tracing::info!(
+            upserted,
+            removed = gone.len(),
+            known = known.len(),
+            "index reconciled with the vault"
+        );
         Ok(())
     }
 }

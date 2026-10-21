@@ -36,12 +36,21 @@ impl Services {
         for b in doc.blocks() {
             match b {
                 Block::Turn { at_s, speaker, text } => {
-                    transcript.push_str(&format!("[{}] **{}:** {}\n", fmt_offset(u64::from(*at_s)), name(speaker), text));
+                    transcript.push_str(&format!(
+                        "[{}] **{}:** {}\n",
+                        fmt_offset(u64::from(*at_s)),
+                        name(speaker),
+                        text
+                    ));
                 }
                 Block::Qa(q) => qa.push(QaDigest {
                     question: q.question.clone(),
                     hint: q.answer.clone(),
-                    my_answer: q.my_answer.as_ref().map(|m| m.1.clone()).filter(|t| !t.trim().is_empty()),
+                    my_answer: q
+                        .my_answer
+                        .as_ref()
+                        .map(|m| m.1.clone())
+                        .filter(|t| !t.trim().is_empty()),
                 }),
                 _ => {}
             }
@@ -85,7 +94,12 @@ impl Services {
                 let llm = CloudLlm::new(route.cfg);
                 let r = llm.summarize(
                     &input,
-                    &mut |t| svc.env.emit(AppEvent::Summary(SummaryEvent::Delta { call: id, text: t.to_string() })),
+                    &mut |t| {
+                        svc.env.emit(AppEvent::Summary(SummaryEvent::Delta {
+                            call: id,
+                            text: t.to_string(),
+                        }))
+                    },
                     &|| !cancel.load(Ordering::SeqCst),
                 );
                 svc.summaries.lock().remove(&id);
@@ -97,11 +111,16 @@ impl Services {
                                 id,
                                 is_folder: false,
                             }));
-                            svc.env.emit(AppEvent::Summary(SummaryEvent::Done { call: id, summary }));
+                            svc.env
+                                .emit(AppEvent::Summary(SummaryEvent::Done { call: id, summary }));
                         }
-                        Err(e) => svc.env.emit(AppEvent::Summary(SummaryEvent::Error { call: id, error: e })),
+                        Err(e) => svc
+                            .env
+                            .emit(AppEvent::Summary(SummaryEvent::Error { call: id, error: e })),
                     },
-                    Err(e) => svc.env.emit(AppEvent::Summary(SummaryEvent::Error { call: id, error: e })),
+                    Err(e) => svc
+                        .env
+                        .emit(AppEvent::Summary(SummaryEvent::Error { call: id, error: e })),
                 }
             })
             .map_err(|e| AppError::new(ErrorCode::Unknown).with_detail(e.to_string()))?;
@@ -173,10 +192,13 @@ impl Services {
     pub fn spawn_provider_probe(self: &Arc<Self>) {
         let s = self.settings().llm;
         // the pin names an upstream of one model: only probe when ask and summary share it
-        if s.provider != LlmProvider::Openrouter || s.pinned_provider.is_some() || s.model != s.summary_model {
+        if s.provider != LlmProvider::Openrouter || s.pinned_provider.is_some() || s.model != s.summary_model
+        {
             return;
         }
-        let Some(key) = self.env.keys.openrouter() else { return };
+        let Some(key) = self.env.keys.openrouter() else {
+            return;
+        };
         let svc = self.clone();
         std::thread::Builder::new()
             .name("lowk-llm-probe".into())

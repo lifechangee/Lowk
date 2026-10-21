@@ -39,7 +39,9 @@ impl KeyProvider for SystemKeys {
                 }
             }
         }
-        lowk_platform::secrets::get("openrouter").ok().filter(|k| !k.trim().is_empty())
+        lowk_platform::secrets::get("openrouter")
+            .ok()
+            .filter(|k| !k.trim().is_empty())
     }
 }
 
@@ -151,7 +153,11 @@ impl Services {
         } else {
             Job::Item(c.id)
         });
-        if !c.is_folder && matches!(c.kind, StoreChangeKind::Created | StoreChangeKind::Updated | StoreChangeKind::Restored)
+        if !c.is_folder
+            && matches!(
+                c.kind,
+                StoreChangeKind::Created | StoreChangeKind::Updated | StoreChangeKind::Restored
+            )
         {
             if let Ok(d) = self.vault.get_doc(&c.id) {
                 if d.status == IngestStatus::Queued && !d.deleted {

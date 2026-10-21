@@ -270,3 +270,8 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 .sentinel { position: absolute; inset: 0; background: rgb(255, 0, 255); border-radius: 16px; z-index: 50; }
 .sub .wait.err { color: var(--warn); }
 .hints .warn { color: var(--warn); }
+
+.ans .lnk { margin-left: 6px; background: none; border: 0; padding: 0; color: var(--ac, #8ba6c4); text-decoration: underline; cursor: pointer; font: inherit; pointer-events: auto; }
+.ans .srcs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; max-height: 3.4em; overflow: hidden; }
+.ans .srcs .chip { max-width: 100%; padding: 1px 7px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--tx) 25%, transparent); background: transparent; color: var(--tx2); font: inherit; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; pointer-events: auto; }
+.ans .srcs .chip.held { cursor: default; font-style: italic; }

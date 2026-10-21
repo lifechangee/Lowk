@@ -92,6 +92,7 @@ const COMMANDS: &[&str] = &[
     "embedder_install",
     "embedder_install_cancel",
     "source_open",
+    "settings_open",
     "llm_summarize",
     "llm_summarize_cancel",
     "llm_suggest_tags",

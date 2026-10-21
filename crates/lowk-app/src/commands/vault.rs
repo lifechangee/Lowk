@@ -362,7 +362,11 @@ pub struct ImportSummary {
 /// catches up by itself (imports are not reported by the watcher, so a reconcile is requested).
 pub(crate) fn import_any(st: &AppState, src: &std::path::Path) -> Result<ImportSummary> {
     let v = vault(st)?;
-    let r = if src.is_file() { v.import_zip(src)? } else { v.import_vault(src)? };
+    let r = if src.is_file() {
+        v.import_zip(src)?
+    } else {
+        v.import_vault(src)?
+    };
     if let Ok(svc) = st.svc() {
         svc.request_reconcile();
     }

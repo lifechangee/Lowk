@@ -35,7 +35,8 @@ impl Services {
                     (
                         None,
                         SemanticState::Failed {
-                            error: AppError::new(ErrorCode::EmbedderMissing).with_detail("lowk-embed-worker not found"),
+                            error: AppError::new(ErrorCode::EmbedderMissing)
+                                .with_detail("lowk-embed-worker not found"),
                         },
                     )
                 }
@@ -101,7 +102,9 @@ impl Services {
         r?;
         // the install button is the user's consent to the local embedder
         if self.settings().embedder.mode == EmbedderMode::Off {
-            let _ = self.env.settings.patch(SettingsPatch(serde_json::json!({ "embedder": { "mode": "local" } })));
+            let _ = self.env.settings.patch(SettingsPatch(
+                serde_json::json!({ "embedder": { "mode": "local" } }),
+            ));
         }
         self.apply_embedder();
         Ok(())

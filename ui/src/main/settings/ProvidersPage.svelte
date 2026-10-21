@@ -26,6 +26,9 @@
   let model = $state('');
   let summaryModel = $state('');
   let pinned = $state('');
+  let localUrl = $state('');
+  let localModel = $state('');
+  $effect(() => { localUrl = prefs.value.llm?.local_base_url ?? ''; localModel = prefs.value.llm?.local_model ?? ''; });
   $effect(() => { model = prefs.value.llm?.model ?? ''; });
   $effect(() => { summaryModel = prefs.value.llm?.summary_model ?? ''; pinned = prefs.value.llm?.pinned_provider ?? ''; });
   const pickEngine = (id: string) => {
@@ -53,6 +56,12 @@
 </SettingRow>
 <SettingRow label={tm('summary.settings.pinned')} hint={tm('summary.settings.pinnedHint')}>
   <TextInput bind:value={pinned} mono label={tm('summary.settings.pinned')} placeholder={tm('summary.settings.pinnedAuto')} onenter={() => prefs.patch({ llm: { pinned_provider: pinned.trim() || null } })} oninput={() => {}} />
+</SettingRow>
+<SettingRow label={tm('summary.settings.localUrl')} hint={tm('summary.settings.localUrlHint')}>
+  <TextInput bind:value={localUrl} mono label={tm('summary.settings.localUrl')} placeholder="http://localhost:11434/v1" onenter={() => prefs.patch({ llm: { local_base_url: localUrl.trim() } })} oninput={() => {}} />
+</SettingRow>
+<SettingRow label={tm('summary.settings.localModel')}>
+  <TextInput bind:value={localModel} mono label={tm('summary.settings.localModel')} onenter={() => prefs.patch({ llm: { local_model: localModel.trim() } })} oninput={() => {}} />
 </SettingRow>
 <KeyCard provider="openrouter" title={tm('settings.apiKey')} placeholder="sk-or-v1-…" />
 

@@ -28,6 +28,16 @@
 
   onMount(() => {
     attachEvents();
+    // The overlay's source chips and «no API key» link route the main window.
+    if (!api.isMock) {
+      void import('@tauri-apps/api/event').then(({ listen }) => {
+        void listen<{ kind: string; id: string; page: number | null; at_s: number | null }>('nav://source', (e) => {
+          const s = e.payload;
+          router.go(s.kind === 'doc' ? hrefs.doc(s.id, s.page) : s.kind === 'instructions' ? hrefs.folder(s.id, 'instructions') : hrefs.call(s.id, s.at_s));
+        });
+        void listen<{ page: string }>('nav://settings', (e) => router.go(hrefs.settings((e.payload.page as never) ?? 'providers')));
+      });
+    }
     void (async () => {
       locale.init(await api.localeGet().catch(() => 'en'));
       await Promise.all([prefs.load(), library.reload()]);

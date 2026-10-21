@@ -1,6 +1,7 @@
 // Real backend: every method that has a command in the generated bindings calls it. No silent fallbacks:
 // M2 commands that the backend has not implemented yet fail with their `not_implemented` AppError, which the UI shows.
-// Only the native file dialogs (no dialog plugin in the shell yet) and the live-demo feed keep the mock.
+// File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
+import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
 import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { MockBackend } from './mock';
@@ -95,7 +96,10 @@ export class TauriBackend extends MockBackend {
     if (p !== 'openrouter') return { ok: await this.secretStatus(p) };
     try { await this.llmKeyTest(); return { ok: true }; } catch (e) { return { ok: false, error: e instanceof CommandError ? e.app : { code: 'unknown' } }; }
   }
-  override async pickVaultDir(): Promise<string | null> { return null; }
+  override async pickVaultDir(): Promise<string | null> {
+    const r = await invoke<string | string[] | null>('plugin:dialog|open', { options: { multiple: false, directory: true } });
+    return Array.isArray(r) ? (r[0] ?? null) : r;
+  }
   override async bindReport(): Promise<BindReport> { return (await commands.bindsGet()).report; }
 
   override async sessionStart(opts: StartOpts): Promise<SessionState> { return ok(await commands.sessionStart(opts)); }
@@ -116,7 +120,11 @@ export class TauriBackend extends MockBackend {
   }
   override async docList(folder: FolderKey): Promise<Document[]> { return ok(await commands.docList(folderRef(folder))); }
   override async docGet(id: string): Promise<Document | null> { try { return ok(await commands.docGet(id)); } catch { return null; } }
-  override async pickDocuments(): Promise<PickedFile[] | null> { throw new CommandError({ code: 'not_implemented', detail: 'native file dialog' }); }
+  override async pickDocuments(): Promise<PickedFile[] | null> {
+    const r = await invoke<string[] | string | null>('plugin:dialog|open', { options: { multiple: true, directory: false, filters: [{ name: 'Documents', extensions: ['pdf', 'docx', 'pptx', 'key', 'xlsx', 'csv', 'tsv', 'txt', 'md', 'png', 'jpg', 'jpeg', 'heic', 'webp', 'tif', 'tiff'] }] } });
+    if (!r) return null;
+    return (Array.isArray(r) ? r : [r]).map((path) => ({ path, name: path.split(/[\\/]/).pop() ?? path, size_bytes: 0 }));
+  }
   override onFileDrop(cb: (files: PickedFile[]) => void): () => void {
     let off: (() => void) | undefined;
     let dead = false;
@@ -154,8 +162,13 @@ export class TauriBackend extends MockBackend {
   override async llmProviderStatus(): Promise<LlmProviderStatus> { return ok(await commands.llmProviderStatus()); }
   override async llmKeyTest(): Promise<void> { ok(await commands.llmKeyTest()); }
 
-  override async pickSavePath(_defaultName: string): Promise<string | null> { throw new CommandError({ code: 'not_implemented', detail: 'native file dialog' }); }
-  override async pickOpenPath(_extension: string): Promise<string | null> { throw new CommandError({ code: 'not_implemented', detail: 'native file dialog' }); }
+  override async pickSavePath(defaultName: string): Promise<string | null> {
+    return invoke<string | null>('plugin:dialog|save', { options: { defaultPath: defaultName, filters: [{ name: 'Zip', extensions: ['zip'] }] } });
+  }
+  override async pickOpenPath(extension: string): Promise<string | null> {
+    const r = await invoke<string | string[] | null>('plugin:dialog|open', { options: { multiple: false, directory: false, filters: [{ name: extension, extensions: [extension] }] } });
+    return Array.isArray(r) ? (r[0] ?? null) : r;
+  }
   override async folderExport(folder: string, dest: string): Promise<number> { return ok(await commands.folderExport(folder, dest)); }
   override async folderImport(src: string): Promise<ImportSummary> { return ok(await commands.folderImport(src)); }
   override async exportVault(dest: string): Promise<number> { return ok(await commands.exportVault(dest, false)); }

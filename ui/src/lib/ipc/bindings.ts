@@ -57,6 +57,10 @@ export const commands = {
 	callSetTags: (id: Ulid, tags: string[]) => typedError<CallMeta, AppError>(__TAURI_INVOKE("call_set_tags", { id, tags })),
 	/**  The only hard delete («Очистить корзину»). Returns the number of items removed. */
 	trashEmpty: () => typedError<number, AppError>(__TAURI_INVOKE("trash_empty")),
+	/**
+	 *  `*.zip` writes a zip (Obsidian opens the unzipped result as is); anything else copies the vault to
+	 *  a new directory.
+	 */
 	exportVault: (dest: string, includeService: boolean) => typedError<number, AppError>(__TAURI_INVOKE("export_vault", { dest, includeService })),
 	importVault: (src: string) => typedError<ImportSummary, AppError>(__TAURI_INVOKE("import_vault", { src })),
 	stealthStatus: () => __TAURI_INVOKE<StealthStatus>("stealth_status"),
@@ -172,6 +176,13 @@ export const commands = {
 	embedderInstall: () => typedError<null, AppError>(__TAURI_INVOKE("embedder_install")),
 	/**  Cancels the download. */
 	embedderInstallCancel: () => typedError<null, AppError>(__TAURI_INVOKE("embedder_install_cancel")),
+	/**
+	 *  The overlay's source chip was clicked: show the source (call at `at_s`, document at `page`) in the
+	 *  main window. The main window routes `nav://source` to the right page.
+	 */
+	sourceOpen: (source: SourceRef) => typedError<null, AppError>(__TAURI_INVOKE("source_open", { source })),
+	/**  Opens the main window on a Settings page (the overlay's «no API key» message links here). */
+	settingsOpen: (page: string) => typedError<null, AppError>(__TAURI_INVOKE("settings_open", { page })),
 	/**  Starts the post-call summary (streams `summary://event`; Done also writes `## Summary`). */
 	llmSummarize: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("llm_summarize", { call })),
 	/**  Cancels a running summary. */
@@ -614,7 +625,9 @@ export type EngineProgress = {
 	message: string | null,
 };
 
-export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index" | "doc_unsupported" | "doc_encrypted" | "doc_too_large" | "doc_empty" | "ocr_failed" | "ingest_cancelled" | "embedder_missing" | "embed_failed" | "llm_bad_response" | "archive_invalid";
+export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index" | "doc_unsupported" | "doc_encrypted" | "doc_too_large" | "doc_empty" | "ocr_failed" | "ingest_cancelled" | "embedder_missing" | "embed_failed" | "llm_bad_response" | "archive_invalid" | 
+/**  The folder is local-only (`allow_cloud = false`) and no local LLM is configured. */
+"local_only_blocked";
 
 export type FacetCount = {
 	folder: FolderRef,
@@ -819,6 +832,13 @@ export type LlmSettings = {
 	 *  latency probe, `None` = not probed yet.
 	 */
 	pinned_provider?: string | null,
+	/**
+	 *  Local OpenAI-compatible server (Ollama `http://localhost:11434/v1`, LM Studio
+	 *  `http://localhost:1234/v1`) used for folders marked local-only. Empty = not configured:
+	 *  asking in a local-only folder is then disabled (never sent to the cloud).
+	 */
+	local_base_url?: string,
+	local_model?: string,
 };
 
 export type LlmUsage = {

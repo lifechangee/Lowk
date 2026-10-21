@@ -770,7 +770,10 @@ fn refused_ask_retrieves_and_sends_nothing() {
     r.session.ask(brief(Some("секрет?"))).unwrap();
     let evs = wait_llm_end(&rx);
     assert!(matches!(&evs[1], LlmEvent::Error { error, .. } if error.code == ErrorCode::LocalOnlyBlocked));
-    assert!(spy.queries.lock().unwrap().is_empty(), "no retrieval for a refused ask");
+    assert!(
+        spy.queries.lock().unwrap().is_empty(),
+        "no retrieval for a refused ask"
+    );
     assert!(hints.seen.lock().unwrap().is_empty(), "the generator never ran");
     assert!(r.session.qa_records().is_empty());
     r.session.stop().unwrap();
