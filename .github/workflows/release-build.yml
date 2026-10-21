@@ -1,0 +1,157 @@
+name: release-build
+
+# Test builds of the bundled app for people without the hardware: Windows (NSIS installer) and macOS
+# (.app zip + .dmg, ad-hoc signed). Models are NOT bundled. See docs/release.md.
+on:
+  push:
+    branches: [ci/release-build]
+  workflow_dispatch:
+    inputs:
+      windows_gpu:
+        description: "Windows STT worker backend"
+        type: choice
+        options: [vulkan, cpu, cuda]
+        default: vulkan
+      platforms:
+        description: "Which platforms to build"
+        type: choice
+        options: [both, windows, macos]
+        default: both
+  schedule:
+    - cron: "47 3 * * *"
+
+concurrency:
+  group: release-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  windows:
+    if: github.event_name != 'workflow_dispatch' || inputs.platforms != 'macos'
+    runs-on: windows-2022
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      GPU: ${{ inputs.windows_gpu || 'vulkan' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            workers/lowk-stt-worker -> target
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli@2
+      - name: Vulkan SDK
+        if: env.GPU == 'vulkan'
+        uses: jakoch/install-vulkan-sdk-action@v1
+        with:
+          vulkan_version: 1.4.309.0
+          install_runtime: false
+          cache: true
+          stripdown: true
+      - name: Cache llama.cpp build
+        uses: actions/cache@v4
+        with:
+          path: workers/lowk-embed-worker/.build
+          key: embed-win-${{ hashFiles('workers/lowk-embed-worker/build.sh') }}
+      - name: Unit tests
+        run: |
+          pnpm --dir ui install --frozen-lockfile
+          pnpm --dir ui build
+          cargo test --workspace
+      - name: Stage sidecars (STT worker per GPU input, embedder CPU)
+        run: |
+          if [ "$GPU" = cpu ]; then export LOWK_WORKER_FEATURES=""; else export LOWK_WORKER_FEATURES="$GPU"; fi
+          tools/release/stage-sidecars.sh
+      - name: NSIS installer
+        working-directory: crates/lowk-app
+        run: cargo tauri build --config tauri.bundle.conf.json --config tauri.release.conf.json --bundles nsis
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp target/release/bundle/nsis/*.exe dist/
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lowk-windows-x64-${{ env.GPU }}
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  macos:
+    if: github.event_name != 'workflow_dispatch' || inputs.platforms != 'windows'
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            workers/lowk-stt-worker -> target
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli@2
+      - name: Build tools (meson, ninja for AEC)
+        run: brew install meson ninja
+      - name: Cache llama.cpp build
+        uses: actions/cache@v4
+        with:
+          path: workers/lowk-embed-worker/.build
+          key: embed-mac-${{ hashFiles('workers/lowk-embed-worker/build.sh') }}
+      - name: Unit tests
+        run: |
+          pnpm --dir ui install --frozen-lockfile
+          pnpm --dir ui build
+          cargo test --workspace
+      - name: Stage sidecars (STT Metal, embedder Metal)
+        run: tools/release/stage-sidecars.sh
+      - name: Build Lowk.app (AEC on, like `just build`)
+        working-directory: crates/lowk-app
+        run: cargo tauri build --config tauri.bundle.conf.json --config tauri.release.conf.json --bundles app -- --features aec
+      - name: Ad-hoc sign with pinned designated requirement
+        run: tools/sign-bundle.sh
+      - name: Bundle check
+        run: |
+          APP=target/release/bundle/macos/Lowk.app/Contents/MacOS
+          ls -l "$APP"
+          test -x "$APP/lowk-stt-worker"; test -x "$APP/lowk-embed-worker"
+          "$APP/lowk-stt-worker" --version
+          codesign -d -r- target/release/bundle/macos/Lowk.app 2>&1 | grep designated
+      - name: dmg + zip
+        run: tools/release/make-dmg.sh dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lowk-macos-arm64
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
