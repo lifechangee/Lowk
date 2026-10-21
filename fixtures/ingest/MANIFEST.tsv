@@ -1,0 +1,18 @@
+# Corpus manifest for `cargo test -p lowk-ingest --features corpus` (tests/corpus.rs).
+# file <TAB> expect (ok | ErrorCode name) <TAB> pages (number or -) <TAB> key phrases separated by ;; <TAB> flags (ocr = needs a platform OCR engine)
+# Add the real RU/EN corpus files next to this file and list them here (exit criterion 2 of docs/M2-PLAN.md).
+text.pdf	ok	3	Договор поставки;;Supply agreement section 1;;квазар-3;;1 250 000 рублей, оплата
+scanned.pdf	ok	2	Scanned invoice total 4200 EUR;;Оплата до 1 декабря	ocr
+encrypted.pdf	DocEncrypted	-
+garbage.pdf	IngestFailed	-
+empty.pdf	DocEmpty	-
+sample.docx	ok	-	Протокол встречи;;квазар-docx;;Подготовить договор;;внутренний отчёт
+broken.docx	IngestFailed	-
+sample.pptx	ok	2	Стратегия запуска;;квазар-pptx;;Заметки докладчика
+sample.xlsx	ok	2	Прайс;;Яблоки;;2026-11-01
+sample.csv	ok	1	Пётр "Лёха";;1 200,50
+sample.tsv	ok	1	Anna;;Рига
+sample.txt	ok	-	квазар-txt
+sample-cp1251.txt	ok	-	договор поставки
+sample.md	ok	-	quasar-md;;title: Заметка
+scan.png	ok	-	Scanned invoice total 4200 EUR;;Оплата до 1 декабря	ocr

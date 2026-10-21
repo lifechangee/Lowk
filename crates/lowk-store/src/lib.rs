@@ -1,7 +1,9 @@
 //! Lowk store (WP4): vault of Markdown files, call/folder codecs, live journal
-//! with crash recovery, trash, watcher, `settings.toml`, prompt templates.
+//! with crash recovery, trash, watcher, `settings.toml`, prompt templates, documents (`Docs/`).
 //! No OS-specific code; builds on Linux.
 pub mod call_codec;
+pub mod doc_codec;
+mod docs;
 pub mod fm;
 pub mod folder_codec;
 pub mod settings;
@@ -12,6 +14,8 @@ pub mod vault;
 mod watch;
 pub mod writer;
 
+pub use doc_codec::estimate_tokens;
+pub use docs::{VaultDocs, DOCS_SUBDIR};
 pub use settings::{FileSettingsStore, SETTINGS_FILE};
 pub use templates::TemplateSet;
 pub use transfer::ImportReport;

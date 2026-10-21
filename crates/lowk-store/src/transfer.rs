@@ -164,6 +164,179 @@ impl Vault {
             }
         }
         self.resync()?;
+        self.repair_doc_sources()?;
         Ok(rep)
+    }
+}
+
+// ---- zip export / import (folder or whole vault) -------------------------------------------
+
+const MAX_ENTRIES: usize = 500_000;
+const MAX_TOTAL: u64 = 64 * 1024 * 1024 * 1024;
+
+fn already_compressed(p: &Path) -> bool {
+    p.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+        matches!(
+            e.to_ascii_lowercase().as_str(),
+            "pdf"
+                | "png"
+                | "jpg"
+                | "jpeg"
+                | "heic"
+                | "webp"
+                | "zip"
+                | "docx"
+                | "pptx"
+                | "xlsx"
+                | "key"
+                | "orig"
+        )
+    })
+}
+
+fn zip_err(e: impl std::fmt::Display) -> AppError {
+    AppError::new(ErrorCode::ArchiveInvalid).with_detail(e.to_string())
+}
+
+impl Vault {
+    fn zip_files(&self, base: &Path, files: &[PathBuf], dest: &Path) -> Result<usize> {
+        if dest.exists() {
+            return Err(err(ErrorCode::AlreadyExists, "destination exists"));
+        }
+        if dest.starts_with(&self.root) {
+            return Err(err(ErrorCode::InvalidArgument, "destination is inside the vault"));
+        }
+        let tmp = dest.with_extension("zip.part");
+        let res = (|| -> Result<usize> {
+            let mut z = zip::ZipWriter::new(fs::File::create(&tmp)?);
+            for f in files {
+                let rel = rel_string(base, f);
+                let opts =
+                    zip::write::SimpleFileOptions::default().compression_method(if already_compressed(f) {
+                        zip::CompressionMethod::Stored
+                    } else {
+                        zip::CompressionMethod::Deflated
+                    });
+                z.start_file(rel, opts).map_err(zip_err)?;
+                std::io::copy(&mut fs::File::open(f)?, &mut z)?;
+            }
+            z.finish().map_err(zip_err)?;
+            Ok(files.len())
+        })();
+        match res {
+            Ok(n) => {
+                fs::rename(&tmp, dest)?;
+                Ok(n)
+            }
+            Err(e) => {
+                let _ = fs::remove_file(&tmp);
+                Err(e)
+            }
+        }
+    }
+
+    /// One folder (card, calls, documents with originals and assets) as `<Folder>/...` in a zip.
+    /// The layout is the vault layout, so the archive unzips into an Obsidian vault as is.
+    pub fn export_folder_zip(&self, id: &Ulid, dest: &Path) -> Result<usize> {
+        let _g = self.op_lock();
+        let rec = self.find_folder(id)?;
+        let dir = self.root.join(&rec.dir);
+        let mut files = vec![];
+        files_in(&dir, false, &mut files)?;
+        files.sort();
+        self.zip_files(&self.root, &files, dest)
+    }
+
+    /// The whole vault as a zip (`.lowk/` only when `include_service`).
+    pub fn export_vault_zip(&self, dest: &Path, include_service: bool) -> Result<usize> {
+        let _g = self.op_lock();
+        let mut files = vec![];
+        files_in(&self.root, !include_service, &mut files)?;
+        files.sort();
+        self.zip_files(&self.root, &files, dest)
+    }
+
+    /// Merges a folder or vault zip into this vault: never overwrites, ids reassigned on clash.
+    /// Hostile archives (path traversal, absolute paths, symlinks, bombs) are `ArchiveInvalid`.
+    pub fn import_zip(&self, src: &Path) -> Result<ImportReport> {
+        let f = fs::File::open(src)?;
+        let mut z = zip::ZipArchive::new(f).map_err(zip_err)?;
+        if z.len() > MAX_ENTRIES {
+            return Err(zip_err("too many entries"));
+        }
+        let stage = self
+            .root
+            .join(SERVICE_DIR)
+            .join("tmp")
+            .join(format!("import-{}", Ulid::new()));
+        fs::create_dir_all(&stage)?;
+        let res = (|| -> Result<ImportReport> {
+            let mut total = 0u64;
+            let mut root_card = false;
+            let mut names = vec![];
+            for i in 0..z.len() {
+                let mut e = z.by_index(i).map_err(zip_err)?;
+                if e.is_dir() {
+                    continue;
+                }
+                if e.unix_mode().is_some_and(|m| m & 0o170000 == 0o120000) {
+                    return Err(zip_err("symlink entry"));
+                }
+                let name = e.name().map_err(zip_err)?.replace('\\', "/");
+                let p = Path::new(&name);
+                if name.starts_with('/')
+                    || name.as_bytes().get(1) == Some(&b':')
+                    || p.components()
+                        .any(|c| !matches!(c, std::path::Component::Normal(_)))
+                {
+                    return Err(zip_err(format!("unsafe path {name:?}")));
+                }
+                total = total.saturating_add(e.size());
+                if total > MAX_TOTAL {
+                    return Err(zip_err("archive is too large"));
+                }
+                if name == FOLDER_FILE {
+                    root_card = true;
+                }
+                names.push(name.clone());
+                let out = stage.join(p);
+                if let Some(d) = out.parent() {
+                    fs::create_dir_all(d)?;
+                }
+                let mut w = fs::File::create(&out)?;
+                let declared = e.size();
+                let copied = std::io::copy(
+                    &mut std::io::Read::take(&mut e, declared.saturating_add(1)),
+                    &mut w,
+                )
+                .map_err(zip_err)?;
+                if copied > declared {
+                    return Err(zip_err("entry is larger than declared"));
+                }
+            }
+            if names.is_empty() {
+                return Err(zip_err("archive is empty"));
+            }
+            let mut top = stage.clone();
+            if root_card {
+                // folder contents zipped without the folder directory
+                let stem = src
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "Imported".into());
+                let wrap = stage.join("__wrap").join(sanitize_name(&stem));
+                for n in &names {
+                    let to = wrap.join(n);
+                    if let Some(d) = to.parent() {
+                        fs::create_dir_all(d)?;
+                    }
+                    fs::rename(stage.join(n), to)?;
+                }
+                top = stage.join("__wrap");
+            }
+            self.import_vault(&top)
+        })();
+        let _ = fs::remove_dir_all(&stage);
+        res
     }
 }
