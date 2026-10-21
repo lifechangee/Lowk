@@ -445,6 +445,10 @@ impl VaultInner {
     /// and after watcher events.
     pub fn rescan(&self) -> Result<Vec<StoreChange>> {
         let _g = self.op.lock();
+        // files dropped into a Docs/ directory become queued documents (reported as Created below)
+        if let Err(e) = self.adopt_external_docs_locked() {
+            tracing::warn!("adopting external documents failed: {e}");
+        }
         let sc = self.scan()?;
         let now = Self::snapshot(&sc);
         let mut known = self.known.lock();
@@ -477,7 +481,7 @@ impl VaultInner {
         Ok(out)
     }
 
-    fn find(&self, id: &Ulid) -> Result<FileRec> {
+    pub(crate) fn find(&self, id: &Ulid) -> Result<FileRec> {
         self.scan()?
             .files
             .into_iter()
@@ -781,6 +785,14 @@ impl VaultInner {
             return Err(err(ErrorCode::SessionBusy, "call is being recorded"));
         }
         let sc = self.scan()?;
+        if let Some(f) = sc.files.iter().find(|f| f.id == *id && f.kind == ItemKind::Doc) {
+            // documents move with their original and assets (docs.rs)
+            return if f.deleted {
+                Ok(())
+            } else {
+                self.trash_doc_locked(f)
+            };
+        }
         let tdir = self.trash_root().join(id.to_string());
         let (kind, title, orig, names, moves): (
             ItemKind,
@@ -863,6 +875,9 @@ impl VaultInner {
             .into_iter()
             .find(|i| i.id == *id)
             .ok_or_else(|| err(ErrorCode::NotFound, format!("{id} is not in the trash")))?;
+        if item.kind == ItemKind::Doc {
+            return self.restore_doc_locked(&item);
+        }
         let tdir = self.trash_root().join(id.to_string());
         let orig = self.root.join(&item.orig_path);
         let parent = orig.parent().unwrap_or(&self.root).to_path_buf();

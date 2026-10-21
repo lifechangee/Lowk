@@ -1,14 +1,49 @@
 [package]
 name = "lowk-ingest"
-description = "Lowk: lowk-ingest crate (M0 stub)"
+description = "Lowk document ingest: PDF/DOCX/PPTX/XLSX/CSV/TXT/MD/images to Markdown with page markers, OCR behind a trait"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+# Corpus harness over fixtures/ingest (cargo test -p lowk-ingest --features corpus).
+corpus = []
+
 [dependencies]
 lowk-types.workspace = true
+tracing.workspace = true
+pdf_oxide.workspace = true
+zip.workspace = true
+quick-xml.workspace = true
+calamine.workspace = true
+chardetng.workspace = true
+encoding_rs.workspace = true
+image = { workspace = true, features = ["png", "jpeg", "tiff", "webp"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2.workspace = true
+objc2-foundation.workspace = true
+objc2-vision.workspace = true
+objc2-core-graphics.workspace = true
+objc2-core-foundation.workspace = true
+objc2-image-io.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+  "Foundation",
+  "Foundation_Collections",
+  "Globalization",
+  "Graphics_Imaging",
+  "Media_Ocr",
+  "Data_Pdf",
+  "Storage",
+  "Storage_Streams",
+] }
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true
