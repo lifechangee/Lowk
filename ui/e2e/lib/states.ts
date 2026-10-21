@@ -9,6 +9,13 @@ export type Lang = (typeof LANGS)[number];
 const ACME = '01JC8Z3K6Q9X2M4N7R5T0V0001';
 const CALL1 = '01JC8Z3K6Q9X2M4N7R5T0V0101';
 const CALL11 = '01JC8Z3K6Q9X2M4N7R5T0V0111';
+const CALL3 = '01JC8Z3K6Q9X2M4N7R5T0V0103';
+const NOVA = '01JC8Z3K6Q9X2M4N7R5T0V0002';
+const HIRE = '01JC8Z3K6Q9X2M4N7R5T0V0003';
+const EMPTY = '01JC8Z3K6Q9X2M4N7R5T0V0005';
+const DOC_PDF = '01JC8Z3K6Q9X2M4N7R5T0V0401';
+const DOC_BUSY = '01JC8Z3K6Q9X2M4N7R5T0V0408';
+const DOC_FAIL = '01JC8Z3K6Q9X2M4N7R5T0V0409';
 
 export interface MainState {
   id: string;
@@ -16,7 +23,9 @@ export interface MainState {
   hash: string;
   query?: string;
   /** After load: interactions */
-  act?: 'tab-summary' | 'tab-qa' | 'tab-shots' | 'search' | 'recording' | 'move-menu' | 'drag' | 'new-call-popover' | 'source-picker' | 'source-other';
+  /** Extra query string (mock switches), e.g. `&summary=hold`. */
+  q?: string;
+  act?: string;
   mockup: 'mn' | 'ob';
 }
 
@@ -37,7 +46,56 @@ export const MAIN_STATES: MainState[] = [
   { id: 'newcall-popover', title: 'G5: header «New call» popover (folder + source + Start)', hash: '#/settings/general', act: 'new-call-popover', mockup: 'mn' },
   { id: 'source-picker', title: 'G3: source picker open (running apps, presets, Other…)', hash: '#/', act: 'source-picker', mockup: 'mn' },
   { id: 'source-other', title: 'G3: «Other…» installed-apps list', hash: '#/', act: 'source-other', mockup: 'mn' },
-  { id: 'search', title: 'Search palette (Cmd+K)', hash: '#/', act: 'search', mockup: 'mn' },
+  { id: 'search', title: 'Search palette (Cmd+K), empty: recent calls', hash: '#/', act: 'search', mockup: 'mn' },
+  // ---- M2 ----
+  { id: 'home-empty', title: 'M2 home, empty library', hash: '#/', q: '&empty=1', mockup: 'mn' },
+  { id: 'unsorted-empty', title: 'M2 unsorted, empty', hash: '#/folder/sys:unsorted', q: '&empty=1', mockup: 'mn' },
+  { id: 'trash-empty', title: 'M2 trash, empty', hash: '#/folder/sys:trash', q: '&empty=1', mockup: 'mn' },
+  { id: 'folder-calls-empty', title: 'M2 folder without calls', hash: `#/folder/${EMPTY}`, mockup: 'mn' },
+  { id: 'folder-docs', title: 'M2 documents tab: statuses, warnings, error, pinned meter', hash: `#/folder/${ACME}/documents`, mockup: 'mn' },
+  { id: 'folder-docs-overflow', title: 'M2 documents tab: pinned budget exceeded', hash: `#/folder/${HIRE}/documents`, mockup: 'mn' },
+  { id: 'folder-docs-empty', title: 'M2 documents tab: empty', hash: `#/folder/${EMPTY}/documents`, mockup: 'mn' },
+  { id: 'folder-docs-slow', title: 'M2 slow-file warning', hash: `#/folder/${EMPTY}/documents`, q: '&warnmb=1', act: 'slow-warning', mockup: 'mn' },
+  { id: 'folder-docs-menu', title: 'M2 document row menu', hash: `#/folder/${NOVA}/documents`, act: 'doc-menu', mockup: 'mn' },
+  { id: 'folder-instructions', title: 'M2 instructions tab', hash: `#/folder/${ACME}/instructions`, mockup: 'mn' },
+  { id: 'folder-instructions-empty', title: 'M2 instructions tab: empty with example', hash: `#/folder/${EMPTY}/instructions`, mockup: 'mn' },
+  { id: 'doc-view', title: 'M2 document viewer at page 3', hash: `#/doc/${DOC_PDF}?p=3`, mockup: 'mn' },
+  { id: 'doc-edit', title: 'M2 document editor', hash: `#/doc/${DOC_PDF}`, act: 'doc-edit', mockup: 'mn' },
+  { id: 'doc-converting', title: 'M2 document still converting', hash: `#/doc/${DOC_BUSY}`, mockup: 'mn' },
+  { id: 'doc-failed', title: 'M2 document failed (encrypted)', hash: `#/doc/${DOC_FAIL}`, mockup: 'mn' },
+  { id: 'call-sources', title: 'M2 call: sources tab', hash: `#/call/${CALL1}`, act: 'tab-sources', mockup: 'mn' },
+  { id: 'call-sources-empty', title: 'M2 call: sources tab empty', hash: `#/call/${CALL3}`, act: 'tab-sources', mockup: 'mn' },
+  { id: 'call-at-minute', title: 'M2 call opened at a minute (search hit)', hash: `#/call/${CALL1}?t=1424`, mockup: 'mn' },
+  { id: 'call-menu', title: 'M2 call header menu', hash: `#/call/${CALL1}`, act: 'call-menu', mockup: 'mn' },
+  { id: 'call-props', title: 'M2 call properties panel', hash: `#/call/${CALL1}`, act: 'call-props', mockup: 'mn' },
+  { id: 'summary-empty', title: 'M2 summary: not created yet', hash: `#/call/${CALL1}`, act: 'tab-summary', mockup: 'mn' },
+  { id: 'summary-streaming', title: 'M2 summary: streaming', hash: `#/call/${CALL1}`, q: '&summary=hold', act: 'summary-stream', mockup: 'mn' },
+  { id: 'summary-done', title: 'M2 summary: done + tag suggestions', hash: `#/call/${CALL1}`, act: 'summary-done', mockup: 'mn' },
+  { id: 'summary-nokey', title: 'M2 summary: no OpenRouter key', hash: `#/call/${CALL1}`, q: '&summary=nokey', act: 'summary-error', mockup: 'mn' },
+  { id: 'summary-offline', title: 'M2 summary: offline error', hash: `#/call/${CALL1}`, q: '&summary=offline', act: 'summary-error', mockup: 'mn' },
+  { id: 'palette-results', title: 'M2 palette with results', hash: '#/', act: 'palette-q:EBITDA', mockup: 'mn' },
+  { id: 'palette-none', title: 'M2 palette: nothing found', hash: '#/', act: 'palette-q:zzzzzz', mockup: 'mn' },
+  { id: 'palette-keyword', title: 'M2 palette: keyword-only notice (embedder missing)', hash: '#/', q: '&embedder=missing', act: 'palette-q:EBITDA', mockup: 'mn' },
+  { id: 'search-page', title: 'M2 search results page', hash: '#/search?q=EBITDA', mockup: 'mn' },
+  { id: 'search-page-filtered', title: 'M2 search page with filters', hash: `#/search?q=бюджет&folder=${ACME}&kind=doc`, mockup: 'mn' },
+  { id: 'search-page-empty', title: 'M2 search page, no query', hash: '#/search', mockup: 'mn' },
+  { id: 'search-page-none', title: 'M2 search page, nothing found', hash: '#/search?q=zzzzzz', mockup: 'mn' },
+  { id: 'search-page-keyword', title: 'M2 search page, keyword-only (semantic index building)', hash: '#/search?q=EBITDA', q: '&embedder=building', mockup: 'mn' },
+  { id: 'settings-knowledge', title: 'M2 settings: documents & search (embedder ready)', hash: '#/settings/knowledge', mockup: 'mn' },
+  { id: 'settings-knowledge-missing', title: 'M2 embedder not installed (licence first)', hash: '#/settings/knowledge', q: '&embedder=missing', mockup: 'mn' },
+  { id: 'settings-knowledge-installing', title: 'M2 embedder downloading', hash: '#/settings/knowledge', q: '&embedder=hold', act: 'embedder-install', mockup: 'mn' },
+  { id: 'settings-knowledge-failed', title: 'M2 embedder download failed', hash: '#/settings/knowledge', q: '&embedder=fail', act: 'embedder-fail', mockup: 'mn' },
+  { id: 'settings-knowledge-building', title: 'M2 semantic index building', hash: '#/settings/knowledge', q: '&embedder=building', mockup: 'mn' },
+  { id: 'settings-knowledge-off', title: 'M2 embedder off', hash: '#/settings/knowledge', q: '&embedder=off', mockup: 'mn' },
+  { id: 'settings-storage-export', title: 'M2 vault export result', hash: '#/settings/storage', act: 'export-vault', mockup: 'mn' },
+  { id: 'settings-storage-import', title: 'M2 vault import result', hash: '#/settings/storage', act: 'import-vault', mockup: 'mn' },
+  { id: 'settings-storage-import-fail', title: 'M2 import failed (invalid archive)', hash: '#/settings/storage', q: '&import=fail', act: 'import-vault', mockup: 'mn' },
+  { id: 'settings-providers-key', title: 'M2 LLM provider card: key test fails', hash: '#/settings/providers', q: '&key=bad', act: 'key-test', mockup: 'mn' },
+  { id: 'tour-offer', title: 'M2 tour offered after onboarding', hash: '#/onboarding/7', q: '&fresh', act: 'tour-offer', mockup: 'mn' },
+  ...Array.from({ length: 6 }, (_, i) => ({ id: `tour-${i + 1}`, title: `M2 tour step ${i + 1} / 6`, hash: '#/', act: `tour-${i}`, mockup: 'mn' as const })),
+  { id: 'tour-3-try', title: 'M2 tour step 3: demo answer streamed', hash: '#/', act: 'tour-try-ask', mockup: 'mn' },
+  { id: 'tour-4-try', title: 'M2 tour step 4: overlay follows the cursor', hash: '#/', act: 'tour-try-hold', mockup: 'mn' },
+  { id: 'tour-5-try', title: 'M2 tour step 5: screenshot counter', hash: '#/', act: 'tour-try-shot', mockup: 'mn' },
   ...Array.from({ length: 8 }, (_, i) => ({ id: `onboarding-${i}`, title: `Onboarding step ${i + 1}`, hash: `#/onboarding/${i}`, mockup: 'ob' as const })),
 ];
 

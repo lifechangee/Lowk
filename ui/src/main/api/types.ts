@@ -1,24 +1,41 @@
 // View-model types for the main window. DTOs that already exist in the generated
 // bindings are reused as-is; the rest are the shapes WP6 will need to provide.
 import type {
+  AppError,
   BindReport,
   CallMeta,
+  DocPatch,
+  Document,
+  EmbedderInfo,
   EngineDescriptor,
   EngineInfo,
   EngineProgress,
   FolderMeta,
   FolderRef,
   HwInfo,
+  ImportSummary,
+  IndexStatus,
+  IngestProgress,
+  LlmProviderStatus,
   NewFolder,
   Os,
   PermKind,
   PermState,
+  PinnedUsage,
+  ReindexScope,
+  SearchQuery,
+  SearchResults,
   SessionState,
   Settings,
   SourceInfo,
+  SourceRef,
   StartOpts,
   Stream,
+  SummaryEvent,
+  TagSuggestion,
 } from '../../lib/ipc';
+
+export type { SearchResults, SearchHit, Document, IngestProgress, PinnedUsage, IndexStatus, EmbedderInfo, TagSuggestion, SummaryEvent, ImportSummary, SourceRef, LlmProviderStatus } from '../../lib/ipc';
 
 export const SYS_UNSORTED = 'sys:unsorted';
 export const SYS_TRASH = 'sys:trash';
@@ -47,6 +64,10 @@ export type QaItem = {
   template: string;
   my_answer: string | null;
   my_answer_at_s: number | null;
+  /** What the answer was grounded on (`llm://sources`): documents, previous calls, instructions. */
+  sources?: SourceRef[];
+  /** Chunks withheld because the folder is local-only (`allow_cloud = false`). */
+  withheld?: number;
 };
 
 export type ShotItem = {
@@ -68,16 +89,24 @@ export type CallDetail = {
   keep_audio: boolean;
   /** Answering model shown in the properties pane. */
   model: string;
+  /** Union of the sources of every AI answer in the call (Sources tab). */
+  sources?: SourceRef[];
 };
 
-export type DocItem = { id: string; name: string; ext: 'pdf' | 'docx' | 'md' | 'txt'; pages: number | null; state: 'ready' | 'converted' | 'indexing' };
-
-export type FolderDetail = { meta: FolderMeta; instructions: string; docs: DocItem[] };
+export type FolderDetail = { meta: FolderMeta; instructions: string };
 
 /** `summarized`: ids of calls that already have a `## Summary` (will become a `CallMeta` field). */
 export type LibrarySnapshot = { folders: FolderMeta[]; calls: CallMeta[]; summarized: string[] };
 
-export type SearchHit = { group: 'calls' | 'docs'; title: string; snippet: string; folder: FolderKey; call: string | null };
+/** A file chosen in the file dialog or dropped on the window (`NewDocument.source_path`). */
+export type PickedFile = { name: string; path: string; /** 0 = unknown (native drop: the backend warns with `large_file`). */ size_bytes: number };
+
+/** `AppError` thrown by a failed command (tauri.ts) or a mock failure. */
+export class CommandError extends Error {
+  constructor(readonly app: AppError) {
+    super(app.code);
+  }
+}
 
 export type SecretProvider = 'openrouter' | 'stt-cloud';
 
@@ -96,15 +125,62 @@ export interface Backend {
   callGet(id: string): Promise<CallDetail | null>;
   folderCreate(input: NewFolder): Promise<FolderMeta>;
   folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean }): Promise<void>;
-  docAdd(folderId: string, fileName: string): Promise<DocItem>;
   callTrash(id: string): Promise<void>;
   callRestore(id: string): Promise<void>;
   callMove(id: string, folder: FolderKey): Promise<void>;
   callRename(id: string, title: string): Promise<void>;
   trashEmpty(): Promise<void>;
-  summaryGenerate(id: string): Promise<string>;
   exportMarkdown(id: string): Promise<string>;
-  search(query: string): Promise<SearchHit[]>;
+
+  // ---- M2: documents ----
+  docList(folder: FolderKey): Promise<Document[]>;
+  docGet(id: string): Promise<Document | null>;
+  /** The file dialog. `null` = cancelled. Rejects with `not_implemented` where the shell has no dialog yet. */
+  pickDocuments(): Promise<PickedFile[] | null>;
+  /** Files dropped on the window (native drop gives paths; a plain browser uses the HTML5 drop in the component). */
+  onFileDrop(cb: (files: PickedFile[]) => void): () => void;
+  docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean }): Promise<Document[]>;
+  docGetMd(id: string): Promise<string>;
+  docSaveMd(id: string, md: string): Promise<Document>;
+  docPatch(id: string, patch: DocPatch): Promise<Document>;
+  docDelete(id: string): Promise<void>;
+  docRestore(id: string): Promise<Document>;
+  docRetry(id: string): Promise<Document>;
+  docCancel(id: string): Promise<void>;
+  docsPinnedUsage(folder: FolderKey): Promise<PinnedUsage>;
+  /** `doc://progress` */
+  onDocProgress(cb: (p: IngestProgress) => void): () => void;
+
+  // ---- M2: search and embedder ----
+  searchQuery(q: SearchQuery): Promise<SearchResults>;
+  indexStatus(): Promise<IndexStatus>;
+  indexRebuild(scope: ReindexScope): Promise<void>;
+  /** `index://status` */
+  onIndexStatus(cb: (s: IndexStatus) => void): () => void;
+  embedderInfo(): Promise<EmbedderInfo>;
+  /** Resolves when installed; progress arrives through `onEngineProgress` with `engine === 'embedder'`. */
+  embedderInstall(): Promise<void>;
+  embedderInstallCancel(): Promise<void>;
+
+  // ---- M2: summary, tags, provider ----
+  /** Starts the stream; the events arrive through `onSummaryEvent`. */
+  llmSummarize(call: string): Promise<void>;
+  llmSummarizeCancel(call: string): Promise<void>;
+  /** `summary://event` */
+  onSummaryEvent(cb: (e: SummaryEvent) => void): () => void;
+  llmSuggestTags(call: string): Promise<TagSuggestion[]>;
+  callSetTags(id: string, tags: string[]): Promise<void>;
+  llmProviderStatus(): Promise<LlmProviderStatus>;
+  /** Rejects with the backend error (`api_key_missing`, `network`, `llm_provider`, ...). */
+  llmKeyTest(): Promise<void>;
+
+  // ---- M2: export / import ----
+  pickSavePath(defaultName: string): Promise<string | null>;
+  pickOpenPath(extension: string): Promise<string | null>;
+  folderExport(folder: string, dest: string): Promise<number>;
+  folderImport(src: string): Promise<ImportSummary>;
+  exportVault(dest: string): Promise<number>;
+  importVault(src: string): Promise<ImportSummary>;
 
   /** Running apps that produce audio right now (G3). */
   sourceList(): Promise<SourceInfo[]>;
@@ -129,7 +205,7 @@ export interface Backend {
   secretStatus(provider: SecretProvider): Promise<boolean>;
   secretSet(provider: SecretProvider, value: string): Promise<void>;
   secretDelete(provider: SecretProvider): Promise<void>;
-  secretCheck(provider: SecretProvider): Promise<{ ok: boolean; balance?: string }>;
+  secretCheck(provider: SecretProvider): Promise<{ ok: boolean; balance?: string; error?: AppError }>;
   pickVaultDir(): Promise<string | null>;
   revealPath(path: string): Promise<void>;
   bindReport(): Promise<BindReport>;

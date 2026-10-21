@@ -4,6 +4,7 @@
   import Icon from '../../lib/components/Icon.svelte';
   import TextInput from '../../lib/components/TextInput.svelte';
   import { api, type SecretProvider } from '../api';
+  import { appErrorText, errText } from '../errors';
   import { tm } from '../i18n';
 
   let { provider, title, placeholder, note }: { provider: SecretProvider; title: string; placeholder: string; note?: string } = $props();
@@ -17,17 +18,19 @@
 
   async function save() {
     if (!value.trim()) return;
-    await api.secretSet(provider, value.trim());
-    value = '';
-    present = true;
-    msg = null;
+    try {
+      await api.secretSet(provider, value.trim());
+      value = '';
+      present = true;
+      msg = null;
+    } catch (e) { msg = { ok: false, text: errText(e) }; }
   }
   async function check() {
     busy = true;
     msg = null;
     const r = await api.secretCheck(provider);
     busy = false;
-    msg = r.ok ? { ok: true, text: r.balance ? tm('m.keyWorksBalance', { amount: r.balance }) : tm('onboarding.apiKey.ok') } : { ok: false, text: tm('m.keyNotWorking') };
+    msg = r.ok ? { ok: true, text: r.balance ? tm('m.keyWorksBalance', { amount: r.balance }) : tm('onboarding.apiKey.ok') } : { ok: false, text: r.error ? appErrorText(r.error) : tm('m.keyNotWorking') };
   }
   async function remove() { await api.secretDelete(provider); present = false; msg = null; }
 </script>

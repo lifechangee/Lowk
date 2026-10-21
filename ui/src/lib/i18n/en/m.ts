@@ -179,6 +179,7 @@ export const m = {
   'm.nav.hotkeys': 'Hotkeys',
   'm.nav.appearance': 'Overlay',
   'm.nav.providers': 'Providers',
+  'm.nav.knowledge': 'Documents & search',
   'm.nav.storage': 'Storage',
   'm.nav.permissions': 'Permissions',
   'm.perm.microphone': 'Microphone',

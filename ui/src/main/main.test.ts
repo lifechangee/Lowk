@@ -65,8 +65,14 @@ describe('infra', () => {
     expect(mergePatch({ a: { b: 1, c: 2 }, d: [1] }, { a: { b: 5 }, d: [2, 3] })).toEqual({ a: { b: 5, c: 2 }, d: [2, 3] });
   });
   it('router parse', () => {
-    expect(parse('#/call/abc')).toEqual({ name: 'call', id: 'abc' });
-    expect(parse('#/folder/sys%3Atrash')).toEqual({ name: 'folder', id: 'sys:trash' });
+    expect(parse('#/call/abc')).toEqual({ name: 'call', id: 'abc', at: null });
+    expect(parse('#/call/abc?t=1424')).toEqual({ name: 'call', id: 'abc', at: 1424 });
+    expect(parse('#/folder/sys%3Atrash')).toEqual({ name: 'folder', id: 'sys:trash', tab: 'calls' });
+    expect(parse('#/folder/f1/documents')).toEqual({ name: 'folder', id: 'f1', tab: 'documents' });
+    expect(parse('#/folder/f1/nope')).toEqual({ name: 'folder', id: 'f1', tab: 'calls' });
+    expect(parse('#/doc/d1?p=14')).toEqual({ name: 'doc', id: 'd1', page: 14 });
+    expect(parse('#/search?q=EBITDA&folder=f1&kind=doc')).toEqual({ name: 'search', q: 'EBITDA', folder: 'f1', tag: '', from: '', to: '', kind: 'doc' });
+    expect(parse('#/settings/knowledge')).toEqual({ name: 'settings', page: 'knowledge' });
     expect(parse('#/settings/nope')).toEqual({ name: 'settings', page: 'general' });
     expect(parse('#/onboarding/99')).toEqual({ name: 'onboarding', step: 7 });
     expect(parse('')).toEqual({ name: 'home' });

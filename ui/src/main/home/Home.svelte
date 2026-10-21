@@ -1,42 +1,29 @@
 <script lang="ts">
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';
-  import Kbd from '../../lib/components/Kbd.svelte';
-  import Modal from '../../lib/components/Modal.svelte';
   import RecDot from '../../lib/components/RecDot.svelte';
   import Section from '../../lib/components/Section.svelte';
   import Tag from '../../lib/components/Tag.svelte';
-  import TextInput from '../../lib/components/TextInput.svelte';
   import { locale, tPlural } from '../../lib/i18n/locale.svelte';
-  import { api, folderKey, SYS_TRASH, SYS_UNSORTED } from '../api';
+  import { api, folderKey } from '../api';
+  import { bindFor, triggerText } from '../binds';
+  import { mouseNames } from '../names';
   import { clock, duration, greeting, when } from '../fmt';
   import { tm } from '../i18n';
-  import { hrefs, router } from '../router.svelte';
+  import { hrefs } from '../router.svelte';
   import { callRow, dnd } from '../dnd.svelte';
-  import { library, session, ui } from '../state.svelte';
-  import NewCallCard from './NewCallCard.svelte';
+  import { library, prefs, session, ui } from '../state.svelte';
+  import { tour } from '../tour/tour.svelte';
 
-  let { flash = false }: { flash?: boolean } = $props();
-
-  const mod = api.platform() === 'macos' ? '⌘K' : 'Ctrl K';
   const last = $derived(library.recent.find((c) => c.ended !== null));
   const folders = $derived(
     [...library.folders].sort((a, b) => (library.lastActivity(folderKey(b.id)) ?? '').localeCompare(library.lastActivity(folderKey(a.id)) ?? '')),
   );
-
-  let creating = $state(false);
-  let newName = $state('');
-  async function createFolder() {
-    const title = newName.trim();
-    if (!title) return;
-    const f = await api.folderCreate({ title, tags: [], allow_cloud: true, instructions: '' });
-    await library.reload();
-    creating = false;
-    newName = '';
-    if (f.id.kind === 'user') router.go(hrefs.folder(f.id.id));
-  }
   const folderName = (c: (typeof library.calls)[number]) =>
     c.folder.kind === 'user' ? (library.folder(folderKey(c.folder))?.title ?? '') : tm('main.unsorted');
+  const ask = $derived(bindFor(prefs.value.binds, 'ask_brief'));
+  const askKey = $derived(ask ? triggerText(ask.trigger, api.platform(), mouseNames()) : '');
+  const empty = $derived(library.loaded && library.active.length === 0 && !library.live);
 </script>
 
 <div class="view">
@@ -46,32 +33,17 @@
       {tm('main.libraryStats', { calls: library.active.length, folders: library.folders.length, last: last ? `${when(last.started, new Date(), false).toLocaleLowerCase(locale.lang)}, ${duration(last.duration_s)}` : '—' })}
     </p>
 
-    <NewCallCard {flash} />
-
-    <button class="sbar" onclick={() => (ui.paletteOpen = true)}>
-      <Icon name="search" size={14} /><span class="lbl">{tm('main.searchPlaceholder')}</span><Kbd text={mod} />
-    </button>
-
-    <Section title={tm('main.folders')}><span>{tm('main.sortActivity')}</span></Section>
-    <div class="grid">
-      {#each folders as f (folderKey(f.id))}
-        {@const key = folderKey(f.id)}
-        <a class="fc" class:dropping={dnd.over === key} data-drop={key} href={hrefs.folder(key)}>
-          <div class="ic">{f.title.slice(0, 1).toUpperCase()}</div>
-          <h4 class="lbl">{f.title}</h4>
-          <small class="lbl">{tPlural('main.calls', f.call_count)}</small>
-          <small class="lbl">{#if library.lastActivity(key)}{tm('m.lastCall', { when: when(library.lastActivity(key)!, new Date(), false).toLocaleLowerCase(locale.lang) })}{:else}{tm('m.noCallsYet')}{/if}</small>
-          <div class="tgs">{#each f.tags.slice(0, 2) as t (t)}<Tag text={'# ' + t} />{/each}</div>
-        </a>
-      {/each}
-      <button class="fc new" onclick={() => (creating = true)}><Icon name="plus" size={14} /><span class="lbl">{tm('main.newFolder')}</span></button>
-    </div>
-
-    <div class="sys">
-      <a class="chip" class:dropping={dnd.over === SYS_UNSORTED} data-drop={SYS_UNSORTED} href={hrefs.folder(SYS_UNSORTED)}><Icon name="inbox" size={14} /><span class="lbl">{tm('main.unsorted')}</span><b>{library.unsorted.length}</b></a>
-      <a class="chip" href={hrefs.folder(SYS_TRASH)}><Icon name="trash" size={14} /><span class="lbl">{tm('main.trash')}</span><b>{library.trashed.length}</b></a>
-    </div>
-
+    {#if empty}
+      <section class="empty" data-testid="home-empty">
+        <div class="eic"><Icon name="mic" size={20} /></div>
+        <h2>{tm('main.empty.title')}</h2>
+        <p>{tm('main.empty.body', { key: askKey })}</p>
+        <div class="eact">
+          <span data-np-trigger style="display: contents"><Button variant="primary" onclick={() => { ui.newCallFolder = null; ui.newCallOpen = true; }}><RecDot onprimary />{tm('main.newCall')}</Button></span>
+          <Button onclick={() => tour.start()}>{tm('main.empty.tour')}</Button>
+        </div>
+      </section>
+    {:else}
     <Section title={tm('main.recentCalls')} />
     <div class="tbl">
       {#if library.live}
@@ -89,26 +61,36 @@
         </div>
       {/each}
     </div>
+    <Section title={tm('main.folders')}><span>{tm('main.sortActivity')}</span></Section>
+    <div class="grid">
+      {#each folders as f (folderKey(f.id))}
+        {@const key = folderKey(f.id)}
+        <a class="fc" class:dropping={dnd.over === key} data-drop={key} href={hrefs.folder(key)}>
+          <div class="ic">{f.title.slice(0, 1).toUpperCase()}</div>
+          <h4 class="lbl">{f.title}</h4>
+          <small class="lbl">{tPlural('main.calls', f.call_count)}</small>
+          <small class="lbl">{#if library.lastActivity(key)}{tm('m.lastCall', { when: when(library.lastActivity(key)!, new Date(), false).toLocaleLowerCase(locale.lang) })}{:else}{tm('m.noCallsYet')}{/if}</small>
+          <div class="tgs">{#each f.tags.slice(0, 2) as t (t)}<Tag text={'# ' + t} />{/each}</div>
+        </a>
+      {/each}
+      <button class="fc new" onclick={() => (ui.newFolderOpen = true)}><Icon name="plus" size={14} /><span class="lbl">{tm('main.newFolder')}</span></button>
+    </div>
+    {/if}
   </div>
 </div>
-
-<Modal open={creating} title={tm('main.newFolder')} width={400} closeLabel={tm('common.close')} onclose={() => (creating = false)}>
-  <TextInput bind:value={newName} label={tm('m.folderName')} placeholder={tm('m.folderName')} autofocus onenter={createFolder} />
-  {#snippet footer()}
-    <Button onclick={() => (creating = false)}>{tm('common.cancel')}</Button>
-    <Button variant="primary" disabled={!newName.trim()} onclick={createFolder}>{tm('m.create')}</Button>
-  {/snippet}
-</Modal>
 
 <style>
   .view { height: 100%; overflow: auto; }
   .hin { max-width: 960px; margin: 0 auto; padding: var(--s8) var(--s8) 64px; }
   h1 { font-size: 28px; line-height: 36px; letter-spacing: -0.025em; margin: 0; font-weight: 650; }
   .lead { color: var(--tx2); margin: var(--s1) 0 var(--s6); }
-  .sbar { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: var(--s3); height: 44px; padding: 0 var(--s4); border-radius: var(--r-lg); background: var(--panel); border: 1px solid var(--line); color: var(--tx2); cursor: pointer; margin-bottom: var(--s8); }
-  .sbar:hover { border-color: var(--tx3); }
-  .sbar span { flex: 1; text-align: left; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(216px, 1fr)); gap: var(--s4); margin-bottom: var(--s4); }
+
+  .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--s3); border: 1px dashed var(--line-strong); border-radius: var(--r-xl); padding: var(--s12) var(--s8); margin-top: var(--s6); }
+  .eic { width: 44px; height: 44px; border-radius: var(--r-lg); background: var(--hv); border: 1px solid var(--line); display: grid; place-items: center; color: var(--tx2); }
+  .empty h2 { margin: 0; font: 600 var(--fs-lg) var(--font); }
+  .empty p { margin: 0; max-width: 480px; color: var(--tx2); }
+  .eact { display: flex; gap: var(--s2); margin-top: var(--s2); flex-wrap: wrap; justify-content: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(216px, 1fr)); gap: var(--s4); margin-bottom: var(--s8); }
   .fc { all: unset; box-sizing: border-box; border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-lg); padding: var(--s4); cursor: pointer; display: flex; flex-direction: column; gap: var(--s1); min-height: 136px; min-width: 0; transition: border-color 0.15s, transform 0.15s; }
   .fc:hover { border-color: var(--tx3); transform: translateY(-1px); }
   .ic { width: 32px; height: 32px; border-radius: var(--r); background: var(--hv); border: 1px solid var(--line); display: grid; place-items: center; font-weight: 650; font-size: 13px; color: var(--tx2); margin-bottom: var(--s1); }
@@ -116,11 +98,7 @@
   small { color: var(--tx2); font: var(--fs-sm) var(--font); }
   .tgs { margin-top: auto; display: flex; gap: var(--s1); flex-wrap: wrap; min-width: 0; }
   .fc.new { border-style: dashed; background: transparent; flex-direction: row; align-items: center; justify-content: center; gap: var(--s2); color: var(--tx3); }
-  .sys { display: flex; gap: var(--s3); margin-bottom: var(--s8); flex-wrap: wrap; }
-  .chip { display: inline-flex; align-items: center; gap: var(--s2); height: 32px; padding: 0 var(--s3); border-radius: var(--r); border: 1px solid var(--line); color: var(--tx2); font-size: 13px; cursor: pointer; text-decoration: none; min-width: 0; max-width: 100%; }
-  .chip:hover { border-color: var(--tx3); color: var(--tx); }
-  .chip b { font-weight: 500; color: var(--tx3); font-size: 12px; }
-  .tbl { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }
+  .tbl { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; margin-bottom: var(--s8); }
   .tr { display: grid; grid-template-columns: minmax(0, 1fr) 112px 96px 128px 32px; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); border-top: 1px solid var(--line); cursor: pointer; color: inherit; text-decoration: none; position: relative; }
   .tr.fresh { background: var(--acbg); }
   .lk { color: inherit; text-decoration: none; display: block; min-width: 0; }

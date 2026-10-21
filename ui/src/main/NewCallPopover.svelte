@@ -1,6 +1,6 @@
 <script lang="ts">
-  // G5: the header «Новый созвон» button on screens other than the library home opens this compact popover
-  // (folder + source + Start) instead of jumping to the home card.
+  // The sidebar «Новый созвон» button opens this popover on every screen (folder + source + languages + Start):
+  // the one and only way to start a call from the UI (docs/design/ux-audit.md, principle 2).
   import type { Target } from '../lib/ipc';
   import Button from '../lib/components/Button.svelte';
   import RecDot from '../lib/components/RecDot.svelte';
@@ -52,7 +52,7 @@
 </div>
 
 <style>
-  .np { position: absolute; z-index: 45; top: calc(100% + var(--s2)); right: var(--s4); width: 320px; max-width: calc(100vw - 32px); padding: var(--s4); display: flex; flex-direction: column; gap: var(--s3); border-radius: var(--r-lg); background: var(--panel); border: 1px solid var(--line-strong); box-shadow: var(--sh); }
+  .np { position: absolute; z-index: 45; top: 92px; left: var(--s2); width: 320px; max-width: calc(100vw - 32px); padding: var(--s4); display: flex; flex-direction: column; gap: var(--s3); border-radius: var(--r-lg); background: var(--panel); border: 1px solid var(--line-strong); box-shadow: var(--sh); }
   .fld { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
   .flbl, .fld label { font: 600 var(--fs-xs) var(--font); text-transform: uppercase; letter-spacing: 0.08em; color: var(--tx3); }
   .np :global(.btn.block) { justify-content: center; }

@@ -13,6 +13,7 @@
   import { PERM_ORDER, perms } from '../permissions.svelte';
   import { hrefs, router } from '../router.svelte';
   import { callLangs, prefs, sources } from '../state.svelte';
+  import { tour } from '../tour/tour.svelte';
   import LangPicker from '../LangPicker.svelte';
   import { resolve as resolveLangs, systemDefault } from '../langs';
   import { nameFromId, presetInfo, presetsFor, resolveSource } from '../source';
@@ -96,6 +97,8 @@
   async function finish() {
     await prefs.patch({ onboarding: { done: true, step: TOTAL } });
     router.go(hrefs.home);
+    // «Готово» -> the tour is offered (skippable); `tour_done` is set when it is finished or skipped.
+    if (!prefs.value.onboarding?.tour_done) tour.offer = true;
   }
 
   const shownPerms = $derived(PERM_ORDER.filter((k) => perms.state[k] !== 'not_applicable'));

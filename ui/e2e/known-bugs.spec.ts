@@ -21,15 +21,16 @@ test('F1 onboarding fills the window edge-to-edge (no card in a window)', async 
 test('F2 header primary button: dot / label / kbd are spaced', async ({ page }) => {
   // G5: no header button on the library home; it lives on every other screen.
   await page.goto('/main.html?lang=ru#/settings/general');
-  await page.waitForSelector('.tb button.btn');
-  const issues = (await page.evaluate(lintInPage, { root: '.tb' })) as Issue[];
+  await page.waitForSelector('.side .nc button.btn');
+  const issues = (await page.evaluate(lintInPage, { root: '.side .nc' })) as Issue[];
   expect(issues.filter((i) => i.rule === 'flex-gap')).toEqual([]);
 });
 
 test('F2b gaps between inline chips hold across the whole home screen', async ({ page }) => {
   await page.goto('/main.html?lang=en#/');
-  await page.waitForSelector('.nc');
-  const issues = (await page.evaluate(lintInPage, { root: '.nc' })) as Issue[];
+  await page.locator('.side .nc button.btn.primary').click();
+  await page.waitForSelector('.np');
+  const issues = (await page.evaluate(lintInPage, { root: '.np' })) as Issue[];
   expect(issues.filter((i) => i.rule === 'flex-gap')).toEqual([]);
 });
 
@@ -75,8 +76,8 @@ test('F12 no app list (real backend today): onboarding preselects whole system a
   await page.locator('.nav button.primary').click();
   await page.waitForTimeout(300);
   await page.evaluate(() => (location.hash = '#/'));
-  await page.waitForSelector('.nc');
-  const sources = await page.locator('.nc [data-source-value]').evaluateAll((els) => els.map((e) => e.getAttribute('data-source-value')!));
+  await page.locator('.side .nc button.btn.primary').click();
+  const sources = await page.locator('.np [data-source-value]').evaluateAll((els) => els.map((e) => e.getAttribute('data-source-value')!));
   const onboardingSaysApp = /One app|Одно приложение/i.test(chosen);
   expect(onboardingSaysApp ? /^app:/.test(sources[0]!) : sources[0] === 'system', `onboarding «${chosen.split('\n')[0]}» vs home source «${sources[0]}»`).toBe(true);
 });
@@ -87,8 +88,8 @@ test('F12 (mock with an app list) Next on the capture step persists the preselec
   await page.locator('.nav button.primary').click();
   await page.waitForTimeout(300);
   await page.evaluate(() => (location.hash = '#/'));
-  await page.waitForSelector('.nc');
-  const sources = await page.locator('.nc [data-source-value]').evaluateAll((els) => els.map((e) => e.getAttribute('data-source-value')!));
+  await page.locator('.side .nc button.btn.primary').click();
+  const sources = await page.locator('.np [data-source-value]').evaluateAll((els) => els.map((e) => e.getAttribute('data-source-value')!));
   expect(sources[0]).toMatch(/^app:/);
 });
 
@@ -98,8 +99,8 @@ test('F12b onboarding "Skip" on the capture step stores the preselected «one ap
   await page.locator('.nav .skip').click();
   await page.waitForTimeout(300);
   await page.evaluate(() => (location.hash = '#/'));
-  await page.waitForSelector('.nc');
-  const sources = await page.locator('.nc [data-source-value]').evaluateAll((els) => els.map((e) => e.getAttribute('data-source-value')!));
+  await page.locator('.side .nc button.btn.primary').click();
+  const sources = await page.locator('.np [data-source-value]').evaluateAll((els) => els.map((e) => e.getAttribute('data-source-value')!));
   expect(sources[0]).toMatch(/^app:/);
 });
 

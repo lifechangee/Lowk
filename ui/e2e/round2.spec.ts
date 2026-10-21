@@ -39,21 +39,20 @@ test('G1 overlay text size: separate S/M/L/XL control with a live preview', asyn
   expect(await page.evaluate(() => document.getElementById('app')!.style.zoom)).toBe(main0);
 });
 
-test('G5 library home has no header «New call» button (the card is the only one); other screens open a popover', async ({ page }) => {
-  await page.goto('/main.html?lang=en#/');
-  await page.waitForSelector('.nc');
-  await expect(page.locator('.tb button.btn')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /New call/ })).toHaveCount(0);
-  await expect(page.locator('.nc h2')).toHaveText('New call');
-
-  await page.evaluate(() => (location.hash = '#/settings/general'));
-  const trigger = page.locator('.tb button.btn.primary');
+test('G5 one «New call» button, always in the sidebar, always the same popover', async ({ page }) => {
+  for (const hash of ['#/', '#/settings/general']) {
+    await page.goto('/main.html?lang=en' + hash);
+    await page.waitForSelector('.side .nc button.btn.primary');
+    await expect(page.locator('.tb button.btn')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /New call/ })).toHaveCount(1);
+  }
+  const trigger = page.locator('.side .nc button.btn.primary');
   await expect(trigger).toBeVisible();
   expect(await page.evaluate(() => location.hash)).toBe('#/settings/general');
   await trigger.click();
   const pop = page.getByRole('dialog', { name: 'New call' });
   await expect(pop).toBeVisible();
-  expect(await page.evaluate(() => location.hash), 'the button no longer jumps to the home card').toBe('#/settings/general');
+  expect(await page.evaluate(() => location.hash), 'the button never jumps anywhere').toBe('#/settings/general');
   await expect(pop.locator('select')).toHaveCount(1); // folder
   await expect(pop.locator('[data-source-value]')).toHaveCount(1); // source
   await page.keyboard.press('Escape');
@@ -68,15 +67,15 @@ test('G5 library home has no header «New call» button (the card is the only on
 test('G5 on a folder screen the popover preselects that folder', async ({ page }) => {
   await page.goto('/main.html?lang=en#/folder/01JC8Z3K6Q9X2M4N7R5T0V0001');
   await page.waitForSelector('.tb');
-  await page.locator('.tb button.btn.primary').click();
+  await page.locator('.side .nc button.btn.primary').click();
   const sel = page.getByRole('dialog', { name: 'New call' }).locator('select');
   expect(await sel.inputValue()).toBe('01JC8Z3K6Q9X2M4N7R5T0V0001');
 });
 
 test('G3 source picker: running apps with icon+name, presets, «Other…» from installed apps, no identifier typing', async ({ page }) => {
   await page.goto('/main.html?lang=en#/');
-  await page.waitForSelector('.nc');
-  const picker = page.locator('.nc [data-source-value]');
+  await page.locator('.side .nc button.btn.primary').click();
+  const picker = page.locator('.np [data-source-value]');
   await expect(picker).toHaveAttribute('data-source-value', 'app:us.zoom.xos');
   await picker.getByRole('button').click();
   const list = page.getByRole('listbox');

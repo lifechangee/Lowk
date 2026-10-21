@@ -45,11 +45,11 @@ test('F7 panic is unbound by default, show/hide overlay is on the backslash key'
 
 test('F8 stopping a recording opens library home with the new call on top of Recent', async ({ page }) => {
   await page.goto('/main.html?lang=en#/');
-  await page.waitForSelector('.nc');
-  await page.locator('.nc button.primary').click();
+  await page.locator('.side .nc button.btn.primary').click();
+  await page.locator('.np button.btn.primary').click();
   await page.waitForSelector('.recpill');
   await page.evaluate(() => (location.hash = '#/folder/sys:unsorted'));
-  await page.waitForSelector('.ws');
+  await page.waitForSelector('.tree');
   await page.locator('.recpill button.stop').click();
   await page.waitForFunction(() => location.hash === '#/' || location.hash === '');
   await page.waitForSelector('.tbl .tr');
@@ -75,9 +75,9 @@ test('F9 drag a call from Unsorted onto a folder in the workspace tree', async (
 test('F9 drag a call from Recent onto a folder card on the home screen', async ({ page }) => {
   await page.goto('/main.html?lang=en#/');
   await page.waitForSelector('.tbl .tr');
-  const unsorted = page.locator('.chip', { hasText: 'Unsorted' }).locator('b');
+  const unsorted = page.locator('.tree .f', { hasText: 'Unsorted' }).locator('.n');
   await expect(unsorted).toHaveText('2');
-  await page.locator('.view').evaluate((el) => (el.scrollTop = 300)); // Recent and the folder grid in view together
+  await page.locator('.view').evaluate((el) => (el.scrollTop = 160)); // Recent and the folder grid in view together
   await drag(page, page.locator('.tbl .tr', { hasText: QUICK }), page.locator('.fc[data-drop]', { hasText: 'Acme Corp' }), true);
   await expect(page.locator('.fc.dropping')).toHaveCount(1);
   await page.mouse.up();
@@ -92,7 +92,7 @@ test('F9 dragging near the bottom edge scrolls the library so far-away folders s
   const view = page.locator('.view');
   expect(await view.evaluate((el) => el.scrollTop)).toBe(0);
   const row = page.locator('.tbl .tr', { hasText: QUICK });
-  await row.scrollIntoViewIfNeeded();
+  await view.evaluate((el) => (el.scrollTop = 120));
   const before = await view.evaluate((el) => el.scrollTop);
   const a = (await row.boundingBox())!;
   await page.mouse.move(a.x + 40, a.y + a.height / 2);
@@ -104,7 +104,7 @@ test('F9 dragging near the bottom edge scrolls the library so far-away folders s
   expect(await view.evaluate((el) => el.scrollTop)).toBeLessThan(before);
   await page.keyboard.press('Escape');
   await page.mouse.up();
-  await expect(page.locator('.chip', { hasText: 'Unsorted' }).locator('b')).toHaveText('2');
+  await expect(page.locator('.tree .f', { hasText: 'Unsorted' }).locator('.n')).toHaveText('2');
 });
 
 test('F9 dropping on the call’s own folder or empty space moves nothing', async ({ page }) => {
@@ -113,7 +113,7 @@ test('F9 dropping on the call’s own folder or empty space moves nothing', asyn
   await drag(page, page.locator('.tbl .tr', { hasText: QUICK }), page.locator('h1'), true);
   await expect(page.locator('.dropping')).toHaveCount(0);
   await page.mouse.up();
-  await expect(page.locator('.chip', { hasText: 'Unsorted' }).locator('b')).toHaveText('2');
+  await expect(page.locator('.tree .f', { hasText: 'Unsorted' }).locator('.n')).toHaveText('2');
 });
 
 test('F9 «Move to…» context menu works with the mouse and the keyboard', async ({ page }) => {

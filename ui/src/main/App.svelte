@@ -1,39 +1,42 @@
 <script lang="ts">
   import '../lib/tokens.css';
   import { onMount } from 'svelte';
-  import Mark from '../lib/components/Mark.svelte';
-  import Button from '../lib/components/Button.svelte';
   import Icon from '../lib/components/Icon.svelte';
-  import Kbd from '../lib/components/Kbd.svelte';
-  import RecDot from '../lib/components/RecDot.svelte';
   import { locale } from '../lib/i18n/locale.svelte';
   import { api, folderKey } from './api';
-  import { bindFor, triggerText } from './binds';
-  import { clock } from './fmt';
   import { tm } from './i18n';
-  import { mouseNames } from './names';
   import Onboarding from './onboarding/Onboarding.svelte';
   import { hrefs, router } from './router.svelte';
-  import SearchPalette from './SearchPalette.svelte';
+  import SearchPalette from './search/SearchPalette.svelte';
+  import SearchPage from './search/SearchPage.svelte';
   import EngineNeededDialog from './EngineNeededDialog.svelte';
-  import NewCallPopover from './NewCallPopover.svelte';
   import MoveMenu from './MoveMenu.svelte';
   import { dnd } from './dnd.svelte';
   import SettingsView from './settings/SettingsView.svelte';
-  import { attachEvents, callLangs, library, prefs, session, ui } from './state.svelte';
+  import NewFolderDialog from './shell/NewFolderDialog.svelte';
+  import Sidebar from './shell/Sidebar.svelte';
+  import { attachEvents, callLangs, index, library, prefs, session, ui } from './state.svelte';
+  import TourCoach from './tour/TourCoach.svelte';
   import Home from './home/Home.svelte';
-  import Workspace from './workspace/Workspace.svelte';
+  import CallPage from './workspace/CallPage.svelte';
+  import DocPage from './workspace/DocPage.svelte';
+  import FolderView from './workspace/FolderView.svelte';
+  import LivePage from './workspace/LivePage.svelte';
 
   let ready = $state(false);
   const route = $derived(router.route);
 
-  onMount(async () => {
+  onMount(() => {
     attachEvents();
-    locale.init(await api.localeGet().catch(() => 'en'));
-    await Promise.all([prefs.load(), library.reload()]);
-    void callLangs.load();
-    if (!prefs.value.onboarding?.done && router.route.name !== 'onboarding') router.go(hrefs.onboarding(prefs.value.onboarding?.step ?? 0));
-    ready = true;
+    void (async () => {
+      locale.init(await api.localeGet().catch(() => 'en'));
+      await Promise.all([prefs.load(), library.reload()]);
+      void callLangs.load();
+      void index.refresh();
+      if (!prefs.value.onboarding?.done && router.route.name !== 'onboarding') router.go(hrefs.onboarding(prefs.value.onboarding?.step ?? 0));
+      ready = true;
+    })();
+    return api.onIndexStatus((s) => (index.status = s));
   });
 
   // F6: interface text size (settings ui.font_px, 14 = 100%) scales the whole main window live.
@@ -50,21 +53,37 @@
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); ui.paletteOpen = !ui.paletteOpen; }
   }
 
-  const crumbs = $derived.by<{ label: string; href?: string }[]>(() => {
-    const lib = { label: tm('main.title'), href: hrefs.home };
-    if (route.name === 'folder') return [lib, { label: folderLabel(route.id) }];
-    if (route.name === 'call') {
-      const c = library.call(route.id);
-      return [lib, ...(c ? [{ label: folderLabel(c.deleted ? 'sys:trash' : folderKey(c.folder)), href: hrefs.folder(c.deleted ? 'sys:trash' : folderKey(c.folder)) }, { label: c.title }] : [])];
-    }
-    if (route.name === 'settings') return [lib, { label: tm('settings.title') }, { label: tm(`m.nav.${route.page}`) }];
-    return [{ label: tm('main.title') }];
+  // The folder a document lives in (for the sidebar highlight and the breadcrumbs).
+  let docFolder = $state<string>('');
+  let docTitle = $state<string>('');
+  $effect(() => {
+    if (route.name !== 'doc') return;
+    const id = route.id;
+    void api.docGet(id).then((d) => { if (route.name === 'doc' && route.id === id) { docFolder = d ? folderKey(d.folder) : ''; docTitle = d?.title ?? ''; } });
   });
+
+  const call = $derived(route.name === 'call' ? library.call(route.id) : undefined);
+  const folder = $derived(route.name === 'folder' ? route.id : call ? (call.deleted ? 'sys:trash' : folderKey(call.folder)) : route.name === 'doc' ? docFolder : '');
+
   function folderLabel(key: string): string {
     return key === 'sys:unsorted' ? tm('main.unsorted') : key === 'sys:trash' ? tm('main.trash') : (library.folder(key)?.title ?? '');
   }
-  const recBind = $derived(bindFor(prefs.value.binds, 'toggle_record'));
-  const recKey = $derived(recBind ? triggerText(recBind.trigger, api.platform(), mouseNames()) : '');
+  const isSys = (key: string) => key === 'sys:unsorted' || key === 'sys:trash';
+  const crumbs = $derived.by<{ label: string; href?: string }[]>(() => {
+    if (route.name === 'folder') {
+      if (isSys(route.id)) return [{ label: folderLabel(route.id) }];
+      return [{ label: tm('main.folders') }, { label: folderLabel(route.id), href: hrefs.folder(route.id) }, { label: tm(`main.tab.${route.tab}` as 'main.tab.calls') }];
+    }
+    if (route.name === 'call') {
+      if (!call) return [];
+      const key = call.deleted ? 'sys:trash' : folderKey(call.folder);
+      return [...(isSys(key) ? [] : [{ label: tm('main.folders') }]), { label: folderLabel(key), href: hrefs.folder(key) }, { label: call.title }];
+    }
+    if (route.name === 'doc') return [...(docFolder && !isSys(docFolder) ? [{ label: tm('main.folders') }] : []), { label: folderLabel(docFolder), href: hrefs.folder(docFolder, 'documents') }, { label: docTitle }];
+    if (route.name === 'search') return [{ label: tm('common.search') }];
+    if (route.name === 'settings') return [{ label: tm('settings.title') }, { label: tm(`m.nav.${route.page}` as 'm.nav.general') }];
+    return [{ label: tm('main.nav.home') }];
+  });
 </script>
 
 <svelte:window {onmouseup} {onkeydown} />
@@ -73,48 +92,45 @@
   {#if route.name === 'onboarding'}
     <Onboarding step={route.step} />
   {:else}
-    <div class="app" class:ld={session.phase === 'recording' && session.sttLoading}>
-      <header class="tb">
-        <a class="wm" href={hrefs.home} title={tm('m.toLibrary')}><Mark size={22} /><span class="lbl">{tm('app.name')}</span></a>
-        <nav class="crumb" aria-label="breadcrumb">
-          {#each crumbs as c, i (i)}
-            {#if i > 0}<span class="s">/</span>{/if}
-            {#if c.href && i < crumbs.length - 1}<a class="lbl" href={c.href}>{c.label}</a>{:else}<b class="lbl">{c.label}</b>{/if}
-          {/each}
-        </nav>
-        <span class="sp"></span>
-        {#if session.phase === 'recording'}
-          <span class="recpill"><RecDot pulse /><span class="t">{clock(session.elapsed)}</span><span class="m lbl">{session.sourceLabel}</span>
-            <Button size="sm" onclick={() => session.callId && router.go(hrefs.call(session.callId))}>{tm('common.open')}</Button>
-            <Button size="sm" variant="stop" onclick={() => session.stop()}>{tm('common.stop')}</Button></span>
-        {:else if route.name !== 'home'}
-          <!-- G5: on the library home the card below is the one «Новый созвон»; elsewhere this opens a compact popover. -->
-          <span data-np-trigger style="display: contents">
-            <Button variant="primary" pressed={ui.newCallOpen || undefined} onclick={() => (ui.newCallOpen = !ui.newCallOpen)}><RecDot onprimary />{tm('main.newCall')}{#if recKey}<Kbd text={recKey} onprimary />{/if}</Button>
-          </span>
+    <div class="app">
+      <Sidebar {folder} />
+      <div class="mainc" class:ld={session.phase === 'recording' && session.sttLoading}>
+        <header class="tb">
+          <nav class="crumb" aria-label="breadcrumb">
+            {#each crumbs as c, i (i)}
+              {#if i > 0}<span class="s"><Icon name="chevron-right" size={12} /></span>{/if}
+              {#if c.href && i < crumbs.length - 1}<a class="lbl" href={c.href}>{c.label}</a>{:else}<b class="lbl">{c.label}</b>{/if}
+            {/each}
+          </nav>
+        </header>
+        {#if session.phase === 'recording' && session.sttLoading}
+          <div class="loadbar lbl" role="status" data-testid="stt-loading"><i class="spin"></i>{tm('main.sttLoading')}</div>
         {/if}
-        <a class="gear" href={hrefs.settings()} aria-label={tm('common.settings')} title={tm('common.settings')}><Icon name="settings" /></a>
-        {#if ui.newCallOpen && route.name !== 'home' && session.phase !== 'recording'}
-          <NewCallPopover folderHint={route.name === 'folder' ? route.id : route.name === 'call' ? (library.call(route.id)?.deleted ? null : folderKey(library.call(route.id)?.folder ?? { kind: 'unsorted' })) : null} onclose={() => (ui.newCallOpen = false)} />
-        {/if}
-      </header>
-      {#if session.phase === 'recording' && session.sttLoading}
-        <div class="loadbar lbl" role="status" data-testid="stt-loading"><i class="spin"></i>{tm('main.sttLoading')}</div>
-      {/if}
-      <div class="content">
-        {#if route.name === 'home'}<Home flash={ui.flashNew} />
-        {:else if route.name === 'settings'}<SettingsView page={route.page} />
-        {:else}<Workspace {route} />{/if}
+        <div class="content">
+          {#if route.name === 'home'}<Home />
+          {:else if route.name === 'settings'}<SettingsView page={route.page} />
+          {:else if route.name === 'search'}<SearchPage params={route} />
+          {:else}
+            <main class="ctr">
+              {#if route.name === 'call'}
+                {#if call && call.ended === null}<LivePage />{:else if call || !library.loaded}{#key route.id}<CallPage id={route.id} at={route.at} />{/key}{/if}
+              {:else if route.name === 'doc'}{#key route.id}<DocPage id={route.id} page={route.page} />{/key}
+              {:else if route.name === 'folder'}<FolderView folder={route.id} tab={route.tab} />{/if}
+            </main>
+          {/if}
+        </div>
       </div>
     </div>
   {/if}
   <SearchPalette />
   <EngineNeededDialog />
   <MoveMenu />
+  <NewFolderDialog />
+  <TourCoach />
   {#if dnd.call}
     <div class="ghost pop" style:left="{(dnd.x + 12) / zoom}px" style:top="{(dnd.y + 12) / zoom}px"><Icon name="doc" size={14} /><span class="lbl">{dnd.call.title}</span></div>
   {/if}
-  {#if ui.toast}<div class="toast" role="status">{ui.toast}</div>{/if}
+  {#if ui.toast}<div class="toast" role="status"><span class="lbl">{ui.toast}</span>{#if ui.toastAction}{@const act = ui.toastAction}<button class="ta" onclick={() => { act.run(); ui.toast = null; ui.toastAction = null; }}>{act.label}</button>{/if}</div>{/if}
 {/if}
 
 <style>
@@ -127,24 +143,18 @@
   :global(html.dnd-on [data-drop]) { outline: 1px dashed var(--tx3); outline-offset: -1px; }
   :global([data-drop].dropping) { outline: 2px solid var(--ac) !important; outline-offset: -2px; background: var(--acbg) !important; }
   .ghost { position: fixed; z-index: 80; pointer-events: none; display: flex; align-items: center; gap: var(--s2); max-width: 280px; height: 32px; padding: 0 var(--s3); border-radius: var(--r); background: var(--panel); border: 1px solid var(--ac); box-shadow: var(--sh); font-size: 13px; color: var(--tx); }
-  .app { display: grid; grid-template-rows: 48px minmax(0, 1fr); height: calc(100vh / var(--z, 1)); background: var(--bg); }
-  .tb { position: relative; display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4); background: var(--side); border-bottom: 1px solid var(--line); min-width: 0; }
-  .wm { display: inline-flex; gap: var(--s2); align-items: center; height: 32px; padding: 0 var(--s2); border-radius: var(--r); font-weight: 650; font-size: 14px; letter-spacing: -0.01em; color: var(--tx); text-decoration: none; flex: none; }
-  .wm:hover { background: var(--hv); }
-  .crumb { display: flex; gap: var(--s2); align-items: center; color: var(--tx2); font-size: 13px; min-width: 0; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); height: calc(100vh / var(--z, 1)); background: var(--bg); }
+  .mainc { display: grid; grid-template-rows: 48px minmax(0, 1fr); min-width: 0; min-height: 0; }
+  .mainc.ld { grid-template-rows: 48px auto minmax(0, 1fr); }
+  .tb { display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s6); border-bottom: 1px solid var(--line); min-width: 0; }
+  .crumb { display: flex; gap: var(--s1); align-items: center; color: var(--tx2); font-size: 13px; min-width: 0; overflow: hidden; }
   .crumb a { color: var(--tx2); text-decoration: none; flex: none; max-width: 200px; }
   .crumb a:hover { color: var(--tx); }
   .crumb b { color: var(--tx); font-weight: 550; }
-  .s { color: var(--tx3); flex: none; }
-  .sp { flex: 1; }
-  .recpill { display: inline-flex; align-items: center; gap: var(--s2); height: 32px; padding: 0 var(--s1) 0 var(--s3); border-radius: var(--r); border: 1px solid rgba(255, 77, 79, 0.4); background: var(--recbg); font-size: 13px; white-space: nowrap; min-width: 0; flex: none; }
-  .recpill .t { font: 600 12px/16px var(--mono); }
-  .recpill .m { color: var(--tx2); font-size: 12px; max-width: 160px; }
-  .tb > :global(.btn), .tb > span > :global(.btn) { flex: none; }
-  .crumb { flex: 0 1 auto; }
-  .gear { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r); color: var(--tx2); flex: none; }
-  .gear:hover { background: var(--hv); color: var(--tx); }
-  .app.ld { grid-template-rows: 48px auto minmax(0, 1fr); }
+  .s { color: var(--tx3); flex: none; display: grid; }
   .content { min-height: 0; min-width: 0; overflow: hidden; }
-  .toast { position: fixed; bottom: var(--s6); left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r); padding: var(--s2) var(--s4); font-size: 13px; box-shadow: var(--sh); z-index: 60; max-width: calc(100% - 32px); }
+  .ctr { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; min-height: 0; height: 100%; }
+  .toast { display: flex; align-items: center; gap: var(--s3); position: fixed; bottom: var(--s6); left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r); padding: var(--s2) var(--s4); font-size: 13px; box-shadow: var(--sh); z-index: 60; max-width: calc(100% - 32px); }
+  .ta { all: unset; cursor: pointer; color: var(--ac); font-weight: 600; flex: none; }
+  .ta:hover, .ta:focus-visible { text-decoration: underline; }
 </style>
