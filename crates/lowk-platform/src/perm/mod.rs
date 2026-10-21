@@ -49,6 +49,21 @@ pub enum SystemAudioProbe {
     Failed,
     /// Tap works but only silence arrived (inconclusive).
     Silent,
+    /// The tap could not be built for a non-permission reason (reason via `system_audio_reason`).
+    TapError,
+}
+
+static REASON: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+pub fn set_system_audio_reason(r: String) {
+    if let Ok(mut g) = REASON.lock() {
+        *g = r;
+    }
+}
+
+/// Why the last system-audio probe was inconclusive or failed ("" when unknown).
+pub fn system_audio_reason() -> String {
+    REASON.lock().map(|g| g.clone()).unwrap_or_default()
 }
 
 static SYSTEM_AUDIO: AtomicU8 = AtomicU8::new(0);
@@ -64,7 +79,7 @@ pub fn set_change_hook(f: ChangeHook) {
 
 pub fn report_system_audio_probe(p: SystemAudioProbe) {
     let new = match p {
-        SystemAudioProbe::Silent => 0,
+        SystemAudioProbe::Silent | SystemAudioProbe::TapError => 0,
         SystemAudioProbe::Working => 1,
         SystemAudioProbe::Failed => 2,
     };

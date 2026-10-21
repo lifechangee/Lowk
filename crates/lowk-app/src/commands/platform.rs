@@ -29,19 +29,23 @@ pub fn perm_status(st: State<'_, Shared>) -> HashMap<PermKind, PermState> {
 /// we play ourselves: creating the tap raises the real TCC prompt, and the buffers tell us
 /// the answer (audio arrived = granted, silence while it plays = denied). Denied opens the
 /// matching Settings pane. Inconclusive (nothing could be played) stays `Unknown`.
-fn request_system_audio() -> PermState {
+fn request_system_audio() -> Result<PermState> {
     use lowk_audio::SystemAudioProbe;
     use lowk_platform::perm;
     if !cfg!(target_os = "macos") {
-        return perm::status(PermKind::SystemAudio);
+        return Ok(perm::status(PermKind::SystemAudio));
     }
     match lowk_audio::probe_system_audio(std::time::Duration::from_secs(150)) {
-        SystemAudioProbe::Working => PermState::Granted,
+        SystemAudioProbe::Working => Ok(PermState::Granted),
         SystemAudioProbe::Failed => {
             perm::open_settings(PermKind::SystemAudio);
-            PermState::Denied
+            Ok(PermState::Denied)
         }
-        SystemAudioProbe::Silent => PermState::Unknown,
+        SystemAudioProbe::Silent => Ok(PermState::Unknown),
+        SystemAudioProbe::TapError => Err(AppError::new(ErrorCode::AudioDevice).with_detail(format!(
+            "System audio capture could not start (not a permission problem): {}",
+            perm::system_audio_reason()
+        ))),
     }
 }
 
@@ -56,7 +60,7 @@ pub async fn perm_request(st: State<'_, Shared>, kind: PermKind) -> Result<PermS
         use lowk_types::EventSink;
         let before = lowk_platform::perm::status(kind);
         let after = if kind == PermKind::SystemAudio {
-            request_system_audio()
+            request_system_audio()?
         } else {
             lowk_platform::perm::request(kind)?
         };

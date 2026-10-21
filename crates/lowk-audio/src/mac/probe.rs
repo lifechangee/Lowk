@@ -7,7 +7,7 @@
 use super::tap::{start_tap, TapTarget};
 use crate::pipeline::{RingIn, StreamShared};
 use cidre::core_audio as ca;
-use lowk_platform::perm::{report_system_audio_probe, SystemAudioProbe};
+use lowk_platform::perm::{report_system_audio_probe, set_system_audio_reason, SystemAudioProbe};
 use ringbuf::traits::Consumer;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
@@ -66,8 +66,11 @@ fn probe_with(wav: &std::path::Path) -> SystemAudioProbe {
     // The process object only exists once the child touched Core Audio.
     let t0 = Instant::now();
     let obj = loop {
+        // Ok(0) = "no audio object yet" (success status, kAudioObjectUnknown): keep waiting.
         if let Ok(p) = ca::Process::with_pid(pid) {
-            break Some(p);
+            if p.0 .0 != 0 {
+                break Some(p);
+            }
         }
         if t0.elapsed() > Duration::from_secs(3) {
             break None;
@@ -86,7 +89,8 @@ fn probe_with(wav: &std::path::Path) -> SystemAudioProbe {
         Err(e) => {
             tracing::warn!(?e, "system-audio probe: tap failed");
             kill(&mut child);
-            return SystemAudioProbe::Failed;
+            set_system_audio_reason(format!("{e:?}"));
+            return SystemAudioProbe::TapError;
         }
     };
     let mut buf = vec![0f32; 4096];

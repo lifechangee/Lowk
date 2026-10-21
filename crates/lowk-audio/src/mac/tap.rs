@@ -180,7 +180,29 @@ impl TapSession {
     }
 }
 
+/// Process object ids safe to hand to `CATapDescription`: drops `kAudioObjectUnknown` (0; the
+/// PID translation returns it with a *success* status for a process without an audio object),
+/// all-ones sentinels and duplicates, and, when the live process list is known, ids that no
+/// longer exist (a stale id makes `AudioHardwareCreateProcessTap` fail with `!obj`).
+pub fn sanitize_ids(raw: &[u32], live: Option<&[u32]>) -> Vec<u32> {
+    let mut v: Vec<u32> = raw
+        .iter()
+        .copied()
+        .filter(|&i| i != 0 && i != u32::MAX && live.is_none_or(|l| l.contains(&i)))
+        .collect();
+    v.sort_unstable();
+    v.dedup();
+    v
+}
+
 pub fn start_tap(target: &TapTarget, ring: RingIn) -> Result<TapSession> {
+    let live: Option<Vec<u32>> = ca::Process::list()
+        .ok()
+        .map(|l| l.iter().map(|p| p.0 .0).collect());
+    let target = &match target {
+        TapTarget::System(ex) => TapTarget::System(sanitize_ids(ex, live.as_deref())),
+        TapTarget::Procs(p) => TapTarget::Procs(sanitize_ids(p, live.as_deref())),
+    };
     let nums: Vec<arc::R<ns::Number>> = match target {
         TapTarget::System(ex) => ex.iter().copied().map(ns::Number::with_u32).collect(),
         TapTarget::Procs(p) => p.iter().copied().map(ns::Number::with_u32).collect(),
@@ -255,4 +277,21 @@ pub fn start_tap(target: &TapTarget, ring: RingIn) -> Result<TapSession> {
         rate: asbd.sample_rate,
         out_uid: out_uid.to_string(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_ids;
+
+    #[test]
+    fn invalid_ids_are_filtered() {
+        assert!(sanitize_ids(&[0, u32::MAX], None).is_empty());
+        assert_eq!(sanitize_ids(&[7, 0, 7, 3], None), vec![3, 7]);
+    }
+
+    #[test]
+    fn stale_ids_are_filtered_against_live_list() {
+        assert_eq!(sanitize_ids(&[3, 9, 12], Some(&[3, 12, 40])), vec![3, 12]);
+        assert!(sanitize_ids(&[9], Some(&[])).is_empty());
+    }
 }
