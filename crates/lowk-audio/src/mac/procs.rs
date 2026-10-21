@@ -123,6 +123,42 @@ pub fn list_processes() -> Result<Vec<ProcInfo>> {
     Ok(v)
 }
 
+/// Parent pid of `pid` (0 when unknown).
+pub fn parent_pid(pid: i32) -> i32 {
+    let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+    let size = std::mem::size_of::<libc::proc_bsdinfo>() as i32;
+    // SAFETY: `info` is a plain-old-data out buffer of `size` bytes.
+    let n = unsafe {
+        libc::proc_pidinfo(
+            pid,
+            libc::PROC_PIDTBSDINFO,
+            0,
+            &mut info as *mut _ as *mut libc::c_void,
+            size,
+        )
+    };
+    if n == size {
+        info.pbi_ppid as i32
+    } else {
+        0
+    }
+}
+
+/// True when `ancestor` is within 8 parent links above `pid` (pure given `parent_of`).
+pub fn descends_from(pid: i32, ancestor: i32, parent_of: impl Fn(i32) -> i32) -> bool {
+    let mut p = pid;
+    for _ in 0..8 {
+        p = parent_of(p);
+        if p <= 1 {
+            return false;
+        }
+        if p == ancestor {
+            return true;
+        }
+    }
+    false
+}
+
 /// Groups helper processes under the owning `.app` (Chrome Helper -> Chrome). Helpers that
 /// live outside any app (system XPC services such as `com.apple.WebKit.GPU`) are mapped to
 /// their responsible process (Safari).
@@ -210,9 +246,16 @@ pub fn groups() -> Result<Vec<Group>> {
 pub fn resolve_app(spec: &str) -> Result<Group> {
     let gs = groups()?;
     if let Ok(pid) = spec.parse::<i32>() {
+        // The pid itself, else a process it started (`sh -c 'afplay a; afplay b'`, a launcher
+        // script, an app's helper): the pid the user knows is often not the one making sound.
         return gs
-            .into_iter()
+            .iter()
             .find(|g| g.members.iter().any(|m| m.pid == pid))
+            .or_else(|| {
+                gs.iter()
+                    .find(|g| g.members.iter().any(|m| descends_from(m.pid, pid, parent_pid)))
+            })
+            .cloned()
             .ok_or_else(|| {
                 AppError::new(ErrorCode::AudioTargetLost)
                     .with_detail(format!("pid {pid} has no audio process object yet"))
@@ -544,6 +587,20 @@ mod tests {
         let gs = vec![grp("us.zoom.xos", "zoom.us", 9, "/B/zoom")];
         assert_eq!(match_identity(&gs, &app).unwrap().main_pid, 9);
         assert!(match_identity(&[grp("", "other", 3, "/usr/bin/other")], &id).is_none());
+    }
+
+    #[test]
+    fn pid_spec_reaches_the_child_that_makes_sound() {
+        // 100 = shell the user picked, 200 = afplay it started, 300 = unrelated
+        let parent = |p: i32| match p {
+            200 => 100,
+            100 => 50,
+            300 => 1,
+            _ => 0,
+        };
+        assert!(descends_from(200, 100, parent));
+        assert!(!descends_from(300, 100, parent));
+        assert!(!descends_from(100, 100, parent));
     }
 
     #[test]

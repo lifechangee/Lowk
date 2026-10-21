@@ -170,6 +170,35 @@ if (has('--silent')) {
     check(s.length === 1 && s[0] === 'Screenshot', 'S2: real ⌘⇧S fires exactly Screenshot (all monitors)', `fired: ${s.join(',') || 'nothing'}`);
     const a = await press(0);
     check(a.length === 1 && a[0] === 'ScreenshotArea', 'S2: real ⌘⇧A fires exactly ScreenshotArea', `fired: ${a.join(',') || 'nothing'}`);
+
+    // B: binds are PHYSICAL keys. Repeat under every keyboard layout this Mac has enabled (the owner types in
+    // «Ру»: kVK 1 prints «ы», not "s"). The layout is switched through TIS for this test only and restored.
+    const kbd = join(work, 'kbd');
+    const built = run('swiftc', ['-O', '-o', kbd, join(root, 'tools/qa/kbd.swift')]);
+    if (built.status !== 0) {
+      grant('B: ⌘⇧S / ⌘⇧A under every keyboard layout', `kbd helper did not compile: ${(built.stderr ?? '').slice(0, 100)}`);
+    } else {
+      const orig = run(kbd, ['current']).stdout.trim();
+      const all = run(kbd, ['list']).stdout.split('\n').map((x) => x.trim()).filter(Boolean);
+      const wanted = [...new Set([orig, ...all.filter((x) => /ABC|US|Russian|Dvorak|Colemak|German|French/i.test(x))])].slice(0, 5);
+      try {
+        for (const id of wanted) {
+          if (run(kbd, ['select', id]).status !== 0) { grant(`B: layout ${id} cannot be selected here`); continue; }
+          await sleep(400);
+          const before = logNow().length;
+          run(kbd, ['press', '1', 'cmd,shift']);
+          await sleep(1200);
+          const s2 = [...logNow().slice(before).matchAll(/bind event action=(\w+) phase=Down/g)].map((m) => m[1]);
+          const before2 = logNow().length;
+          run(kbd, ['press', '0', 'cmd,shift']);
+          await sleep(1200);
+          const a2 = [...logNow().slice(before2).matchAll(/bind event action=(\w+) phase=Down/g)].map((m) => m[1]);
+          check(s2.join() === 'Screenshot' && a2.join() === 'ScreenshotArea', `B: layout ${id.replace('com.apple.keylayout.', '')}: physical S key = Screenshot, A key = ScreenshotArea`, `S -> ${s2.join(',') || 'nothing'}, A -> ${a2.join(',') || 'nothing'}`);
+        }
+      } finally {
+        if (orig) run(kbd, ['select', orig]);
+      }
+    }
   }
 }
 

@@ -2605,6 +2605,7 @@ dependencies = [
  "symphonia",
  "sysinfo",
  "tracing",
+ "tracing-subscriber",
  "wasapi",
  "webrtc-audio-processing",
 ]

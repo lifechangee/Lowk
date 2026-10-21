@@ -180,14 +180,30 @@ pub struct TapSession {
     _started: ca::hardware::StartedDevice<ca::AggregateDevice>,
     _tap: ca::TapGuard,
     _ctx: Box<Ctx>,
+    /// Rate the IOProc really delivers: the aggregate device clock, NOT the tap format.
     pub rate: f64,
     pub out_uid: String,
+    agg_obj: u32,
 }
 
 impl TapSession {
-    /// Format rate the tap delivers right now (changes when the output device renegotiates).
+    /// Rate the aggregate delivers right now (changes when the output device renegotiates, e.g.
+    /// Bluetooth A2DP 48 kHz <-> HFP 24/16 kHz when a microphone opens).
     pub fn current_rate(&self) -> Option<f64> {
-        self._tap.asbd().ok().map(|a| a.sample_rate)
+        ca::Device(ca::Obj(self.agg_obj))
+            .actual_sample_rate()
+            .ok()
+            .filter(|r| *r > 0.0)
+    }
+}
+
+/// The rate of the buffers the aggregate IOProc delivers. The tap's own ASBD keeps saying the
+/// output device's nominal rate (48 kHz) while a Bluetooth headset in HFP runs the aggregate at
+/// 24/16 kHz; trusting the tap format played everything at 2x speed (AirPods bug).
+pub(crate) fn delivered_rate(agg_rate: Option<f64>, tap_rate: f64) -> f64 {
+    match agg_rate {
+        Some(r) if r.is_finite() && r >= 8_000.0 => r,
+        _ => tap_rate,
     }
 }
 
@@ -267,32 +283,49 @@ pub fn start_tap(target: &TapTarget, ring: RingIn) -> Result<TapSession> {
         ],
     );
     let agg = ca::AggregateDevice::with_desc(&dict).map_err(|e| err("create aggregate", e))?;
+    let agg_obj = agg.0 .0;
+    let rate = delivered_rate(agg.actual_sample_rate().ok(), asbd.sample_rate);
+    if (rate - asbd.sample_rate).abs() > 1.0 {
+        tracing::info!(
+            tap_rate = asbd.sample_rate,
+            agg_rate = rate,
+            "aggregate runs at another rate than the tap format"
+        );
+    }
     let mut ctx = Box::new(Ctx {
         ring,
-        rate: asbd.sample_rate as u32,
+        rate: rate as u32,
     });
     let pid = agg
         .create_io_proc_id(io_proc as ca::DeviceIoProc<1, 1, Ctx>, Some(&mut *ctx))
         .map_err(|e| err("tap IOProc", e))?;
     let started = ca::device_start(agg, Some(pid)).map_err(|e| err("tap start", e))?;
-    tracing::info!(
-        rate = asbd.sample_rate,
-        channels = asbd.channels_per_frame,
-        ?target,
-        "tap started"
-    );
+    tracing::info!(rate, channels = asbd.channels_per_frame, ?target, "tap started");
     Ok(TapSession {
         _started: started,
         _tap: tap,
         _ctx: ctx,
-        rate: asbd.sample_rate,
+        rate,
         out_uid: out_uid.to_string(),
+        agg_obj,
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::sanitize_ids;
+    use super::{delivered_rate, sanitize_ids};
+
+    #[test]
+    fn delivered_rate_follows_the_aggregate_not_the_tap_format() {
+        // AirPods in HFP: tap says 48 kHz, aggregate runs at 24 kHz
+        assert_eq!(delivered_rate(Some(24_000.0), 48_000.0), 24_000.0);
+        assert_eq!(delivered_rate(Some(16_000.0), 48_000.0), 16_000.0);
+        assert_eq!(delivered_rate(Some(44_100.0), 44_100.0), 44_100.0);
+        // unreadable / nonsense -> tap format
+        assert_eq!(delivered_rate(None, 48_000.0), 48_000.0);
+        assert_eq!(delivered_rate(Some(0.0), 48_000.0), 48_000.0);
+        assert_eq!(delivered_rate(Some(f64::NAN), 44_100.0), 44_100.0);
+    }
 
     #[test]
     fn invalid_ids_are_filtered() {

@@ -179,4 +179,31 @@ mod tests {
             "Option"
         );
     }
+
+    /// Binds are matched by PHYSICAL key (kVK), never by the character the active layout prints
+    /// (Russian «ы» sits on kVK 1 = KeyS, «ф» on kVK 0 = KeyA). Ground truth: Carbon `kVK_ANSI_*`.
+    #[test]
+    fn mac_keycodes_are_physical_ansi_positions_in_any_layout() {
+        let ansi: &[(&str, u16)] = &[
+            ("KeyA", 0),
+            ("KeyS", 1),
+            ("KeyD", 2),
+            ("KeyR", 15),
+            ("KeyQ", 12),
+            ("KeyW", 13),
+            ("KeyZ", 6),
+            ("KeyX", 7),
+            ("KeyC", 8),
+            ("KeyV", 9),
+            ("KeyM", 46),
+            ("KeyN", 45),
+            ("Digit1", 18),
+            ("Digit0", 29),
+            ("Backslash", 42),
+            ("Space", 49),
+        ];
+        for (code, vk) in ansi {
+            assert_eq!(from_mac_vk(*vk), *code);
+        }
+    }
 }

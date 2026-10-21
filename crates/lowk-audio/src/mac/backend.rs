@@ -337,9 +337,20 @@ impl Supervisor {
         if self.want_mic() {
             match &self.mic {
                 Some(m) => {
-                    let alive = devices::device_by_uid(&m.uid)
-                        .and_then(|d| d.is_alive().ok())
-                        .unwrap_or(false);
+                    let dev = devices::device_by_uid(&m.uid);
+                    let alive = dev.as_ref().and_then(|d| d.is_alive().ok()).unwrap_or(false);
+                    // A Bluetooth headset switches profile (A2DP -> HFP 16/24 kHz) when its mic opens,
+                    // sometimes after the IOProc started: the session's rate is then wrong (AirPods bug).
+                    let rate_moved = dev
+                        .as_ref()
+                        .and_then(|d| d.actual_sample_rate().ok())
+                        .is_some_and(|r| r > 0.0 && (r - m.rate).abs() > 1.0);
+                    if rate_moved && alive {
+                        tracing::info!(from = m.rate, "mic sample rate changed, restarting mic");
+                        self.mic = None;
+                        let _ = self.start_mic();
+                        return;
+                    }
                     let moved =
                         self.mic_uid().is_none() && devices::default_input_uid().is_some_and(|u| u != m.uid);
                     if !alive || moved {

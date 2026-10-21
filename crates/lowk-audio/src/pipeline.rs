@@ -479,6 +479,71 @@ mod tests {
         assert!(fr.windows(2).all(|p| p[1].t_mono_ns > p[0].t_mono_ns));
     }
 
+    /// Device matrix (Bluetooth A2DP/HFP, built-in, USB): whatever rate the device really runs at
+    /// (16/24/44.1/48/96 kHz), `seconds of 16 kHz out == seconds in`, with the tone intact. A
+    /// session that declares a wrong rate (tap format 48 kHz on a 24 kHz aggregate) would fail this
+    /// by 2x. Also a mid-stream rate flip (headset profile switch) stays ordered and keeps time.
+    #[test]
+    fn device_matrix_rates_keep_duration_and_pitch() {
+        for rate in [16_000u32, 24_000, 32_000, 44_100, 48_000, 96_000] {
+            let got: Arc<Mutex<Vec<Frame16k>>> = Arc::default();
+            let g2 = got.clone();
+            let w = spawn_worker(
+                Stream::Me,
+                Arc::new(move |f| g2.lock().unwrap().push(f)),
+                Arc::new(|_| {}),
+                None,
+            );
+            let mut ring = w.new_ring(rate);
+            let x = sine(440.0, rate, 1.5, 0.4);
+            let chunk = (rate / 100) as usize;
+            for ch in x.chunks(chunk) {
+                ring.push(ch, rate, now_mono_ns());
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            std::thread::sleep(Duration::from_millis(300));
+            drop(w);
+            let fr = got.lock().unwrap();
+            let pcm: Vec<f32> = fr.iter().flat_map(|f| f.pcm.iter().copied()).collect();
+            let secs = pcm.len() as f32 / 16_000.0;
+            assert!(
+                (secs - 1.5).abs() < 0.12,
+                "rate {rate}: {secs}s of 16 kHz for 1.5 s in"
+            );
+            let mid = &pcm[8_000..16_000];
+            assert!(goertzel(mid, 440.0, 16_000.0) > 0.3, "rate {rate}: pitch lost");
+            assert!(fr.windows(2).all(|p| p[1].t_mono_ns > p[0].t_mono_ns));
+        }
+    }
+
+    #[test]
+    fn rate_flip_a2dp_to_hfp_and_back_keeps_time() {
+        let got: Arc<Mutex<Vec<Frame16k>>> = Arc::default();
+        let g2 = got.clone();
+        let w = spawn_worker(
+            Stream::Me,
+            Arc::new(move |f| g2.lock().unwrap().push(f)),
+            Arc::new(|_| {}),
+            None,
+        );
+        let mut ring = w.new_ring(48_000);
+        for rate in [48_000u32, 24_000, 16_000, 24_000, 48_000] {
+            let x = sine(440.0, rate, 0.5, 0.4);
+            for ch in x.chunks((rate / 100) as usize) {
+                ring.push(ch, rate, now_mono_ns());
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            std::thread::sleep(Duration::from_millis(80));
+        }
+        std::thread::sleep(Duration::from_millis(300));
+        drop(w);
+        let fr = got.lock().unwrap();
+        let secs = fr.len() as f32 * 0.02;
+        // 5 x 0.5 s; each switch loses at most the queued tail (< 0.1 s)
+        assert!(secs > 2.0 && secs < 2.7, "{secs}s");
+        assert!(fr.windows(2).all(|p| p[1].t_mono_ns > p[0].t_mono_ns));
+    }
+
     #[test]
     fn zero_run_counts_and_resets() {
         let w = spawn_worker(Stream::System, Arc::new(|_| {}), Arc::new(|_| {}), None);
