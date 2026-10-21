@@ -120,3 +120,41 @@ fn capture_default_source_defaults_to_one_app_and_persists() {
     assert_eq!(s2.get().capture.default_source, CaptureSource::WholeSystem);
     assert_eq!(s2.get().audio.default_source, Some(Target::WholeSystem));
 }
+
+#[test]
+fn s2_open_migrates_swapped_screenshot_binds_on_disk() {
+    let d = tempfile::tempdir().unwrap();
+    let mut s = Settings::default();
+    for b in &mut s.binds {
+        if let Trigger::Combo { key, .. } = &mut b.trigger {
+            match b.action {
+                ActionId::Screenshot => *key = KeyCode::new("KeyA"),
+                ActionId::ScreenshotArea => *key = KeyCode::new("KeyS"),
+                _ => {}
+            }
+        }
+    }
+    {
+        let st = FileSettingsStore::open(d.path()).unwrap();
+        st.patch(SettingsPatch(serde_json::json!({ "binds": s.binds })))
+            .unwrap();
+    }
+    let st = FileSettingsStore::open(d.path()).unwrap();
+    let key = |a: ActionId| {
+        st.get()
+            .binds
+            .iter()
+            .find(|b| b.action == a)
+            .map(|b| match &b.trigger {
+                Trigger::Combo { key, .. } => key.0.clone(),
+                _ => String::new(),
+            })
+    };
+    assert_eq!(key(ActionId::Screenshot).as_deref(), Some("KeyS"));
+    assert_eq!(key(ActionId::ScreenshotArea).as_deref(), Some("KeyA"));
+    // persisted, not just in memory
+    let text = std::fs::read_to_string(d.path().join("settings.toml")).unwrap();
+    assert!(text.contains("screenshot_area"));
+    let st2 = FileSettingsStore::open(d.path()).unwrap();
+    assert_eq!(st2.get().binds, st.get().binds);
+}

@@ -322,3 +322,64 @@ fn source_info_roundtrip() {
     let j = serde_json::to_value(SourceKind::System).unwrap();
     assert_eq!(j, "system");
 }
+
+fn bind_key(s: &Settings, a: ActionId) -> Option<String> {
+    s.binds
+        .iter()
+        .find(|b| b.action == a)
+        .and_then(|b| match &b.trigger {
+            Trigger::Combo { key, .. } => Some(key.0.clone()),
+            _ => None,
+        })
+}
+
+#[test]
+fn s2_default_screenshot_is_all_monitors_on_s_and_area_on_a() {
+    for os in [Os::Macos, Os::Windows] {
+        let s = Settings::defaults_for(os);
+        assert_eq!(bind_key(&s, ActionId::Screenshot).as_deref(), Some("KeyS"));
+        assert_eq!(bind_key(&s, ActionId::ScreenshotArea).as_deref(), Some("KeyA"));
+    }
+}
+
+#[test]
+fn s2_migration_repairs_swapped_or_duplicated_screenshot_binds() {
+    let mut s = Settings::defaults_for(Os::Macos);
+    // swapped
+    for b in &mut s.binds {
+        if let Trigger::Combo { key, .. } = &mut b.trigger {
+            match b.action {
+                ActionId::Screenshot => *key = KeyCode::new("KeyA"),
+                ActionId::ScreenshotArea => *key = KeyCode::new("KeyS"),
+                _ => {}
+            }
+        }
+    }
+    assert!(s.migrate_binds(Os::Macos));
+    assert_eq!(bind_key(&s, ActionId::Screenshot).as_deref(), Some("KeyS"));
+    assert_eq!(bind_key(&s, ActionId::ScreenshotArea).as_deref(), Some("KeyA"));
+    // already right: untouched, and idempotent
+    assert!(!s.migrate_binds(Os::Macos));
+    // a deliberate custom bind is left alone
+    for b in &mut s.binds {
+        if b.action == ActionId::Screenshot {
+            b.trigger = Trigger::Combo {
+                mods: Mods::META_SHIFT,
+                key: KeyCode::new("KeyJ"),
+            };
+        }
+    }
+    assert!(!s.migrate_binds(Os::Macos));
+    assert_eq!(bind_key(&s, ActionId::Screenshot).as_deref(), Some("KeyJ"));
+    // both on the same combo
+    for b in &mut s.binds {
+        if b.action == ActionId::Screenshot || b.action == ActionId::ScreenshotArea {
+            b.trigger = Trigger::Combo {
+                mods: Mods::META_SHIFT,
+                key: KeyCode::new("KeyA"),
+            };
+        }
+    }
+    assert!(s.migrate_binds(Os::Macos));
+    assert_eq!(bind_key(&s, ActionId::Screenshot).as_deref(), Some("KeyS"));
+}

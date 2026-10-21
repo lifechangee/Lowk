@@ -503,3 +503,75 @@ fn my_answer_collects_speech_spoken_while_the_hint_is_still_streaming() {
         .iter()
         .any(|e| matches!(e, CallEntry::Qa { answer, .. } if answer == "раз два")));
 }
+
+#[test]
+fn s4_echo_is_not_transcribed_journaled_or_collected_as_my_answer() {
+    let r = rig(|d| d.hints = Arc::new(StubHints("Подсказка.".into())));
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    let t = now_mono_ns() / 1_000_000_000;
+    r.session.inject_engine_stt(ev(
+        Stream::System,
+        1,
+        t,
+        t + 4,
+        "Расскажи коротко, чем занимался последние два года?",
+    ));
+    let qa_id = r.session.ask(brief(None)).unwrap();
+    loop {
+        if let AppEvent::Llm(LlmEvent::Done { .. }) = rx.recv_timeout(Duration::from_secs(5)).unwrap() {
+            break;
+        }
+    }
+    // the speakers' echo of the question, transcribed a little differently, arrives as «Я»
+    let tt = now_mono_ns() / 1_000_000_000 + 2;
+    r.session.inject_engine_stt(ev(
+        Stream::Me,
+        1,
+        tt,
+        tt + 4,
+        "Расскажи коротко чем занимался последние два года.",
+    ));
+    // ...then the user really answers
+    r.session.inject_engine_stt(ev(
+        Stream::Me,
+        2,
+        tt + 6,
+        tt + 9,
+        "Я работал продуктовым менеджером.",
+    ));
+    assert_eq!(
+        r.session.my_answer(&qa_id).as_deref(),
+        Some("Я работал продуктовым менеджером.")
+    );
+    r.session.stop().unwrap();
+    let entries = r.store.entries.lock().unwrap();
+    let me_finals: Vec<_> = entries
+        .iter()
+        .filter_map(|e| match e {
+            CallEntry::Final { event } if event.stream == Stream::Me => Some(event.text.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(me_finals, vec!["Я работал продуктовым менеджером."]);
+}
+
+#[test]
+fn s5_target_lost_and_restored_reach_the_bus_as_notices() {
+    let r = rig(|_| {});
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    assert!(r.audio.push_event(lowk_audio::AudioEvent::TargetLost));
+    assert!(r.audio.push_event(lowk_audio::AudioEvent::TargetRestored));
+    let got: Vec<AudioNotice> = rx
+        .try_iter()
+        .filter_map(|e| match e {
+            AppEvent::AudioNotice(n) => Some(n),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(got, vec![AudioNotice::TargetLost, AudioNotice::TargetRestored]);
+    // the call goes on
+    assert_eq!(r.session.state().phase, SessionPhase::Recording);
+    r.session.stop().unwrap();
+}

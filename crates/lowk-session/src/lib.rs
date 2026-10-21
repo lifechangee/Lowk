@@ -3,6 +3,7 @@
 //! through traits, so the whole call flow runs without Tauri.
 mod bus;
 mod deps;
+mod echo;
 mod qa;
 mod replay;
 mod session;

@@ -58,6 +58,7 @@ export const overlay = {
   'overlay.toast.shot': 'Screenshot added',
   'overlay.sttLoading': 'Loading the speech model… Nothing you say is lost.',
   'overlay.sttRestarting': 'Speech engine restarting…',
+  'overlay.audioLost': 'App audio lost. Looking for it…',
   'overlay.sttFailed': 'Speech engine stopped. Check Settings > Providers.',
   'overlay.waiting': 'Listening…',
   'overlay.answer.empty': 'Press {key} to ask the AI',

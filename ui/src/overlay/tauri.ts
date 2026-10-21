@@ -34,6 +34,7 @@ export class TauriSource implements OverlaySource {
       });
     add(on<SttEvent>(EVENTS.sttSegment, (e) => store.applyStt(e)));
     add(on<{ loading: boolean }>(EVENTS.sttLoading, (e) => (store.sttLoading = e.loading)));
+    add(on<{ kind: 'target_lost' | 'target_restored' }>(EVENTS.audioNotice, (e) => (store.audioLost = e.kind === 'target_lost')));
     for (const n of ['start', 'delta', 'done', 'error'] as const) {
       add(on<{ recoverable: boolean }>(EVENTS.sttError, (e) => (store.sttError = { recoverable: e.recoverable })));
     add(on<Omit<LlmEvent, 'type'>>(`llm://${n}`, (e) => store.applyLlm({ ...e, type: n } as LlmEvent)));

@@ -178,6 +178,10 @@ impl SttEngine for SidecarEngine {
             spec.args.push("--lang".into());
             spec.args.push(worker_lang(&cfg.langs));
         }
+        if !spec.args.iter().any(|a| a == "--allowed") {
+            spec.args.push("--allowed".into());
+            spec.args.push(cfg.langs.join(","));
+        }
         if !spec.exe.exists() {
             return Err(
                 AppError::new(ErrorCode::NotFound).with_detail(format!("worker {}", spec.exe.display()))
@@ -265,6 +269,11 @@ fn parse_event(v: &serde_json::Value, stream: Stream, base: u64) -> Option<SttEv
     if v["ev"] != "stt" {
         return None;
     }
+    // S1: a token boundary inside a multi-byte letter must never reach the transcript as «�».
+    let text = lowk_types::text::clean_speech(v["text"].as_str()?);
+    if text.is_empty() {
+        return None;
+    }
     Some(SttEvent {
         stream,
         utt: base + v["utt"].as_u64()?,
@@ -274,7 +283,7 @@ fn parse_event(v: &serde_json::Value, stream: Stream, base: u64) -> Option<SttEv
         } else {
             SttKind::Partial
         },
-        text: v["text"].as_str()?.to_owned(),
+        text,
         lang: v["lang"].as_str().map(str::to_owned),
         t_start_ns: v["t_start_ns"].as_u64()?,
         t_audio_end_ns: v["t_audio_end_ns"].as_u64()?,

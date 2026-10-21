@@ -64,6 +64,8 @@ export class OverlayStore {
   sttError = $state<{ recoverable: boolean } | null>(null);
   /** The local speech model is still loading (`stt://loading`); audio is buffered and transcribed once it is up. */
   sttLoading = $state(false);
+  /** The captured app's audio is gone and could not be re-acquired (`audio://notice`); cleared when it returns. */
+  audioLost = $state(false);
   /** Highest utterance id seen per stream: a lower one is a background correction of the past. */
   #maxUtt: Record<string, number> = {};
   answer = $state('');

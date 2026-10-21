@@ -28,7 +28,14 @@ build: setup worker
     if [ -n "${LOWK_SIGN_IDENTITY:-}" ]; then
       cfg+=(--config "{\"bundle\":{\"macOS\":{\"signingIdentity\":\"$LOWK_SIGN_IDENTITY\"}}}")
     fi
-    cargo tauri build "${cfg[@]}" --bundles app
+    # S4: WebRTC AEC3 ships in macOS bundles (needs meson + ninja at build time, installed via uv).
+    feat=()
+    if [ "$(uname -s)" = Darwin ]; then
+      export PATH="$HOME/.local/bin:$PATH"
+      if ! command -v meson >/dev/null || ! command -v ninja >/dev/null; then uv tool install meson && uv tool install ninja; fi
+      feat=(-- --features aec)
+    fi
+    cargo tauri build "${cfg[@]}" --bundles app ${feat[@]+"${feat[@]}"}
     cd ../..
     if [ "$(uname -s)" = Darwin ]; then tools/sign-bundle.sh; fi
 

@@ -21,6 +21,7 @@ pub mod session;
 pub mod settings;
 pub mod store;
 pub mod stt;
+pub mod text;
 pub mod time;
 pub mod traits;
 
@@ -89,6 +90,8 @@ pub mod events {
     pub const STT_ERROR: &str = "stt://error";
     /// Payload `{ "loading": bool }`: the local engine is loading its model.
     pub const STT_LOADING: &str = "stt://loading";
+    /// Payload `{ "kind": "target_lost" | "target_restored" }`.
+    pub const AUDIO_NOTICE: &str = "audio://notice";
     pub const QA_MY_ANSWER: &str = "qa://my-answer";
     pub const SESSION_STATE: &str = "session://state";
     /// A recording ended (any path); payload `{ "route": "home" }`. The app has just

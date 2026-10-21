@@ -71,6 +71,7 @@ impl FileSettingsStore {
             Err(_) => (Settings::default(), Value::Null, true),
         };
         let mut settings = settings;
+        let migrated = !fresh && settings.migrate_binds(Os::current());
         if fresh {
             settings.templates = TemplateSet::defaults().into_vec();
         }
@@ -81,7 +82,7 @@ impl FileSettingsStore {
             subs: Mutex::new(vec![]),
             warning: Mutex::new(warning),
         };
-        let needs_write = fresh || store.cur.lock().schema_version != SETTINGS_SCHEMA_VERSION;
+        let needs_write = fresh || migrated || store.cur.lock().schema_version != SETTINGS_SCHEMA_VERSION;
         if needs_write {
             store.cur.lock().schema_version = SETTINGS_SCHEMA_VERSION;
             store.write()?;

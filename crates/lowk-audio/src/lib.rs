@@ -35,12 +35,22 @@ pub struct CaptureConfig {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AudioEvent {
-    Level { me: f32, sys: f32 },
-    Dropped { stream: Stream, samples: u64 },
-    TapRebuilt { reason: String },
+    Level {
+        me: f32,
+        sys: f32,
+    },
+    Dropped {
+        stream: Stream,
+        samples: u64,
+    },
+    TapRebuilt {
+        reason: String,
+    },
     DeviceChanged,
     SilentTap,
     TargetLost,
+    /// The target came back after `TargetLost` (capture resumed by itself).
+    TargetRestored,
     Permission(lowk_types::PermKind),
 }
 

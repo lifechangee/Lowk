@@ -23,6 +23,8 @@
   <div class="hints r2">
     {#if store.toast}
       <span class="toast" role="status">{store.toast}</span>
+    {:else if store.audioLost}
+      <span class="toast" role="alert" data-testid="audio-lost">{ot('overlay.audioLost', lang)}</span>
     {:else if store.mode === 'moving'}
       <span class="badge" role="status">{ot('overlay.move.badge', lang, { key: k.move })}</span>
     {:else if store.holdDegraded}

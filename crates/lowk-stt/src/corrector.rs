@@ -234,8 +234,11 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
         };
         c.lag
             .record(q.at.elapsed().as_millis().min(u32::MAX as u128) as u32);
-        let text = r.text.trim().to_owned();
-        let changed = text != q.job.original.trim() && plausible(&q.job.original, &text);
+        // S1: a Whisper token boundary inside a multi-byte letter leaves «�»: such a text is
+        // damaged, keep the live one instead of storing it.
+        let damaged = lowk_types::text::has_replacement(&r.text);
+        let text = lowk_types::text::clean_speech(&r.text);
+        let changed = !damaged && text != q.job.original.trim() && plausible(&q.job.original, &text);
         let ev = changed.then(|| SttEvent {
             stream: q.job.stream,
             utt: q.job.utt,

@@ -63,6 +63,37 @@ impl Settings {
         }
     }
 
+    /// Repairs binds written by older builds: BRIEF fixes ⌘⇧S = screenshot of all monitors and
+    /// ⌘⇧A = area. A swapped pair (or both on the same combo) is put back on the defaults.
+    /// Returns true when something changed.
+    pub fn migrate_binds(&mut self, os: Os) -> bool {
+        let defaults = default_binds(os);
+        let want = |a: ActionId| defaults.iter().find(|b| b.action == a).map(|b| b.trigger.clone());
+        let (Some(shot), Some(area)) = (want(ActionId::Screenshot), want(ActionId::ScreenshotArea)) else {
+            return false;
+        };
+        let cur = |a: ActionId, b: &[BindSpec]| b.iter().find(|x| x.action == a).map(|x| x.trigger.clone());
+        let (cs, ca) = (
+            cur(ActionId::Screenshot, &self.binds),
+            cur(ActionId::ScreenshotArea, &self.binds),
+        );
+        let swapped = cs.as_ref() == Some(&area) && ca.as_ref() == Some(&shot);
+        let same = cs.is_some() && cs == ca;
+        let shot_on_area = cs.as_ref() == Some(&area) && ca.is_none();
+        let area_on_shot = ca.as_ref() == Some(&shot) && cs.is_none();
+        if !(swapped || same || shot_on_area || area_on_shot) {
+            return false;
+        }
+        for b in &mut self.binds {
+            match b.action {
+                ActionId::Screenshot => b.trigger = shot.clone(),
+                ActionId::ScreenshotArea => b.trigger = area.clone(),
+                _ => {}
+            }
+        }
+        true
+    }
+
     /// RFC 7386 JSON merge patch applied to the serialized settings, then
     /// re-validated by deserializing. `null` resets nothing (use defaults API).
     pub fn apply_patch(&self, patch: &SettingsPatch) -> crate::Result<Settings> {

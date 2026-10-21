@@ -94,9 +94,38 @@ impl Model {
                         self.doc.fm.languages.push(l.clone());
                     }
                 }
-                let text = event.text.trim();
+                let cleaned = lowk_types::text::clean_speech(&event.text);
+                if cleaned.is_empty() {
+                    return Ok(());
+                }
+                let text = cleaned.as_str();
                 let (last_end, last_at) = (self.last_end, self.last_at);
                 let blocks = self.doc.blocks_mut();
+                // S6: lines are ordered by audio time, not by when their final arrived. A Me final
+                // that lands after a later System line (or after a Q&A block asked meanwhile)
+                // goes back where it was spoken.
+                let block_at = |b: &Block| match b {
+                    Block::Turn { at_s, .. } => Some(*at_s),
+                    Block::Qa(q) => Some(q.at_s),
+                    Block::Image(i) => Some(i.at_s),
+                    Block::Raw(_) => None,
+                };
+                let mut pos = blocks.len();
+                while pos > 0 && block_at(&blocks[pos - 1]).is_some_and(|t| t > at) {
+                    pos -= 1;
+                }
+                if pos < blocks.len() {
+                    blocks.insert(
+                        pos,
+                        Block::Turn {
+                            at_s: at,
+                            speaker: sp,
+                            text: text.to_string(),
+                        },
+                    );
+                    self.last_end = self.last_end.max(end);
+                    return Ok(());
+                }
                 if let Some(Block::Turn {
                     at_s,
                     speaker,
@@ -159,6 +188,7 @@ impl Model {
             }
             CallEntry::MyAnswer { qa_id, at_s, text } => {
                 let id = qa_id.to_string();
+                let text = &lowk_types::text::clean_speech(text);
                 let q = self.doc.blocks_mut().iter_mut().rev().find_map(|b| match b {
                     Block::Qa(q) if q.id == id => Some(q),
                     _ => None,
@@ -167,9 +197,9 @@ impl Model {
                 match &mut q.my_answer {
                     Some((_, t)) => {
                         t.push(' ');
-                        t.push_str(text.trim());
+                        t.push_str(text);
                     }
-                    None => q.my_answer = Some((*at_s, text.trim().to_string())),
+                    None => q.my_answer = Some((*at_s, text.to_string())),
                 }
             }
         }

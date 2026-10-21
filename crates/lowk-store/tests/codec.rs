@@ -99,3 +99,125 @@ fn garbage_never_panics() {
         let _ = folder_codec::render(&folder_codec::parse(s));
     }
 }
+
+#[test]
+fn s1_writer_never_stores_replacement_characters() {
+    use lowk_store::*;
+    use lowk_types::*;
+    let d = tempfile::tempdir().unwrap();
+    let v = Vault::open(d.path()).unwrap();
+    let clock = SessionClock {
+        t0_mono: 0,
+        t0_wall_ms: 1_760_000_000_000,
+    };
+    let mut w = v
+        .begin_call_with_clock(
+            NewCall {
+                title: "t".into(),
+                folder: FolderRef::Unsorted,
+                started: "2026-10-21T01:26:57Z".into(),
+                sources: CallSources {
+                    me: None,
+                    system: None,
+                },
+                stt_engine: None,
+                languages: vec![],
+                speaker_me: "Я".into(),
+                speaker_system: "Система".into(),
+                clock: Some(clock),
+            },
+            clock,
+        )
+        .unwrap();
+    w.push(CallEntry::Final {
+        event: SttEvent {
+            stream: Stream::Me,
+            utt: 1,
+            rev: 0,
+            kind: SttKind::Final,
+            text: "А, о\u{FFFD}кей. Расскажи ко\u{FFFD}".into(),
+            lang: None,
+            t_start_ns: 1_000_000_000,
+            t_audio_end_ns: 2_000_000_000,
+            t_emit_ns: 2_000_000_000,
+        },
+    })
+    .unwrap();
+    w.materialize().unwrap();
+    let md = std::fs::read_to_string(d.path().join(w.rel_path())).unwrap();
+    assert!(!md.contains('\u{FFFD}'), "{md}");
+    assert!(md.contains("А, окей. Расскажи ко"));
+}
+
+#[test]
+fn s6_lines_are_ordered_by_audio_time_not_by_final_arrival() {
+    use lowk_store::*;
+    use lowk_types::*;
+    let d = tempfile::tempdir().unwrap();
+    let v = Vault::open(d.path()).unwrap();
+    let clock = SessionClock {
+        t0_mono: 5_000_000_000,
+        t0_wall_ms: 1_760_000_000_000,
+    };
+    let mut w = v
+        .begin_call_with_clock(
+            NewCall {
+                title: "t".into(),
+                folder: FolderRef::Unsorted,
+                started: "2026-10-21T01:26:57Z".into(),
+                sources: CallSources {
+                    me: None,
+                    system: None,
+                },
+                stt_engine: None,
+                languages: vec![],
+                speaker_me: "Я".into(),
+                speaker_system: "Система".into(),
+                clock: Some(clock),
+            },
+            clock,
+        )
+        .unwrap();
+    let fin = |stream, utt, a: u64, b: u64, text: &str| CallEntry::Final {
+        event: SttEvent {
+            stream,
+            utt,
+            rev: 0,
+            kind: SttKind::Final,
+            text: text.into(),
+            lang: None,
+            // audio time relative to the call start, on the shared monotonic clock
+            t_start_ns: 5_000_000_000 + a * 1_000_000_000,
+            t_audio_end_ns: 5_000_000_000 + b * 1_000_000_000,
+            t_emit_ns: 0,
+        },
+    };
+    // arrival order: System 40 s, Q&A asked at 50 s, then the Me final that started at 20 s
+    w.push(fin(Stream::System, 1, 40, 44, "Вопрос про метрики."))
+        .unwrap();
+    w.push(CallEntry::Qa {
+        id: Ulid::new(),
+        at_s: 50,
+        template: "brief".into(),
+        model: "m".into(),
+        range: "00:00:00-00:00:50".into(),
+        question: "q".into(),
+        answer: "a".into(),
+    })
+    .unwrap();
+    w.push(fin(Stream::Me, 1, 20, 30, "Мой ответ раньше.")).unwrap();
+    w.push(fin(Stream::Me, 2, 0, 3, "Самая первая реплика.")).unwrap();
+    w.materialize().unwrap();
+    let md = std::fs::read_to_string(d.path().join(w.rel_path())).unwrap();
+    let pos = |needle: &str| {
+        md.find(needle)
+            .unwrap_or_else(|| panic!("{needle} missing in\n{md}"))
+    };
+    assert!(md.contains("[00:00:00] **Я:** Самая первая реплика."));
+    assert!(md.contains("[00:00:20] **Я:** Мой ответ раньше."));
+    assert!(md.contains("[00:00:40] **Система:** Вопрос про метрики."));
+    assert!(
+        pos("Самая первая") < pos("Мой ответ раньше") && pos("Мой ответ раньше") < pos("Вопрос про метрики")
+    );
+    assert!(pos("Вопрос про метрики") < pos("lowk-qa"));
+}

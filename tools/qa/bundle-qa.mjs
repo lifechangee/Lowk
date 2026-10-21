@@ -82,6 +82,8 @@ check(existsSync(worker) && run('/usr/bin/codesign', ['--verify', worker]).statu
 const exe = join(APP, 'Contents/MacOS/lowk');
 const bin = readFileSync(exe);
 check(!bin.includes('X-Lowk-Qa-Token'), 'no QA control channel in the shipped binary');
+// S4: the shipped binary contains WebRTC AEC3 (macOS bundles are built with the `aec` feature).
+check(bin.includes('EchoCanceller3') || bin.includes('echo_canceller3'), 'S4: WebRTC AEC3 is linked into the bundle');
 
 if (has('--no-run')) { summary(); restore(); process.exit(results.some((r) => r.verdict === 'FAIL') ? 1 : 0); }
 
@@ -91,7 +93,9 @@ const home = join(work, 'home');
 const data = join(work, 'data');
 mkdirSync(home, { recursive: true });
 mkdirSync(data, { recursive: true });
-writeFileSync(join(data, 'settings.toml'), `[onboarding]\ndone = true\nrecording_notice_ack = true\n[vault]\npath = "${work}/vault"\n`);
+// S2: the profile starts with the screenshot binds SWAPPED (what an old build wrote); the bundle must repair them.
+const bindToml = (action, key) => `[[binds]]\naction = "${action}"\nswallow = false\n[binds.trigger]\nkind = "combo"\nkey = "${key}"\n[binds.trigger.mods]\nalt = false\nctrl = false\nmeta = true\nshift = true\n`;
+writeFileSync(join(data, 'settings.toml'), `[onboarding]\ndone = true\nrecording_notice_ack = true\n[vault]\npath = "${work}/vault"\n` + bindToml('screenshot', 'KeyA') + bindToml('screenshot_area', 'KeyS') + bindToml('toggle_record', 'KeyR'));
 const since = Date.now();
 const o = run('open', ['-n', '--env', `LOWK_DATA_DIR=${data}`, '--env', `HOME=${home}`, '--env', 'LOWK_NO_WARMUP=1', APP]);
 if (o.status !== 0) fail('open the bundle', o.stderr);
@@ -140,6 +144,21 @@ if (key.status !== 0) {
   check(/bind event.*action=ToggleRecord phase=Down/.test(l), 'real ⌘⇧R press reaches the bundle (global shortcut works with no extra permission)');
   check(/record refused: no speech engine ready/.test(l), 'Record without an engine opens the download/cloud prompt (no demo)');
   check(!/Demo \d/.test(l) && !/lowk-demo/.test(l), 'no demo call was started');
+}
+
+// S2: the swapped binds were repaired on disk, and the real keys fire the right actions.
+{
+  const st = existsSync(join(data, 'settings.toml')) ? readFileSync(join(data, 'settings.toml'), 'utf8') : '';
+  const keyOf = (action) => new RegExp(`action = "${action}"[\\s\\S]*?key = "(\\w+)"`).exec(st)?.[1];
+  check(keyOf('screenshot') === 'KeyS' && keyOf('screenshot_area') === 'KeyA', 'S2: swapped screenshot binds are migrated (⌘⇧S = Скриншот, ⌘⇧A = область)', `screenshot=${keyOf('screenshot')} area=${keyOf('screenshot_area')}`);
+  if (key.status === 0) {
+    run('osascript', ['-e', 'tell application "System Events" to key code 1 using {command down, shift down}']);
+    await sleep(1200);
+    check(/bind event.*action=Screenshot phase=Down/.test(logNow()), 'S2: real ⌘⇧S fires Screenshot (all monitors)');
+    run('osascript', ['-e', 'tell application "System Events" to key code 0 using {command down, shift down}']);
+    await sleep(1200);
+    check(/bind event.*action=ScreenshotArea phase=Down/.test(logNow()), 'S2: real ⌘⇧A fires ScreenshotArea');
+  }
 }
 
 run('pkill', ['-x', 'lowk']);

@@ -19,6 +19,7 @@ export const EVENTS = {
   settingsChanged: 'settings://changed',
   sttError: 'stt://error',
   sttLoading: 'stt://loading',
+  audioNotice: 'audio://notice',
   engineProgress: 'engine://progress',
   myAnswer: 'qa://my-answer',
 } as const;

@@ -29,6 +29,15 @@ pub enum AppEvent {
     SttLoading(bool),
     /// Model download / verification progress.
     EngineProgress(EngineProgress),
+    /// The captured app's audio vanished and could not be re-acquired in ~3 s (S5), or came back.
+    AudioNotice(AudioNotice),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum AudioNotice {
+    TargetLost,
+    TargetRestored,
 }
 
 impl AppEvent {
@@ -54,6 +63,7 @@ impl AppEvent {
             AppEvent::SttError(_) => STT_ERROR,
             AppEvent::SttLoading(_) => STT_LOADING,
             AppEvent::EngineProgress(_) => ENGINE_PROGRESS,
+            AppEvent::AudioNotice(_) => AUDIO_NOTICE,
         }
     }
 }

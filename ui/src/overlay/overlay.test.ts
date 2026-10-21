@@ -131,3 +131,15 @@ describe('text size (F6)', () => {
     expect(varsToStyle(PRESETS.dark, 0.4, 16)).toContain('--ov-fs:16px');
   });
 });
+
+describe('S5 audio notice', () => {
+  it('shows a notice only while the app audio is lost, in both languages', () => {
+    const hints = readFileSync(new URL('./Hints.svelte', import.meta.url), 'utf8');
+    expect(hints).toContain('store.audioLost');
+    for (const l of ['ru', 'en']) {
+      expect(readFileSync(new URL(`../lib/i18n/${l}/overlay.ts`, import.meta.url), 'utf8')).toContain("'overlay.audioLost'");
+    }
+    const s = new OverlayStore();
+    expect(s.audioLost).toBe(false);
+  });
+});

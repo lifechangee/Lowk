@@ -230,6 +230,56 @@ pub fn resolve_app(spec: &str) -> Result<Group> {
         })
 }
 
+/// What a capture target IS, independent of its pid: survives the app restarting its audio
+/// helper (S5). A pid spec such as `afplay`'s is only valid for one process lifetime.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Identity {
+    pub bundle_id: String,
+    pub name: String,
+    /// Executable path of the main process (distinguishes bare CLI tools by what they run).
+    pub exe: String,
+}
+
+pub fn identity_of(g: &Group) -> Identity {
+    let exe = g
+        .members
+        .iter()
+        .find(|m| m.pid == g.main_pid)
+        .or_else(|| g.members.first())
+        .map(|m| m.path.clone())
+        .unwrap_or_default();
+    Identity {
+        bundle_id: g.bundle_id.clone(),
+        name: g.name.clone(),
+        exe,
+    }
+}
+
+/// The group that is the same app as `id` (pure, testable).
+pub fn match_identity<'a>(groups: &'a [Group], id: &Identity) -> Option<&'a Group> {
+    groups.iter().find(|g| {
+        (!id.bundle_id.is_empty() && g.bundle_id == id.bundle_id)
+            || (!id.exe.is_empty() && g.members.iter().any(|m| m.path == id.exe))
+    })
+}
+
+/// `resolve_app`, falling back to the remembered identity when the exact spec (a dead pid)
+/// no longer resolves.
+pub fn resolve_app_or_identity(spec: &str, id: Option<&Identity>) -> Result<Group> {
+    match resolve_app(spec) {
+        Ok(g) => Ok(g),
+        Err(e) => {
+            if let Some(id) = id {
+                let gs = groups()?;
+                if let Some(g) = match_identity(&gs, id) {
+                    return Ok(g.clone());
+                }
+            }
+            Err(e)
+        }
+    }
+}
+
 /// Re-reads one group's current membership (process set changes while capturing).
 pub fn refresh_group(key: &str) -> Option<Group> {
     groups().ok()?.into_iter().find(|g| g.key == key)
@@ -460,6 +510,40 @@ mod tests {
         let got = pick_icns_png(&f, 4096).unwrap();
         assert_eq!(u32::from_be_bytes(got[16..20].try_into().unwrap()), 1024);
         assert!(pick_icns_png(b"nope", 64).is_none());
+    }
+
+    fn grp(bundle: &str, name: &str, pid: i32, path: &str) -> Group {
+        Group {
+            key: format!("pid:{pid}"),
+            name: name.into(),
+            bundle_id: bundle.into(),
+            main_pid: pid,
+            members: vec![ProcInfo {
+                obj: pid as u32,
+                pid,
+                bundle_id: bundle.into(),
+                path: path.into(),
+                running_output: true,
+                running_input: false,
+            }],
+        }
+    }
+
+    #[test]
+    fn s5_identity_survives_a_pid_change() {
+        let before = grp("", "afplay", 100, "/usr/bin/afplay");
+        let id = identity_of(&before);
+        // the process restarted under a new pid
+        let after = vec![
+            grp("", "Safari", 7, "/Applications/Safari.app/x"),
+            grp("", "afplay", 205, "/usr/bin/afplay"),
+        ];
+        assert_eq!(match_identity(&after, &id).unwrap().main_pid, 205);
+        // an app is found again by bundle id even when its binary moved
+        let app = identity_of(&grp("us.zoom.xos", "zoom.us", 1, "/A/zoom"));
+        let gs = vec![grp("us.zoom.xos", "zoom.us", 9, "/B/zoom")];
+        assert_eq!(match_identity(&gs, &app).unwrap().main_pid, 9);
+        assert!(match_identity(&[grp("", "other", 3, "/usr/bin/other")], &id).is_none());
     }
 
     #[test]

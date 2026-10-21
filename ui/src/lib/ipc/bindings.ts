@@ -172,7 +172,9 @@ export type AppEvent = { type: "stt"; data: SttEvent } | { type: "session"; data
  */
 { type: "stt_loading"; data: boolean } | 
 /**  Model download / verification progress. */
-{ type: "engine_progress"; data: EngineProgress };
+{ type: "engine_progress"; data: EngineProgress } | 
+/**  The captured app's audio vanished and could not be re-acquired in ~3 s (S5), or came back. */
+{ type: "audio_notice"; data: AudioNotice };
 
 export type AskRequest = {
 	template_id: string,
@@ -191,6 +193,8 @@ export type AudioLevel = {
 	me: number | null,
 	sys: number | null,
 };
+
+export type AudioNotice = "target_lost" | "target_restored";
 
 export type AudioSettings = {
 	/**  Default system source; `None` = ask / whole system. */

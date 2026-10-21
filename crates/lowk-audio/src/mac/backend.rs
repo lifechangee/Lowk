@@ -109,6 +109,8 @@ struct Supervisor {
     watchdog_trips: u32,
     target_gone_since: Option<Instant>,
     target_lost_sent: bool,
+    /// Who the App target is, remembered at first resolve (S5).
+    identity: Option<procs::Identity>,
     out: Option<OutInfo>,
     mic_zero_checked: bool,
     sys_perm_reported: bool,
@@ -149,6 +151,7 @@ impl Supervisor {
             watchdog_trips: 0,
             target_gone_since: None,
             target_lost_sent: false,
+            identity: None,
             out: devices::default_output(),
             mic_zero_checked: false,
             sys_perm_reported: false,
@@ -255,10 +258,11 @@ impl Supervisor {
         }
     }
 
-    fn resolve_target(&self) -> Result<(TapTarget, Vec<u32>)> {
+    fn resolve_target(&mut self) -> Result<(TapTarget, Vec<u32>)> {
         match self.cfg.system.as_ref() {
             Some(Target::App(id)) => {
-                let g: Group = procs::resolve_app(id)?;
+                let g: Group = procs::resolve_app_or_identity(id, self.identity.as_ref())?;
+                self.identity = Some(procs::identity_of(&g));
                 let objs = g.objs();
                 Ok((TapTarget::Procs(objs.clone()), objs))
             }
@@ -271,11 +275,11 @@ impl Supervisor {
 
     fn start_tap(&mut self) -> Result<()> {
         self.last_tap_try = Instant::now();
-        let Some(w) = self.sys_w.as_ref() else {
+        if self.sys_w.is_none() {
             return Ok(());
-        };
+        }
         let (target, objs) = self.resolve_target()?;
-        let ring = w.new_ring(96_000);
+        let ring = self.sys_w.as_ref().expect("checked").new_ring(96_000);
         match tap::start_tap(&target, ring) {
             Ok(t) => {
                 self.tap = Some(t);
@@ -384,8 +388,15 @@ impl Supervisor {
 
         // ---- target membership
         match self.cfg.system.clone() {
-            Some(Target::App(id)) => match procs::resolve_app(&id) {
+            Some(Target::App(id)) => match procs::resolve_app_or_identity(&id, self.identity.as_ref()) {
                 Ok(g) => {
+                    if self.target_lost_sent || self.target_gone_since.is_some() {
+                        tracing::info!(name = %g.name, "capture target re-acquired");
+                        if self.target_lost_sent {
+                            self.emit(AudioEvent::TargetRestored);
+                        }
+                    }
+                    self.identity = Some(procs::identity_of(&g));
                     self.target_gone_since = None;
                     self.target_lost_sent = false;
                     let objs = g.objs();
@@ -458,7 +469,9 @@ impl Supervisor {
 
     fn target_active(&self) -> bool {
         match self.cfg.system.as_ref() {
-            Some(Target::App(id)) => procs::resolve_app(id).map(|g| g.any_output()).unwrap_or(false),
+            Some(Target::App(id)) => procs::resolve_app_or_identity(id, self.identity.as_ref())
+                .map(|g| g.any_output())
+                .unwrap_or(false),
             _ => procs::system_active(),
         }
     }

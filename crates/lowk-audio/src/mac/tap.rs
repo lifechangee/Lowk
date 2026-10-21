@@ -18,6 +18,17 @@ struct Ctx {
 const CHUNK: usize = 512;
 const MAX_BUFS: usize = 8;
 
+/// Capture time of a buffer's first sample on the process monotonic clock, from the HAL host
+/// times. The HAL lag (`deliver - capture`) is only trusted up to [`MAX_HAL_LAG_NS`]: a stale or
+/// garbage `host_time` (device start, aggregate re-clock) used to push every frame to ~0, which
+/// stamped lines `[00:00:00]` for the whole call (S6).
+pub(crate) fn capture_start_mono(deliver_mono: u64, deliver_host: u64, cap_host: u64) -> u64 {
+    let lag = deliver_host.saturating_sub(cap_host);
+    let lag = if lag > MAX_HAL_LAG_NS { 0 } else { lag };
+    deliver_mono.saturating_sub(lag)
+}
+const MAX_HAL_LAG_NS: u64 = 1_000_000_000;
+
 extern "C" fn io_proc(
     _dev: ca::Device,
     _now: &cat::AudioTimeStamp,
@@ -40,7 +51,7 @@ extern "C" fn io_proc(
     } else {
         deliver_host
     };
-    let first_mono = deliver_mono.saturating_sub(deliver_host.saturating_sub(cap_host));
+    let first_mono = capture_start_mono(deliver_mono, deliver_host, cap_host);
 
     // `buffers` is a flexible array: walk it by pointer.
     // SAFETY: Core Audio guarantees `number_buffers` valid AudioBuffer entries after the header.
@@ -293,5 +304,26 @@ mod tests {
     fn stale_ids_are_filtered_against_live_list() {
         assert_eq!(sanitize_ids(&[3, 9, 12], Some(&[3, 12, 40])), vec![3, 12]);
         assert!(sanitize_ids(&[9], Some(&[])).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod s6_tests {
+    use super::*;
+
+    #[test]
+    fn s6_capture_time_ignores_garbage_host_times() {
+        // normal: buffer captured 20 ms before delivery
+        assert_eq!(
+            capture_start_mono(10_000_000_000, 500_000_000, 480_000_000),
+            9_980_000_000
+        );
+        // stale host time (device start, hours ago): never collapse to ~0
+        assert_eq!(
+            capture_start_mono(3_000_000_000, 90_000_000_000_000, 1),
+            3_000_000_000
+        );
+        // capture "in the future": no negative lag
+        assert_eq!(capture_start_mono(5_000_000_000, 100, 200), 5_000_000_000);
     }
 }

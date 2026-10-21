@@ -37,6 +37,7 @@ fn payload(ev: &AppEvent) -> Value {
         AppEvent::SttError(e) => v(serde_json::to_value(e)),
         AppEvent::SttLoading(l) => json!({ "loading": l }),
         AppEvent::EngineProgress(e) => v(serde_json::to_value(e)),
+        AppEvent::AudioNotice(k) => json!({ "kind": k }),
     }
 }
 

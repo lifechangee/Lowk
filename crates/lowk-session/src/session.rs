@@ -2,6 +2,7 @@
 //! (Idle -> Starting -> Recording <-> Paused -> Stopping -> Idle).
 use crate::bus::EventBus;
 use crate::deps::{CallRecorder, HintRequest, SessionDeps};
+use crate::echo::EchoGuard;
 use crate::qa::{ClosedAnswer, QaOutput, QaTracker};
 use crate::replay::{rebase, Pacer, ReplayItem, ReplayKind, ReplaySource};
 use crate::transcript::{Applied, TranscriptBuf};
@@ -49,6 +50,8 @@ struct Core {
     clock: Option<SessionClock>,
     transcript: TranscriptBuf,
     qa: QaTracker,
+    /// S4: drops Me speech that is only the speakers' echo of System speech.
+    echo: EchoGuard,
     recorder: Option<Box<dyn CallRecorder>>,
     capture: Option<Box<dyn CaptureHandle>>,
     engines: Option<Engines>,
@@ -84,6 +87,7 @@ impl Core {
             clock: None,
             transcript: TranscriptBuf::default(),
             qa: QaTracker::default(),
+            echo: EchoGuard::default(),
             recorder: None,
             capture: None,
             engines: None,
@@ -237,6 +241,12 @@ impl Session {
     #[doc(hidden)]
     pub fn inject_stt(&self, ev: SttEvent) {
         self.inner.ingest(ev);
+    }
+
+    /// Like [`Session::inject_stt`] but through the live-engine path (echo guard, correction).
+    #[doc(hidden)]
+    pub fn inject_engine_stt(&self, ev: SttEvent) {
+        self.inner.ingest_inner(ev, true);
     }
 
     pub fn qa_records(&self) -> Vec<QaRecord> {
@@ -660,6 +670,18 @@ impl Inner {
                     i.bus.emit(AppEvent::Level(AudioLevel { me, sys }));
                 }
             }
+            AudioEvent::TargetLost => {
+                tracing::warn!("audio target lost and not re-acquired within 3 s");
+                if let Some(i) = weak.upgrade() {
+                    i.bus.emit(AppEvent::AudioNotice(AudioNotice::TargetLost));
+                }
+            }
+            AudioEvent::TargetRestored => {
+                tracing::info!("audio target restored");
+                if let Some(i) = weak.upgrade() {
+                    i.bus.emit(AppEvent::AudioNotice(AudioNotice::TargetRestored));
+                }
+            }
             other => tracing::warn!(?other, "audio event"),
         });
         let handle = self.deps.audio.lock().unwrap().start(
@@ -782,7 +804,12 @@ impl Inner {
     /// An STT event; `from_engine` finals of local engines are queued for background
     /// correction (their journal write waits for the better text, but the UI and Ask
     /// see the live text at once).
-    fn ingest_inner(&self, ev: SttEvent, from_engine: bool) {
+    fn ingest_inner(&self, mut ev: SttEvent, from_engine: bool) {
+        // S1: one choke point for every engine (and the demo feed): no «�», no control characters.
+        ev.text = lowk_types::text::clean_speech(&ev.text);
+        if ev.text.is_empty() {
+            return;
+        }
         let mut out = Out::default();
         let mut job = None;
         let corr;
@@ -792,6 +819,21 @@ impl Inner {
                 return;
             }
             let Some(clock) = c.clock else { return };
+            if from_engine && !echo_guard_off() {
+                c.echo.note_system(&ev);
+                match c.echo.filter_me(&ev) {
+                    Some(kept) => {
+                        if kept.text != ev.text {
+                            tracing::info!(utt = ev.utt, kind = ?ev.kind, "echo guard trimmed Me speech");
+                        }
+                        ev = kept;
+                    }
+                    None => {
+                        tracing::info!(utt = ev.utt, kind = ?ev.kind, chars = ev.text.chars().count(), "echo guard dropped Me speech");
+                        return;
+                    }
+                }
+            }
             if c.transcript.apply(&ev, &clock) == Applied::Stale {
                 return;
             }
@@ -961,6 +1003,12 @@ impl Inner {
             self.demo_done.store(true, Ordering::SeqCst);
         }
     }
+}
+
+/// Diagnostics for measuring AEC alone: `LOWK_ECHO_GUARD=off` bypasses the transcript-level guard.
+fn echo_guard_off() -> bool {
+    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *OFF.get_or_init(|| std::env::var("LOWK_ECHO_GUARD").is_ok_and(|v| v == "off"))
 }
 
 fn wall_ms() -> i64 {

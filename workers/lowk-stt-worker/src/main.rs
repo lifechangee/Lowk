@@ -33,6 +33,41 @@ enum Msg {
     Utt { id: u64, lang: String, pcm: Vec<f32> },
 }
 
+/// S1: drops U+FFFD (a token boundary inside a multi-byte letter) and control characters.
+fn clean(s: &str) -> String {
+    s.chars()
+        .filter(|c| *c != '\u{FFFD}' && (!c.is_control() || c.is_whitespace()))
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Letters the user's languages cannot contain (S3: language drift). Ukrainian/Belarusian-only
+/// Cyrillic letters always count; accented Latin (Finnish «ä», French «é», ...) counts unless the
+/// user speaks a language that uses it (`latin_ext`).
+fn has_foreign_letters(s: &str, latin_ext: bool) -> bool {
+    s.chars().any(|c| {
+        matches!(c, 'і' | 'ї' | 'є' | 'ґ' | 'І' | 'Ї' | 'Є' | 'Ґ' | 'ў' | 'Ў')
+            || (!latin_ext && c.is_alphabetic() && !c.is_ascii() && !('\u{0400}'..='\u{04FF}').contains(&c))
+    })
+}
+
+/// Cheap Russian look-alike for text shown while an utterance is still running.
+fn to_russian_letters(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'і' | 'ї' | 'ў' => 'и',
+            'І' | 'Ї' => 'И',
+            'є' => 'е',
+            'Є' => 'Е',
+            'ґ' => 'г',
+            'Ґ' => 'Г',
+            other => other,
+        })
+        .collect()
+}
+
 fn emit(v: Value) {
     let mut o = std::io::stdout().lock();
     let _ = writeln!(o, "{v}");
@@ -161,6 +196,15 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
     let chunk_ms: usize = arg(a, "--chunk-ms").and_then(|s| s.parse().ok()).unwrap_or(160);
     let hang: u32 = arg(a, "--hang-ms").and_then(|s| s.parse::<u32>().ok()).unwrap_or(480) / chunk_ms as u32;
     let max_utt_ns: u64 = arg(a, "--max-utt-s").and_then(|s| s.parse::<u64>().ok()).unwrap_or(25) * 1_000_000_000;
+    // S3: languages the user speaks. Auto language detection drifts into Ukrainian on Russian speech;
+    // when Russian is allowed and Ukrainian is not, such an utterance is decoded again with the ru-RU prompt.
+    let allowed: Vec<String> = arg(a, "--allowed")
+        .map(|v| v.split(',').map(|x| x.trim().to_lowercase()).filter(|x| !x.is_empty()).collect())
+        .unwrap_or_default();
+    let latin_ext = allowed
+        .iter()
+        .any(|l| matches!(l.as_str(), "de" | "fr" | "es" | "it" | "pt" | "nl" | "tr" | "pl" | "cs" | "sv"));
+    let rescue_ru = lang == "auto" && allowed.iter().any(|l| l == "ru") && !allowed.iter().any(|l| l == "uk");
     let thr: f32 = arg(a, "--vad-threshold").and_then(|s| s.parse().ok()).unwrap_or(0.5);
 
     let asr = Model::load(&model)?;
@@ -179,6 +223,10 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
         family: Some(StreamExtension::ParakeetStream(ParakeetStreamOptions {
             att_context_right: Some(right),
         })),
+        ..Default::default()
+    };
+    let run_ru = RunOptions {
+        language: Some("ru-RU".into()),
         ..Default::default()
     };
     // Warm-up: compiles the Metal pipelines so the first utterance is not billed for it.
@@ -232,15 +280,22 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
         first.push(c);
         let mut silent = 0u32;
         let mut stop_all = false;
+        let mut kept: Vec<Chunk> = if rescue_ru { first.iter().map(|c| Chunk { t0: c.t0, t1: c.t1, pcm: c.pcm.clone() }).collect() } else { vec![] };
         let mut todo: VecDeque<Chunk> = first.into();
         loop {
             while let Some(c) = todo.pop_front() {
                 t_end = c.t1;
+                if rescue_ru && !kept.iter().any(|k| k.t0 == c.t0) {
+                    kept.push(Chunk { t0: c.t0, t1: c.t1, pcm: c.pcm.clone() });
+                }
                 let ta = std::time::Instant::now();
                 let u = stream.feed(&c.pcm)?;
                 asr_t += ta.elapsed().as_secs_f64();
                 if u.result_changed {
-                    let t = stream.text().display().trim().to_owned();
+                    let mut t = clean(&stream.text().display());
+                    if rescue_ru && has_foreign_letters(&t, latin_ext) {
+                        t = to_russian_letters(&t);
+                    }
                     if !t.is_empty() && t != last {
                         last = t.clone();
                         emit(json!({"ev":"stt","kind":"partial","utt":utt,"rev":rev,"text":t,
@@ -271,6 +326,9 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
                         // feed the trailing silence too, then close
                         while let Some(c) = todo.pop_front() {
                             t_end = c.t1;
+                            if rescue_ru && !kept.iter().any(|k| k.t0 == c.t0) {
+                                kept.push(Chunk { t0: c.t0, t1: c.t1, pcm: c.pcm.clone() });
+                            }
                             stream.feed(&c.pcm)?;
                         }
                         break;
@@ -284,8 +342,19 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
             }
         }
         stream.finalize()?;
-        let t = stream.text().full.trim().to_owned();
+        let mut t = clean(&stream.text().full);
         drop(stream);
+        if rescue_ru && has_foreign_letters(&t, latin_ext) {
+            // S3: drifted into Ukrainian letters: decode the same audio again, Russian prompt.
+            let mut again = String::new();
+            if let Ok(mut s2) = asr_s.stream(&run_ru, &so) {
+                let ok = kept.iter().all(|c| s2.feed(&c.pcm).is_ok());
+                if ok && s2.finalize().is_ok() {
+                    again = clean(&s2.text().full);
+                }
+            }
+            t = if again.is_empty() { to_russian_letters(&t) } else { again };
+        }
         if !t.is_empty() {
             emit(json!({"ev":"stt","kind":"final","utt":utt,"rev":rev,"text":t,
                         "t_start_ns":t_start,"t_audio_end_ns":t_end}));
@@ -379,5 +448,26 @@ fn main() {
     if let Err(e) = r {
         emit(json!({"ev":"error","message":e.to_string(),"fatal":true}));
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn s3_ukrainian_letters_are_detected_and_mapped_to_russian() {
+        assert!(has_foreign_letters("Підбегум от Sales", false));
+        assert!(has_foreign_letters("З фідбиком", true));
+        assert!(!has_foreign_letters("Подведём итоги от Sales, ёжик", false));
+        assert!(has_foreign_letters("Esimerkiksi on vähän", false));
+        assert!(!has_foreign_letters("Schöne Grüße", true));
+        assert_eq!(to_russian_letters("Підбегум З фідбиком"), "Пидбегум З фидбиком");
+    }
+
+    #[test]
+    fn s1_clean_drops_replacement_and_control_characters() {
+        assert_eq!(clean("А, о\u{FFFD}кей.  Расскажи\u{7} ко\u{FFFD}"), "А, окей. Расскажи ко");
+        assert_eq!(clean("  \u{FFFD} "), "");
     }
 }

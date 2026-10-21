@@ -58,6 +58,7 @@ export const overlay = {
   'overlay.toast.shot': 'Скриншот добавлен',
   'overlay.sttLoading': 'Загружаем модель распознавания… Звук не пропадёт.',
   'overlay.sttRestarting': 'Перезапуск распознавания…',
+  'overlay.audioLost': 'Звук приложения пропал. Ищу снова…',
   'overlay.sttFailed': 'Распознавание остановилось. Проверьте Настройки > Провайдеры.',
   'overlay.waiting': 'Слушаю…',
   'overlay.answer.empty': 'Нажмите {key}, чтобы спросить ИИ',
