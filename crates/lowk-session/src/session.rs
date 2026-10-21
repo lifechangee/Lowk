@@ -464,6 +464,10 @@ impl Session {
                 budget_tokens: 2000,
                 exclude: vec![],
                 cloud_provider: false,
+                // M3 turns these on when the Ask flow adopts `retrieve_pack`.
+                pinned_budget_tokens: 0,
+                include_folder_context: false,
+                include_previous_calls: false,
             })
             .unwrap_or_default();
         inner.qa_begin(qa_id, req_id, &question, now_mono_ns());

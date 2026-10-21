@@ -35,6 +35,15 @@ pub trait CursorSource: Send + Sync {
 /// Implemented by `lowk-index`.
 pub trait Retriever: Send + Sync {
     fn retrieve(&self, q: &RetrievalQuery) -> Result<Vec<ContextChunk>>;
+
+    /// Full context for one Ask: folder instructions, pinned documents, relevant chunks of
+    /// documents and previous calls (M2). The default wraps `retrieve` (no folder context).
+    fn retrieve_pack(&self, q: &RetrievalQuery) -> Result<ContextPack> {
+        Ok(ContextPack {
+            relevant: self.retrieve(q)?,
+            ..ContextPack::default()
+        })
+    }
 }
 
 /// Implemented by `lowk-stealth`. All methods are safe to call from any

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-doc-get-md"
+description = "Enables the doc_get_md command without any pre-configured scope."
+commands.allow = ["doc_get_md"]
+
+[[permission]]
+identifier = "deny-doc-get-md"
+description = "Denies the doc_get_md command without any pre-configured scope."
+commands.deny = ["doc_get_md"]

@@ -31,6 +31,12 @@ pub enum AppEvent {
     EngineProgress(EngineProgress),
     /// The captured app's audio vanished and could not be re-acquired in ~3 s (S5), or came back.
     AudioNotice(AudioNotice),
+    /// A document moved through ingest (`doc://progress`).
+    Ingest(IngestProgress),
+    /// Index counters / semantic state changed (`index://status`).
+    Index(IndexStatus),
+    /// Post-call summary streaming (`summary://event`).
+    Summary(SummaryEvent),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -51,6 +57,7 @@ impl AppEvent {
             AppEvent::Llm(LlmEvent::Delta { .. }) => LLM_DELTA,
             AppEvent::Llm(LlmEvent::Done { .. }) => LLM_DONE,
             AppEvent::Llm(LlmEvent::Error { .. }) => LLM_ERROR,
+            AppEvent::Llm(LlmEvent::Sources { .. }) => LLM_SOURCES,
             AppEvent::Overlay(OverlayEvent::Mode(_)) => OVERLAY_MODE,
             AppEvent::Overlay(OverlayEvent::Tone(_)) => OVERLAY_TONE,
             AppEvent::Stealth(_) => STEALTH_STATUS,
@@ -64,6 +71,9 @@ impl AppEvent {
             AppEvent::SttLoading(_) => STT_LOADING,
             AppEvent::EngineProgress(_) => ENGINE_PROGRESS,
             AppEvent::AudioNotice(_) => AUDIO_NOTICE,
+            AppEvent::Ingest(_) => DOC_PROGRESS,
+            AppEvent::Index(_) => INDEX_STATUS,
+            AppEvent::Summary(_) => SUMMARY_EVENT,
         }
     }
 }

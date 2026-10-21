@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-llm-summarize-cancel"
+description = "Enables the llm_summarize_cancel command without any pre-configured scope."
+commands.allow = ["llm_summarize_cancel"]
+
+[[permission]]
+identifier = "deny-llm-summarize-cancel"
+description = "Denies the llm_summarize_cancel command without any pre-configured scope."
+commands.deny = ["llm_summarize_cancel"]

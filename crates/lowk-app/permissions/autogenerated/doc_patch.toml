@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-doc-patch"
+description = "Enables the doc_patch command without any pre-configured scope."
+commands.allow = ["doc_patch"]
+
+[[permission]]
+identifier = "deny-doc-patch"
+description = "Denies the doc_patch command without any pre-configured scope."
+commands.deny = ["doc_patch"]

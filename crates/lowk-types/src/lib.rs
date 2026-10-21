@@ -8,6 +8,7 @@
 //! `Noop*` helpers live in [`fakes`] so dependents can merge independently.
 
 pub mod bind;
+pub mod docs;
 pub mod error;
 pub mod event;
 pub mod fakes;
@@ -18,6 +19,7 @@ pub mod llm;
 pub mod overlay;
 pub mod perm;
 pub mod qa;
+pub mod search;
 pub mod session;
 pub mod settings;
 pub mod store;
@@ -27,6 +29,7 @@ pub mod time;
 pub mod traits;
 
 pub use bind::*;
+pub use docs::*;
 pub use error::*;
 pub use event::*;
 pub use hw::*;
@@ -35,6 +38,7 @@ pub use llm::*;
 pub use overlay::*;
 pub use perm::*;
 pub use qa::*;
+pub use search::*;
 pub use session::*;
 pub use settings::*;
 pub use store::*;
@@ -82,6 +86,31 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<SourceInfo>();
     types.register_mut::<SourceKind>();
     types.register_mut::<DeviceInfo>();
+    // M2 contracts (docs/M2-PLAN.md)
+    types.register_mut::<Document>();
+    types.register_mut::<DocKind>();
+    types.register_mut::<IngestStatus>();
+    types.register_mut::<IngestWarning>();
+    types.register_mut::<NewDocument>();
+    types.register_mut::<DocPatch>();
+    types.register_mut::<IngestProgress>();
+    types.register_mut::<PinnedUsage>();
+    types.register_mut::<SearchQuery>();
+    types.register_mut::<SearchFilters>();
+    types.register_mut::<SearchResults>();
+    types.register_mut::<SearchHit>();
+    types.register_mut::<SourceRef>();
+    types.register_mut::<IndexStatus>();
+    types.register_mut::<EmbedderInfo>();
+    types.register_mut::<ContextPack>();
+    types.register_mut::<ReindexScope>();
+    types.register_mut::<IndexItem>();
+    types.register_mut::<IndexFolder>();
+    types.register_mut::<LlmEvent>();
+    types.register_mut::<Summary>();
+    types.register_mut::<SummaryEvent>();
+    types.register_mut::<TagSuggestion>();
+    types.register_mut::<LlmProviderStatus>();
 }
 
 /// Tauri event names (backend -> UI), one per [`AppEvent`] variant plus the
@@ -103,6 +132,14 @@ pub mod events {
     pub const LLM_DELTA: &str = "llm://delta";
     pub const LLM_DONE: &str = "llm://done";
     pub const LLM_ERROR: &str = "llm://error";
+    /// Payload `{ req_id, sources: SourceRef[], withheld }`.
+    pub const LLM_SOURCES: &str = "llm://sources";
+    /// Document ingest progress (`IngestProgress`), main window only.
+    pub const DOC_PROGRESS: &str = "doc://progress";
+    /// `IndexStatus`, main window only.
+    pub const INDEX_STATUS: &str = "index://status";
+    /// `SummaryEvent`, main window only.
+    pub const SUMMARY_EVENT: &str = "summary://event";
     pub const OVERLAY_MODE: &str = "overlay://mode";
     pub const OVERLAY_TONE: &str = "overlay://tone";
     pub const STEALTH_STATUS: &str = "stealth://status";

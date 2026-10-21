@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-llm-provider-status"
+description = "Enables the llm_provider_status command without any pre-configured scope."
+commands.allow = ["llm_provider_status"]
+
+[[permission]]
+identifier = "deny-llm-provider-status"
+description = "Denies the llm_provider_status command without any pre-configured scope."
+commands.deny = ["llm_provider_status"]

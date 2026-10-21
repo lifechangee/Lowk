@@ -138,6 +138,54 @@ export const commands = {
 	llmSetTemplate: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("llm_set_template", { id })),
 	captureScreenshot: () => typedError<number, AppError>(__TAURI_INVOKE("capture_screenshot")),
 	queueClear: () => typedError<null, AppError>(__TAURI_INVOKE("queue_clear")),
+	/**  Documents of a folder (not trashed). */
+	docList: (folder: FolderRef) => typedError<Document[], AppError>(__TAURI_INVOKE("doc_list", { folder })),
+	/**  One document. */
+	docGet: (id: Ulid) => typedError<Document, AppError>(__TAURI_INVOKE("doc_get", { id })),
+	/**  Imports files (drop or dialog). Returns the queued documents at once; conversion runs in the background and reports `doc://progress`. */
+	docImport: (files: NewDocument[]) => typedError<Document[], AppError>(__TAURI_INVOKE("doc_import", { files })),
+	/**  Converted Markdown (editor, viewer). */
+	docGetMd: (id: Ulid) => typedError<string, AppError>(__TAURI_INVOKE("doc_get_md", { id })),
+	/**  Saves the editor text; re-index follows. */
+	docSaveMd: (id: Ulid, md: string) => typedError<Document, AppError>(__TAURI_INVOKE("doc_save_md", { id, md })),
+	/**  Title, tags, pinned, move to another folder. */
+	docPatch: (id: Ulid, patch: DocPatch) => typedError<Document, AppError>(__TAURI_INVOKE("doc_patch", { id, patch })),
+	/**  Moves to the Trash (restorable). */
+	docDelete: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("doc_delete", { id })),
+	/**  Restores from the Trash. */
+	docRestore: (id: Ulid) => typedError<Document, AppError>(__TAURI_INVOKE("doc_restore", { id })),
+	/**  Re-runs a failed or cancelled conversion. */
+	docRetry: (id: Ulid) => typedError<Document, AppError>(__TAURI_INVOKE("doc_retry", { id })),
+	/**  Cancels a queued or running conversion. */
+	docCancel: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("doc_cancel", { id })),
+	/**  Pinned-documents budget meter of a folder. */
+	docsPinnedUsage: (folder: FolderRef) => typedError<PinnedUsage, AppError>(__TAURI_INVOKE("docs_pinned_usage", { folder })),
+	/**  One search over calls, documents and screenshots. */
+	searchQuery: (query: SearchQuery) => typedError<SearchResults, AppError>(__TAURI_INVOKE("search_query", { query })),
+	/**  Counters and semantic state. */
+	indexStatus: () => typedError<IndexStatus, AppError>(__TAURI_INVOKE("index_status")),
+	/**  Queues a (re)index; the index is always rebuildable from the vault. */
+	indexRebuild: (scope: ReindexScope) => typedError<null, AppError>(__TAURI_INVOKE("index_rebuild", { scope })),
+	/**  Local embedder model state. */
+	embedderInfo: () => typedError<EmbedderInfo, AppError>(__TAURI_INVOKE("embedder_info")),
+	/**  Downloads the embedder (progress via `engine://progress`). */
+	embedderInstall: () => typedError<null, AppError>(__TAURI_INVOKE("embedder_install")),
+	/**  Cancels the download. */
+	embedderInstallCancel: () => typedError<null, AppError>(__TAURI_INVOKE("embedder_install_cancel")),
+	/**  Starts the post-call summary (streams `summary://event`; Done also writes `## Summary`). */
+	llmSummarize: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("llm_summarize", { call })),
+	/**  Cancels a running summary. */
+	llmSummarizeCancel: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("llm_summarize_cancel", { call })),
+	/**  AI tag suggestions for a call; the user confirms, then `call_set_tags`. */
+	llmSuggestTags: (call: Ulid) => typedError<TagSuggestion[], AppError>(__TAURI_INVOKE("llm_suggest_tags", { call })),
+	/**  Provider, pinned model/provider and whether the BYOK key is present. */
+	llmProviderStatus: () => typedError<LlmProviderStatus, AppError>(__TAURI_INVOKE("llm_provider_status")),
+	/**  Cheap authenticated request to verify the OpenRouter key (`ApiKeyMissing`, `Network`, `LlmProvider`). */
+	llmKeyTest: () => typedError<null, AppError>(__TAURI_INVOKE("llm_key_test")),
+	/**  Writes a zip of the folder (calls, documents, instructions; no `.lowk/`). Returns files written. */
+	folderExport: (id: Ulid, dest: string) => typedError<number, AppError>(__TAURI_INVOKE("folder_export", { id, dest })),
+	/**  Imports a folder/vault zip (ids reassigned on collision, never overwrites). */
+	folderImport: (src: string) => typedError<ImportSummary, AppError>(__TAURI_INVOKE("folder_import", { src })),
 };
 
 /* Types */
@@ -178,7 +226,13 @@ export type AppEvent_Deserialize = { type: "stt"; data: SttEvent } | { type: "se
 /**  Model download / verification progress. */
 { type: "engine_progress"; data: EngineProgress } | 
 /**  The captured app's audio vanished and could not be re-acquired in ~3 s (S5), or came back. */
-{ type: "audio_notice"; data: AudioNotice };
+{ type: "audio_notice"; data: AudioNotice } | 
+/**  A document moved through ingest (`doc://progress`). */
+{ type: "ingest"; data: IngestProgress } | 
+/**  Index counters / semantic state changed (`index://status`). */
+{ type: "index"; data: IndexStatus } | 
+/**  Post-call summary streaming (`summary://event`). */
+{ type: "summary"; data: SummaryEvent };
 
 export type AppEvent_Serialize = { type: "stt"; data: SttEvent } | { type: "session"; data: SessionState } | { type: "llm"; data: LlmEvent } | { type: "overlay"; data: OverlayEvent } | { type: "stealth"; data: StealthStatus } | { type: "bind"; data: BindEvent_Serialize } | { type: "perm"; data: {
 	kind: PermKind,
@@ -196,7 +250,13 @@ export type AppEvent_Serialize = { type: "stt"; data: SttEvent } | { type: "sess
 /**  Model download / verification progress. */
 { type: "engine_progress"; data: EngineProgress } | 
 /**  The captured app's audio vanished and could not be re-acquired in ~3 s (S5), or came back. */
-{ type: "audio_notice"; data: AudioNotice };
+{ type: "audio_notice"; data: AudioNotice } | 
+/**  A document moved through ingest (`doc://progress`). */
+{ type: "ingest"; data: IngestProgress } | 
+/**  Index counters / semantic state changed (`index://status`). */
+{ type: "index"; data: IndexStatus } | 
+/**  Post-call summary streaming (`summary://event`). */
+{ type: "summary"; data: SummaryEvent };
 
 export type AskRequest = {
 	template_id: string,
@@ -382,12 +442,126 @@ export type ContextChunk = {
 	heading_path: string[],
 	page: number | null,
 	score: number | null,
+	/**  Clickable origin shown under the answer. */
+	source_ref: SourceRef,
+	pinned: boolean,
+	/**  Rough token count (budget packing). */
+	tokens: number,
+};
+
+/**
+ *  What `Retriever::retrieve_pack` returns for the Ask flow, already deduplicated and packed
+ *  into the budgets of the query.
+ */
+export type ContextPack = {
+	/**  Folder instructions (always included, first turn only; the session decides). */
+	instructions: ContextChunk | null,
+	/**  Pinned documents of the folder, within `pinned_budget_tokens`. */
+	pinned: ContextChunk[],
+	/**  Relevant chunks from documents and previous calls of the folder. */
+	relevant: ContextChunk[],
+	/**  Chunks left out because the folder has `allow_cloud = false` (overlay shows a badge). */
+	withheld: number,
+	/**  Pinned documents that did not fit the budget. */
+	pinned_dropped: number,
 };
 
 export type DeviceInfo = {
 	id: string,
 	name: string,
 	is_default: boolean,
+};
+
+/**  What a source file is. Presentations and spreadsheets are first-class kinds. */
+export type DocKind = "pdf" | "docx" | 
+/**  PowerPoint (`.pptx`). */
+"pptx" | 
+/**  Apple Keynote (`.key`), converted through PDF. */
+"keynote" | "xlsx" | "csv" | "txt" | "md" | 
+/**  PNG/JPG/HEIC/... run through OCR. */
+"image";
+
+/**  Editable document fields (`doc_patch`); `None` = unchanged. */
+export type DocPatch = {
+	title?: string | null,
+	tags?: string[] | null,
+	pinned?: boolean | null,
+	folder?: FolderRef | null,
+};
+
+export type DocsSettings = {
+	/**  Pinned documents of a folder go to the model at most up to this many tokens. */
+	pinned_budget_tokens?: number,
+	/**
+	 *  Warn before importing files above this size (slow conversion); files are never refused
+	 *  below `max_file_mb`.
+	 */
+	warn_slow_mb?: number,
+	max_file_mb?: number,
+	/**  OCR for scanned PDFs and images. */
+	ocr?: boolean,
+	/**  Tokens the retriever may add for documents and previous calls per Ask. */
+	retrieved_budget_tokens?: number,
+};
+
+/**  A document of a folder (`Docs/<name>.md` next to the untouched original). */
+export type Document = {
+	id: Ulid,
+	folder: FolderRef,
+	title: string,
+	kind: DocKind,
+	/**  Original file name as imported. */
+	file_name: string,
+	/**  Paths relative to the vault root. */
+	md_path: string,
+	original_path: string,
+	size_bytes: number,
+	pages: number | null,
+	status: IngestStatus,
+	error: AppError | null,
+	warnings: IngestWarning[],
+	/**  Always sent to the model for calls of this folder (within the pinned budget). */
+	pinned: boolean,
+	/**  Rough token count of the converted text (for the pinned budget meter). */
+	tokens: number,
+	tags: string[],
+	/**  RFC 3339 with offset. */
+	added: string,
+	source_sha256: string,
+	/**  `converter` frontmatter value, e.g. `pdf-text`, `pdf-ocr`, `docx`. */
+	converter: string,
+	deleted: boolean,
+};
+
+/**
+ *  Which embedder is installed / downloading (`embedder_info`). Download progress arrives as
+ *  `engine://progress` with `engine == "embedder"`.
+ */
+export type EmbedderInfo = {
+	id: string,
+	name: string,
+	dim: number,
+	size_mb: number,
+	installed: boolean,
+	installing: boolean,
+	license: string,
+	license_url: string,
+};
+
+export type EmbedderMode = 
+/**  Local EmbeddingGemma (default); downloaded with the models. */
+"local" | 
+/**  OpenRouter embeddings (option; needs the OpenRouter key). */
+"cloud" | 
+/**  Keyword (FTS5) search only. */
+"off";
+
+export type EmbedderSettings = {
+	mode?: EmbedderMode,
+	/**  Local model id (`DEFAULT_EMBEDDER_ID`). */
+	model?: string,
+	/**  Cloud embedding model slug (mode = cloud). */
+	cloud_model?: string,
 };
 
 /**  Data-driven description for the engine-selection UI. */
@@ -440,7 +614,12 @@ export type EngineProgress = {
 	message: string | null,
 };
 
-export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index";
+export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index" | "doc_unsupported" | "doc_encrypted" | "doc_too_large" | "doc_empty" | "ocr_failed" | "ingest_cancelled" | "embedder_missing" | "embed_failed" | "llm_bad_response" | "archive_invalid";
+
+export type FacetCount = {
+	folder: FolderRef,
+	count: number,
+};
 
 /**  Static pre-filter result of `SttEngineFactory::fitness`. */
 export type Fitness = { kind: "recommended" } | { kind: "possible" } | { kind: "unsupported"; reason: string };
@@ -517,6 +696,85 @@ export type ImportSummary = {
 	folders_merged: number,
 };
 
+/**  Folder facts the index needs for retrieval (policy, instructions, boosts). */
+export type IndexFolder = {
+	folder: FolderRef,
+	title: string,
+	allow_cloud: boolean,
+	instructions: string,
+	tags: string[],
+};
+
+/**
+ *  What the app hands to the index for one call or document (the index never reads the vault:
+ *  feature crates do not depend on each other). Chunking happens inside `lowk-index`.
+ */
+export type IndexItem = {
+	id: Ulid,
+	kind: IndexItemKind,
+	folder: FolderRef,
+	title: string,
+	tags: string[],
+	/**  RFC 3339: call start / document added. */
+	when: string | null,
+	/**  Markdown body without frontmatter (`<!-- p:N -->` markers, `lowk-qa` / `lowk-image` callouts). */
+	md: string,
+	/**  blake3 of the whole file; unchanged hash = skip. */
+	content_hash: string,
+	pinned: boolean,
+	deleted: boolean,
+};
+
+export type IndexItemKind = "call" | "doc";
+
+/**  `index://status` payload and `index_status` result. */
+export type IndexStatus = {
+	files: number,
+	chunks: number,
+	/**  Files waiting to be (re)indexed. */
+	pending: number,
+	semantic: SemanticState,
+	embedder_model: string | null,
+	last_error: AppError | null,
+};
+
+/**  `doc://progress` payload (also used for the final `Ready` / `Failed`). */
+export type IngestProgress = {
+	doc: Ulid,
+	folder: FolderRef,
+	status: IngestStatus,
+	/**  Pages / slides / sheets done and total; 0 total = unknown. */
+	done: number,
+	total: number,
+	eta_s: number | null,
+	error: AppError | null,
+};
+
+/**
+ *  Lifecycle of an imported document. `Failed` is always shown with its error
+ *  (no silent fallbacks, no empty documents).
+ */
+export type IngestStatus = "queued" | "converting" | 
+/**  Converted; chunks are being (re)indexed. */
+"indexing" | "ready" | "failed" | "cancelled";
+
+export type IngestWarning = {
+	code: IngestWarningCode,
+	page: number | null,
+	detail: string | null,
+};
+
+/**  Non-fatal conversion findings, shown next to the document (UI translates the code). */
+export type IngestWarningCode = 
+/**  Scanned PDF: text comes from OCR. */
+"ocr_used" | "ocr_low_confidence" | 
+/**  Some pages could not be read and are marked as missing in the Markdown. */
+"pages_skipped" | "tables_flattened" | 
+/**  Slides: only text and speaker notes were taken; pictures were not read. */
+"slide_images_ignored" | 
+/**  Spreadsheet cut at the row/column limits. */
+"sheet_truncated" | "encrypted_partial" | "large_file";
+
 export type InstallPhase = "downloading" | "verifying" | "ready" | "failed";
 
 /**
@@ -526,9 +784,25 @@ export type InstallPhase = "downloading" | "verifying" | "ready" | "failed";
 export type KeyCode = string;
 
 /**  `llm://start|delta|done|error`. */
-export type LlmEvent = { type: "start"; req_id: Ulid; qa_id: Ulid } | { type: "delta"; req_id: Ulid; text: string } | { type: "done"; req_id: Ulid; truncated: boolean; usage: LlmUsage | null } | { type: "error"; req_id: Ulid; error: AppError };
+export type LlmEvent = { type: "start"; req_id: Ulid; qa_id: Ulid } | { type: "delta"; req_id: Ulid; text: string } | { type: "done"; req_id: Ulid; truncated: boolean; usage: LlmUsage | null } | { type: "error"; req_id: Ulid; error: AppError } | 
+/**
+ *  Sent once after `Start`, before the first delta: what the answer was grounded on
+ *  (deduplicated; instructions, pinned documents, documents, previous calls).
+ */
+{ type: "sources"; req_id: Ulid; sources: SourceRef[]; 
+/**  Chunks withheld by a folder's `allow_cloud = false`. */
+withheld: number };
 
 export type LlmProvider = "openrouter" | "ollama" | "lmstudio" | "llama_server" | "custom";
+
+/**  `llm_provider_status`: what Settings shows next to the key field. */
+export type LlmProviderStatus = {
+	provider: LlmProvider,
+	model: string,
+	/**  OpenRouter upstream provider the model is pinned to (after the latency probe). */
+	pinned_provider: string | null,
+	key_present: boolean,
+};
 
 export type LlmSettings = {
 	provider?: LlmProvider,
@@ -538,6 +812,13 @@ export type LlmSettings = {
 	/**  OpenRouter `provider.data_collection = "deny"`. */
 	data_collection_deny?: boolean,
 	default_template?: string,
+	/**  Model for summary and tag suggestions (cloud); pinned version. */
+	summary_model?: string,
+	/**
+	 *  OpenRouter upstream provider to pin (`provider.order` + no fallbacks); set after the
+	 *  latency probe, `None` = not probed yet.
+	 */
+	pinned_provider?: string | null,
 };
 
 export type LlmUsage = {
@@ -578,6 +859,16 @@ export type NewCall = {
 	clock?: SessionClock | null,
 };
 
+/**  One file to import into a folder (`doc_import`). */
+export type NewDocument = {
+	folder: FolderRef,
+	/**  Absolute path on disk (drag-and-drop or the file dialog). */
+	source_path: string,
+	title: string | null,
+	pin: boolean,
+	tags: string[],
+};
+
 export type NewFolder = {
 	title: string,
 	tags: string[],
@@ -591,6 +882,8 @@ export type OnboardingSettings = {
 	done?: boolean,
 	/**  Mandatory acknowledgement of the recording-law notice (step 2). */
 	recording_notice_ack?: boolean,
+	/**  The first-run tour (6 steps) was finished or skipped; «Показать тур» resets it. */
+	tour_done?: boolean,
 };
 
 export type Os = "macos" | "windows" | "linux";
@@ -665,6 +958,14 @@ export type Phase = "down" | "up";
 
 export type PillEdge = "left" | "right" | "top" | "bottom";
 
+/**  Pinned-documents budget meter of a folder (`docs_pinned_usage`). */
+export type PinnedUsage = {
+	count: number,
+	tokens: number,
+	budget_tokens: number,
+	over_budget: boolean,
+};
+
 export type QaItem = {
 	id: string,
 	at_s: number,
@@ -712,6 +1013,18 @@ export type Recommendation = {
 	reason: RecReason,
 };
 
+/**  What a source label points at. */
+export type RefKind = "call" | "doc" | 
+/**  Screenshot of a call (OCR/caption text is what was indexed). */
+"image" | 
+/**  The folder's own instructions. */
+"instructions";
+
+/**  What to (re)index. */
+export type ReindexScope = { kind: "all" } | 
+/**  A call, a document or a folder. */
+{ kind: "item"; id: Ulid };
+
 export type RetrievalQuery = {
 	text: string,
 	scope: RetrievalScope,
@@ -721,15 +1034,77 @@ export type RetrievalQuery = {
 	exclude: string[],
 	/**  Withhold chunks from folders with `allow_cloud = false`. */
 	cloud_provider: boolean,
+	/**  Token cap for pinned documents (`Settings.docs.pinned_budget_tokens`). */
+	pinned_budget_tokens?: number,
+	/**  Include folder instructions / pinned documents in `retrieve_pack`. */
+	include_folder_context?: boolean,
+	/**  Search previous calls of the folder too (speech chunks), not only documents. */
+	include_previous_calls?: boolean,
 };
 
 /**  Where a retrieval may look. */
 export type RetrievalScope = {
 	folder: Ulid | null,
+	/**
+	 *  The call being recorded: its own transcript is never retrieved (it is sent as the
+	 *  live delta). Other calls of the folder are.
+	 */
 	call: Ulid | null,
 	tags: string[],
 	/**  Include other folders (soft boost for the same folder still applies). */
 	all_folders: boolean,
+};
+
+export type SearchFilters = {
+	folders?: FolderRef[],
+	/**  All listed tags must match. */
+	tags?: string[],
+	/**  RFC 3339 dates (inclusive); apply to call start / document added. */
+	from?: string | null,
+	to?: string | null,
+	/**  Empty = everything (speech, docs, screenshots); `Qa` is down-weighted, never excluded. */
+	kinds?: ChunkKind[],
+	include_trash?: boolean,
+};
+
+export type SearchHit = {
+	chunk_id: string,
+	kind: ChunkKind,
+	source: SourceRef,
+	folder_title: string,
+	/**
+	 *  Plain snippet; `highlights` are (start, end) UTF-16 offsets into it, so the UI can mark
+	 *  matches without parsing markup.
+	 */
+	snippet: string,
+	highlights: ([number, number])[],
+	tags: string[],
+	/**  RFC 3339: call start or document added. */
+	when: string | null,
+	score: number | null,
+};
+
+export type SearchMode = 
+/**
+ *  FTS5 + vectors fused (falls back to `Keyword` while the embedder is not ready; the
+ *  result says so in `SearchResults::mode_used`, the UI shows it).
+ */
+"hybrid" | "keyword" | "semantic";
+
+export type SearchQuery = {
+	text: string,
+	filters: SearchFilters,
+	mode: SearchMode,
+	limit: number,
+	offset: number,
+};
+
+export type SearchResults = {
+	hits: SearchHit[],
+	total: number,
+	took_ms: number,
+	mode_used: SearchMode,
+	facets: FacetCount[],
 };
 
 export type SelfTestReport = {
@@ -737,6 +1112,15 @@ export type SelfTestReport = {
 	main_visible: boolean,
 	details: string,
 };
+
+/**  State of the semantic (vector) half of the index. */
+export type SemanticState = 
+/**  Embedder mode is `off`. */
+{ state: "off" } | 
+/**  Model files are not downloaded yet. */
+{ state: "model_missing" } | 
+/**  Embedding existing chunks in the background; keyword search works meanwhile. */
+{ state: "building"; done: number; total: number } | { state: "ready" } | { state: "failed"; error: AppError };
 
 /**  Maps monotonic time to call-relative offsets and wall time. */
 export type SessionClock = {
@@ -775,6 +1159,8 @@ export type Settings_Deserialize = {
 	audio?: AudioSettings,
 	stt?: SttSettings,
 	llm?: LlmSettings,
+	embedder?: EmbedderSettings,
+	docs?: DocsSettings,
 	overlay?: OverlaySettings,
 	capture?: CaptureSettings,
 	binds?: BindSpec_Deserialize[],
@@ -791,6 +1177,8 @@ export type Settings_Serialize = {
 	audio: AudioSettings,
 	stt: SttSettings,
 	llm: LlmSettings,
+	embedder: EmbedderSettings,
+	docs: DocsSettings,
 	overlay: OverlaySettings,
 	capture: CaptureSettings,
 	binds: BindSpec_Serialize[],
@@ -830,6 +1218,25 @@ export type SourceInfo = {
 export type SourceKind = "app" | 
 /**  Everything except our own process tree. */
 "system";
+
+/**
+ *  A clickable origin of a chunk: «Spec.pdf, p. 12» or «Weekly sync, 12:45».
+ *  Clicking opens the call at `at_s`, or the document at `page` / `heading_path`.
+ */
+export type SourceRef = {
+	kind: RefKind,
+	/**  Call id (`Call`, `Image`), document id (`Doc`) or folder id (`Instructions`). */
+	id: Ulid,
+	folder: FolderRef,
+	title: string,
+	/**  Offset into the call, seconds. */
+	at_s: number | null,
+	page: number | null,
+	heading_path: string[],
+	chunk_id: string | null,
+	/**  Came from the folder's pinned documents rather than from search. */
+	pinned: boolean,
+};
 
 export type StartOpts = {
 	title: string | null,
@@ -950,6 +1357,47 @@ export type SttTier =
 "local_light" | 
 /**  Recommend cloud transcription. */
 "cloud";
+
+/**
+ *  Post-call summary: 3-5 key points, decisions, tasks, questions to me and my answers.
+ *  `md` is what is written into `## Summary` of the call file.
+ */
+export type Summary = {
+	call: Ulid,
+	key_points: string[],
+	decisions: string[],
+	tasks: SummaryTask[],
+	questions: SummaryQuestion[],
+	md: string,
+	model: string,
+	/**  RFC 3339. */
+	generated_at: string,
+};
+
+/**  `summary://event` payload (separate from `llm://*`, which belongs to the overlay). */
+export type SummaryEvent = { type: "start"; call: Ulid } | 
+/**  Streamed Markdown of the summary body. */
+{ type: "delta"; call: Ulid; text: string } | { type: "done"; call: Ulid; summary: Summary } | { type: "error"; call: Ulid; error: AppError };
+
+/**  A question put to the user and how they answered («Мой ответ»). */
+export type SummaryQuestion = {
+	question: string,
+	my_answer: string | null,
+};
+
+/**  A task from the call: who does what. */
+export type SummaryTask = {
+	who: string | null,
+	what: string,
+};
+
+export type TagSuggestion = {
+	tag: string,
+	confidence: number | null,
+	/**  Already used somewhere in the vault (preferred over inventing new tags). */
+	existing: boolean,
+	reason: string | null,
+};
 
 /**  Audio source selection types shared by audio, session and UI. */
 export type Target = 

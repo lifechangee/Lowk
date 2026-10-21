@@ -296,7 +296,10 @@ fn main_thread_run_sync_and_fakes() {
             },
             budget_tokens: 100,
             exclude: vec![],
-            cloud_provider: false
+            cloud_provider: false,
+            pinned_budget_tokens: 0,
+            include_folder_context: false,
+            include_previous_calls: false
         })
         .unwrap()
         .is_empty());
@@ -405,4 +408,121 @@ fn template_bind_roundtrips_and_old_binds_still_load() {
             .unwrap();
     assert_eq!((old.template.clone(), old.ask_template()), (None, Some("brief")));
     assert!(!old.same_slot(&b) && b.same_slot(&b.clone()));
+}
+
+#[test]
+fn m2_contracts_roundtrip() {
+    // events
+    let src = fakes::fake_source(RefKind::Doc, "Spec.pdf");
+    let ev = AppEvent::Llm(LlmEvent::Sources {
+        req_id: Ulid::new(),
+        sources: vec![src.clone()],
+        withheld: 0,
+    });
+    assert_eq!(ev.name(), events::LLM_SOURCES);
+    let j = serde_json::to_string(&ev).unwrap();
+    assert_eq!(serde_json::from_str::<AppEvent>(&j).unwrap(), ev);
+    assert_eq!(
+        AppEvent::Index(fakes::FakeSearchIndex::default().status()).name(),
+        events::INDEX_STATUS
+    );
+    // old settings.toml/json without the new groups still loads with defaults
+    let old = serde_json::json!({ "ui": { "language": "en" } });
+    let s: Settings = serde_json::from_value(old).unwrap();
+    assert_eq!(s.embedder.mode, EmbedderMode::Local);
+    assert_eq!(s.docs.pinned_budget_tokens, 6000);
+    assert_eq!(s.llm.summary_model, DEFAULT_LLM_MODEL_PINNED);
+    assert!(!s.onboarding.tour_done);
+    // documents
+    assert_eq!(DocKind::from_extension("KEY"), Some(DocKind::Keynote));
+    assert_eq!(DocKind::from_extension("rs"), None);
+    let store = fakes::FakeDocumentStore::default();
+    let d = store
+        .add_doc(&NewDocument {
+            folder: FolderRef::Unsorted,
+            source_path: "/tmp/a.pdf".into(),
+            title: None,
+            pin: true,
+            tags: vec![],
+        })
+        .unwrap();
+    assert_eq!(d.status, IngestStatus::Queued);
+    let ing = fakes::FakeIngestor
+        .convert(
+            &IngestRequest {
+                doc: d.id,
+                source_path: d.file_name.clone(),
+                kind: d.kind,
+                languages: vec![],
+                ocr: true,
+            },
+            &mut |_, _| {},
+            &|| true,
+        )
+        .unwrap();
+    assert_eq!(
+        store.save_converted(&d.id, &ing).unwrap().status,
+        IngestStatus::Indexing
+    );
+    assert_eq!(store.list_docs(&FolderRef::Unsorted).unwrap().len(), 1);
+    store.delete_doc(&d.id).unwrap();
+    assert!(store.list_docs(&FolderRef::Unsorted).unwrap().is_empty());
+    assert_eq!(
+        store
+            .add_doc(&NewDocument {
+                folder: FolderRef::Unsorted,
+                source_path: "x.rs".into(),
+                title: None,
+                pin: false,
+                tags: vec![]
+            })
+            .unwrap_err()
+            .code,
+        ErrorCode::DocUnsupported
+    );
+    // search + retrieval + llm fakes
+    let q = SearchQuery {
+        text: "ebitda".into(),
+        filters: SearchFilters::default(),
+        mode: SearchMode::Hybrid,
+        limit: 10,
+        offset: 0,
+    };
+    let r = fakes::FakeSearchIndex::default().search(&q).unwrap();
+    assert_eq!(r.hits.len(), 2);
+    assert!(!r.hits[0].highlights.is_empty());
+    let pack = fakes::FakeRetriever
+        .retrieve_pack(&RetrievalQuery {
+            text: "q".into(),
+            scope: RetrievalScope {
+                folder: None,
+                call: None,
+                tags: vec![],
+                all_folders: false,
+            },
+            budget_tokens: 100,
+            exclude: vec![],
+            cloud_provider: true,
+            pinned_budget_tokens: 100,
+            include_folder_context: true,
+            include_previous_calls: true,
+        })
+        .unwrap();
+    assert!(pack.instructions.is_some() && pack.pinned.len() == 1 && pack.relevant.len() == 1);
+    let sum = fakes::FakeLlmService
+        .summarize(
+            &SummarizeInput {
+                call: Ulid::new(),
+                title: "t".into(),
+                transcript: String::new(),
+                qa: vec![],
+                languages: vec![],
+                output_language: None,
+                folder_instructions: None,
+            },
+            &mut |_| {},
+            &|| true,
+        )
+        .unwrap();
+    assert!(!sum.key_points.is_empty());
 }

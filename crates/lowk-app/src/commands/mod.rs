@@ -1,12 +1,16 @@
 //! Command modules: one file per domain. This list is append-only, one line per
 //! command; the same names are mirrored in `build.rs` (`COMMANDS`) so Tauri
 //! generates `allow-<command>` permissions.
+pub mod ai;
 pub mod capture;
+pub mod docs;
 pub mod input;
 pub mod platform;
+pub mod search;
 pub mod session;
 pub mod settings;
 pub mod stealth;
+pub mod transfer;
 pub mod vault;
 
 macro_rules! all_commands {
@@ -84,6 +88,30 @@ macro_rules! all_commands {
             crate::commands::session::llm_set_template,
             crate::commands::capture::capture_screenshot,
             crate::commands::capture::queue_clear,
+            crate::commands::docs::doc_list,
+            crate::commands::docs::doc_get,
+            crate::commands::docs::doc_import,
+            crate::commands::docs::doc_get_md,
+            crate::commands::docs::doc_save_md,
+            crate::commands::docs::doc_patch,
+            crate::commands::docs::doc_delete,
+            crate::commands::docs::doc_restore,
+            crate::commands::docs::doc_retry,
+            crate::commands::docs::doc_cancel,
+            crate::commands::docs::docs_pinned_usage,
+            crate::commands::search::search_query,
+            crate::commands::search::index_status,
+            crate::commands::search::index_rebuild,
+            crate::commands::search::embedder_info,
+            crate::commands::search::embedder_install,
+            crate::commands::search::embedder_install_cancel,
+            crate::commands::ai::llm_summarize,
+            crate::commands::ai::llm_summarize_cancel,
+            crate::commands::ai::llm_suggest_tags,
+            crate::commands::ai::llm_provider_status,
+            crate::commands::ai::llm_key_test,
+            crate::commands::transfer::folder_export,
+            crate::commands::transfer::folder_import,
         ]
     };
 }

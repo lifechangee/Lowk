@@ -77,6 +77,26 @@ pub enum ErrorCode {
     IngestFailed,
     #[error("search index error")]
     Index,
+    #[error("unsupported document type")]
+    DocUnsupported,
+    #[error("document is encrypted or password protected")]
+    DocEncrypted,
+    #[error("document is too large")]
+    DocTooLarge,
+    #[error("no text could be extracted from the document")]
+    DocEmpty,
+    #[error("ocr failed")]
+    OcrFailed,
+    #[error("ingest cancelled")]
+    IngestCancelled,
+    #[error("embedder is not installed")]
+    EmbedderMissing,
+    #[error("embedding failed")]
+    EmbedFailed,
+    #[error("llm returned an unusable answer")]
+    LlmBadResponse,
+    #[error("archive is invalid")]
+    ArchiveInvalid,
 }
 
 /// Serializable error crossing crate and IPC boundaries.

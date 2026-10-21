@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-embedder-install-cancel"
+description = "Enables the embedder_install_cancel command without any pre-configured scope."
+commands.allow = ["embedder_install_cancel"]
+
+[[permission]]
+identifier = "deny-embedder-install-cancel"
+description = "Denies the embedder_install_cancel command without any pre-configured scope."
+commands.deny = ["embedder_install_cancel"]

@@ -15,6 +15,10 @@ pub const SETTINGS_SCHEMA_VERSION: u32 = 1;
 pub const DEFAULT_VAULT_PATH: &str = "~/Documents/Lowk";
 pub const DEFAULT_LLM_MODEL: &str = "deepseek/deepseek-v4.1-flash";
 pub const DEFAULT_OPENROUTER_URL: &str = "https://openrouter.ai/api/v1";
+/// Version- and provider-pinned default for M2/M3 cloud calls (summary, tags, Ask).
+pub const DEFAULT_LLM_MODEL_PINNED: &str = "deepseek/deepseek-v4.1-flash-1017";
+/// EmbeddingGemma GGUF used for local semantic search (about 310 MB).
+pub const DEFAULT_EMBEDDER_ID: &str = "embeddinggemma-2-q8_0";
 pub const TEMPLATE_BRIEF: &str = "brief";
 pub const TEMPLATE_COMPLEMENT: &str = "complement";
 pub const TEMPLATE_SUMMARY: &str = "summary";
@@ -29,6 +33,8 @@ pub struct Settings {
     pub audio: AudioSettings,
     pub stt: SttSettings,
     pub llm: LlmSettings,
+    pub embedder: EmbedderSettings,
+    pub docs: DocsSettings,
     pub overlay: OverlaySettings,
     pub capture: CaptureSettings,
     pub binds: Vec<BindSpec>,
@@ -54,6 +60,8 @@ impl Settings {
             audio: AudioSettings::default(),
             stt: SttSettings::default(),
             llm: LlmSettings::default(),
+            embedder: EmbedderSettings::default(),
+            docs: DocsSettings::default(),
             overlay: OverlaySettings::default(),
             capture: CaptureSettings::default(),
             binds: default_binds(os),
@@ -159,6 +167,8 @@ pub struct OnboardingSettings {
     pub done: bool,
     /// Mandatory acknowledgement of the recording-law notice (step 2).
     pub recording_notice_ack: bool,
+    /// The first-run tour (6 steps) was finished or skipped; «Показать тур» resets it.
+    pub tour_done: bool,
 }
 
 // --- vault ---------------------------------------------------------------
@@ -277,6 +287,11 @@ pub struct LlmSettings {
     /// OpenRouter `provider.data_collection = "deny"`.
     pub data_collection_deny: bool,
     pub default_template: String,
+    /// Model for summary and tag suggestions (cloud); pinned version.
+    pub summary_model: String,
+    /// OpenRouter upstream provider to pin (`provider.order` + no fallbacks); set after the
+    /// latency probe, `None` = not probed yet.
+    pub pinned_provider: Option<String>,
 }
 impl Default for LlmSettings {
     fn default() -> Self {
@@ -287,6 +302,66 @@ impl Default for LlmSettings {
             reasoning: false,
             data_collection_deny: true,
             default_template: TEMPLATE_BRIEF.into(),
+            summary_model: DEFAULT_LLM_MODEL_PINNED.into(),
+            pinned_provider: None,
+        }
+    }
+}
+
+// --- embedder and documents (M2) -------------------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum EmbedderMode {
+    /// Local EmbeddingGemma (default); downloaded with the models.
+    Local,
+    /// OpenRouter embeddings (option; needs the OpenRouter key).
+    Cloud,
+    /// Keyword (FTS5) search only.
+    Off,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(default)]
+pub struct EmbedderSettings {
+    pub mode: EmbedderMode,
+    /// Local model id (`DEFAULT_EMBEDDER_ID`).
+    pub model: String,
+    /// Cloud embedding model slug (mode = cloud).
+    pub cloud_model: String,
+}
+impl Default for EmbedderSettings {
+    fn default() -> Self {
+        Self {
+            mode: EmbedderMode::Local,
+            model: DEFAULT_EMBEDDER_ID.into(),
+            cloud_model: "google/gemini-embedding-001".into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(default)]
+pub struct DocsSettings {
+    /// Pinned documents of a folder go to the model at most up to this many tokens.
+    pub pinned_budget_tokens: u32,
+    /// Warn before importing files above this size (slow conversion); files are never refused
+    /// below `max_file_mb`.
+    pub warn_slow_mb: u32,
+    pub max_file_mb: u32,
+    /// OCR for scanned PDFs and images.
+    pub ocr: bool,
+    /// Tokens the retriever may add for documents and previous calls per Ask.
+    pub retrieved_budget_tokens: u32,
+}
+impl Default for DocsSettings {
+    fn default() -> Self {
+        Self {
+            pinned_budget_tokens: 6000,
+            warn_slow_mb: 25,
+            max_file_mb: 500,
+            ocr: true,
+            retrieved_budget_tokens: 6000,
         }
     }
 }
