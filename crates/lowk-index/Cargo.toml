@@ -1,6 +1,6 @@
 [package]
 name = "lowk-index"
-description = "Lowk: lowk-index crate (M0 stub)"
+description = "Lowk search index: SQLite FTS5 (stemmed RU+EN), flat int8 vectors, chunker, hybrid search, retrieval, embedder"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,23 @@ publish = false
 
 [dependencies]
 lowk-types.workspace = true
+lowk-platform.workspace = true
+rusqlite.workspace = true
+rust-stemmers.workspace = true
+blake3.workspace = true
+parking_lot.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+time = { workspace = true, features = ["parsing", "formatting"] }
+sha2 = "0.11"
+# HTTP(S): rustls with the pure-Rust graviola provider (same as lowk-stt; no C toolchain, no openssl).
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
+rustls-graviola = "0.4"
+ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots"] }
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true
