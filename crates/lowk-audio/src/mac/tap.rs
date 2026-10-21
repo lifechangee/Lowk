@@ -381,6 +381,9 @@ mod audible_hold {
             _ => TapTarget::System(vec![]),
         };
         let (ring, _rx) = RingIn::new(Default::default(), 48_000);
+        let _mic = std::env::var("LOWK_HOLD_MIC")
+            .ok()
+            .map(|_| start_mic(None, RingIn::new(Default::default(), 48_000).0).expect("mic"));
         let _t = start_tap(&target, ring).expect("tap");
         std::thread::sleep(std::time::Duration::from_secs(secs));
     }
