@@ -1,3 +1,5 @@
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/design/logo/final/lowk-lockup-dark.svg"><img src="docs/design/logo/final/lowk-lockup-light.svg" alt="Lowk" width="300"></picture></p>
+
 # Lowk
 
 Lowk is an open-source (AGPL-3.0-or-later) real-time call assistant for macOS and Windows: live transcription of the microphone and of a chosen app's audio, a local Markdown vault of calls and documents, and on-demand answers from an LLM shown in a stealth overlay that is hidden from many screen-share paths. No telemetry; the only automatic network call is the update check (can be turned off).

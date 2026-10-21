@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../lib/tokens.css';
   import { onMount } from 'svelte';
+  import Mark from '../lib/components/Mark.svelte';
   import Button from '../lib/components/Button.svelte';
   import Icon from '../lib/components/Icon.svelte';
   import Kbd from '../lib/components/Kbd.svelte';
@@ -72,7 +73,7 @@
   {:else}
     <div class="app" class:ld={session.phase === 'recording' && session.sttLoading}>
       <header class="tb">
-        <a class="wm" href={hrefs.home} title={tm('m.toLibrary')}><i></i><span class="lbl">{tm('app.name')}</span></a>
+        <a class="wm" href={hrefs.home} title={tm('m.toLibrary')}><Mark size={22} /><span class="lbl">{tm('app.name')}</span></a>
         <nav class="crumb" aria-label="breadcrumb">
           {#each crumbs as c, i (i)}
             {#if i > 0}<span class="s">/</span>{/if}
@@ -127,7 +128,6 @@
   .tb { position: relative; display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4); background: var(--side); border-bottom: 1px solid var(--line); min-width: 0; }
   .wm { display: inline-flex; gap: var(--s2); align-items: center; height: 32px; padding: 0 var(--s2); border-radius: var(--r); font-weight: 650; font-size: 14px; letter-spacing: -0.01em; color: var(--tx); text-decoration: none; flex: none; }
   .wm:hover { background: var(--hv); }
-  .wm i { width: 16px; height: 16px; border: 1.5px solid var(--tx2); border-radius: var(--s1); display: block; }
   .crumb { display: flex; gap: var(--s2); align-items: center; color: var(--tx2); font-size: 13px; min-width: 0; overflow: hidden; }
   .crumb a { color: var(--tx2); text-decoration: none; flex: none; max-width: 200px; }
   .crumb a:hover { color: var(--tx); }

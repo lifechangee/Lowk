@@ -1,3 +1,5 @@
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/design/logo/final/lowk-lockup-dark.svg"><img src="docs/design/logo/final/lowk-lockup-light.svg" alt="Lowk" width="300"></picture></p>
+
 # Lowk
 
 Lowk это open-source (AGPL-3.0-or-later) ассистент для созвонов под macOS и Windows: транскрипция речи в реальном времени (микрофон и звук выбранного приложения), локальное хранилище созвонов и документов в Markdown, ответы нейросети по клавише в стелс-оверлее, скрытом от многих способов демонстрации экрана. Без телеметрии; единственный автоматический сетевой запрос это проверка обновлений (отключается).

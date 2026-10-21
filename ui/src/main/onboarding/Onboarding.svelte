@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { HwInfo, UiLanguage } from '../../lib/ipc';
+  import Mark from '../../lib/components/Mark.svelte';
   import Button from '../../lib/components/Button.svelte';
   import Icon, { type IconName } from '../../lib/components/Icon.svelte';
   import OptionCard from '../../lib/components/OptionCard.svelte';
@@ -84,7 +85,7 @@
 
 <div class="win">
   <aside class="rail">
-    <div class="logo"><i></i>{tm('app.name')}</div>
+    <div class="logo"><Mark size={26} />{tm('app.name')}</div>
     <div class="steps">
       {#each names as n, i (i)}
         <button class="st" class:on={i === step} class:done={i < step} disabled={i > step} onclick={() => go(i)}>
@@ -192,7 +193,6 @@
   .win { width: 100%; height: calc(100vh / var(--z, 1)); background: var(--bg); overflow: hidden; display: grid; grid-template-columns: 256px minmax(0, 1fr); }
   .rail { background: var(--side); border-right: 1px solid var(--line); padding: var(--s8) var(--s4) var(--s6); display: flex; flex-direction: column; min-width: 0; }
   .logo { display: flex; gap: var(--s2); align-items: center; font-weight: 650; font-size: 16px; padding: 0 var(--s1) var(--s6); }
-  .logo i { width: 20px; height: 20px; border: 1.5px solid var(--tx2); border-radius: var(--r-sm); display: block; }
   .steps { flex: 1; }
   .st { all: unset; box-sizing: border-box; width: 100%; display: flex; gap: var(--s3); align-items: center; padding: var(--s2) var(--s2); border-radius: var(--r); color: var(--tx3); font-size: 13px; cursor: pointer; }
   .st:disabled { cursor: default; }
