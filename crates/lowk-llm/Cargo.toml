@@ -1,6 +1,6 @@
 [package]
 name = "lowk-llm"
-description = "Lowk: lowk-llm crate (M0 stub)"
+description = "Lowk LLM: OpenAI-compatible streaming client (OpenRouter, Ollama, LM Studio), chat ledger, prompt builder, summary and tags"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,15 @@ publish = false
 
 [dependencies]
 lowk-types.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+time = { workspace = true, features = ["formatting"] }
+
+# HTTPS uses rustls with the pure-Rust graviola provider (same setup as lowk-stt): no C
+# toolchain, no openssl. Blocking transport (ureq); the caller owns the thread.
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
+rustls-graviola = "0.4"
+ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots"] }
 
 [lints]
 workspace = true
