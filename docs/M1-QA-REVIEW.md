@@ -94,3 +94,4 @@ With the call coming out of the built-in speakers at 19 % volume, System audio *
 
 ### Not covered
 * Discord/Zoom/YouTube real apps; headset case; a second run of the echo measurement with different volumes.
+- CRASH (fixed 2026-10-21): bundled Lowk.app had no NSMicrophoneUsageDescription / NSAudioCaptureUsageDescription → macOS killed the app on the mic request in onboarding (TCC abort). Dev mode hid it (permissions inherited from the host app). Follow-up: add a CI/qa check that the built bundle's Info.plist contains every privacy key we request, and run real-app qa against the bundled .app, not only dev builds.
