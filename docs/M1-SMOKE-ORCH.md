@@ -47,3 +47,7 @@ Audible checks left for the owner (nothing was played through speakers in this r
 ## Orchestrator re-check with AirPods (2026-10-21 15:23Z)
 - AirPods output + mic: 40 s speech clip → 5 «Система» lines, correct text/timestamps/segmentation, 0 foreign letters, no echo. PASS.
 - ⌘⇧S via computer-use key injection under RU layout still logs ScreenshotArea (agent: real HID presses map correctly; injection artefact). Owner to confirm with a real key press.
+
+## Bluetooth / HFP: "whole-system capture silences playback" (AirPods)
+
+Root cause: not our tap (explicitly CATapUnmuted; the acoustic check `tools/audio/no-mute.sh` fails when forced to Muted and passes on speakers). Opening the AirPods microphone flips the headset from A2DP to HFP, so playback gets quieter, then stops. Fix: when the default input is Bluetooth and no other app records, Lowk's mic defaults to the built-in mic (manual choice still wins). Confirmed by the owner on AirPods (30 s tone, no drop, built-in mic by policy).
