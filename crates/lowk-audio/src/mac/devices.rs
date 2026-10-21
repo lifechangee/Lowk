@@ -93,3 +93,83 @@ pub fn default_output() -> Option<OutInfo> {
         headphones,
     })
 }
+
+/// Why [`auto_mic_uid`] chose what it chose (for logs and tests).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MicChoice {
+    /// Keep the system default input.
+    Default,
+    /// Use this device (the built-in mic) instead of a Bluetooth default input.
+    BuiltIn(String),
+}
+
+/// Pure policy: opening a Bluetooth headset's microphone flips the headset from A2DP to the
+/// call profile (HFP: 16/24 kHz, playback degraded, some players lose their stream). So when
+/// the user did not pick a mic, the default input is Bluetooth and no other app is already
+/// recording from it, Lowk listens to the built-in mic instead and never touches the headset.
+pub fn choose_auto_mic(
+    default_is_bluetooth: bool,
+    other_app_records: bool,
+    builtin: Option<&str>,
+) -> MicChoice {
+    match builtin {
+        Some(b) if default_is_bluetooth && !other_app_records => MicChoice::BuiltIn(b.to_string()),
+        _ => MicChoice::Default,
+    }
+}
+
+fn is_bluetooth(d: &ca::Device) -> bool {
+    matches!(d.transport_type(), Ok(t) if t == ca::DeviceTransportType::BLUETOOTH || t == ca::DeviceTransportType::BLUETOOTH_LE)
+}
+
+/// Built-in microphone UID, if the Mac has one.
+fn builtin_input_uid() -> Option<String> {
+    ca::System::devices().ok()?.into_iter().find_map(|d| {
+        let builtin = matches!(d.transport_type(), Ok(t) if t == ca::DeviceTransportType::BUILT_IN);
+        if builtin && has_input(&d) {
+            d.uid().ok().map(|s| s.to_string())
+        } else {
+            None
+        }
+    })
+}
+
+/// Another process (not us) is reading audio input right now.
+fn other_app_records() -> bool {
+    let me = std::process::id() as i32;
+    ca::Process::list()
+        .map(|l| {
+            l.iter()
+                .any(|p| p.is_running_input().unwrap_or(false) && p.pid().map(|x| x != me).unwrap_or(true))
+        })
+        .unwrap_or(false)
+}
+
+/// Mic to use when the user left the choice on "default".
+pub fn auto_mic_uid() -> MicChoice {
+    let Ok(def) = ca::System::default_input_device() else {
+        return MicChoice::Default;
+    };
+    choose_auto_mic(
+        is_bluetooth(&def),
+        other_app_records(),
+        builtin_input_uid().as_deref(),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bluetooth_default_input_is_replaced_by_the_builtin_mic() {
+        assert_eq!(
+            choose_auto_mic(true, false, Some("bi")),
+            MicChoice::BuiltIn("bi".into())
+        );
+        // headset mic already in use by another app (HFP is on anyway), no built-in, or a wired default
+        assert_eq!(choose_auto_mic(true, true, Some("bi")), MicChoice::Default);
+        assert_eq!(choose_auto_mic(true, false, None), MicChoice::Default);
+        assert_eq!(choose_auto_mic(false, false, Some("bi")), MicChoice::Default);
+    }
+}

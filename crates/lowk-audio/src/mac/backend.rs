@@ -106,6 +106,8 @@ struct Supervisor {
     last_tap_try: Instant,
     last_mic_try: Instant,
     tap_fail_count: u32,
+    /// System default input at the moment the mic started (auto-mic may differ from it).
+    mic_default_at_start: Option<String>,
     watchdog_trips: u32,
     target_gone_since: Option<Instant>,
     target_lost_sent: bool,
@@ -148,6 +150,7 @@ impl Supervisor {
             last_tap_try: Instant::now(),
             last_mic_try: Instant::now(),
             tap_fail_count: 0,
+            mic_default_at_start: None,
             watchdog_trips: 0,
             target_gone_since: None,
             target_lost_sent: false,
@@ -232,7 +235,16 @@ impl Supervisor {
             return Ok(());
         };
         let ring = w.new_ring(96_000);
-        let uid = self.mic_uid().map(str::to_string);
+        self.mic_default_at_start = devices::default_input_uid();
+        let mut uid = self.mic_uid().map(str::to_string);
+        if uid.is_none() {
+            if let super::devices::MicChoice::BuiltIn(b) = super::devices::auto_mic_uid() {
+                tracing::info!(
+                    "default input is Bluetooth: using the built-in mic (keeps the headset in A2DP)"
+                );
+                uid = Some(b);
+            }
+        }
         let ring2;
         let res = match tap::start_mic(uid.as_deref(), ring) {
             Ok(m) => Ok(m),
@@ -352,7 +364,7 @@ impl Supervisor {
                         return;
                     }
                     let moved =
-                        self.mic_uid().is_none() && devices::default_input_uid().is_some_and(|u| u != m.uid);
+                        self.mic_uid().is_none() && devices::default_input_uid() != self.mic_default_at_start;
                     if !alive || moved {
                         self.mic = None;
                         self.emit(AudioEvent::DeviceChanged);
