@@ -1,18 +1,17 @@
-//! SQLite index (FTS5 + vectors), chunker, hybrid search. M0 stub (M2 owns it).
-use lowk_types::{ContextChunk, Result};
+//! Lowk search index (WP-C): SQLite FTS5 over stemmed RU+EN text, flat int8 vectors from the
+//! embedder, RRF hybrid ranking, filters, and the `Retriever` for Ask. The index is a
+//! rebuildable projection of the vault: it never reads the vault, the app feeds it `IndexItem`s.
+pub mod chunker;
+mod db;
+pub mod embedder;
+mod index;
+mod retrieve;
+mod search;
+pub mod text;
+pub mod vector;
 
+pub use embedder::{Embedder, SharedEmbedder};
+pub use index::{Index, StatusFn};
 pub use lowk_types::fakes::NoopRetriever;
-
-pub trait Embedder: Send + Sync {
-    fn dim(&self) -> usize;
-    fn embed_docs(&self, texts: &[String]) -> Result<Vec<Vec<f32>>>;
-    fn embed_query(&self, text: &str) -> Result<Vec<f32>>;
-}
-
-pub trait VectorIndex: Send + Sync {
-    fn upsert(&mut self, chunk_id: &str, vector: &[f32]) -> Result<()>;
-    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(String, f32)>>;
-}
-
-/// Convenience alias used by the future `Retriever` implementation.
-pub type Chunks = Vec<ContextChunk>;
+pub use retrieve::DEFAULT_PINNED_BUDGET;
+pub use vector::VectorIndex;

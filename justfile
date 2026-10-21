@@ -88,10 +88,14 @@ qa:
 # One-time setup: rustup target add x86_64-unknown-linux-gnu x86_64-pc-windows-msvc
 # Cross-target clippy so cfg-gated dead code on Linux/Windows is caught locally (CI lints on ubuntu).
 # Windows needs a dummy llvm-rc on PATH (created here); lowk-app is excluded (WebKitGTK on Linux).
+# Crates with C sources (rusqlite's bundled SQLite in lowk-index) cannot be compiled for a foreign target
+# from this host; clippy never links, so a no-op compiler (`true`) and an archiver that only creates the
+# output file (fake-ar: `ar cq OUT ...` or `lib /OUT:OUT ...`) satisfy their build scripts.
 ci-cross:
-    cargo clippy --workspace --exclude lowk-app --all-targets --target x86_64-unknown-linux-gnu -- -D warnings
     mkdir -p target/fakebin && printf '#!/bin/sh\nexit 0\n' > target/fakebin/llvm-rc && chmod +x target/fakebin/llvm-rc
-    PATH="$PWD/target/fakebin:$PATH" cargo clippy --workspace --all-targets --target x86_64-pc-windows-msvc -- -D warnings
+    printf '#!/bin/sh\nfor a in "$@"; do case "$a" in -out:*|-OUT:*|/out:*|/OUT:*) : > "${a#*:}"; exit 0;; esac; done\n: > "$2"\n' > target/fakebin/fake-ar && chmod +x target/fakebin/fake-ar
+    CC_x86_64_unknown_linux_gnu=true AR_x86_64_unknown_linux_gnu="$PWD/target/fakebin/fake-ar" cargo clippy --workspace --exclude lowk-app --all-targets --target x86_64-unknown-linux-gnu -- -D warnings
+    CC_x86_64_pc_windows_msvc=true AR_x86_64_pc_windows_msvc="$PWD/target/fakebin/fake-ar" PATH="$PWD/target/fakebin:$PATH" cargo clippy --workspace --all-targets --target x86_64-pc-windows-msvc -- -D warnings
 
 # Everything CI runs, incl. Linux and Windows cross-target clippy.
 ci: lint ci-cross
