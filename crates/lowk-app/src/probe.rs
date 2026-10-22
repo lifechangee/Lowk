@@ -189,6 +189,18 @@ pub(crate) fn run(st: &Shared, line: &str) -> String {
         ["tone"] => format!("{:?}", stealth.current_tone()),
         // QA: the full tone (incl. the 4x3 grid) as JSON, the overlay's native frame and the region the sampler last grabbed.
         ["tone-json"] => serde_json::to_string(&stealth.current_tone()).unwrap_or_default(),
+        ["tone-diag"] => {
+            #[cfg(target_os = "macos")]
+            let grab = lowk_capture::last_grab_json();
+            #[cfg(not(target_os = "macos"))]
+            let grab = "null".to_string();
+            format!(
+                "{{\"sampler\":{},\"grab\":{},\"tone\":{}}}",
+                stealth.sampler_diag_json(),
+                grab,
+                serde_json::to_string(&stealth.current_tone()).unwrap_or_default()
+            )
+        }
         ["overlay-frame"] => format!(
             "{{\"frame\":{},\"sampled\":{}}}",
             serde_json::to_string(&stealth.overlay.frame()).unwrap_or_default(),

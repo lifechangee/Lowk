@@ -93,6 +93,19 @@ struct ToneShared {
     cb: Mutex<Box<dyn Fn(Tone) + Send>>,
     /// Region (global top-left points) of the last backdrop grab: QA reads it to prove the sampler looks where the overlay is.
     last_rect: Mutex<Option<Rect>>,
+    /// Sampler counters and the last raw result, so a silently failing sampler is visible (QA `tone-diag`).
+    diag: Mutex<SamplerDiag>,
+}
+
+#[derive(Default)]
+struct SamplerDiag {
+    ticks: u64,
+    grab_errors: u64,
+    last_error: Option<String>,
+    admitted: u64,
+    emitted: u64,
+    /// Raw mean colour of each grid cell of the last bitmap the sampler got.
+    cell_means: Vec<[u8; 3]>,
 }
 
 /// Stops the tone sampler thread on drop.
@@ -148,6 +161,7 @@ pub fn create_stealth(
             state: Mutex::new(AdaptiveTone::new(ToneMode::Auto)),
             cb: Mutex::new(tone),
             last_rect: Mutex::new(None),
+            diag: Mutex::new(SamplerDiag::default()),
         }),
         _watchdog: watchdog,
     })
@@ -189,6 +203,25 @@ impl Stealth {
     /// Region of the last backdrop grab (QA).
     pub fn last_sample_rect(&self) -> Option<Rect> {
         *self.tone.last_rect.lock()
+    }
+
+    /// JSON: sampler counters, last grab error, raw per-cell mean colours of the last bitmap (QA).
+    pub fn sampler_diag_json(&self) -> String {
+        let d = self.tone.diag.lock();
+        let cells: Vec<String> = d
+            .cell_means
+            .iter()
+            .map(|c| format!("[{},{},{}]", c[0], c[1], c[2]))
+            .collect();
+        format!(
+            "{{\"ticks\":{},\"grab_errors\":{},\"last_error\":{},\"admitted\":{},\"emitted\":{},\"cell_means\":[{}]}}",
+            d.ticks,
+            d.grab_errors,
+            d.last_error.as_ref().map_or("null".to_string(), |e| format!("{e:?}")),
+            d.admitted,
+            d.emitted,
+            cells.join(",")
+        )
     }
 
     /// Forced palette (`auto|light|dark`); emits the new tone immediately.
@@ -236,14 +269,24 @@ impl Stealth {
                     last_poll = Instant::now();
                     let frame = ctl.frame();
                     *tone.last_rect.lock() = Some(frame);
-                    let Ok(bmp) = sampler.grab_region(frame, tone::SAMPLE_W, tone::SAMPLE_H) else {
-                        continue;
+                    tone.diag.lock().ticks += 1;
+                    let bmp = match sampler.grab_region(frame, tone::SAMPLE_W, tone::SAMPLE_H) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            let mut d = tone.diag.lock();
+                            d.grab_errors += 1;
+                            d.last_error = Some(format!("{e:?}"));
+                            continue;
+                        }
                     };
+                    tone.diag.lock().cell_means = tone::cell_means(&bmp, tone::SAMPLE_W, tone::SAMPLE_H);
                     if !gate.admit(&bmp) {
                         continue;
                     }
+                    tone.diag.lock().admitted += 1;
                     let t = tone.state.lock().update(&bmp, tone::SAMPLE_W, tone::SAMPLE_H);
                     if let Some(t) = t {
+                        tone.diag.lock().emitted += 1;
                         (tone.cb.lock())(t);
                     }
                 }

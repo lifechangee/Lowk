@@ -9,6 +9,17 @@ use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 /// build itself). Never set outside the `qa` feature, so normal builds exclude every window of the process.
 static KEEP_TITLE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
+/// Trace of the last tone-sampler grab (the sampler loop swallows errors; QA reads this).
+static LAST: std::sync::Mutex<Option<crate::geometry::GrabDiag>> = std::sync::Mutex::new(None);
+
+/// JSON of the last sampler grab, `null` before the first.
+pub fn last_grab_json() -> String {
+    LAST.lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .map_or("null".into(), crate::geometry::GrabDiag::json)
+}
+
 pub fn keep_window_titled(title: Option<String>) {
     *KEEP_TITLE.lock().unwrap_or_else(|e| e.into_inner()) = title;
 }
@@ -50,11 +61,41 @@ fn content(cached: bool) -> Result<SCShareableContent> {
     Ok(c)
 }
 
+/// The tone sampler asks ScreenCaptureKit for this many times the output size and box-averages down: a 24x18 request
+/// for a 600x384 pt window is a ~25x reduction that SCK may answer with garbage/black, and nearest-neighbour picking
+/// of 432 source pixels is noisy.
+const OVERSAMPLE: u32 = 8;
+
 fn grab_with(
     rect: Rect,
     out: Option<(u32, u32)>,
     exclude_own: bool,
     cached: bool,
+) -> Result<(Vec<u8>, u32, u32)> {
+    let mut diag = crate::geometry::GrabDiag {
+        path: if cached {
+            "sampler(cached,oversampled)"
+        } else {
+            "grab"
+        },
+        ..Default::default()
+    };
+    let r = grab_inner(rect, out, exclude_own, cached, &mut diag);
+    if cached {
+        if let Err(e) = &r {
+            diag.error = Some(format!("{e:?}"));
+        }
+        *LAST.lock().unwrap_or_else(|e| e.into_inner()) = Some(diag);
+    }
+    r
+}
+
+fn grab_inner(
+    rect: Rect,
+    out: Option<(u32, u32)>,
+    exclude_own: bool,
+    cached: bool,
+    diag: &mut crate::geometry::GrabDiag,
 ) -> Result<(Vec<u8>, u32, u32)> {
     let content = content(cached)?;
     let displays = content.displays();
@@ -87,45 +128,62 @@ fn grab_with(
     } else {
         vec![]
     };
+    diag.display = plan.display;
+    diag.src_pts = Some(plan.src);
+    diag.own_excluded = skip.len();
+    diag.own_kept = windows
+        .iter()
+        .filter(|w| w.owning_application().is_some_and(|a| a.process_id() == own))
+        .count()
+        - skip.len();
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&skip)
         .build()
         .map_err(|e| fail("filter", e))?;
     let src = CGRect::new(plan.src.x, plan.src.y, plan.src.w, plan.src.h);
-    let cfg = SCStreamConfiguration::new()
-        .with_width(plan.cap_w)
-        .with_height(plan.cap_h)
-        .with_source_rect(src)
-        .with_shows_cursor(false);
-    let img = SCScreenshotManager::capture_image(&filter, &cfg).map_err(|e| fail("capture", e))?;
-    let (iw, ih) = (img.width() as u32, img.height() as u32);
-    let px = img.rgba_data().map_err(|e| fail("pixels", e))?;
-    if px.len() != (iw * ih * 4) as usize {
-        return Err(AppError::new(ErrorCode::Unknown).with_detail("unexpected pixel buffer size"));
-    }
     let (cw, ch) = (plan.cap_w, plan.cap_h);
-    let px = if (iw, ih) == (cw, ch) {
-        px
-    } else {
-        fit(&px, iw, ih, cw, ch)
-    };
+    // The sampler first asks for an oversampled image; if that comes back entirely black (SCK answering a tiny/odd
+    // request with an empty frame) it asks once more at the plain size before believing it.
+    let scales: &[u32] = if cached { &[OVERSAMPLE, 1] } else { &[1] };
+    let mut px = Vec::new();
+    for (n, &ss) in scales.iter().enumerate() {
+        diag.requested_px = (cw * ss, ch * ss);
+        let cfg = SCStreamConfiguration::new()
+            .with_width(cw * ss)
+            .with_height(ch * ss)
+            .with_source_rect(src)
+            .with_shows_cursor(false);
+        let img = SCScreenshotManager::capture_image(&filter, &cfg).map_err(|e| fail("capture", e))?;
+        let (iw, ih) = (img.width() as u32, img.height() as u32);
+        let mut raw = img.rgba_data().map_err(|e| fail("pixels", e))?;
+        if raw.len() != (iw * ih * 4) as usize {
+            // Row-padded buffer: the stride is whatever divides evenly.
+            let bpr = if ih > 0 { raw.len() / ih as usize } else { 0 };
+            raw = crate::geometry::unpad_rows(&raw, iw as usize, ih as usize, bpr).ok_or_else(|| {
+                AppError::new(ErrorCode::Unknown).with_detail(format!(
+                    "unexpected pixel buffer size {} for {iw}x{ih}",
+                    raw.len()
+                ))
+            })?;
+        }
+        diag.image_px = (iw, ih);
+        diag.attempts = n as u32 + 1;
+        px = if (iw, ih) == (cw, ch) {
+            raw
+        } else {
+            crate::geometry::box_down(&raw, iw, ih, cw, ch)
+        };
+        if px.chunks_exact(4).any(|p| p[..3] != [0, 0, 0]) {
+            break;
+        }
+    }
+    diag.out_px = (plan.out_w, plan.out_h);
+    diag.mean_rgb = crate::geometry::mean_rgb(&px);
     match out {
         Some(_) => Ok((crate::geometry::compose(&plan, &px), plan.out_w, plan.out_h)),
         None => Ok((px, cw, ch)),
     }
-}
-
-fn fit(px: &[u8], iw: u32, ih: u32, ow: u32, oh: u32) -> Vec<u8> {
-    let mut out = Vec::with_capacity((ow * oh * 4) as usize);
-    for y in 0..oh {
-        for x in 0..ow {
-            let (sx, sy) = (x * iw / ow, y * ih / oh);
-            let i = ((sy * iw + sx) * 4) as usize;
-            out.extend_from_slice(&px[i..i + 4]);
-        }
-    }
-    out
 }
 
 /// Adaptive-tone sampler: our own windows are excluded explicitly (not relying

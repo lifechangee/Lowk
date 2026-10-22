@@ -6,7 +6,7 @@ pub mod geometry;
 #[cfg(target_os = "macos")]
 mod mac;
 #[cfg(target_os = "macos")]
-pub use mac::{grab_scaled, keep_window_titled, SckGrab, SckSampler};
+pub use mac::{grab_scaled, keep_window_titled, last_grab_json, SckGrab, SckSampler};
 #[cfg(windows)]
 mod win;
 

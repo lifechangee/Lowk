@@ -9,8 +9,12 @@
 //   2. the backend grid: every cell lying wholly inside one backdrop region has that region's polarity
 //   3. the PAINTED scrim (text hidden) under every such cell has that polarity and keeps the region's hue
 //   4. text pixels have WCAG contrast against what is behind them
-// Output: docs/qa/tone-e2e/{gallery.png, gallery-<backdrop>.png, results.json}.   node tools/qa/tone-e2e.mjs [--quick]
+// The backdrop is a web page (tools/qa/tone-backdrop.html) in the DEFAULT BROWSER, opened with `open` and driven over a local
+// 127.0.0.1 server: another process behind the overlay, as in real use. `--backdrop=app` uses Lowk's own window instead
+// (fallback; also used automatically when the browser page does not come up). results.json is written after every capture.
+// Output: docs/qa/tone-e2e/{gallery.png, gallery-<backdrop>.png, results.json}.   node tools/qa/tone-e2e.mjs [--quick] [--backdrop=app]
 import { spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { tmpdir } from 'node:os';
@@ -79,11 +83,42 @@ const opened = spawnSync('open', ['-n', ...envArgs, appPath], { stdio: 'inherit'
 if (opened.status !== 0) { console.error('open failed'); process.exit(2); }
 const cmd = async (line) => (await fetch(`http://127.0.0.1:${port}/cmd`, { method: 'POST', headers: { 'X-Lowk-Qa-Token': token }, body: line })).text();
 const ev = async (expr) => { const j = JSON.parse(await cmd(`eval overlay ${expr}`)); if (!j.ok) throw new Error(String(j.v)); return j.v; };
+// ---- browser backdrop: local server + page in the default browser ----
+const bk = { seq: 0, rects: [], bye: false, ack: -1, vp: null, hello: null };
+const here = dirname(fileURLToPath(import.meta.url));
+let bserver = null;
+const startBackdropServer = () => new Promise((res) => {
+  bserver = createServer((rq, rs) => {
+    let body = '';
+    rq.on('data', (c) => { body += c; });
+    rq.on('end', () => {
+      const j = () => { try { return JSON.parse(body); } catch { return {}; } };
+      if (rq.url === '/state') { rs.setHeader('content-type', 'application/json'); rs.end(JSON.stringify({ seq: bk.seq, rects: bk.rects, bye: bk.bye })); }
+      else if (rq.url === '/ack') { const o = j(); if (o.seq === bk.seq || o.seq === -2) { bk.ack = bk.seq; } bk.vp = o.vp ?? bk.vp; rs.end('ok'); }
+      else if (rq.url === '/hello') { bk.hello = j().vp ?? null; bk.vp = bk.hello ?? bk.vp; rs.end('ok'); }
+      else { rs.setHeader('content-type', 'text/html'); rs.end(readFileSync(join(here, 'tone-backdrop.html'))); }
+    });
+  }).listen(0, '127.0.0.1', () => res(bserver.address().port));
+});
+let backdropKind = has('--backdrop=app') ? 'app' : 'browser';
+let cover = null; // the rectangle (global top-left points) the backdrop really covers
+const browserLayout = async (rects) => {
+  bk.seq++; bk.rects = rects;
+  for (let i = 0; i < 100 && bk.ack !== bk.seq; i++) await sleep(50);
+  if (bk.ack !== bk.seq) throw new Error('browser backdrop did not acknowledge a layout');
+  return 'ok';
+};
 const stage = async (o) => {
+  if (backdropKind === 'browser') {
+    if (o.cmd === 'info') return { w: bk.vp.sw, h: bk.vp.sh, scale: (await appInfo()).scale };
+    if (o.cmd === 'layout') return browserLayout(o.rects);
+    bk.bye = true; bk.seq++; await sleep(400); return 'closed';
+  }
   if (o.cmd === 'info') return JSON.parse(await cmd('backdrop-info'));
   if (o.cmd === 'layout') return cmd('backdrop-set ' + JSON.stringify(o.rects));
   return cmd('backdrop-close');
 };
+const appInfo = async () => JSON.parse(await cmd('backdrop-info'));
 let cleaned = false;
 const cleanup = async () => {
   if (cleaned) return; cleaned = true;
@@ -91,6 +126,7 @@ const cleanup = async () => {
   try { await cmd('quit'); } catch {}
   try { await stage({ cmd: 'close' }); } catch {}
   await sleep(400);
+  try { bserver?.close(); } catch {}
   rmSync(work, { recursive: true, force: true });
 };
 process.on('SIGINT', async () => { await cleanup(); process.exit(130); });
@@ -107,9 +143,21 @@ const BACKDROPS = [
   { name: 'left-quarter-green-rest-grey', regions: [{ x0: -1, x1: 0.25, y0: -1, y1: 2, c: 'green' }, { x0: 0.25, x1: 2, y0: -1, y1: 2, c: 'grey' }] },
   { name: 'right-quarter-black-rest-white', regions: [{ x0: -1, x1: 0.75, y0: -1, y1: 2, c: 'white' }, { x0: 0.75, x1: 2, y0: -1, y1: 2, c: 'black' }] },
 ];
-const info = await (async () => { for (let i = 0; i < 100; i++) { try { return await stage({ cmd: 'info' }); } catch { await sleep(100); } } })();
-const D = { w: info.w, h: info.h, scale: info.scale };
+const appUp = async () => { for (let i = 0; i < 150 && !existsSync(join(data, 'qa.json')); i++) await sleep(100); for (let i = 0; i < 100; i++) { try { await cmd('pid'); return; } catch { await sleep(100); } } };
+await appUp();
+const dinfo = await (async () => { for (let i = 0; i < 100; i++) { try { return await appInfo(); } catch { await sleep(100); } } })();
+const D = { w: dinfo.w, h: dinfo.h, scale: dinfo.scale };
 console.log(`display ${D.w}x${D.h} pt, scale ${D.scale}`);
+if (backdropKind === 'browser') {
+  const bport = await startBackdropServer();
+  spawnSync('open', [`http://127.0.0.1:${bport}/`], { stdio: 'inherit' });
+  console.log('backdrop page opened in your default browser; make it fill the screen (Ctrl+Cmd+F) - waiting up to 90 s');
+  for (let i = 0; i < 900 && !(bk.hello && bk.hello.full); i++) await sleep(100);
+  if (!bk.hello) { console.log('browser page did not report in: falling back to the in-app backdrop'); backdropKind = 'app'; }
+  else if (!bk.hello.full) console.log('browser window is not full-screen: only the part it covers is checked (cells outside it are not asserted)');
+}
+const browserCover = () => (backdropKind === 'browser' && bk.vp ? { x: bk.vp.x, y: bk.vp.y, w: bk.vp.w, h: bk.vp.h } : { x: 0, y: 0, w: D.w, h: D.h });
+console.log(`backdrop: ${backdropKind}`);
 const OW = 600, OH = 384;
 const POSITIONS = [
   { name: 'centre', x: Math.round((D.w - OW) / 2), y: Math.round((D.h - OH) / 2) },
@@ -121,8 +169,6 @@ const POSITIONS = [
 const BDS = has('--quick') ? BACKDROPS.slice(0, 2) : BACKDROPS;
 
 try {
-  for (let i = 0; i < 150 && !existsSync(join(data, 'qa.json')); i++) await sleep(100);
-  for (let i = 0; i < 100; i++) { try { await cmd('pid'); break; } catch { await sleep(100); } }
   await sleep(2500);
   await cmd('overlay-show');
   await cmd('demo-start');
@@ -159,15 +205,20 @@ try {
         const rr = bd.regions.map((r) => ({ c: r.c, x0: fr.x + r.x0 * fr.w, x1: fr.x + r.x1 * fr.w, y0: fr.y + r.y0 * fr.h, y1: fr.y + r.y1 * fr.h }))
           .filter((r) => cx0 + 10 >= r.x0 && cx0 + cw - 10 <= r.x1 && cy0 + 10 >= r.y0 && cy0 + ch - 10 <= r.y1);
         // cells poking off the display see black (the stage paints black outside any region): not pure
-        const onScreen = cx0 >= 0 && cx0 + cw <= D.w && cy0 >= 0 && cy0 + ch <= D.h;
+        const cv = browserCover();
+        const onScreen = cx0 >= cv.x && cx0 + cw <= cv.x + cv.w && cy0 >= cv.y && cy0 + ch <= cv.y + cv.h;
         return onScreen && rr.length === 1 ? rr[0].c : null;
       });
       const nPure = expect.filter(Boolean).length;
       add(nPure >= 6, `${tag}: enough pure cells`, `${nPure}/12`);
       // 2. backend grid
-      const tone = JSON.parse(await cmd('tone-json'));
+      const diagRaw = JSON.parse(await cmd('tone-diag'));
+      const tone = diagRaw.tone;
+      const diag = { sampler: diagRaw.sampler, grab: diagRaw.grab };
       const grid = tone.grid?.cells ?? [];
       add(grid.length === 12, `${tag}: backend sent a 4x3 grid`, `${grid.length} cells`);
+      add(!!diag.grab && !diag.grab.error && (diag.sampler?.grab_errors ?? 1) === 0, `${tag}: sampler grabs succeed`, JSON.stringify({ err: diag.grab?.error, grab_errors: diag.sampler?.grab_errors, last_error: diag.sampler?.last_error }));
+      add((diag.sampler?.cell_means ?? []).some((m) => m[0] + m[1] + m[2] > 0), `${tag}: sampler image is not all black`, JSON.stringify(diag.sampler?.cell_means));
       const be = [];
       // the polarity that matters is the scrim luminance (dark chromatic backdrops are tone kind "color")
       const scrimLum = (rgbStr) => lum(rgbStr.split(',').map(Number));
@@ -221,7 +272,9 @@ try {
       const dw = Math.floor(full.w / 2), dh = Math.floor(full.h / 2), t = Buffer.alloc(dw * dh * 3);
       for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) for (let c3 = 0; c3 < 3; c3++) { let sacc = 0; for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) sacc += full.px[((y * 2 + dy) * full.w + x * 2 + dx) * full.bpp + c3]; t[(y * dw + x) * 3 + c3] = sacc / 4; }
       tiles.push({ bd: bd.name, pos: pos.name, w: dw, h: dh, rgb: t });
-      results.push({ backdrop: bd.name, position: pos.name, frame: f2, sampled: s, region: reg, cells: cellsOut, glyph: { n: ratios.length, p10: pct(0.1), median: pct(0.5) }, backend: grid.map((g) => ({ tone: g.tone, rgb: g.rgb })) });
+      const writeResults = () => writeFileSync(join(out, 'results.json'), JSON.stringify({ display: D, backdropKind, partial: true, checks, results }, null, 1));
+      results.push({ backdrop: bd.name, backdropKind, cover: browserCover(), diag,  position: pos.name, frame: f2, sampled: s, region: reg, cells: cellsOut, glyph: { n: ratios.length, p10: pct(0.1), median: pct(0.5) }, backend: grid.map((g) => ({ tone: g.tone, rgb: g.rgb })) });
+      writeResults();
     }
   }
   // gallery sheets

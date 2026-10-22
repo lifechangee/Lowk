@@ -115,6 +115,104 @@ pub fn scale_of(px_w: u32, pt_w: f64) -> f64 {
     }
 }
 
+/// Copy `h` rows of `w` RGBA pixels out of a buffer whose rows are `bytes_per_row` apart (CGImage rows are padded to
+/// 16/32/64 bytes). A tightly packed buffer is returned as is. `None` when the buffer is too short.
+pub fn unpad_rows(buf: &[u8], w: usize, h: usize, bytes_per_row: usize) -> Option<Vec<u8>> {
+    let row = w.checked_mul(4)?;
+    if bytes_per_row < row || h == 0 {
+        return None;
+    }
+    if bytes_per_row == row {
+        return (buf.len() >= row * h).then(|| buf[..row * h].to_vec());
+    }
+    if buf.len() < bytes_per_row * (h - 1) + row {
+        return None;
+    }
+    let mut out = Vec::with_capacity(row * h);
+    for y in 0..h {
+        out.extend_from_slice(&buf[y * bytes_per_row..y * bytes_per_row + row]);
+    }
+    Some(out)
+}
+
+/// Swap B and R in place (BGRA <-> RGBA).
+pub fn swap_rb(px: &mut [u8]) {
+    for p in px.chunks_exact_mut(4) {
+        p.swap(0, 2);
+    }
+}
+
+/// Resample RGBA `iw` x `ih` to `ow` x `oh`: a box average when shrinking (so one stray source pixel cannot decide a
+/// tone cell), nearest when enlarging. Channels are averaged in sRGB space, which is what the tone analysis expects.
+pub fn box_down(px: &[u8], iw: u32, ih: u32, ow: u32, oh: u32) -> Vec<u8> {
+    let (iw, ih, ow, oh) = (iw as usize, ih as usize, ow as usize, oh as usize);
+    let mut out = Vec::with_capacity(ow * oh * 4);
+    for y in 0..oh {
+        let y0 = y * ih / oh;
+        let y1 = ((y + 1) * ih / oh).max(y0 + 1).min(ih);
+        for x in 0..ow {
+            let x0 = x * iw / ow;
+            let x1 = ((x + 1) * iw / ow).max(x0 + 1).min(iw);
+            let mut acc = [0u32; 4];
+            for sy in y0..y1 {
+                for sx in x0..x1 {
+                    let i = (sy * iw + sx) * 4;
+                    for (a, c) in acc.iter_mut().zip(&px[i..i + 4]) {
+                        *a += u32::from(*c);
+                    }
+                }
+            }
+            let n = ((y1 - y0) * (x1 - x0)) as u32;
+            out.extend(acc.iter().map(|a| ((a + n / 2) / n) as u8));
+        }
+    }
+    out
+}
+
+/// Mean RGB of an RGBA bitmap (diagnostics).
+pub fn mean_rgb(px: &[u8]) -> [u8; 3] {
+    let n = (px.len() / 4).max(1) as u64;
+    let mut s = [0u64; 3];
+    for p in px.chunks_exact(4) {
+        for (a, c) in s.iter_mut().zip(p) {
+            *a += u64::from(*c);
+        }
+    }
+    [(s[0] / n) as u8, (s[1] / n) as u8, (s[2] / n) as u8]
+}
+
+/// What the last tone grab did (QA diagnostics; the sampler loop swallows errors, so this is the only trace).
+#[derive(Debug, Clone, Default)]
+pub struct GrabDiag {
+    pub path: &'static str,
+    pub display: usize,
+    pub src_pts: Option<Rect>,
+    pub requested_px: (u32, u32),
+    pub image_px: (u32, u32),
+    pub out_px: (u32, u32),
+    pub own_excluded: usize,
+    pub own_kept: usize,
+    pub attempts: u32,
+    pub mean_rgb: [u8; 3],
+    pub error: Option<String>,
+}
+
+impl GrabDiag {
+    /// JSON for the qa channel.
+    pub fn json(&self) -> String {
+        let r = self.src_pts.map_or("null".to_string(), |r| {
+            format!("{{\"x\":{},\"y\":{},\"w\":{},\"h\":{}}}", r.x, r.y, r.w, r.h)
+        });
+        format!(
+            "{{\"path\":\"{}\",\"display\":{},\"src_pts\":{},\"requested_px\":[{},{}],\"image_px\":[{},{}],\"out_px\":[{},{}],\"own_excluded\":{},\"own_kept\":{},\"attempts\":{},\"mean_rgb\":[{},{},{}],\"error\":{}}}",
+            self.path, self.display, r, self.requested_px.0, self.requested_px.1, self.image_px.0, self.image_px.1,
+            self.out_px.0, self.out_px.1, self.own_excluded, self.own_kept, self.attempts, self.mean_rgb[0], self.mean_rgb[1],
+            self.mean_rgb[2],
+            self.error.as_ref().map_or("null".to_string(), |e| format!("{:?}", e))
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,5 +321,118 @@ mod tests {
         assert!(plan(&r(0.0, 0.0, 10.0, 10.0), &[], 24, 18).is_none());
         let p = plan(&r(9000.0, 9000.0, 10.0, 10.0), &two(), 24, 18).unwrap();
         assert_eq!(p.display, 0);
+    }
+
+    fn scene(w: usize, h: usize, f: impl Fn(usize, usize) -> [u8; 3]) -> Vec<u8> {
+        let mut v = Vec::new();
+        for y in 0..h {
+            for x in 0..w {
+                let c = f(x, y);
+                v.extend_from_slice(&[c[0], c[1], c[2], 255]);
+            }
+        }
+        v
+    }
+
+    #[test]
+    fn unpad_removes_row_padding() {
+        // 3 px wide, rows padded to 16 bytes: a wrong stride would smear colours into the next row
+        let mut buf = Vec::new();
+        for y in 0..2u8 {
+            for x in 0..3u8 {
+                buf.extend_from_slice(&[10 * y + x, 0, 0, 255]);
+            }
+            buf.extend_from_slice(&[9, 9, 9, 9]);
+        }
+        let t = unpad_rows(&buf, 3, 2, 16).unwrap();
+        let reds: Vec<u8> = t.chunks(4).map(|c| c[0]).collect();
+        assert_eq!(reds, vec![0, 1, 2, 10, 11, 12]);
+        assert!(unpad_rows(&buf[..10], 3, 2, 16).is_none());
+        assert!(unpad_rows(&buf, 3, 2, 8).is_none());
+        assert_eq!(unpad_rows(&t, 3, 2, 12).unwrap(), t);
+    }
+
+    #[test]
+    fn bgra_swap_roundtrips() {
+        let mut p = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        swap_rb(&mut p);
+        assert_eq!(p, vec![3, 2, 1, 4, 7, 6, 5, 8]);
+        swap_rb(&mut p);
+        assert_eq!(p, vec![1, 2, 3, 4, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn box_down_keeps_left_right_split_at_retina_sizes() {
+        // 1200x768 px (a 600x384 pt overlay at 2x): left half black, right half white -> 24x18 keeps the split
+        let img = scene(
+            1200,
+            768,
+            |x, _| if x < 600 { [0, 0, 0] } else { [255, 255, 255] },
+        );
+        let out = box_down(&img, 1200, 768, 24, 18);
+        assert_eq!(out.len(), 24 * 18 * 4);
+        for y in 0..18 {
+            for x in 0..24 {
+                let v = out[(y * 24 + x) * 4];
+                assert_eq!(v, if x < 12 { 0 } else { 255 }, "x={x} y={y}");
+            }
+        }
+        assert_eq!(mean_rgb(&out)[0], 127);
+    }
+
+    #[test]
+    fn box_down_is_not_all_dark_for_light_or_coloured_input() {
+        for (c, name) in [
+            ([255, 255, 255], "white"),
+            ([240, 220, 40], "yellow"),
+            ([200, 30, 30], "red"),
+        ] {
+            let img = scene(192, 144, |_, _| c);
+            let out = box_down(&img, 192, 144, 24, 18);
+            assert!(out.chunks(4).all(|p| p[..3] == c), "{name}");
+        }
+    }
+
+    #[test]
+    fn box_down_averages_and_enlarges() {
+        let two = scene(2, 1, |x, _| if x == 0 { [0, 0, 0] } else { [100, 200, 50] });
+        assert_eq!(&box_down(&two, 2, 1, 1, 1)[..3], &[50, 100, 25]);
+        let up = box_down(&two, 2, 1, 4, 1);
+        assert_eq!(
+            up.chunks(4).map(|p| p[0]).collect::<Vec<_>>(),
+            vec![0, 0, 100, 100]
+        );
+    }
+
+    #[test]
+    fn full_pipeline_quadrants_through_plan_and_compose() {
+        // backdrop: navy | red over yellow | teal on a 1440x900 display, window straddling the middle
+        let disp = [r(0.0, 0.0, 1440.0, 900.0)];
+        let win = r(420.0, 258.0, 600.0, 384.0);
+        let colour = |px: f64, py: f64| match (px < 720.0, py < 450.0) {
+            (true, true) => [10, 20, 90],
+            (false, true) => [200, 30, 30],
+            (true, false) => [240, 220, 40],
+            (false, false) => [0, 110, 120],
+        };
+        let p = plan(&win, &disp, 24, 18).unwrap();
+        let (iw, ih) = (p.cap_w * 8, p.cap_h * 8);
+        let img = scene(iw as usize, ih as usize, |x, y| {
+            colour(
+                p.src.x + (x as f64 + 0.5) * p.src.w / iw as f64,
+                p.src.y + (y as f64 + 0.5) * p.src.h / ih as f64,
+            )
+        });
+        let small = box_down(&img, iw, ih, p.cap_w, p.cap_h);
+        let out = compose(&p, &small);
+        let at = |c: usize, rw: usize| {
+            let (x, y) = (c * 24 / 4 + 3, rw * 18 / 3 + 2);
+            let i = (y * 24 + x) * 4;
+            [out[i], out[i + 1], out[i + 2]]
+        };
+        assert_eq!(at(0, 0), [10, 20, 90]);
+        assert_eq!(at(3, 0), [200, 30, 30]);
+        assert_eq!(at(0, 2), [240, 220, 40]);
+        assert_eq!(at(3, 2), [0, 110, 120]);
     }
 }

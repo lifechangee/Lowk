@@ -18,7 +18,10 @@ not touched. If a prompt does appear anyway, press Cancel and tell the orchestra
 ## What you will see on the screen
 
 1. A second Lowk icon appears in the Dock (the qa bundle) and the Lowk overlay shows with demo subtitles for ~6 s.
-2. A borderless window covers the main display: the **backdrop**, painted by Lowk itself. It changes about every
+2. Your default browser opens a page (`tools/qa/tone-backdrop.html`, served from 127.0.0.1) that paints the **backdrop**
+   in another process, like real use. Press Ctrl+Cmd+F to make it fill the screen (the run waits up to 90 s; a smaller
+   window is accepted, cells outside it are then not asserted). `--backdrop=app` (or no browser reply) falls back to a
+   borderless Lowk window.  The backdrop It changes about every
    2.5 s through five patterns, laid out relative to the overlay so each one is hit at every position:
    - left half black / right half white
    - quadrants navy | red over yellow | teal
@@ -36,7 +39,8 @@ not touched. If a prompt does appear anyway, press Cancel and tell the orchestra
 
 - `gallery.png`: one row per backdrop, one column per position (the overlay exactly as a person sees it over the backdrop).
 - `gallery-<backdrop>.png`: the five positions of one backdrop.
-- `results.json`: per capture the overlay frame, the region the sampler grabbed, the 12 cell colours painted, the backend
+- `results.json` (rewritten after every capture): per capture sampler diagnostics (`diag`: grab path, source rect in points,
+  requested/received pixels, own windows excluded/kept, raw mean colour per cell, grab error counters), plus per capture the overlay frame, the region the sampler grabbed, the 12 cell colours painted, the backend
   grid, glyph contrast; and the list of checks.
 
 Per-cell assertions (each cell lying wholly inside one backdrop region):

@@ -290,6 +290,27 @@ fn cell_bitmap(rgba: &[u8], w: usize, h: usize, col: usize, row: usize) -> (Vec<
     (out, (x1 - x0) as u32, (y1 - y0) as u32)
 }
 
+/// Raw mean sRGB colour of each grid cell of a sample bitmap (row-major, GRID_COLS x GRID_ROWS); diagnostics only.
+pub fn cell_means(rgba: &[u8], w: u32, h: u32) -> Vec<[u8; 3]> {
+    let (wu, hu) = (w as usize, h as usize);
+    if wu < GRID_COLS || hu < GRID_ROWS || rgba.len() < wu * hu * 4 {
+        return vec![];
+    }
+    (0..GRID_COLS * GRID_ROWS)
+        .map(|i| {
+            let (b, ..) = cell_bitmap(rgba, wu, hu, i % GRID_COLS, i / GRID_COLS);
+            let n = (b.len() / 4).max(1) as u64;
+            let mut s = [0u64; 3];
+            for p in b.chunks_exact(4) {
+                for (a, c) in s.iter_mut().zip(p) {
+                    *a += u64::from(*c);
+                }
+            }
+            [(s[0] / n) as u8, (s[1] / n) as u8, (s[2] / n) as u8]
+        })
+        .collect()
+}
+
 fn uniform_grid(t: &Tone) -> ToneGrid {
     let mut cell = t.clone();
     cell.grid = None;
@@ -909,5 +930,87 @@ mod tests {
         assert_eq!(opacity_k(0), 0.0);
         assert!((opacity_k(60) - 0.6).abs() < 1e-6);
         assert!((opacity_k(200) - 0.9).abs() < 1e-6);
+    }
+
+    // ---- regression: "every cell dark whatever the backdrop" (live check, qa-tone) ----
+    fn quad(tl: [u8; 3], tr: [u8; 3], bl: [u8; 3], br: [u8; 3]) -> Vec<u8> {
+        let mut v = Vec::new();
+        for y in 0..SAMPLE_H {
+            for x in 0..SAMPLE_W {
+                let c = match (x < SAMPLE_W / 2, y < SAMPLE_H / 2) {
+                    (true, true) => tl,
+                    (false, true) => tr,
+                    (true, false) => bl,
+                    (false, false) => br,
+                };
+                v.extend_from_slice(&[c[0], c[1], c[2], 255]);
+            }
+        }
+        v
+    }
+    fn settle(bmp: &[u8]) -> Tone {
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        let mut last = None;
+        for _ in 0..4 {
+            if let Some(x) = t.update(bmp, SAMPLE_W, SAMPLE_H) {
+                last = Some(x);
+            }
+        }
+        last.unwrap_or_else(|| t.current())
+    }
+    fn scrim_l(c: &Tone) -> f32 {
+        let v: Vec<u8> = c.rgb.split(',').map(|x| x.trim().parse().unwrap()).collect();
+        luminance(v[0], v[1], v[2])
+    }
+
+    #[test]
+    fn light_backdrops_never_leave_the_grid_dark() {
+        let t = settle(&quad([255; 3], [240, 220, 40], [225; 3], [255; 3]));
+        let g = t.grid.expect("grid");
+        assert_eq!(g.cells.len(), 12);
+        for (i, c) in g.cells.iter().enumerate() {
+            assert!(scrim_l(c) > 0.6, "cell {i} stayed dark: {} ({:?})", c.rgb, c.tone);
+        }
+    }
+
+    #[test]
+    fn every_quadrant_of_a_mixed_backdrop_gets_its_own_polarity() {
+        let t = settle(&quad([0; 3], [255; 3], [10, 20, 90], [240, 220, 40]));
+        let g = t.grid.expect("grid");
+        let l = |col: usize, row: usize| scrim_l(&g.cells[row * GRID_COLS + col]);
+        assert!(l(0, 0) < 0.12 && l(1, 0) < 0.12, "black quadrant");
+        assert!(l(2, 0) > 0.6 && l(3, 0) > 0.6, "white quadrant");
+        assert!(l(0, 2) < 0.12 && l(1, 2) < 0.12, "navy quadrant");
+        assert!(l(2, 2) > 0.6 && l(3, 2) > 0.6, "yellow quadrant");
+        assert_eq!(
+            cell_means(
+                &quad([0; 3], [255; 3], [10, 20, 90], [240, 220, 40]),
+                SAMPLE_W,
+                SAMPLE_H
+            )[3],
+            [255, 255, 255]
+        );
+    }
+
+    #[test]
+    fn an_all_black_frame_is_dark_but_a_black_cell_next_to_white_does_not_darken_the_rest() {
+        let t = settle(&quad([0; 3], [255; 3], [255; 3], [255; 3]));
+        let g = t.grid.expect("grid");
+        assert!(scrim_l(&g.cells[0]) < 0.12);
+        assert!(scrim_l(&g.cells[11]) > 0.6);
+    }
+
+    #[test]
+    fn cell_means_reports_raw_colours() {
+        let m = cell_means(
+            &quad([1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]),
+            SAMPLE_W,
+            SAMPLE_H,
+        );
+        assert_eq!(
+            (m.len(), m[0], m[3], m[8], m[11]),
+            (12, [1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12])
+        );
+        assert!(cell_means(&[0; 8], 2, 1).is_empty());
     }
 }
