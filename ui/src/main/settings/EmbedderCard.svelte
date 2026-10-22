@@ -38,7 +38,7 @@
       prog = p;
       if (p.phase === 'failed' && !cancelled) error = tm('m.engine.errChecksum');
     });
-    const offIdx = api.onIndexStatus((s) => (index.status = s));
+    const offIdx = api.onIndexStatus((s) => { index.status = s; });
     return () => { off(); offIdx(); };
   });
 

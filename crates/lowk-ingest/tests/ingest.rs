@@ -596,3 +596,79 @@ fn keynote_roundtrip_on_a_mac() {
     assert_eq!(d.converter, "keynote-pdf");
     assert!(!markers(&d.md).is_empty());
 }
+
+/// QA review M2: a 200-slide deck (cloned from the fixture) converts in presentation order with progress.
+#[test]
+fn pptx_200_slides_with_progress() {
+    use std::io::Read;
+    let src = std::fs::File::open(fx("sample.pptx")).unwrap();
+    let mut zin = zip::ZipArchive::new(src).unwrap();
+    let mut slide = String::new();
+    zin.by_name("ppt/slides/slide2.xml")
+        .unwrap()
+        .read_to_string(&mut slide)
+        .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("deck200.pptx");
+    let mut z = zip::ZipWriter::new(std::fs::File::create(&p).unwrap());
+    let o = zip::write::SimpleFileOptions::default();
+    for i in 0..zin.len() {
+        let mut f = zin.by_index(i).unwrap();
+        let n = f.name().unwrap().to_string();
+        if n.starts_with("ppt/slides/slide")
+            || n.starts_with("ppt/notesSlides")
+            || n == "ppt/presentation.xml"
+            || n == "ppt/_rels/presentation.xml.rels"
+        {
+            continue;
+        }
+        let mut b = vec![];
+        f.read_to_end(&mut b).unwrap();
+        z.start_file(n, o).unwrap();
+        z.write_all(&b).unwrap();
+    }
+    let (mut ids, mut rels) = (String::new(), String::new());
+    for i in 1..=200 {
+        z.start_file(format!("ppt/slides/slide{i}.xml"), o).unwrap();
+        z.write_all(slide.replace("Roadmap", &format!("Slide{i}")).as_bytes())
+            .unwrap();
+        ids += &format!(r#"<p:sldId id="{}" r:id="rId{i}"/>"#, 255 + i);
+        rels += &format!(
+            r#"<Relationship Id="rId{i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide{i}.xml"/>"#
+        );
+    }
+    z.start_file("ppt/presentation.xml", o).unwrap();
+    z.write_all(format!(r#"<?xml version="1.0"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:sldIdLst>{ids}</p:sldIdLst></p:presentation>"#).as_bytes()).unwrap();
+    z.start_file("ppt/_rels/presentation.xml.rels", o).unwrap();
+    z.write_all(format!(r#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">{rels}</Relationships>"#).as_bytes()).unwrap();
+    z.finish().unwrap();
+    let mut calls = 0;
+    let t = std::time::Instant::now();
+    let d = stub()
+        .convert(&req(&p, true), &mut |_, _| calls += 1, &|| true)
+        .unwrap();
+    assert!(t.elapsed().as_secs() < 20, "took {:?}", t.elapsed());
+    assert_eq!(d.pages, Some(200));
+    assert_eq!(markers(&d.md), (1..=200).collect::<Vec<_>>());
+    assert!(d.md.contains("Slide200") && calls >= 2, "calls={calls}");
+}
+
+/// QA review M2: 10k rows are chunked with progress, nothing silently dropped or truncated unreported.
+#[test]
+fn big_sheet_10000_rows() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("big10k.xlsx");
+    xlsx_with_rows(&p, 10000);
+    let mut calls = 0;
+    let t = std::time::Instant::now();
+    let d = stub()
+        .convert(&req(&p, true), &mut |_, _| calls += 1, &|| true)
+        .unwrap();
+    assert!(t.elapsed().as_secs() < 20, "took {:?}", t.elapsed());
+    let truncated = has_warning(&d, IngestWarningCode::SheetTruncated);
+    assert!(
+        d.md.contains("| 10000 | Клиент 10000 |") || truncated,
+        "rows lost without a warning"
+    );
+    assert!(calls >= 2);
+}

@@ -939,4 +939,78 @@ mod tests {
         assert!(failed.is_empty(), "failed checks: {failed:#?}");
         assert!(checks.iter().filter(|c| c.verdict == Verdict::Pass).count() >= 25);
     }
+
+    /// QA review M2: duplicate upload, a document deleted outside the app (Finder), RU/EN stemming.
+    #[test]
+    fn duplicate_external_delete_and_stemming() {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/ingest");
+        let tmp = std::env::temp_dir().join(format!("lowk-qa-adv-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let ctx = make_ctx(&tmp, Some("sk-or-x".into()), ModelStore::new(tmp.join("models")));
+        let vault = Vault::open(&tmp.join("vault")).unwrap();
+        let svc = Services::start(ctx.env.clone(), vault.clone()).unwrap();
+        let f = new_folder(&vault, "Adv", true, "");
+        for n in [
+            "sample.docx",
+            "sample.pptx",
+            "sample.md",
+            "sample.csv",
+            "sample.xlsx",
+            "sample.txt",
+        ] {
+            let d = import(&svc, &f, &fixtures, n, false).unwrap();
+            wait_ready(&svc, &d.id, 60).unwrap();
+        }
+        let a = import(&svc, &f, &fixtures, "text.pdf", false).unwrap();
+        let b = import(&svc, &f, &fixtures, "text.pdf", false).unwrap();
+        for d in [&a, &b] {
+            assert_eq!(wait_ready(&svc, &d.id, 60).unwrap().status, IngestStatus::Ready);
+        }
+        let docs = vault.list_docs(&f).unwrap();
+        eprintln!(
+            "DUP: {} docs after importing the same file twice: {:?}",
+            docs.len(),
+            docs.iter().map(|d| d.title.clone()).collect::<Vec<_>>()
+        );
+        let kw = |t: &str| svc.index.search(&q(t, SearchMode::Keyword)).unwrap();
+        // RU morphology and RU/EN code-switch
+        assert!(
+            !kw("поставщик обязуется передать товары").hits.is_empty(),
+            "RU stemming"
+        );
+        assert!(!kw("квазар supply").hits.is_empty(), "code-switch");
+        assert!(kw("zzzqqq незнакомое").hits.is_empty(), "no garbage hits");
+        // delete outside the app: both files of the doc vanish, then a rescan (the watcher does this)
+        let (md, orig) = vault.doc_paths(&a.id).unwrap();
+        let _ = std::fs::remove_file(&md);
+        let _ = std::fs::remove_file(&orig);
+        let (md2, orig2) = vault.doc_paths(&b.id).unwrap();
+        let _ = std::fs::remove_file(&md2);
+        let _ = std::fs::remove_file(&orig2);
+        eprintln!("exists after rm: {} {}", md.exists(), orig.exists());
+        let changes = vault.rescan().unwrap();
+        eprintln!("CHANGES {changes:?}");
+        for c in changes {
+            svc.on_store_change(&c);
+        }
+        let gone = wait(Duration::from_secs(10), || {
+            (!kw("Поставщик обязуется передать товар")
+                .hits
+                .iter()
+                .any(|h| h.source.id == a.id || h.source.id == b.id))
+            .then_some(())
+        });
+        eprintln!(
+            "HITS {:?}",
+            kw("Поставщик обязуется передать товар")
+                .hits
+                .iter()
+                .map(|h| (h.source.id, h.source.kind))
+                .collect::<Vec<_>>()
+        );
+        assert!(gone.is_some(), "index still serves a deleted document");
+        assert_eq!(vault.list_docs(&f).unwrap().len(), 6);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }

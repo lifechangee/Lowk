@@ -46,7 +46,7 @@
       if (!prefs.value.onboarding?.done && router.route.name !== 'onboarding') router.go(hrefs.onboarding(prefs.value.onboarding?.step ?? 0));
       ready = true;
     })();
-    return api.onIndexStatus((s) => (index.status = s));
+    return api.onIndexStatus((s) => { index.status = s; });
   });
 
   // F6: interface text size (settings ui.font_px, 14 = 100%) scales the whole main window live.
