@@ -242,8 +242,8 @@ try {
         }
       }
       if (latency?.ms != null) latencies.push(latency.ms);
-      add(!latency || (latency.ms != null && latency.ms <= 500), `${tag}: backdrop change reaches the painted scrim within 500 ms of the layout ack`, latency ? JSON.stringify(latency) : 'no cell changed polarity: not measured');
       const tag = `${bd.name} @ ${pos.name}`;
+      add(!latency || (latency.ms != null && latency.ms <= 500), `${tag}: backdrop change reaches the painted scrim within 500 ms of the layout ack`, latency ? JSON.stringify(latency) : 'no cell changed polarity: not measured');
       const ofr = JSON.parse(await cmd('overlay-frame'));
       const s = ofr.sampled, f2 = ofr.frame;
       // Expected colour per cell from the REAL overlay frame vs the backdrop geometry: a cell is asserted only when it
