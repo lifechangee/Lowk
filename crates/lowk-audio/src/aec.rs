@@ -121,6 +121,64 @@ mod tests {
         assert!(l.0.reference.lock().unwrap().is_empty());
     }
 
+    /// Crash hunt (owner bug A): the processor must survive any mic/reference content a real
+    /// call can produce: digital silence, full-scale clipping, DC, white noise, NaN/Inf from a
+    /// misbehaving device, reference bursts larger than the backlog cap, reference starvation.
+    #[cfg(feature = "aec")]
+    #[test]
+    fn fuzz_extreme_signals_never_panic_and_stay_finite() {
+        let link = AecLink::new(true);
+        let mut p = link.processor().unwrap();
+        let mut seed = 0x2545_F491_4F6C_DD1Du64;
+        let mut rnd = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            (seed >> 11) as f32 / (1u64 << 53) as f32 * 2.0 - 1.0
+        };
+        for round in 0..6000usize {
+            let kind = (round / 500) % 12;
+            let mut mic = [0f32; 320];
+            let mut far = [0f32; 320];
+            for i in 0..320 {
+                let (m, f) = match kind {
+                    0 => (0.0, 0.0),
+                    1 => (1.0, -1.0),
+                    2 => (rnd() * 4.0, rnd() * 4.0),
+                    3 => (rnd(), rnd()),
+                    4 => (if i % 2 == 0 { 1.0 } else { -1.0 }, 0.7),
+                    5 => (f32::NAN, 0.1),
+                    6 => (0.1, f32::INFINITY),
+                    7 => (f32::NEG_INFINITY, f32::NAN),
+                    8 => (1.0e30, 1.0e30),
+                    9 => (rnd() * 0.001, 0.0),
+                    10 => (0.5, 0.5),
+                    _ => ((i as f32 * 0.3).sin(), (i as f32 * 0.3).sin()),
+                };
+                mic[i] = m;
+                far[i] = f;
+            }
+            match round % 7 {
+                0 => {}
+                1 => link.feed_reference(&[far.as_slice(), far.as_slice(), far.as_slice()].concat()),
+                _ => link.feed_reference(&far),
+            }
+            p.process_frame(&mut mic, &link);
+        }
+        for f in 0..200 {
+            let far: Vec<f32> = (0..320)
+                .map(|i| ((f * 320 + i) as f32 * 0.07).sin() * 0.3)
+                .collect();
+            link.feed_reference(&far);
+            let mut mic = [0f32; 320];
+            for (i, m) in mic.iter_mut().enumerate() {
+                *m = far[i] * 0.25;
+            }
+            p.process_frame(&mut mic, &link);
+            assert!(mic.iter().all(|v| v.is_finite() && v.abs() <= 1.5), "frame {f}");
+        }
+    }
+
     #[cfg(feature = "aec")]
     #[test]
     fn echo_is_attenuated() {

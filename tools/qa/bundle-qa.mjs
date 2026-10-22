@@ -38,12 +38,15 @@ if (process.platform !== 'darwin') { console.log('bundle QA is macOS only'); pro
 const PRIVACY_KEYS = ['NSMicrophoneUsageDescription', 'NSAudioCaptureUsageDescription', 'NSScreenCaptureUsageDescription'];
 
 // ---- 0. a running Lowk would hand our launch over to itself (single instance) and the rebuild replaces its files
-const wasRunning = run('pgrep', ['-x', 'lowk']).status === 0;
+// Only THIS checkout's bundle is ever touched. A blanket `pkill -x lowk` once killed the owner's live app
+// (system log 2026-10-22: SIGTERM while he was speaking, no crash report; he reported "it closed itself").
+const EXE_RE = `^${join(APP, 'Contents/MacOS/lowk').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( |$)`;
+const wasRunning = run('pgrep', ['-f', EXE_RE]).status === 0;
 let restoreExe = null;
 if (wasRunning) {
-  const ps = run('pgrep', ['-x', 'lowk']).stdout.trim().split('\n')[0];
+  const ps = run('pgrep', ['-f', EXE_RE]).stdout.trim().split('\n')[0];
   restoreExe = run('ps', ['-p', ps, '-o', 'comm=']).stdout.trim();
-  run('pkill', ['-x', 'lowk']);
+  run('pkill', ['-f', EXE_RE]);
   await sleep(1500);
 }
 const restore = () => {
@@ -124,6 +127,31 @@ check(existsSync(embedWorker) && run('/usr/bin/codesign', ['--verify', embedWork
   rmSync(sh, { recursive: true, force: true });
 }
 
+// ---- 2c. Audio path, silent, by the BUNDLE'S OWN binary (`lowk --selfcheck-audio`): the Me and System streams are
+// fed from FILES as raw 48 kHz device signals (a clipping hot mic with a strong echo of the speakers) through the real
+// ring -> resampler -> WebRTC AEC3 -> session -> BUNDLED STT worker for 60 s (owner bug A: "I spoke, it recognised
+// and closed"), then the real tap is built/rebuilt: its aggregate must have no output stream and none may be left
+// behind (owner bug B: capture must never alter playback). Nothing is played.
+{
+  const models = process.env.LOWK_MODELS ?? join(homedir(), 'Library/Application Support/Lowk/models');
+  const benchAudio = [process.env.LOWK_BENCH_AUDIO, join(root, 'spikes/stt-bench/audio'), join(homedir(), 'Applications/Projects/Lowk/spikes/stt-bench/audio')].filter(Boolean).find((d) => existsSync(join(d, '02_them_q.m4a')));
+  if (!existsSync(join(models, 'nemotron-local')) || !benchAudio) {
+    grant('audio self-check (60 s mic+system+AEC from files)', `no engine models in ${models} or no spikes/stt-bench/audio recordings (set LOWK_BENCH_AUDIO)`);
+  } else {
+    const sh = mkdtempSync(join(tmpdir(), 'lowk-audio-selfcheck-'));
+    const r = spawnSync(exe, ['--selfcheck-audio', '--me', join(benchAudio, '01_me_q.m4a'), '--system', join(benchAudio, '02_them_q.m4a'), '--models', models, '--seconds', '60', '--hot', '--require-aec'], { encoding: 'utf8', timeout: 900000, env: { ...process.env, HOME: sh, LOWK_DATA_DIR: join(sh, 'data'), LOWK_STT_WORKER: worker } });
+    const out = (r.stdout ?? '') + (r.stderr ?? '');
+    const lines = [...out.matchAll(/^CHECK (PASS|FAIL|SKIP) (.*?) :: (.*)$/gm)];
+    for (const [, v, name, detail] of lines) {
+      if (v === 'PASS') pass(`audio ${name}`, detail.slice(0, 160));
+      else if (v === 'FAIL') fail(`audio ${name}`, detail.slice(0, 160));
+      else rec('SKIP', `audio ${name}`, detail.slice(0, 160));
+    }
+    check(/^SELFCHECK-AUDIO ok/m.test(out) && r.status === 0 && lines.length >= 14, 'audio self-check of the bundle ran to the end (the process did not die)', `exit ${r.status}${r.signal ? ` signal ${r.signal}` : ''}, ${lines.length} checks`);
+    rmSync(sh, { recursive: true, force: true });
+  }
+}
+
 if (has('--no-run')) { summary(); restore(); process.exit(results.some((r) => r.verdict === 'FAIL') ? 1 : 0); }
 
 // ---- 3. launch the bundle (clean profile: empty data dir AND empty HOME, so nothing from the dev machine leaks in)
@@ -139,7 +167,7 @@ const since = Date.now();
 const o = run('open', ['-n', ...(has('--silent') ? ['-g'] : []), '--env', `LOWK_DATA_DIR=${data}`, '--env', `HOME=${home}`, '--env', 'LOWK_NO_WARMUP=1', APP]);
 if (o.status !== 0) fail('open the bundle', o.stderr);
 await sleep(9000);
-const alive = run('pgrep', ['-x', 'lowk']).status === 0;
+const alive = run('pgrep', ['-f', EXE_RE]).status === 0;
 check(alive, 'the bundle stays alive after launch (no TCC/privacy abort)');
 const crash = existsSync(join(homedir(), 'Library/Logs/DiagnosticReports'))
   ? readdirSync(join(homedir(), 'Library/Logs/DiagnosticReports')).filter((f) => /^lowk.*\.(ips|crash)$/i.test(f) && statSync(join(homedir(), 'Library/Logs/DiagnosticReports', f)).mtimeMs > since)
@@ -256,7 +284,18 @@ if (has('--silent')) {
   }
 }
 
-run('pkill', ['-x', 'lowk']);
+// A kill signal is not a crash: the app says so in its log, finishes the call and exits by itself (2026-10-22: an
+// external pkill looked like "the app closed while I was speaking" because nothing was logged).
+{
+  const pids = run('pgrep', ['-f', EXE_RE]).stdout.trim().split('\n').filter(Boolean);
+  if (pids.length) {
+    run('kill', ['-TERM', pids[0]]);
+    await sleep(3500);
+    check(run('pgrep', ['-f', EXE_RE]).status !== 0, 'SIGTERM ends the bundle by itself within 3.5 s');
+    check(/stopped by a signal \(kill\/pkill\/launchd\), not a crash/.test(logNow()), 'SIGTERM is named in lowk.log (not a silent disappearance)');
+  }
+}
+run('pkill', ['-f', EXE_RE]);
 await sleep(1000);
 rmSync(work, { recursive: true, force: true });
 summary();

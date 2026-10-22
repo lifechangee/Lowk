@@ -14,6 +14,13 @@ fn has_input(d: &ca::Device) -> bool {
         .unwrap_or(false)
 }
 
+/// Number of output streams a device exposes (0 for a tap-only aggregate: it cannot play).
+pub fn output_stream_count(d: &ca::Device) -> usize {
+    d.prop_vec::<ca::Obj>(&PropSelector::DEVICE_STREAMS.output_addr())
+        .map(|v| v.len())
+        .unwrap_or(0)
+}
+
 pub fn list_mics() -> Result<Vec<DeviceInfo>> {
     let def = ca::System::default_input_device()
         .ok()
@@ -39,6 +46,18 @@ pub fn list_mics() -> Result<Vec<DeviceInfo>> {
     }
     out.sort_by(|a, b| b.is_default.cmp(&a.is_default).then_with(|| a.name.cmp(&b.name)));
     Ok(out)
+}
+
+/// Names of the Lowk tap aggregates alive in this process (must be empty after capture stops).
+pub fn lowk_aggregates() -> Vec<String> {
+    ca::System::devices()
+        .map(|v| {
+            v.iter()
+                .filter_map(|d| d.name().ok().map(|n| n.to_string()))
+                .filter(|n| n == "LowkTap")
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// UID of the current default input device.

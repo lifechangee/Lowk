@@ -7,5 +7,8 @@ fn main() {
     if args.iter().any(|a| a == "--selfcheck-m2") {
         std::process::exit(lowk_app::m2::selfcheck::main(&args));
     }
+    if args.iter().any(|a| a == "--selfcheck-audio") {
+        std::process::exit(lowk_app::audio_selfcheck::main(&args));
+    }
     lowk_app::run();
 }

@@ -10,15 +10,18 @@
 pub mod aec;
 pub mod file;
 pub mod pipeline;
+pub mod pipeline_file;
 
 #[cfg(target_os = "macos")]
 pub mod mac;
 #[cfg(windows)]
 pub mod win;
 
+pub use aec::AecLink;
 pub use file::{FileAudioSource, FileDone};
 pub use lowk_platform::perm::SystemAudioProbe;
 pub use lowk_types::{SourceInfo, SourceKind};
+pub use pipeline_file::{PipelineFileSource, PipelineOpts};
 
 /// `CaptureConfig::mic` value that disables the Me stream (None = default input device).
 pub const MIC_NONE: &str = "none";

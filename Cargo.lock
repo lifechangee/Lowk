@@ -2880,6 +2880,7 @@ name = "lowk-app"
 version = "0.0.1"
 dependencies = [
  "blake3",
+ "libc",
  "lowk-audio",
  "lowk-capture",
  "lowk-index",

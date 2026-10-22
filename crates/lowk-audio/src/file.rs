@@ -14,10 +14,10 @@ use std::time::{Duration, Instant};
 pub struct FileDone(Arc<(Mutex<u32>, Condvar)>);
 
 impl FileDone {
-    fn add(&self, n: u32) {
+    pub(crate) fn add(&self, n: u32) {
         *self.0 .0.lock().unwrap() += n;
     }
-    fn finish_one(&self) {
+    pub(crate) fn finish_one(&self) {
         let mut g = self.0 .0.lock().unwrap();
         *g = g.saturating_sub(1);
         self.0 .1.notify_all();

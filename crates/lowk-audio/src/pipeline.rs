@@ -70,6 +70,11 @@ impl RingIn {
         (Self { prod, shared }, cons)
     }
 
+    /// Samples queued in the ring (producer side view).
+    pub fn backlog(&self) -> usize {
+        self.prod.occupied_len()
+    }
+
     /// Mono f32 samples at `rate` Hz whose last sample was captured at `end_ns` (mono clock).
     pub fn push(&mut self, samples: &[f32], rate: u32, end_ns: MonoNs) {
         let n = self.prod.push_slice(samples);

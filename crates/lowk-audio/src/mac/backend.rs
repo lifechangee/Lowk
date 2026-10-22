@@ -109,6 +109,8 @@ struct Supervisor {
     /// System default input at the moment the mic started (auto-mic may differ from it).
     mic_default_at_start: Option<String>,
     watchdog_trips: u32,
+    /// `loud_frames` of the System stream when the watchdog last looked (trips reset on new sound).
+    last_loud: u64,
     target_gone_since: Option<Instant>,
     target_lost_sent: bool,
     /// Who the App target is, remembered at first resolve (S5).
@@ -152,6 +154,7 @@ impl Supervisor {
             tap_fail_count: 0,
             mic_default_at_start: None,
             watchdog_trips: 0,
+            last_loud: 0,
             target_gone_since: None,
             target_lost_sent: false,
             identity: None,
@@ -469,13 +472,19 @@ impl Supervisor {
             self.sys_perm_reported = true;
             lowk_platform::perm::report_system_audio_probe(lowk_platform::perm::SystemAudioProbe::Working);
         }
-        if sys.loud_frames.load(Ordering::Relaxed) > 0 {
+        let loud = sys.loud_frames.load(Ordering::Relaxed);
+        if loud > self.last_loud {
+            // real sound arrived since the last look: the tap works, forget old trips
+            self.last_loud = loud;
             self.watchdog_trips = 0;
         }
 
         // ---- silent-tap watchdog
         let zero = sys.zero_ms.load(Ordering::Relaxed);
-        if zero >= ZERO_MS_TRIP && self.last_rebuild.elapsed() > REBUILD_COOLDOWN && self.target_active() {
+        // Back off while rebuilding does not help (a paused video / silent page keeps its output
+        // stream open and looks "active"): 5 s, 10 s, 20 s, 40 s, 80 s between rebuilds.
+        let cooldown = REBUILD_COOLDOWN * (1u32 << self.watchdog_trips.min(4));
+        if zero >= ZERO_MS_TRIP && self.last_rebuild.elapsed() > cooldown && self.target_active() {
             self.watchdog_trips += 1;
             tracing::warn!(
                 zero_ms = zero,
@@ -483,9 +492,9 @@ impl Supervisor {
                 "silent tap while target produces output"
             );
             self.rebuild_tap("silent tap");
-            if self.watchdog_trips >= 3 {
+            if self.watchdog_trips == 3 {
+                // once per silent stretch; the trips keep counting so the back-off keeps growing
                 self.emit(AudioEvent::SilentTap);
-                self.watchdog_trips = 0;
             }
         }
     }

@@ -105,6 +105,7 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     );
     let session = Arc::new(Session::new(deps));
     session.add_sink(emitter.clone());
+    crate::sigterm::install(handle.clone(), session.clone());
 
     let input = InputManager::new(Some(Box::new(TauriCombo::new(handle.clone()))));
     let bind_rx = input.events();

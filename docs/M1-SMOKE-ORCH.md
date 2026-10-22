@@ -48,6 +48,12 @@ Audible checks left for the owner (nothing was played through speakers in this r
 - AirPods output + mic: 40 s speech clip → 5 «Система» lines, correct text/timestamps/segmentation, 0 foreign letters, no echo. PASS.
 - ⌘⇧S via computer-use key injection under RU layout still logs ScreenshotArea (agent: real HID presses map correctly; injection artefact). Owner to confirm with a real key press.
 
+## Round 4 (2026-10-22): owner bugs A (app "crashed" while speaking) and B (browser inaudible on speakers)
+
+**A.** The system log shows no crash for the 11:28Z session: pid 34374 was ended by SIGTERM at 11:53:17Z (runningboardd `signal(2) code:SIGTERM(15)`), 5 s after the last log line, no crash report. Something pkill'ed the running app (`tools/qa/bundle-qa.mjs` did a blanket `pkill -x lowk`; the main-checkout bundle was rebuilt at 11:55Z). AEC3 fuzz (NaN/Inf/1e30/clipping/starvation) and 60 s of hot mic + echo through ring, resampler, AEC, session and the bundled STT worker: no panic, worker alive. Fixes: qa-bundle only touches its own checkout's bundle; the app handles SIGTERM/SIGINT/SIGHUP (logs "stopped by a signal ... not a crash", saves the call, exits). Checks: `lowk --selfcheck-audio` (qa-bundle step 2c), `aec::fuzz_*`, `pipeline_file` test, qa-bundle SIGTERM check.
+
+**B.** With the output device as aggregate sub-device our process opened IO on the speakers as soon as anything played; audiomxd made it a PlayAndRecord/VoiceChat session (score 501) while the mic was open (reproduced silently with a tone on a muted Mac; absent when nothing plays). Capture now uses a tap-only aggregate (0 output streams; `LOWK_TAP_MODE=sub` restores the old shape): session stays Record/Playing=NO, tap data still flows. The silent-tap watchdog backs off (5/10/20/40/80 s). Checks: ignored `hw_tests`, selfcheck-audio (0 output streams, no `LowkTap` left after 4 rebuilds). Audible confirmation pending.
+
 ## Bluetooth / HFP: "whole-system capture silences playback" (AirPods)
 
 Root cause: not our tap (explicitly CATapUnmuted; the acoustic check `tools/audio/no-mute.sh` fails when forced to Muted and passes on speakers). Opening the AirPods microphone flips the headset from A2DP to HFP, so playback gets quieter, then stops. Fix: when the default input is Bluetooth and no other app records, Lowk's mic defaults to the built-in mic (manual choice still wins). Confirmed by the owner on AirPods (30 s tone, no drop, built-in mic by policy).

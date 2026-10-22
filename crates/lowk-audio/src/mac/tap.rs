@@ -187,6 +187,12 @@ pub struct TapSession {
 }
 
 impl TapSession {
+    /// Output streams of the capture aggregate. Must be 0: a capture that can play is a playback
+    /// client of the speakers (owner bug B).
+    pub fn output_streams(&self) -> usize {
+        devices::output_stream_count(&ca::Device(ca::Obj(self.agg_obj)))
+    }
+
     /// Rate the aggregate delivers right now (changes when the output device renegotiates, e.g.
     /// Bluetooth A2DP 48 kHz <-> HFP 24/16 kHz when a microphone opens).
     pub fn current_rate(&self) -> Option<f64> {
@@ -266,6 +272,31 @@ pub fn start_tap(target: &TapTarget, ring: RingIn) -> Result<TapSession> {
         &[tap.uid().map_err(|e| err("tap uid", e))?.as_type_ref()],
     );
     use ca::aggregate_device_keys as k;
+    // Tap-only aggregate (no output sub-device). With the output device as a sub-device our process
+    // opened IO on the speakers whenever anything played, which made macOS treat it as a
+    // PlayAndRecord / VoiceChat session (audiomxd: score 501) while the mic was open: capture must
+    // never be a playback client. `LOWK_TAP_MODE=sub` restores the old shape for A/B diagnosis.
+    let tap_only = std::env::var("LOWK_TAP_MODE").map_or(true, |m| m != "sub");
+    let uid_str = cf::Uuid::new().to_cf_string();
+    let tap_list = cf::ArrayOf::from_slice(&[sub_tap.as_ref()]);
+    let dict_tap_only = cf::DictionaryOf::with_keys_values(
+        &[
+            k::is_private(),
+            k::is_stacked(),
+            k::tap_auto_start(),
+            k::name(),
+            k::uid(),
+            k::tap_list(),
+        ],
+        &[
+            cf::Boolean::value_true().as_type_ref(),
+            cf::Boolean::value_false(),
+            cf::Boolean::value_true(),
+            cf::str!(c"LowkTap"),
+            &uid_str,
+            &tap_list,
+        ],
+    );
     let dict = cf::DictionaryOf::with_keys_values(
         &[
             k::is_private(),
@@ -288,7 +319,12 @@ pub fn start_tap(target: &TapTarget, ring: RingIn) -> Result<TapSession> {
             &cf::ArrayOf::from_slice(&[sub_tap.as_ref()]),
         ],
     );
-    let agg = ca::AggregateDevice::with_desc(&dict).map_err(|e| err("create aggregate", e))?;
+    let agg = if tap_only {
+        ca::AggregateDevice::with_desc(&dict_tap_only)
+    } else {
+        ca::AggregateDevice::with_desc(&dict)
+    }
+    .map_err(|e| err("create aggregate", e))?;
     let agg_obj = agg.0 .0;
     let rate = delivered_rate(agg.actual_sample_rate().ok(), asbd.sample_rate);
     if (rate - asbd.sample_rate).abs() > 1.0 {
@@ -306,7 +342,22 @@ pub fn start_tap(target: &TapTarget, ring: RingIn) -> Result<TapSession> {
         .create_io_proc_id(io_proc as ca::DeviceIoProc<1, 1, Ctx>, Some(&mut *ctx))
         .map_err(|e| err("tap IOProc", e))?;
     let started = ca::device_start(agg, Some(pid)).map_err(|e| err("tap start", e))?;
-    tracing::info!(rate, channels = asbd.channels_per_frame, ?target, "tap started");
+    let out_streams = devices::output_stream_count(&ca::Device(ca::Obj(agg_obj)));
+    if out_streams > 0 {
+        tracing::warn!(
+            out_streams,
+            tap_only,
+            "capture aggregate has output streams: it can act as a playback client"
+        );
+    }
+    tracing::info!(
+        rate,
+        channels = asbd.channels_per_frame,
+        ?target,
+        tap_only,
+        out_streams,
+        "tap started"
+    );
     Ok(TapSession {
         _started: started,
         _tap: tap,
@@ -357,6 +408,40 @@ mod mute_tests {
             let d = build_desc(&t, &arr);
             assert_eq!(d.mute_behavior(), ca::TapMuteBehavior::Unmuted, "{t:?}");
             assert!(d.is_private());
+        }
+    }
+}
+
+/// Hardware tests (need the System Audio permission of the test runner; silent: nothing plays).
+#[cfg(test)]
+mod hw_tests {
+    use super::*;
+
+    /// B: the capture aggregate has no output stream, and no Lowk aggregate survives a teardown,
+    /// also after repeated rebuilds (the watchdog loop of the owner's log).
+    #[test]
+    #[ignore = "hardware: needs the System Audio permission; run with --ignored"]
+    fn tap_has_no_output_streams_and_leaves_no_aggregate_behind() {
+        assert!(devices::lowk_aggregates().is_empty());
+        for round in 0..4 {
+            let (ring, _rx) = RingIn::new(Default::default(), 48_000);
+            let t = start_tap(&TapTarget::System(vec![]), ring).expect("tap");
+            assert_eq!(
+                t.output_streams(),
+                0,
+                "round {round}: aggregate must not be able to play"
+            );
+            assert_eq!(
+                devices::lowk_aggregates().len(),
+                1,
+                "round {round}: exactly one alive"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            drop(t);
+            assert!(
+                devices::lowk_aggregates().is_empty(),
+                "round {round}: aggregate left behind"
+            );
         }
     }
 }

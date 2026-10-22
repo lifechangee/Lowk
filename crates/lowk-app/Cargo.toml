@@ -29,6 +29,7 @@ lowk-index.workspace = true
 lowk-ingest.workspace = true
 lowk-llm.workspace = true
 blake3.workspace = true
+libc = "0.2"
 tauri-plugin-dialog.workspace = true
 parking_lot.workspace = true
 raw-window-handle.workspace = true

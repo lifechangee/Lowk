@@ -2,6 +2,7 @@
 //! single instance, updater skeleton. The only crate that knows Tauri; the
 //! business logic lives in the feature crates.
 mod actions;
+pub mod audio_selfcheck;
 mod boot;
 mod callstore;
 mod capture;
@@ -15,6 +16,7 @@ mod mainthread;
 mod probe;
 #[cfg(feature = "qa")]
 mod qa;
+mod sigterm;
 mod state;
 mod visibility;
 mod windows;
