@@ -1,0 +1,58 @@
+name: Bug report
+description: Something does not work as described
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Lowk is pre-alpha. Do not paste API keys, private transcripts or documents. For security problems see SECURITY.md instead of filing a public issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw instead. Screenshots help (blur private content).
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. ...\n2. ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS 14
+        - macOS 15 or newer
+        - Windows 11
+        - Windows 10
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Lowk version or commit
+      description: Built from source (give the commit) or a build someone gave you.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Transcription
+        - Overlay or stealth
+        - Hotkeys
+        - AI answers
+        - Documents, search or summary
+        - Vault, folders or export
+        - Permissions or install
+        - Other
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: Transcription engine (local or cloud), LLM provider, call app, languages, bundled app or `just dev`.
