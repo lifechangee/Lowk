@@ -17,3 +17,13 @@ Not testable by orchestrator: native file dialog navigation (computer-use key in
 ## With the owner's OpenRouter key (entered by the owner)
 - Key saved to Keychain, «Ключ работает». Summary on the 12-min demo call: generated in a few seconds by deepseek-v4.1-flash-1017, correct sections (Главное / Решения / Задачи / Вопросы ко мне → Мой ответ), RU with EN terms. PASS.
 - M2-S5 (new, minor): summary text says «Me упомянул…» — internal speaker id "Me" leaks; should be «Я» (RU) / "I" or the user's name.
+
+## Owner hands-on (2026-10-22, bundled app)
+| ID | Severity | Problem | Owner |
+|---|---|---|---|
+| O1 | CRITICAL | App closed right after it started recognizing the owner's mic speech (speakers, whole-system source, AEC on). No crash report found. | audio agent |
+| O2 | CRITICAL | Whole-system capture on speakers: YouTube plays but nothing is audible (fine with headphones); log shows silent-tap rebuild loop. | audio agent |
+| O3 | High | Adding a PDF via the button → «неизвестная ошибка». | fix agent |
+| O4 | Medium | Adaptive gradient glitchy and lags ~3 s. | fix agent |
+| O5 | Medium | ⌘↵ sometimes answers with a counter-question. | fix agent |
+Works: ⌘↵ answers are accurate.
