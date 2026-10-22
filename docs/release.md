@@ -1,6 +1,6 @@
 # Test builds (Windows and macOS) from GitHub Actions
 
-Workflow: `.github/workflows/release-build.yml` (`release-build`). It runs nightly (03:47 UTC) and on demand.
+Workflow: `.github/workflows/release-build.yml` (`release-build`). It runs on demand (nightly to be added once stable).
 Each run builds the full bundled app, runs `cargo test --workspace` on that OS and uploads installers as artifacts
 (kept 14 days). Models are never bundled; they are downloaded on first use.
 

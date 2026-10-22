@@ -3,8 +3,6 @@ name: release-build
 # Test builds of the bundled app for people without the hardware: Windows (NSIS installer) and macOS
 # (.app zip + .dmg, ad-hoc signed). Models are NOT bundled. See docs/release.md.
 on:
-  push:
-    branches: [ci/release-build]
   workflow_dispatch:
     inputs:
       windows_gpu:
@@ -17,8 +15,7 @@ on:
         type: choice
         options: [both, windows, macos]
         default: both
-  schedule:
-    - cron: "47 3 * * *"
+  # nightly `schedule` is added once manual runs are stably green
 
 concurrency:
   group: release-build-${{ github.ref }}
@@ -30,7 +27,7 @@ env:
 
 jobs:
   windows:
-    if: github.event_name != 'workflow_dispatch' || inputs.platforms != 'macos'
+    if: inputs.platforms != 'macos'
     runs-on: windows-2022
     timeout-minutes: 90
     defaults:
@@ -97,7 +94,7 @@ jobs:
           retention-days: 14
 
   macos:
-    if: github.event_name != 'workflow_dispatch' || inputs.platforms != 'windows'
+    if: inputs.platforms != 'windows'
     runs-on: macos-26
     timeout-minutes: 90
     steps:
@@ -118,9 +115,14 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: ui/pnpm-lock.yaml
-      - uses: taiki-e/install-action@v2
+      - name: tauri-cli (native arm64, cached)
+        uses: actions/cache@v4
+        id: tcli
         with:
-          tool: tauri-cli@2
+          path: ~/.cargo/bin/cargo-tauri
+          key: tauri-cli-2.12.4-macos-arm64
+      - if: steps.tcli.outputs.cache-hit != 'true'
+        run: cargo install tauri-cli --version 2.12.4 --locked
       - name: Build tools (meson, ninja for AEC)
         run: brew install meson ninja
       - name: Cache llama.cpp build
