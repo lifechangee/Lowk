@@ -25,3 +25,16 @@ Root cause: `llm.model` defaulted to the unpinned slug `deepseek/deepseek-v4.1-f
 * GitHub Actions run of the final commit is pending the push.
 * Owner smoke test of the bundle by the orchestrator (computer use) is still required by the release gate.
 * WP-C leftovers: bge-m3/e5 comparison, i5-10400F timing. Windows sidecar build is untested (compile-checked only).
+
+## Checkpoint 2026-10-23 (tag `checkpoint-2026-10-23`, owner break ~1.5 days)
+Adaptive overlay tone, verified live with the owner ("гораздо лучше", edges still imperfect):
+* Bright light colours (yellow, gold, lime, light orange/green/cyan, pink) get a light tinted scrim + dark text (owner decision).
+* Sampler bug fixed: SCK grabs were requested at 4:3 for a 600x384 overlay, so macOS letterboxed the bottom ~15% black and the lower tone rows were dimmed/stale ("feels like 4 zones").
+* Tone grid 12x8 (was 4x3), majority-vote border cells, sharp 8 px transitions, latency ~0.3 s (100 ms poll, 2-sample confirm, 120 ms fade), 0.35 ms analysis per changed frame.
+* Strict live check `just qa-tone` (border bands, latency <= 500 ms, `--grid`): last owner run interrupted after 16 FAILs, mostly at screen edges and the black/white border; latency on some quadrant cells not reached.
+
+Open, owner said WAIT for him before starting:
+1. Overlay UI took very long to appear in the live run (frame visible, content late). Measure qa (debug) vs release bundle and 96-cell render cost first.
+2. Tone change ~2x faster (~0.15 s): evaluate a continuous SCStream instead of polled SCScreenshotManager grabs; ship only if CPU is not worse.
+3. Settings toggle for the adaptive gradient, default OFF (plain scrim + transparency slider); off = no sampling at all (no CPU, no Screen Recording need for this feature). The gradient is mainly for overlays shown in smart glasses.
+Also open: edge-of-screen tone accuracy (see the FAIL list of the last `just qa-tone`), 2 moderate Dependabot alerts, owner live check of hold-⌃, roadmap question batch (Apple Developer, Win10, camera, sync, disguise, Jev key, order).
