@@ -431,8 +431,14 @@ fn duplicate_upload_is_detected_by_content_and_offers_open_copy_replace() {
     let first = v.add_doc(&new(&f, &a)).unwrap();
 
     // same bytes under another file name: still a duplicate, reported with the existing document
-    let renamed = src(&t, "contract-final.txt", b"Supplier delivers goods within ten days.");
-    let hits = v.find_duplicates(&[new(&f, &renamed), new(&f, &src(&t, "x.txt", b"different"))]).unwrap();
+    let renamed = src(
+        &t,
+        "contract-final.txt",
+        b"Supplier delivers goods within ten days.",
+    );
+    let hits = v
+        .find_duplicates(&[new(&f, &renamed), new(&f, &src(&t, "x.txt", b"different"))])
+        .unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].index, 0);
     assert_eq!(hits[0].existing.id, first.id);
@@ -444,22 +450,37 @@ fn duplicate_upload_is_detected_by_content_and_offers_open_copy_replace() {
     assert_eq!(e.code, ErrorCode::DocDuplicate);
     assert_eq!(e.params.get("id"), Some(&first.id.to_string()));
     assert_eq!(v.list_docs(&f).unwrap().len(), 1);
-    assert_eq!(fs::read_dir(v.root().join("P/Docs")).unwrap().count(), 2, "original + md only");
+    assert_eq!(
+        fs::read_dir(v.root().join("P/Docs")).unwrap().count(),
+        2,
+        "original + md only"
+    );
     v.add_doc(&new(&other, &renamed)).unwrap();
 
     // copy: two documents
     let copy = v
-        .add_doc(&NewDocument { on_duplicate: DupAction::Copy, ..new(&f, &renamed) })
+        .add_doc(&NewDocument {
+            on_duplicate: DupAction::Copy,
+            ..new(&f, &renamed)
+        })
         .unwrap();
     assert_eq!(v.list_docs(&f).unwrap().len(), 2);
 
     // replace: the old ones go to the trash, the new one stays
     let rep = v
-        .add_doc(&NewDocument { on_duplicate: DupAction::Replace, ..new(&f, &renamed) })
+        .add_doc(&NewDocument {
+            on_duplicate: DupAction::Replace,
+            ..new(&f, &renamed)
+        })
         .unwrap();
     let live: Vec<_> = v.list_docs(&f).unwrap().into_iter().map(|d| d.id).collect();
     assert_eq!(live, vec![rep.id]);
-    let trash: Vec<_> = v.list_docs(&FolderRef::Trash).unwrap().into_iter().map(|d| d.id).collect();
+    let trash: Vec<_> = v
+        .list_docs(&FolderRef::Trash)
+        .unwrap()
+        .into_iter()
+        .map(|d| d.id)
+        .collect();
     assert!(trash.contains(&first.id) && trash.contains(&copy.id));
     v.restore_doc(&first.id).unwrap();
     assert_eq!(v.list_docs(&f).unwrap().len(), 2);

@@ -369,7 +369,10 @@ fn warm_up_sends_only_an_authenticated_get_without_user_data() {
     assert_eq!(reqs[0].method, "GET");
     assert!(reqs[0].path.contains("/models/") && reqs[0].path.ends_with("/endpoints"));
     assert!(reqs[0].body.is_empty(), "no body, so no user data");
-    assert_eq!(reqs[0].header("authorization"), Some(&format!("Bearer {KEY}")[..]));
+    assert_eq!(
+        reqs[0].header("authorization"),
+        Some(&format!("Bearer {KEY}")[..])
+    );
     // the real request after the warm-up works on the same client
     let (r, deltas) = run(&client, &ledger());
     assert_eq!(r.unwrap().text, "ok");

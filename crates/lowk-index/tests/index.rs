@@ -675,13 +675,31 @@ fn tiny_vault() -> (tempfile::TempDir, Index) {
     let f = FolderRef::User(uid(200));
     ix.upsert_folder(&folder(&f, "Tiny", true, "")).unwrap();
     let docs = [
-        (1, "Договор поставки", "Поставщик обязуется поставить товар в срок. Оплата договора производится в течение десяти дней."),
-        (2, "Lease agreement", "The tenant pays rent monthly. The landlord must repair the roof and the heating system."),
-        (3, "Заметки", "Встреча с клиентом перенесена на пятницу. Обсудить бюджет и график платежей."),
+        (
+            1,
+            "Договор поставки",
+            "Поставщик обязуется поставить товар в срок. Оплата договора производится в течение десяти дней.",
+        ),
+        (
+            2,
+            "Lease agreement",
+            "The tenant pays rent monthly. The landlord must repair the roof and the heating system.",
+        ),
+        (
+            3,
+            "Заметки",
+            "Встреча с клиентом перенесена на пятницу. Обсудить бюджет и график платежей.",
+        ),
     ];
     for (n, t, body) in docs {
-        ix.upsert(&item(n, IndexItemKind::Doc, f.clone(), t, format!("<!-- p:1 -->\n{body}\n")))
-            .unwrap();
+        ix.upsert(&item(
+            n,
+            IndexItemKind::Doc,
+            f.clone(),
+            t,
+            format!("<!-- p:1 -->\n{body}\n"),
+        ))
+        .unwrap();
     }
     (dir, ix)
 }
@@ -706,7 +724,12 @@ fn tiny_vault_returns_ordinary_words_keyword_and_semantic() {
     let emb = Arc::new(HashEmbedder::new(256).with_synonyms(&[&["rent", "аренда", "lease"]]));
     ix.set_embedder(Some(emb), SemanticState::Off).unwrap();
     while ix.embed_pending(2).unwrap() > 0 {}
-    for (query, want) in [("договор", uid(1)), ("аренда", uid(2)), ("tenant rent", uid(2)), ("клиент", uid(3))] {
+    for (query, want) in [
+        ("договор", uid(1)),
+        ("аренда", uid(2)),
+        ("tenant rent", uid(2)),
+        ("клиент", uid(3)),
+    ] {
         let r = ix.search(&q(query)).unwrap();
         assert_eq!(r.mode_used, SearchMode::Hybrid);
         assert!(!r.hits.is_empty(), "hybrid: nothing for {query:?}");
@@ -723,13 +746,27 @@ fn tiny_vault_word_in_every_document_still_ranks_the_best_match_first() {
     let f = FolderRef::User(uid(300));
     ix.upsert_folder(&folder(&f, "Tiny", true, "")).unwrap();
     let docs = [
-        (1, "A", "Договор упомянут один раз, остальное про погоду и отпуск."),
-        (2, "B", "Договор аренды: стороны подписали договор, условия договора, срок договора."),
+        (
+            1,
+            "A",
+            "Договор упомянут один раз, остальное про погоду и отпуск.",
+        ),
+        (
+            2,
+            "B",
+            "Договор аренды: стороны подписали договор, условия договора, срок договора.",
+        ),
         (3, "C", "Короткая записка про договор."),
     ];
     for (n, t, body) in docs {
-        ix.upsert(&item(n, IndexItemKind::Doc, f.clone(), t, format!("<!-- p:1 -->\n{body}\n")))
-            .unwrap();
+        ix.upsert(&item(
+            n,
+            IndexItemKind::Doc,
+            f.clone(),
+            t,
+            format!("<!-- p:1 -->\n{body}\n"),
+        ))
+        .unwrap();
     }
     let r = ix.search(&q("договор")).unwrap();
     assert_eq!(r.hits.len(), 3, "every document mentions the word: {r:?}");
@@ -740,8 +777,14 @@ fn tiny_vault_word_in_every_document_still_ranks_the_best_match_first() {
     let d2 = tempfile::tempdir().unwrap();
     let ix2 = Index::open(&d2.path().join("index.db")).unwrap();
     ix2.upsert_folder(&folder(&f, "Tiny", true, "")).unwrap();
-    ix2.upsert(&item(1, IndexItemKind::Doc, f.clone(), "A", "<!-- p:1 -->\nПоставка товара оплачена.\n".into()))
-        .unwrap();
+    ix2.upsert(&item(
+        1,
+        IndexItemKind::Doc,
+        f.clone(),
+        "A",
+        "<!-- p:1 -->\nПоставка товара оплачена.\n".into(),
+    ))
+    .unwrap();
     assert_eq!(ix2.search(&q("товар")).unwrap().hits.len(), 1);
 }
 
@@ -753,7 +796,11 @@ fn all_common_stems_in_a_mid_size_index_are_all_kept() {
     let f = FolderRef::User(uid(400));
     ix.upsert_folder(&folder(&f, "Mid", true, "")).unwrap();
     for n in 1..=300u64 {
-        let extra = if n == 77 { " Приложение содержит гарантию." } else { "" };
+        let extra = if n == 77 {
+            " Приложение содержит гарантию."
+        } else {
+            ""
+        };
         ix.upsert(&item(
             n,
             IndexItemKind::Doc,

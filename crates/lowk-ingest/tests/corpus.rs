@@ -36,7 +36,10 @@ fn words(s: &str) -> std::collections::HashMap<String, u32> {
 fn word_recall(truth: &str, got: &str) -> f64 {
     let (t, g) = (words(truth), words(got));
     let total: u32 = t.values().sum();
-    let hit: u32 = t.iter().map(|(w, n)| (*n).min(g.get(w).copied().unwrap_or(0))).sum();
+    let hit: u32 = t
+        .iter()
+        .map(|(w, n)| (*n).min(g.get(w).copied().unwrap_or(0)))
+        .sum();
     f64::from(hit) / f64::from(total.max(1))
 }
 
@@ -87,7 +90,11 @@ fn check_dir(dir: &Path) {
                         r * 100.0
                     ));
                     if r < floor {
-                        problems.push(format!("{file}: word recall {:.1}% below {:.0}%", r * 100.0, floor * 100.0));
+                        problems.push(format!(
+                            "{file}: word recall {:.1}% below {:.0}%",
+                            r * 100.0,
+                            floor * 100.0
+                        ));
                     }
                 }
                 if pages != "-" && d.pages != pages.parse().ok() {
@@ -119,7 +126,11 @@ fn check_dir(dir: &Path) {
     }
     assert!(checked > 0);
     if !report.is_empty() {
-        eprintln!("--- extraction quality ({}) ---\n{}", dir.display(), report.join("\n"));
+        eprintln!(
+            "--- extraction quality ({}) ---\n{}",
+            dir.display(),
+            report.join("\n")
+        );
     }
     assert!(problems.is_empty(), "corpus problems:\n{}", problems.join("\n"));
 }

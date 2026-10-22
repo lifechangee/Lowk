@@ -142,12 +142,14 @@ impl AppState {
         }
         let session = self.session.clone();
         let idx = self.m2.read().as_ref().map(|s| s.index.clone());
-        let _ = std::thread::Builder::new().name("lowk-ask-warm".into()).spawn(move || {
-            session.warm_hints(&folder.unwrap_or(FolderRef::Unsorted));
-            if let Some(ix) = idx {
-                ix.warm_query_embedder();
-            }
-        });
+        let _ = std::thread::Builder::new()
+            .name("lowk-ask-warm".into())
+            .spawn(move || {
+                session.warm_hints(&folder.unwrap_or(FolderRef::Unsorted));
+                if let Some(ix) = idx {
+                    ix.warm_query_embedder();
+                }
+            });
     }
 
     /// The services of the open vault (documents, index, summary); opens the configured vault on first use.

@@ -105,7 +105,9 @@ impl HintGenerator for LlmHints {
 
     fn warm(&self, folder: &FolderRef) {
         // no key / local-only without a local model: nothing to connect to, nothing to report
-        let Ok(route) = self.route(folder, None) else { return };
+        let Ok(route) = self.route(folder, None) else {
+            return;
+        };
         match self.client_for(&route.cfg).warm() {
             Ok(d) => tracing::info!(ms = d.as_millis() as u64, "llm connection warm"),
             Err(e) => tracing::debug!(code = ?e.code, "llm warm-up failed"),

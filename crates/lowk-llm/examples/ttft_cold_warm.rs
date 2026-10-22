@@ -15,7 +15,10 @@ fn ask(client: &OpenAiClient, model: &str, tag: usize) -> Option<u128> {
         seq: 1,
         stream: Stream::System,
         offset_s: 65,
-        text: format!("[{tag}-{}] А что значит EBITDA в вашем отчёте за квартал?", Ulid::new()),
+        text: format!(
+            "[{tag}-{}] А что значит EBITDA в вашем отчёте за квартал?",
+            Ulid::new()
+        ),
         is_final: true,
     };
     let t = b.build(&BuildInput {
@@ -50,7 +53,13 @@ fn stats(label: &str, mut v: Vec<u128>) {
         println!("{label}: no samples");
         return;
     }
-    println!("{label}: n={} min={} median={} max={} ms  all={v:?}", v.len(), v[0], v[v.len() / 2], v[v.len() - 1]);
+    println!(
+        "{label}: n={} min={} median={} max={} ms  all={v:?}",
+        v.len(),
+        v[0],
+        v[v.len() / 2],
+        v[v.len() - 1]
+    );
 }
 
 fn main() {
