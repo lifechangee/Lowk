@@ -272,10 +272,24 @@ export class MockBackend implements Backend {
     });
   }
   onFileDrop(_cb: (files: PickedFile[]) => void): () => void { return () => undefined; }
-  async docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean }): Promise<Document[]> {
+  /** Mock identity of a file: name + size (the real backend compares SHA-256 of the content). */
+  #same(folder: FolderKey, f: PickedFile): Document[] {
+    return f.size_bytes > 0 ? this.#documents.filter((d) => !d.deleted && folderKey(d.folder) === folder && d.file_name === f.name && d.size_bytes === f.size_bytes) : [];
+  }
+  async docFindDuplicates(folder: FolderKey, files: PickedFile[]): Promise<Array<{ index: number; existing: Document }>> {
+    await delay();
+    return files.flatMap((f, index) => {
+      const e = this.#same(folder, f)[0];
+      return e ? [{ index, existing: structuredClone(e) }] : [];
+    });
+  }
+  async docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean; onDuplicate?: 'copy' | 'replace' }): Promise<Document[]> {
     const out: Document[] = [];
     const warnMb = this.#settings.docs?.warn_slow_mb ?? 50;
     for (const f of files) {
+      const same = this.#same(folder, f);
+      if (same.length && !opts?.onDuplicate) throw new CommandError({ code: 'doc_duplicate', params: { id: same[0]!.id, title: same[0]!.title }, detail: null });
+      if (same.length && opts?.onDuplicate === 'replace') for (const d of same) d.deleted = true;
       const kind = kindOfFile(f.name);
       const stem = f.name.replace(/\.[^.]+$/, '');
       const doc: Document = {

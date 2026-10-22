@@ -39,6 +39,7 @@ export const errors = {
   'error.doc_unsupported': 'This file format is not supported. For Keynote and other formats, export to PDF or PPTX',
   'error.doc_encrypted': 'The file is password protected. Remove the protection and add it again',
   'error.doc_too_large': 'The file is too large. You can change the limit in Settings',
+  'error.doc_duplicate': 'This file is already in the folder',
   'error.doc_empty': 'There is no readable text in this file',
   'error.ocr_failed': 'Could not recognise the text in the image or scan',
   'error.ingest_cancelled': 'Import cancelled',

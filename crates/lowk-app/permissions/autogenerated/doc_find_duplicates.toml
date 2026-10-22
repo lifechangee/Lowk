@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-doc-find-duplicates"
+description = "Enables the doc_find_duplicates command without any pre-configured scope."
+commands.allow = ["doc_find_duplicates"]
+
+[[permission]]
+identifier = "deny-doc-find-duplicates"
+description = "Denies the doc_find_duplicates command without any pre-configured scope."
+commands.deny = ["doc_find_duplicates"]

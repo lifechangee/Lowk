@@ -77,6 +77,7 @@ const COMMANDS: &[&str] = &[
     "doc_list",
     "doc_get",
     "doc_import",
+    "doc_find_duplicates",
     "doc_get_md",
     "doc_save_md",
     "doc_patch",

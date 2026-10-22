@@ -130,6 +130,7 @@ fn import(svc: &Services, folder: &FolderRef, dir: &Path, file: &str, pin: bool)
         title: None,
         pin,
         tags: vec![],
+        on_duplicate: Default::default(),
     }])?;
     Ok(v.remove(0))
 }

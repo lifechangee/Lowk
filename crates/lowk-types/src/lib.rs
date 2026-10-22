@@ -92,6 +92,8 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<IngestStatus>();
     types.register_mut::<IngestWarning>();
     types.register_mut::<NewDocument>();
+    types.register_mut::<DupAction>();
+    types.register_mut::<DuplicateHit>();
     types.register_mut::<DocPatch>();
     types.register_mut::<IngestProgress>();
     types.register_mut::<PinnedUsage>();

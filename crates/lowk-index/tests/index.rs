@@ -668,3 +668,101 @@ fn local_only_folders_never_reach_a_cloud_embedder() {
     let _ = ix.retrieve_pack(&rq(Some(a), "rate limit per minute")).unwrap();
     assert!(spy.queries.lock().unwrap().len() > before);
 }
+
+fn tiny_vault() -> (tempfile::TempDir, Index) {
+    let dir = tempfile::tempdir().unwrap();
+    let ix = Index::open(&dir.path().join("index.db")).unwrap();
+    let f = FolderRef::User(uid(200));
+    ix.upsert_folder(&folder(&f, "Tiny", true, "")).unwrap();
+    let docs = [
+        (1, "Договор поставки", "Поставщик обязуется поставить товар в срок. Оплата договора производится в течение десяти дней."),
+        (2, "Lease agreement", "The tenant pays rent monthly. The landlord must repair the roof and the heating system."),
+        (3, "Заметки", "Встреча с клиентом перенесена на пятницу. Обсудить бюджет и график платежей."),
+    ];
+    for (n, t, body) in docs {
+        ix.upsert(&item(n, IndexItemKind::Doc, f.clone(), t, format!("<!-- p:1 -->\n{body}\n")))
+            .unwrap();
+    }
+    (dir, ix)
+}
+
+#[test]
+fn tiny_vault_returns_ordinary_words_keyword_and_semantic() {
+    let (_d, ix) = tiny_vault();
+    for (query, want) in [
+        ("договор", uid(1)),
+        ("оплата", uid(1)),
+        ("tenant rent", uid(2)),
+        ("landlord", uid(2)),
+        ("клиент", uid(3)),
+        ("бюджет платежей", uid(3)),
+        ("the roof", uid(2)),
+    ] {
+        let r = ix.search(&q(query)).unwrap();
+        assert!(!r.hits.is_empty(), "keyword: nothing for {query:?}");
+        assert_eq!(r.hits[0].source.id, want, "keyword: best hit for {query:?}");
+    }
+    // semantic half on the same tiny corpus
+    let emb = Arc::new(HashEmbedder::new(256).with_synonyms(&[&["rent", "аренда", "lease"]]));
+    ix.set_embedder(Some(emb), SemanticState::Off).unwrap();
+    while ix.embed_pending(2).unwrap() > 0 {}
+    for (query, want) in [("договор", uid(1)), ("аренда", uid(2)), ("tenant rent", uid(2)), ("клиент", uid(3))] {
+        let r = ix.search(&q(query)).unwrap();
+        assert_eq!(r.mode_used, SearchMode::Hybrid);
+        assert!(!r.hits.is_empty(), "hybrid: nothing for {query:?}");
+        assert_eq!(r.hits[0].source.id, want, "hybrid: best hit for {query:?}");
+    }
+    let r = ix.search(&q("zzzqqq")).unwrap();
+    assert!(r.hits.is_empty() || r.hits.len() <= 3);
+}
+
+#[test]
+fn tiny_vault_word_in_every_document_still_ranks_the_best_match_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let ix = Index::open(&dir.path().join("index.db")).unwrap();
+    let f = FolderRef::User(uid(300));
+    ix.upsert_folder(&folder(&f, "Tiny", true, "")).unwrap();
+    let docs = [
+        (1, "A", "Договор упомянут один раз, остальное про погоду и отпуск."),
+        (2, "B", "Договор аренды: стороны подписали договор, условия договора, срок договора."),
+        (3, "C", "Короткая записка про договор."),
+    ];
+    for (n, t, body) in docs {
+        ix.upsert(&item(n, IndexItemKind::Doc, f.clone(), t, format!("<!-- p:1 -->\n{body}\n")))
+            .unwrap();
+    }
+    let r = ix.search(&q("договор")).unwrap();
+    assert_eq!(r.hits.len(), 3, "every document mentions the word: {r:?}");
+    assert_eq!(r.hits[0].source.id, uid(2), "most relevant first");
+    let r = ix.search(&q("договор аренды")).unwrap();
+    assert_eq!(r.hits[0].source.id, uid(2));
+    // one document only
+    let d2 = tempfile::tempdir().unwrap();
+    let ix2 = Index::open(&d2.path().join("index.db")).unwrap();
+    ix2.upsert_folder(&folder(&f, "Tiny", true, "")).unwrap();
+    ix2.upsert(&item(1, IndexItemKind::Doc, f.clone(), "A", "<!-- p:1 -->\nПоставка товара оплачена.\n".into()))
+        .unwrap();
+    assert_eq!(ix2.search(&q("товар")).unwrap().hits.len(), 1);
+}
+
+#[test]
+fn all_common_stems_in_a_mid_size_index_are_all_kept() {
+    // 300 chunks that all contain the same ordinary words: the query must not lose words
+    let dir = tempfile::tempdir().unwrap();
+    let ix = Index::open(&dir.path().join("index.db")).unwrap();
+    let f = FolderRef::User(uid(400));
+    ix.upsert_folder(&folder(&f, "Mid", true, "")).unwrap();
+    for n in 1..=300u64 {
+        let extra = if n == 77 { " Приложение содержит гарантию." } else { "" };
+        ix.upsert(&item(
+            n,
+            IndexItemKind::Doc,
+            f.clone(),
+            &format!("D{n}"),
+            format!("<!-- p:1 -->\nДоговор поставки товара номер {n}.{extra}\n"),
+        ))
+        .unwrap();
+    }
+    let r = ix.search(&q("договор поставки товара")).unwrap();
+    assert!(!r.hits.is_empty());
+}

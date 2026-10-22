@@ -133,8 +133,11 @@ export class TauriBackend extends MockBackend {
     })).then((u) => (dead ? u() : (off = u))).catch(() => undefined);
     return () => { dead = true; off?.(); };
   }
-  override async docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean }): Promise<Document[]> {
-    return ok(await commands.docImport(files.map((f) => ({ folder: folderRef(folder), source_path: f.path, title: null, pin: !!opts?.pin, tags: [] }))));
+  override async docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean; onDuplicate?: 'copy' | 'replace' }): Promise<Document[]> {
+    return ok(await commands.docImport(files.map((f) => ({ folder: folderRef(folder), source_path: f.path, title: null, pin: !!opts?.pin, tags: [], on_duplicate: opts?.onDuplicate ?? 'reject' }))));
+  }
+  override async docFindDuplicates(folder: FolderKey, files: PickedFile[]): Promise<Array<{ index: number; existing: Document }>> {
+    return ok(await commands.docFindDuplicates(files.map((f) => ({ folder: folderRef(folder), source_path: f.path, title: null, pin: false, tags: [], on_duplicate: 'reject' as const }))));
   }
   override async docGetMd(id: string): Promise<string> { return ok(await commands.docGetMd(id)); }
   override async docSaveMd(id: string, md: string): Promise<Document> { return ok(await commands.docSaveMd(id, md)); }

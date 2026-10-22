@@ -118,6 +118,20 @@ describe('mock backend: M2 contracts', () => {
     expect(bad!.status).toBe('failed');
     expect(bad!.error?.code).toBe('doc_unsupported');
   });
+  it('refuses a duplicate unless told to copy or replace', async () => {
+    const api = new MockBackend();
+    const F = '01JC8Z3K6Q9X2M4N7R5T0V0003';
+    const f = { name: 'dup.pdf', path: 'dup.pdf', size_bytes: 4321 };
+    await api.docImport(F, [f]);
+    const hits = await api.docFindDuplicates(F, [f, { ...f, name: 'other.pdf', path: 'other.pdf' }]);
+    expect(hits.map((h) => h.index)).toEqual([0]);
+    await expect(api.docImport(F, [f])).rejects.toMatchObject({ app: { code: 'doc_duplicate' } });
+    const n = (await api.docList(F)).length;
+    await api.docImport(F, [f], { onDuplicate: 'copy' });
+    expect((await api.docList(F)).length).toBe(n + 1);
+    await api.docImport(F, [f], { onDuplicate: 'replace' });
+    expect((await api.docList(F)).filter((d) => d.file_name === 'dup.pdf').length).toBe(1);
+  });
   it('keyword-only results while the embedder is missing', async () => {
     const api = new MockBackend();
     const r = await api.searchQuery({ text: 'EBITDA', filters: {}, mode: 'hybrid', limit: 8, offset: 0 });

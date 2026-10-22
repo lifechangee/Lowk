@@ -10,6 +10,7 @@
   import { api, folderKey, type PickedFile } from '../api';
   import { errText } from '../errors';
   import { tm } from '../i18n';
+  import { hrefs, router } from '../router.svelte';
   import { library, prefs, ui } from '../state.svelte';
   import DocRow from './DocRow.svelte';
   import { fmtSize, fmtTokens, pinnedOverflow } from './util';
@@ -23,6 +24,8 @@
   let loadError = $state('');
   let dragging = $state(false);
   let slow = $state<{ files: PickedFile[]; big: PickedFile[] } | null>(null);
+  /** Files whose content is already in the folder, asked one by one: open / copy / replace / skip. */
+  let dup = $state<{ queue: Array<{ file: PickedFile; existing: Document }> } | null>(null);
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
 
   const folderTitle = $derived(library.folder(folder)?.title ?? '');
@@ -68,10 +71,27 @@
   async function importNow(files: PickedFile[]) {
     slow = null;
     try {
-      const added = await api.docImport(folder, files);
-      docs = [...added, ...docs];
-      oncount?.(docs.length);
+      const hits = await api.docFindDuplicates(folder, files);
+      const dupIdx = new Set(hits.map((h) => h.index));
+      const fresh = files.filter((_, i) => !dupIdx.has(i));
+      if (fresh.length) await importFiles(fresh);
+      if (hits.length) dup = { queue: hits.map((h) => ({ file: files[h.index]!, existing: h.existing })) };
     } catch (e) { ui.notify(errText(e)); }
+  }
+  async function importFiles(files: PickedFile[], onDuplicate?: 'copy' | 'replace') {
+    const added = await api.docImport(folder, files, { onDuplicate });
+    docs = [...added, ...docs];
+    oncount?.(docs.length);
+    if (onDuplicate === 'replace') await load();
+  }
+  async function resolveDup(choice: 'open' | 'copy' | 'replace' | 'skip') {
+    const cur = dup?.queue[0];
+    if (!dup || !cur) return;
+    if (choice === 'open') { dup = null; router.go(hrefs.doc(cur.existing.id)); return; }
+    const rest = dup.queue.slice(1);
+    dup = rest.length ? { queue: rest } : null;
+    if (choice === 'skip') return;
+    try { await importFiles([cur.file], choice); } catch (e) { ui.notify(errText(e)); }
   }
   async function choose() {
     try {
@@ -155,6 +175,19 @@
   {#snippet footer()}
     <Button onclick={() => (slow = null)}>{tm('common.cancel')}</Button>
     <Button variant="primary" onclick={() => slow && importNow(slow.files)}>{tm('docs.slow.go')}</Button>
+  {/snippet}
+</Modal>
+
+<Modal open={dup !== null} title={tm('docs.dup.title')} width={560} closeLabel={tm('common.close')} onclose={() => void resolveDup('skip')}>
+  {#if dup?.queue[0]}
+    <p class="slowp">{tm('docs.dup.body', { name: dup.queue[0].file.name, title: dup.queue[0].existing.title })}</p>
+    {#if dup.queue.length > 1}<p class="hint">{tm('docs.dup.more', { n: dup.queue.length - 1 })}</p>{/if}
+  {/if}
+  {#snippet footer()}
+    <Button onclick={() => resolveDup('skip')}>{tm('docs.dup.skip')}</Button>
+    <Button onclick={() => resolveDup('copy')}>{tm('docs.dup.copy')}</Button>
+    <Button onclick={() => resolveDup('replace')}>{tm('docs.dup.replace')}</Button>
+    <Button variant="primary" onclick={() => resolveDup('open')}>{tm('docs.dup.open')}</Button>
   {/snippet}
 </Modal>
 

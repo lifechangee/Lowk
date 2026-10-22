@@ -39,6 +39,7 @@ fn new(f: &FolderRef, p: &Path) -> NewDocument {
         title: None,
         pin: false,
         tags: vec![],
+        on_duplicate: Default::default(),
     }
 }
 
@@ -110,7 +111,12 @@ fn name_collisions_get_suffixes_and_md_originals_are_safe() {
         b"---\ntype: doc\nid: 01JC8Z3K6Q9X2M4N7R5T0V8WBZ\n---\n# hi\n",
     );
     let d1 = v.add_doc(&new(&f, &a)).unwrap();
-    let d2 = v.add_doc(&new(&f, &a)).unwrap();
+    let d2 = v
+        .add_doc(&NewDocument {
+            on_duplicate: DupAction::Copy,
+            ..new(&f, &a)
+        })
+        .unwrap();
     assert_eq!(d1.original_path, "P/Docs/notes.md.orig");
     assert_eq!(d2.original_path, "P/Docs/notes (2).md.orig");
     assert_ne!(d1.id, d2.id);
@@ -414,4 +420,47 @@ fn whole_vault_zip() {
         .len(),
         1
     );
+}
+
+#[test]
+fn duplicate_upload_is_detected_by_content_and_offers_open_copy_replace() {
+    let (t, v) = open();
+    let (_, f) = folder(&v, "P");
+    let (_, other) = folder(&v, "Q");
+    let a = src(&t, "contract.txt", b"Supplier delivers goods within ten days.");
+    let first = v.add_doc(&new(&f, &a)).unwrap();
+
+    // same bytes under another file name: still a duplicate, reported with the existing document
+    let renamed = src(&t, "contract-final.txt", b"Supplier delivers goods within ten days.");
+    let hits = v.find_duplicates(&[new(&f, &renamed), new(&f, &src(&t, "x.txt", b"different"))]).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].index, 0);
+    assert_eq!(hits[0].existing.id, first.id);
+    // another folder is not a duplicate
+    assert!(v.find_duplicates(&[new(&other, &renamed)]).unwrap().is_empty());
+
+    // default policy refuses and leaves nothing behind
+    let e = v.add_doc(&new(&f, &renamed)).unwrap_err();
+    assert_eq!(e.code, ErrorCode::DocDuplicate);
+    assert_eq!(e.params.get("id"), Some(&first.id.to_string()));
+    assert_eq!(v.list_docs(&f).unwrap().len(), 1);
+    assert_eq!(fs::read_dir(v.root().join("P/Docs")).unwrap().count(), 2, "original + md only");
+    v.add_doc(&new(&other, &renamed)).unwrap();
+
+    // copy: two documents
+    let copy = v
+        .add_doc(&NewDocument { on_duplicate: DupAction::Copy, ..new(&f, &renamed) })
+        .unwrap();
+    assert_eq!(v.list_docs(&f).unwrap().len(), 2);
+
+    // replace: the old ones go to the trash, the new one stays
+    let rep = v
+        .add_doc(&NewDocument { on_duplicate: DupAction::Replace, ..new(&f, &renamed) })
+        .unwrap();
+    let live: Vec<_> = v.list_docs(&f).unwrap().into_iter().map(|d| d.id).collect();
+    assert_eq!(live, vec![rep.id]);
+    let trash: Vec<_> = v.list_docs(&FolderRef::Trash).unwrap().into_iter().map(|d| d.id).collect();
+    assert!(trash.contains(&first.id) && trash.contains(&copy.id));
+    v.restore_doc(&first.id).unwrap();
+    assert_eq!(v.list_docs(&f).unwrap().len(), 2);
 }

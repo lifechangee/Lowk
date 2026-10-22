@@ -286,6 +286,14 @@ impl VaultInner {
         let stem = unique_stem(&dir, &sanitize_name(&title), &ext);
         let stored = stored_name(&stem, &ext);
         let (sha, _) = copy_hashed(src, &dir.join(&stored))?;
+        let same = self.docs_with_sha(&n.folder, &sha)?;
+        if !same.is_empty() && n.on_duplicate == DupAction::Reject {
+            let _ = fs::remove_file(dir.join(&stored));
+            return Err(AppError::new(ErrorCode::DocDuplicate)
+                .with_param("id", same[0].id)
+                .with_param("title", &same[0].title)
+                .with_detail(format!("{} is already in the folder", same[0].title)));
+        }
         let id = Ulid::new();
         let d = doc_codec::placeholder(
             &id.to_string(),
@@ -303,9 +311,45 @@ impl VaultInner {
             let _ = fs::remove_file(dir.join(&stored));
             return Err(e);
         }
+        if n.on_duplicate == DupAction::Replace {
+            for old in &same {
+                let rec = self.doc_rec(&old.id)?;
+                self.trash_doc_locked(&rec)?;
+            }
+        }
         self.sync_card(&n.folder)?;
         self.resync()?;
         self.get_doc(&id)
+    }
+
+    /// Live documents of `folder` whose original has this SHA-256.
+    fn docs_with_sha(&self, folder: &FolderRef, sha: &str) -> Result<Vec<Document>> {
+        Ok(self
+            .list_docs(folder)?
+            .into_iter()
+            .filter(|d| !d.deleted && d.source_sha256 == sha)
+            .collect())
+    }
+
+    /// For each file of an import batch: the document already in its folder with identical
+    /// content, if any (the UI asks open / copy / replace before importing).
+    pub fn find_duplicates(&self, files: &[NewDocument]) -> Result<Vec<DuplicateHit>> {
+        let mut out = vec![];
+        for (i, n) in files.iter().enumerate() {
+            if matches!(n.folder, FolderRef::Trash) {
+                continue;
+            }
+            let Ok(sha) = sha256_file(Path::new(&n.source_path)) else {
+                continue;
+            };
+            if let Some(d) = self.docs_with_sha(&n.folder, &sha)?.into_iter().next() {
+                out.push(DuplicateHit {
+                    index: i as u32,
+                    existing: d,
+                });
+            }
+        }
+        Ok(out)
     }
 
     /// Files dropped into a `Docs/` directory from outside (Finder, sync, Obsidian) get a

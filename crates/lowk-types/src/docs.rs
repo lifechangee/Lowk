@@ -118,6 +118,30 @@ pub struct NewDocument {
     pub title: Option<String>,
     pub pin: bool,
     pub tags: Vec<String>,
+    /// What to do when the same content (SHA-256 of the original) is already in the folder.
+    #[serde(default)]
+    pub on_duplicate: DupAction,
+}
+
+/// Policy for an import whose content is already in the target folder.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum DupAction {
+    /// Refuse with `ErrorCode::DocDuplicate` (params `id`, `title` of the existing document).
+    #[default]
+    Reject,
+    /// Import it as one more document.
+    Copy,
+    /// Import it and move the existing document to the trash (undo restores it).
+    Replace,
+}
+
+/// A file of an import batch that is already in its folder (`doc_find_duplicates`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+pub struct DuplicateHit {
+    /// Index into the checked `NewDocument` list.
+    pub index: u32,
+    pub existing: Document,
 }
 
 /// Editable document fields (`doc_patch`); `None` = unchanged.

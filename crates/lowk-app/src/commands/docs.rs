@@ -33,6 +33,13 @@ pub fn doc_import(st: State<'_, Shared>, files: Vec<NewDocument>) -> Result<Vec<
     st.svc()?.import_docs(&files)
 }
 
+/// Which files of an import batch are already in their folder (same content). Ask before `doc_import`.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn doc_find_duplicates(st: State<'_, Shared>, files: Vec<NewDocument>) -> Result<Vec<DuplicateHit>> {
+    st.svc()?.vault.find_duplicates(&files)
+}
+
 /// Converted Markdown (editor, viewer).
 #[tauri::command(async)]
 #[specta::specta]

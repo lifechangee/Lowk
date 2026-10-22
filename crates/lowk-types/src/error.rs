@@ -81,6 +81,8 @@ pub enum ErrorCode {
     DocUnsupported,
     #[error("document is encrypted or password protected")]
     DocEncrypted,
+    #[error("the same document is already in this folder")]
+    DocDuplicate,
     #[error("document is too large")]
     DocTooLarge,
     #[error("no text could be extracted from the document")]

@@ -139,7 +139,10 @@ export interface Backend {
   pickDocuments(): Promise<PickedFile[] | null>;
   /** Files dropped on the window (native drop gives paths; a plain browser uses the HTML5 drop in the component). */
   onFileDrop(cb: (files: PickedFile[]) => void): () => void;
-  docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean }): Promise<Document[]>;
+  /** `onDuplicate` applies to files whose content is already in the folder; without it such a file is refused (`doc_duplicate`). */
+  docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean; onDuplicate?: 'copy' | 'replace' }): Promise<Document[]>;
+  /** Files of the batch whose content is already in the folder, with the existing document. */
+  docFindDuplicates(folder: FolderKey, files: PickedFile[]): Promise<Array<{ index: number; existing: Document }>>;
   docGetMd(id: string): Promise<string>;
   docSaveMd(id: string, md: string): Promise<Document>;
   docPatch(id: string, patch: DocPatch): Promise<Document>;

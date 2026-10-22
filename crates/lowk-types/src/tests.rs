@@ -444,6 +444,7 @@ fn m2_contracts_roundtrip() {
             title: None,
             pin: true,
             tags: vec![],
+            on_duplicate: Default::default(),
         })
         .unwrap();
     assert_eq!(d.status, IngestStatus::Queued);
@@ -474,7 +475,8 @@ fn m2_contracts_roundtrip() {
                 source_path: "x.rs".into(),
                 title: None,
                 pin: false,
-                tags: vec![]
+                tags: vec![],
+                on_duplicate: Default::default(),
             })
             .unwrap_err()
             .code,

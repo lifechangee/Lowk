@@ -91,6 +91,7 @@ macro_rules! all_commands {
             crate::commands::docs::doc_list,
             crate::commands::docs::doc_get,
             crate::commands::docs::doc_import,
+            crate::commands::docs::doc_find_duplicates,
             crate::commands::docs::doc_get_md,
             crate::commands::docs::doc_save_md,
             crate::commands::docs::doc_patch,

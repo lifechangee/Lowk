@@ -16,6 +16,8 @@ use std::time::Instant;
 
 pub const RRF_K: f32 = 60.0;
 pub const TOP_EACH: usize = 50;
+/// A stem is never dropped as "very common" while it occurs in at most this many chunks.
+const COMMON_STEM_FLOOR: i64 = 50;
 /// Vector hits below this cosine are noise (set from the eval, DECISIONS-M2).
 pub const SEMANTIC_MIN_COSINE: f32 = 0.0;
 /// RRF list weights (tuned on the eval, DECISIONS-M2).
@@ -352,14 +354,16 @@ impl Inner {
             }
         }
         df.sort();
+        // "Very common" only means something in a big index: below COMMON_STEM_FLOOR chunks every
+        // stem is allowed, so a tiny vault still answers ordinary words.
         let limit = (total as f64 * 0.2) as i64;
         let mut keep: Vec<&String> = df
             .iter()
-            .filter(|(d, _)| *d <= limit.max(50))
+            .filter(|(d, _)| *d <= limit.max(COMMON_STEM_FLOOR))
             .map(|x| x.1)
             .collect();
         if keep.is_empty() {
-            keep = df.iter().take(2).map(|x| x.1).collect();
+            keep = df.iter().map(|x| x.1).collect();
         }
         let quote = |s: &String| format!("\"{}\"", s.replace('"', ""));
         let run = |m: String| -> Result<Vec<i64>> {

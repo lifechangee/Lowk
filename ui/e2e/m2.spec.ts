@@ -55,6 +55,28 @@ test.describe('documents', () => {
     await expect(page.locator('[data-doc]', { hasText: 'Scorecard' })).toContainText('Not sent');
   });
 
+  test('the same file twice asks: open / upload as a copy / replace', async ({ page }) => {
+    await page.goto(`/main.html?lang=en#/folder/${EMPTY}/documents`);
+    await addFile(page, file('Contract.pdf'));
+    await expect(page.locator('[data-doc]')).toHaveCount(1);
+    await addFile(page, file('Contract.pdf'));
+    const dlg = page.getByRole('dialog');
+    await expect(dlg).toContainText('Already uploaded');
+    await expect(dlg).toContainText('Contract.pdf');
+    await expect(page.locator('[data-doc]')).toHaveCount(1);
+    // copy
+    await dlg.getByRole('button', { name: 'Upload as a copy' }).click();
+    await expect(page.locator('[data-doc]')).toHaveCount(2);
+    // replace: the old pair goes, one stays
+    await addFile(page, file('Contract.pdf'));
+    await page.getByRole('dialog').getByRole('button', { name: 'Replace' }).click();
+    await expect(page.locator('[data-doc]')).toHaveCount(1);
+    // open goes to the existing document
+    await addFile(page, file('Contract.pdf'));
+    await page.getByRole('dialog').getByRole('button', { name: 'Open' }).click();
+    await expect(page).toHaveURL(/#\/doc\//);
+  });
+
   test('a file above the slow limit asks first', async ({ page }) => {
     await page.goto(`/main.html?lang=en&warnmb=1#/folder/${EMPTY}/documents`);
     await addFile(page, file('big.pdf', 2 * 1048576));

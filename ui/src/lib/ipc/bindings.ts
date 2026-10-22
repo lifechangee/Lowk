@@ -148,6 +148,8 @@ export const commands = {
 	docGet: (id: Ulid) => typedError<Document, AppError>(__TAURI_INVOKE("doc_get", { id })),
 	/**  Imports files (drop or dialog). Returns the queued documents at once; conversion runs in the background and reports `doc://progress`. */
 	docImport: (files: NewDocument[]) => typedError<Document[], AppError>(__TAURI_INVOKE("doc_import", { files })),
+	/**  Which files of an import batch are already in their folder (same content). Ask before `doc_import`. */
+	docFindDuplicates: (files: NewDocument[]) => typedError<DuplicateHit[], AppError>(__TAURI_INVOKE("doc_find_duplicates", { files })),
 	/**  Converted Markdown (editor, viewer). */
 	docGetMd: (id: Ulid) => typedError<string, AppError>(__TAURI_INVOKE("doc_get_md", { id })),
 	/**  Saves the editor text; re-index follows. */
@@ -544,6 +546,22 @@ export type Document = {
 	deleted: boolean,
 };
 
+/**  Policy for an import whose content is already in the target folder. */
+export type DupAction = 
+/**  Refuse with `ErrorCode::DocDuplicate` (params `id`, `title` of the existing document). */
+"reject" | 
+/**  Import it as one more document. */
+"copy" | 
+/**  Import it and move the existing document to the trash (undo restores it). */
+"replace";
+
+/**  A file of an import batch that is already in its folder (`doc_find_duplicates`). */
+export type DuplicateHit = {
+	/**  Index into the checked `NewDocument` list. */
+	index: number,
+	existing: Document,
+};
+
 /**
  *  Which embedder is installed / downloading (`embedder_info`). Download progress arrives as
  *  `engine://progress` with `engine == "embedder"`.
@@ -625,7 +643,7 @@ export type EngineProgress = {
 	message: string | null,
 };
 
-export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index" | "doc_unsupported" | "doc_encrypted" | "doc_too_large" | "doc_empty" | "ocr_failed" | "ingest_cancelled" | "embedder_missing" | "embed_failed" | "llm_bad_response" | "archive_invalid" | 
+export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index" | "doc_unsupported" | "doc_encrypted" | "doc_duplicate" | "doc_too_large" | "doc_empty" | "ocr_failed" | "ingest_cancelled" | "embedder_missing" | "embed_failed" | "llm_bad_response" | "archive_invalid" | 
 /**  The folder is local-only (`allow_cloud = false`) and no local LLM is configured. */
 "local_only_blocked";
 
@@ -887,6 +905,8 @@ export type NewDocument = {
 	title: string | null,
 	pin: boolean,
 	tags: string[],
+	/**  What to do when the same content (SHA-256 of the original) is already in the folder. */
+	on_duplicate?: DupAction,
 };
 
 export type NewFolder = {
