@@ -964,7 +964,20 @@ mod tests {
             wait_ready(&svc, &d.id, 60).unwrap();
         }
         let a = import(&svc, &f, &fixtures, "text.pdf", false).unwrap();
-        let b = import(&svc, &f, &fixtures, "text.pdf", false).unwrap();
+        // the same file again is refused by default (content hash), and goes in only as an explicit copy
+        let e = import(&svc, &f, &fixtures, "text.pdf", false).unwrap_err();
+        assert_eq!(e.code, ErrorCode::DocDuplicate);
+        let b = svc
+            .import_docs(&[NewDocument {
+                folder: f.clone(),
+                source_path: fixtures.join("text.pdf").to_string_lossy().into_owned(),
+                title: None,
+                pin: false,
+                tags: vec![],
+                on_duplicate: DupAction::Copy,
+            }])
+            .unwrap()
+            .remove(0);
         for d in [&a, &b] {
             assert_eq!(wait_ready(&svc, &d.id, 60).unwrap().status, IngestStatus::Ready);
         }
