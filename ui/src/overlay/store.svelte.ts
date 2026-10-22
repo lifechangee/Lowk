@@ -92,7 +92,7 @@ export class OverlayStore {
   toast = $state<string | null>(null);
 
   k = $derived(kFromTransparency(this.transparency));
-  /** The 12 scrim cells: the grid, or the global tone everywhere when the backend sent none. */
+  /** The scrim cells (12x8): the grid, or the global tone everywhere when the backend sent none. */
   cells = $derived(this.grid ?? Array.from({ length: GRID_COLS * GRID_ROWS }, () => this.tone));
   template = $derived(this.templates.find((x) => x.id === this.templateId) ?? this.templates[0]);
   recording = $derived(this.phase === 'recording');

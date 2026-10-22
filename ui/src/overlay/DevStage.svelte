@@ -6,7 +6,7 @@
   import { OverlayStore } from './store.svelte';
   import { MockSource, fakeThumb } from './mock';
   import Overlay from './Overlay.svelte';
-  import { PRESETS, type ToneEvent } from './tone';
+  import { GRID_COLS, GRID_ROWS, PRESETS, type ToneEvent } from './tone';
   import type { OverlayMode, Tone, ToneKind } from '../lib/ipc/bindings';
   import { setLang } from '../lib/i18n';
 
@@ -41,8 +41,8 @@
     if (bg === 'swatch' && sw) return sw.tone;
     const t = toneOf(kind);
     if (bg !== 'split' || q.get('grid') === '0') return t;
-    const cells = Array.from({ length: 12 }, (_, i) => toneOf(Math.floor(i / 4) === 2 ? 'color' : i % 4 < 2 ? 'dark' : 'light'));
-    return { ...t, grid: { cols: 4, rows: 3, cells } };
+    const cells = Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => toneOf(Math.floor(i / GRID_COLS) >= 5 ? 'color' : i % GRID_COLS < GRID_COLS / 2 ? 'dark' : 'light'));
+    return { ...t, grid: { cols: GRID_COLS, rows: GRID_ROWS, cells } };
   });
   // Applied once synchronously (first paint is already in the right tone: no start-up fade), then on change.
   store.applyTone(untrack(() => toneEvent));

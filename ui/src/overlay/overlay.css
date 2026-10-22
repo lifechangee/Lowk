@@ -42,40 +42,21 @@
   font: var(--ov-fs, 13px) / 1.4 var(--font);
   cursor: default;
   user-select: none;
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, text-shadow 0.2s;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s, text-shadow 0.12s;
 }
 /* ---- adaptive scrim (F5 + F11) ----
-   One opaque colour per grid cell (4x3), blended smoothly: three horizontal gradient rows stacked with
-   vertical ramps so each row fades in between row centres (exact bilinear blend). The whole layer
-   then gets ONE opacity = max(slider, backend scrim_min, legibility floor): the text never loses its
-   backing whatever the transparency slider says (WCAG AA body text, see docs/QA.md). */
-@property --c0 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c1 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c2 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c3 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c4 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c5 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c6 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c7 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c8 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c9 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c10 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
-@property --c11 { syntax: '<color>'; inherits: true; initial-value: #0c0c0f; }
+   One opaque colour per grid cell (12x8), set as --c0..--c95 (registered as <color> properties in tone.ts so they fade).
+   Eight horizontal gradient strips, each flat inside a cell and ramping to its neighbour over 2 * --band (8 px) at the
+   cell edge; each strip fades in over the one above across the same 2 * --band, so the paint follows the backdrop borders
+   instead of blending whole cells. The whole layer then gets ONE opacity = max(slider, backend scrim_min, legibility
+   floor): the text never loses its backing whatever the transparency slider says (WCAG AA body text, see docs/QA.md). */
 .ov .scrim {
+  --band: 4px;
   position: absolute; inset: -1px; border-radius: inherit; overflow: hidden; pointer-events: none;
   opacity: max(calc(var(--k) * 0.85), var(--smin, 0), var(--floor, 0.72));
-  transition: --c0 0.2s, --c1 0.2s, --c2 0.2s, --c3 0.2s, --c4 0.2s, --c5 0.2s, --c6 0.2s, --c7 0.2s, --c8 0.2s, --c9 0.2s, --c10 0.2s, --c11 0.2s, opacity 0.2s;
+  transition: opacity 0.12s;
 }
 .scrim i { position: absolute; inset: 0; }
-.scrim .r0 { background: linear-gradient(90deg, var(--c0) 12.5%, var(--c1) 37.5%, var(--c2) 62.5%, var(--c3) 87.5%); }
-.scrim .r1 {
-  background: linear-gradient(90deg, var(--c4) 12.5%, var(--c5) 37.5%, var(--c6) 62.5%, var(--c7) 87.5%);
-  -webkit-mask-image: linear-gradient(180deg, transparent 16.667%, #000 50%); mask-image: linear-gradient(180deg, transparent 16.667%, #000 50%);
-}
-.scrim .r2 {
-  background: linear-gradient(90deg, var(--c8) 12.5%, var(--c9) 37.5%, var(--c10) 62.5%, var(--c11) 87.5%);
-  -webkit-mask-image: linear-gradient(180deg, transparent 50%, #000 83.333%); mask-image: linear-gradient(180deg, transparent 50%, #000 83.333%);
-}
 .ov.nofade, .ov.nofade *, .ov.nofade .scrim { transition: none !important; }
 .ov :where([data-blk]) { position: relative; color: var(--tx); text-shadow: var(--ts); }
 /* Per-cell text colour: long text carries a gradient of the 12 cell text colours (set inline by Overlay.svelte) clipped to its
@@ -86,7 +67,7 @@
 
 .ov *, .ov *::before, .ov *::after {
   box-sizing: border-box;
-  transition: color 0.2s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
+  transition: color 0.12s, background-color 0.12s, border-color 0.12s, box-shadow 0.12s, opacity 0.12s;
 }
 .ov svg { color: inherit; flex: none; }
 .ov.interactive {
@@ -210,7 +191,7 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 }
 .spk.me { background: var(--solid); color: var(--on); }
 .spk.sys { border: 1px solid var(--chipbd); color: var(--tx2); background: var(--chip); }
-.caret { display: inline-block; width: 6px; height: 12px; background: var(--tx); vertical-align: -2px; margin-left: 2px; animation: bl  0.2s steps(2) infinite; }
+.caret { display: inline-block; width: 6px; height: 12px; background: var(--tx); vertical-align: -2px; margin-left: 2px; animation: bl  0.12s steps(2) infinite; }
 @keyframes bl { 50% { opacity: 0; } }
 
 /* ---- AI answer (below) ---- */
@@ -264,7 +245,7 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
   all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; height: 100%; border-radius: 999px; background: var(--bgc); border: 1px solid var(--bd); box-shadow: var(--shd);
   color: var(--tx2); font: 600 10px/12px var(--font); letter-spacing: 0.04em; overflow: hidden;
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
 }
 .pill:hover, .pill:focus-visible { background: var(--hov); color: var(--tx); }
 .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--recc); flex: none; }

@@ -20,7 +20,7 @@ test('F5 text blocks pick their colour per region and the scrim is a smooth grad
   const bottom = fg.find((b) => b.cls === 'foot')!;
   expect(bottom.fg).toBe('255,255,255');
   // Smoothness: the scrim exposes 12 cell colours, rendered as gradients rather than hard tiles.
-  const bg = await page.evaluate(() => getComputedStyle(document.querySelector('.scrim .r0')!).backgroundImage);
+  const bg = await page.evaluate(() => getComputedStyle(document.querySelector('.scrim i')!).backgroundImage);
   expect(bg).toContain('linear-gradient');
 });
 

@@ -2,7 +2,7 @@
   import './overlay.css';
   import type { OverlayStore } from './store.svelte';
   import type { OverlaySource } from './source';
-  import { blockTone, cellsToStyle, textGradient, varsToStyle } from './tone';
+  import { GRID_ROWS, SCRIM_TRANSITION, blockTone, cellsToStyle, registerCellProps, scrimRowStyle, textGradient, varsToStyle } from './tone';
   import { tick } from 'svelte';
     import Header from './Header.svelte';
   import Subtitle from './Subtitle.svelte';
@@ -14,7 +14,9 @@
 
   let { store, source }: { store: OverlayStore; source: OverlaySource } = $props();
   const style = $derived(varsToStyle(store.tone, store.k, store.fontPx));
-  const scrimStyle = $derived(cellsToStyle(store.cells));
+  registerCellProps();
+  const scrimStyle = $derived(`${cellsToStyle(store.cells)};transition:${SCRIM_TRANSITION}`);
+  const rowStyles = Array.from({ length: GRID_ROWS }, (_, r) => scrimRowStyle(r));
   let root: HTMLDivElement | undefined = $state();
 
   // F5: every text block (header, subtitle, answer, «Мой ответ», input, hints) picks its text colour
@@ -53,11 +55,11 @@
     }
   }
   // Long text (`[data-gt]`: subtitle lines, answer, «Мой ответ») takes the colour of the cell behind EACH glyph:
-  // a hard-stop gradient of the 12 cell text colours, clipped to the text (see overlay.css `[data-grad]`).
+  // a hard-stop gradient of the cell text colours, clipped to the text (see overlay.css `[data-grad]`).
   function measureText() {
     if (!root) return;
     const r = root.getBoundingClientRect();
-    for (const el of root.querySelectorAll<HTMLElement>('[data-gt]')) {
+    for (const el of root.querySelectorAll<HTMLElement>('[data-gt], [data-blk][data-mixed] .lbl, [data-blk][data-mixed]:not(:has(*))')) {
       if (!store.grid || !r.width || !r.height) {
         el.removeAttribute('data-grad');
         el.style.removeProperty('background-image');
@@ -66,7 +68,7 @@
         continue;
       }
       const b = el.getBoundingClientRect();
-      const g = textGradient(store.grid, { w: r.width, h: r.height }, { x: b.left - r.left, y: b.top - r.top });
+      const g = textGradient(store.grid, { w: r.width, h: r.height }, { x: b.left - r.left, y: b.top - r.top }, { w: b.width, h: b.height });
       el.style.backgroundImage = g.image;
       el.style.backgroundSize = g.size;
       el.style.backgroundPosition = g.position;
@@ -151,7 +153,7 @@
   <div class="ovp" {style} style:width="100%" style:height="100%"><Pill {store} {source} /></div>
 {:else}
   <div role="presentation" bind:this={root} onpointerdown={(e) => { press(e); down(e); }} onclickcapture={seen} oncontextmenu={(e) => e.preventDefault()} onpointermove={move} onpointerup={up} onpointercancel={up} class="ov" class:interactive={store.mode === 'interactive'} class:moving={store.mode === 'moving'} class:hover={store.mode === 'hover'} {style} data-mode={store.mode}>
-    <div class="scrim" style={scrimStyle} aria-hidden="true"><i class="r0"></i><i class="r1"></i><i class="r2"></i></div>
+    <div class="scrim" style={scrimStyle} aria-hidden="true">{#each rowStyles as rs}<i style={rs}></i>{/each}</div>
     <Header {store} {source} />
     <Subtitle {store} />
     <Answer {store} {source} />

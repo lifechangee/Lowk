@@ -18,7 +18,7 @@ export async function measureContrast(page: Page, rootSel: string, ignore: strin
   const boxes = await page.evaluate(
     ({ rootSel, ignore }) => {
       const root = document.querySelector(rootSel) ?? document.body;
-      const res: { sel: string; text: string; color: string; size: number; weight: number; x: number; y: number; w: number; h: number; cells?: { l: number; t: number; w: number; h: number; rgb: string[] } }[] = [];
+      const res: { sel: string; text: string; color: string; size: number; weight: number; x: number; y: number; w: number; h: number; cells?: { l: number; t: number; w: number; h: number; rows: Record<number, string[]> } }[] = [];
       // a modal scrim dims everything behind it: only the dialog itself is measured then
       const modal = document.querySelector('[role=dialog]');
       for (const el of root.querySelectorAll('*')) {
@@ -61,17 +61,21 @@ export async function measureContrast(page: Page, rootSel: string, ignore: strin
         const a = (m[3] ?? 1) * op;
         const cls = [...el.classList].filter((c) => !c.startsWith('svelte-'))[0];
         // per-cell text colour (`[data-grad]`: gradient clipped to the glyphs): the colour at a pixel is the cell colour behind it
-        let cells: { l: number; t: number; w: number; h: number; rgb: string[] } | undefined;
+        let cells: { l: number; t: number; w: number; h: number; rows: Record<number, string[]> } | undefined;
         const ge = el.closest('[data-grad]');
         if (ge && !el.matches('.spk, .caret')) {
           const ov = el.closest('.ov')!.getBoundingClientRect();
-          const rows = getComputedStyle(ge).backgroundImage.split(/\), (?=linear-gradient)/);
-          const rgb: string[] = [];
-          for (const row of rows) {
+          const gcs = getComputedStyle(ge);
+          const layers = gcs.backgroundImage.split(/\), (?=linear-gradient)/);
+          const ys = gcs.backgroundPosition.split(/, (?=[-\d.]+px [-\d.]+px)/).map((p) => parseFloat(p.trim().split(' ')[1]!));
+          const offY = ge.getBoundingClientRect().top - ov.top;
+          const rows: Record<number, string[]> = {};
+          layers.forEach((row, i) => {
             const all = [...row.matchAll(/rgb\((\d+), (\d+), (\d+)\)/g)].map((q) => `${q[1]},${q[2]},${q[3]}`);
-            rgb.push(...(all.length === 8 ? all.filter((_, i) => i % 2 === 0) : all));
-          }
-          if (rgb.length === 12) cells = { l: ov.left, t: ov.top, w: ov.width, h: ov.height, rgb };
+            const cols = all.length === 24 ? all.filter((_, k) => k % 2 === 0) : all;
+            rows[Math.round((ys[i]! + offY) / (ov.height / 8))] = cols;
+          });
+          if (Object.keys(rows).length) cells = { l: ov.left, t: ov.top, w: ov.width, h: ov.height, rows };
         }
         res.push({ cells, sel: el.tagName.toLowerCase() + (cls ? '.' + cls : ''), text: txt.trim().slice(0, 40), color: `${m[0]},${m[1]},${m[2]},${a}`, size: parseFloat(cs.fontSize), weight: Number(cs.fontWeight) || 400, x: u.x, y: u.y, w: u.width, h: u.height });
       }
@@ -84,7 +88,7 @@ export async function measureContrast(page: Page, rootSel: string, ignore: strin
   const png = (await page.screenshot()).toString('base64');
   await style.evaluate((n) => n.remove());
   return page.evaluate(
-    async ({ png, boxes }: { png: string; boxes: { sel: string; text: string; color: string; size: number; weight: number; x: number; y: number; w: number; h: number; cells?: { l: number; t: number; w: number; h: number; rgb: string[] } }[] }) => {
+    async ({ png, boxes }: { png: string; boxes: { sel: string; text: string; color: string; size: number; weight: number; x: number; y: number; w: number; h: number; cells?: { l: number; t: number; w: number; h: number; rows: Record<number, string[]> } }[] }) => {
       const img = new Image();
       img.src = 'data:image/png;base64,' + png;
       await img.decode();
@@ -109,9 +113,10 @@ export async function measureContrast(page: Page, rootSel: string, ignore: strin
           let tr = tr0, tg = tg0, tb = tb0;
           if (b.cells) {
             const c = b.cells;
-            const col = Math.min(3, Math.max(0, Math.floor(((x + (i % w) - c.l) / c.w) * 4)));
-            const row = Math.min(2, Math.max(0, Math.floor(((y + Math.floor(i / w) - c.t) / c.h) * 3)));
-            [tr, tg, tb] = c.rgb[row * 4 + col]!.split(',').map(Number) as [number, number, number];
+            const col = Math.min(11, Math.max(0, Math.floor(((x + (i % w) - c.l) / c.w) * 12)));
+            const row = Math.min(7, Math.max(0, Math.floor(((y + Math.floor(i / w) - c.t) / c.h) * 8)));
+            const line = c.rows[row] ?? Object.values(c.rows)[0]!;
+            [tr, tg, tb] = line[col]!.split(',').map(Number) as [number, number, number];
           }
           const fr = tr * ta + r * (1 - ta), fg = tg * ta + gg * (1 - ta), fb = tb * ta + bb * (1 - ta);
           const l1 = lum(fr, fg, fb), l2 = lum(r, gg, bb);

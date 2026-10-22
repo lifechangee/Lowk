@@ -247,7 +247,7 @@ impl Stealth {
         }
     }
 
-    /// Start the sampler task: every `tone::POLL_MS` (250 ms) while the overlay is visible and at once after a
+    /// Start the sampler task: every `tone::POLL_MS` (100 ms) while the overlay is visible and at once after a
     /// move/resize/display change. Unchanged bitmaps are skipped once the smoothing settled. Needs the sampler to exclude our own windows.
     pub fn spawn_tone_sampler(&self, sampler: Arc<dyn RegionSampler>) -> ToneSampler {
         let stop = Arc::new(AtomicBool::new(false));

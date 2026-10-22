@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { PRESETS, blockTone, kFromTransparency, menuRgb, normalizeRgb, parseGrid, toneToVars, varsToStyle, type ToneEvent } from './tone';
+import { BAND_PX, GRID_COLS, GRID_ROWS, PRESETS, blockTone, scrimRowGradient, scrimRowStyle, textGradient, kFromTransparency, menuRgb, normalizeRgb, parseGrid, toneToVars, varsToStyle, type ToneEvent } from './tone';
 import { OverlayStore, formatElapsed, splitBold } from './store.svelte';
 
 describe('tone', () => {
@@ -66,21 +66,21 @@ describe('legibility', () => {
 const toneOf = (k: 'dark' | 'light' | 'color') => ({ tone: k, rgb: PRESETS[k].rgb, fg: PRESETS[k].fg, inv: PRESETS[k].inv, int: PRESETS[k].int, mv: PRESETS[k].mv, luma: null, busy: null });
 
 describe('adaptive grid (F5)', () => {
-  const ev = (cells: ('dark' | 'light' | 'color')[]): ToneEvent => ({ ...toneOf('dark'), grid: { cols: 4, rows: 3, cells: cells.map(toneOf) } });
+  const ev = (cells: ('dark' | 'light' | 'color')[]): ToneEvent => ({ ...toneOf('dark'), grid: { cols: GRID_COLS, rows: GRID_ROWS, cells: cells.map(toneOf) } });
   it('falls back to the global tone when the grid is absent or malformed', () => {
     expect(parseGrid(toneOf('dark'))).toBeNull();
     expect(parseGrid({ ...toneOf('dark'), grid: { cols: 2, rows: 2, cells: [] } })).toBeNull();
     const s = new OverlayStore();
     s.applyTone(toneOf('light'));
     expect(s.grid).toBeNull();
-    expect(s.cells).toHaveLength(12);
+    expect(s.cells).toHaveLength(GRID_COLS * GRID_ROWS);
     expect(s.cells[7]!.rgb).toBe(PRESETS.light.rgb);
   });
   it('picks the text colour from the cells under each block', () => {
-    const cells = Array.from({ length: 12 }, (_, i) => (i % 4 < 2 ? 'dark' : 'light')) as ('dark' | 'light')[];
+    const cells = Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => (i % GRID_COLS < GRID_COLS / 2 ? 'dark' : 'light')) as ('dark' | 'light')[];
     const s = new OverlayStore();
     s.applyTone(ev(cells));
-    expect(s.grid).toHaveLength(12);
+    expect(s.grid).toHaveLength(GRID_COLS * GRID_ROWS);
     const left = blockTone(s.grid!, { x0: 0, y0: 0, x1: 0.4, y1: 0.3 });
     const right = blockTone(s.grid!, { x0: 0.6, y0: 0, x1: 1, y1: 0.3 });
     const both = blockTone(s.grid!, { x0: 0, y0: 0, x1: 1, y1: 0.3 });
@@ -88,6 +88,44 @@ describe('adaptive grid (F5)', () => {
     expect(left.mixed).toBe(false);
     expect(right.fg).toBe(PRESETS.light.fg);
     expect(both.mixed).toBe(true);
+  });
+});
+
+describe('sharp transitions (12x8)', () => {
+  it('the scrim colour changes over a band of at most 10 px at every cell edge', () => {
+    expect(2 * BAND_PX).toBeLessThanOrEqual(10);
+    expect(2 * BAND_PX).toBeGreaterThanOrEqual(6);
+    for (let r = 0; r < GRID_ROWS; r++) {
+      const g = scrimRowGradient(r);
+      const stops = [...g.matchAll(/var\(--c(\d+)\)((?: calc\([^)]*\)\))*)/g)];
+      expect(stops).toHaveLength(GRID_COLS);
+      stops.forEach((m, c) => {
+        expect(Number(m[1])).toBe(r * GRID_COLS + c);
+        // each position is an edge k * 100% / 12 shifted by exactly one half band
+        const pos = [...m[2]!.matchAll(/calc\((\d+) \* 100% \/ 12 ([+-]) var\(--band\)\)/g)];
+        expect(pos.map((p) => [Number(p[1]), p[2]])).toEqual([...(c === 0 ? [] : [[c, '+']]), ...(c === GRID_COLS - 1 ? [] : [[c + 1, '-']])]);
+      });
+    }
+    // the row strips overlap their upper neighbour only across 2 * band
+    expect(scrimRowStyle(3)).toContain('calc(2 * var(--band))');
+    expect(scrimRowStyle(0)).not.toContain('mask');
+  });
+  it('text gradients are hard-stop and skip rows that do not touch the element', () => {
+    const cells = Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => toneToVars(toneOf(i % GRID_COLS < 6 ? 'dark' : 'light')));
+    const g = textGradient(cells, { w: 600, h: 384 }, { x: 40, y: 60 }, { w: 300, h: 20 });
+    const layers = g.image.split(/\), (?=linear-gradient)/);
+    expect(layers.length).toBeLessThan(GRID_ROWS);
+    for (const l of layers) {
+      for (const m of l.matchAll(/(\d+(?:\.\d+)?)% (\d+(?:\.\d+)?)%/g)) expect(Number(m[2]) - Number(m[1])).toBeCloseTo(100 / GRID_COLS, 3);
+    }
+  });
+  it('a block takes the cell it mostly sits on, never an average', () => {
+    const cells = Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => toneToVars(toneOf(i % GRID_COLS < 6 ? 'dark' : 'light')));
+    const mostlyDark = blockTone(cells, { x0: 0.1, y0: 0.1, x1: 0.6, y1: 0.2 });
+    expect(mostlyDark.fg).toBe(PRESETS.dark.fg);
+    expect(mostlyDark.mixed).toBe(true);
+    const mostlyLight = blockTone(cells, { x0: 0.4, y0: 0.1, x1: 0.9, y1: 0.2 });
+    expect(mostlyLight.fg).toBe(PRESETS.light.fg);
   });
 });
 

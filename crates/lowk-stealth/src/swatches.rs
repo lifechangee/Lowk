@@ -8,6 +8,8 @@ use crate::tone::{AdaptiveTone, SAMPLE_H, SAMPLE_W};
 use lowk_types::{Tone, ToneKind, ToneMode};
 use std::fmt::Write as _;
 
+/// Text bands per swatch (top / middle / bottom).
+pub const BANDS: usize = 3;
 /// CSS scrim opacity floor at the default 60 % transparency (`--floor`).
 pub const ALPHA: f32 = palette::SCRIM_FLOOR;
 /// Thresholds every swatch must reach (per pixel, worst pixel of the block).
@@ -219,11 +221,13 @@ pub fn run(b: &Backdrop) -> SwatchResult {
     let (cols, rows) = (usize::from(grid.cols), usize::from(grid.rows));
     let (w, h) = (SAMPLE_W as usize, SAMPLE_H as usize);
     let mut blocks = Vec::new();
-    for r in 0..rows {
-        // Same rule as the UI's blockTone(): the cell whose scrim lightness is closest to the row average.
-        let cells = &grid.cells[r * cols..(r + 1) * cols];
+    // The sheet keeps its three text bands (top / middle / bottom); each spans a third of the grid rows.
+    for band in 0..BANDS {
+        let (r0, r1) = (band * rows / BANDS, (band + 1) * rows / BANDS);
+        // Same rule as the UI's blockTone(): the cell whose scrim lightness is closest to the band average.
+        let cells = &grid.cells[r0 * cols..r1 * cols];
         let y = |c: &Tone| palette::rel_luminance(parse(&c.rgb));
-        let avg = cells.iter().map(y).sum::<f32>() / cols as f32;
+        let avg = cells.iter().map(y).sum::<f32>() / cells.len() as f32;
         let best = cells
             .iter()
             .min_by(|a, b| (y(a) - avg).abs().total_cmp(&(y(b) - avg).abs()))
@@ -245,7 +249,7 @@ pub fn run(b: &Backdrop) -> SwatchResult {
             int,
             mv,
         };
-        for yy in r * h / rows..(r + 1) * h / rows {
+        for yy in r0 * h / rows..r1 * h / rows {
             for xx in 0..w {
                 let p = &b.rgba[(yy * w + xx) * 4..];
                 let v = palette::verdict(&scheme, [p[0], p[1], p[2]], ALPHA);
@@ -294,7 +298,7 @@ fn hex(c: Rgb) -> String {
     format!("#{:02x}{:02x}{:02x}", c[0], c[1], c[2])
 }
 
-/// A 24 x 18 backdrop as an SVG (horizontal runs merged), used as a CSS `background-image` or inline.
+/// A SAMPLE_W x SAMPLE_H backdrop as an SVG (horizontal runs merged), used as a CSS `background-image` or inline.
 pub fn backdrop_svg(rgba: &[u8]) -> String {
     let (w, h) = (SAMPLE_W as usize, SAMPLE_H as usize);
     let mut s = format!("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {w} {h}' preserveAspectRatio='none' shape-rendering='crispEdges'>");

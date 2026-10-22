@@ -70,10 +70,12 @@ export interface ToneGrid {
 
 export type ToneEvent = Tone & { grid?: ToneGrid | null };
 
-export const GRID_COLS = 4;
-export const GRID_ROWS = 3;
+export const GRID_COLS = 12;
+export const GRID_ROWS = 8;
+/** Half-width (px) of the colour transition at a cell edge: the scrim changes colour over 2 * BAND_PX = 8 px, never across a whole cell. */
+export const BAND_PX = 4;
 
-/** Reads a valid 4x3 grid off a tone event; anything else (absent, wrong size) means "use the global tone". */
+/** Reads a valid 12x8 grid off a tone event; anything else (absent, wrong size) means "use the global tone". */
 export function parseGrid(t: ToneEvent): ToneVars[] | null {
   const g = t.grid;
   if (!g || g.cols !== GRID_COLS || g.rows !== GRID_ROWS || !Array.isArray(g.cells) || g.cells.length !== GRID_COLS * GRID_ROWS) return null;
@@ -102,32 +104,42 @@ export interface BlockTone {
 }
 
 /**
- * Text colour for one text block from the grid cells under its rect (fractions of the overlay,
- * 0..1). The block follows the cell mix as a whole: the average scrim colour decides light vs dark
- * text, and the actual cell closest to that average supplies the exact fg/inv values, so a block
- * straddling a dark and a light cell never flips per word.
+ * Text colour for one text block from the grid cells under its rect (fractions of the overlay, 0..1).
+ * No averaging: the block takes the exact fg/inv/accents of the cells of the text-colour group covering most of its area (a tie goes to
+ * the darker scrim), so on a dark/light border the block follows the side it mostly sits on. Cells holding
+ * under 10 % of the block do not count; `mixed` is set when the remaining cells disagree (dark next to light),
+ * and the overlay then paints the block's text per cell like `[data-gt]` (see Overlay.svelte).
  */
 export function blockTone(cells: ToneVars[], rect: { x0: number; y0: number; x1: number; y1: number }): BlockTone {
   const c0 = Math.min(GRID_COLS - 1, Math.max(0, Math.floor(rect.x0 * GRID_COLS)));
   const c1 = Math.min(GRID_COLS - 1, Math.max(c0, Math.ceil(rect.x1 * GRID_COLS - 1e-6) - 1));
   const r0 = Math.min(GRID_ROWS - 1, Math.max(0, Math.floor(rect.y0 * GRID_ROWS)));
   const r1 = Math.min(GRID_ROWS - 1, Math.max(r0, Math.ceil(rect.y1 * GRID_ROWS - 1e-6) - 1));
-  const under: ToneVars[] = [];
-  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) under.push(cells[r * GRID_COLS + c]!);
-  const l = under.map((v) => luma(v.rgb));
-  // The candidate whose text colour has the best WORST contrast against every scrim under the block.
-  const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-  let best = 0;
-  let bestMin = -1;
-  under.forEach((cand, i) => {
-    const fl = luma(cand.fg);
-    const worst = Math.min(...l.map((x) => ratio(fl, x)));
-    if (worst > bestMin + 1e-6) {
-      bestMin = worst;
-      best = i;
+  const under: { v: ToneVars; area: number }[] = [];
+  const ov = (a0: number, a1: number, b0: number, b1: number) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+  const total = Math.max(1e-9, (rect.x1 - rect.x0) * (rect.y1 - rect.y0));
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      const area = rect.x1 > rect.x0 && rect.y1 > rect.y0 ? (ov(rect.x0, rect.x1, c / GRID_COLS, (c + 1) / GRID_COLS) * ov(rect.y0, rect.y1, r / GRID_ROWS, (r + 1) / GRID_ROWS)) / total : 1;
+      under.push({ v: cells[r * GRID_COLS + c]!, area });
     }
-  });
-  const v = under[best]!;
+  }
+  const counted = under.filter((u) => u.area >= 0.1);
+  const pool = counted.length ? counted : under;
+  // Majority by text colour (= by polarity / tone), not by single cell: the group covering the most area wins, ties go to the darker scrim.
+  const groups = new Map<string, { area: number; rep: { v: ToneVars; area: number } }>();
+  for (const u of pool) {
+    const g = groups.get(u.v.fg) ?? { area: 0, rep: u };
+    g.area += u.area;
+    if (u.area > g.rep.area) g.rep = u;
+    groups.set(u.v.fg, g);
+  }
+  let best = [...groups.values()][0]!;
+  for (const g of groups.values()) {
+    if (g.area > best.area + 1e-9 || (Math.abs(g.area - best.area) <= 1e-9 && luma(g.rep.v.rgb) < luma(best.rep.v.rgb))) best = g;
+  }
+  const l = pool.map((u) => luma(u.v.rgb));
+  const v = best.rep.v;
   return { fg: v.fg, inv: v.inv, rgb: v.rgb, int: v.int, mv: v.mv, mixed: Math.max(...l) - Math.min(...l) > 0.3 };
 }
 
@@ -138,28 +150,74 @@ export interface TextGradient {
 }
 
 /**
- * Per-cell text colour for a long text element (subtitle line, answer): the 12 cell text colours as three
- * hard-stop gradient rows laid over the whole overlay (`root`), shifted by the element's own offset (`off`,
- * px from the overlay's top-left), so every glyph takes the colour of the cell BEHIND it. Used with
- * `background-clip: text`; there is no per-row or per-block averaging.
+ * Per-cell text colour for a long text element (subtitle line, answer): the cell text colours as hard-stop
+ * gradient rows (one per grid row) laid over the whole overlay (`root`), shifted by the element's own offset
+ * (`off`, px from the overlay's top-left), so every glyph takes the colour of the cell BEHIND it. Used with
+ * `background-clip: text`; there is no per-row or per-block averaging and the stops are hard (0 px band).
+ * With `box` (the element's size) the rows that do not overlap the element are skipped.
  */
-export function textGradient(cells: ToneVars[], root: { w: number; h: number }, off: { x: number; y: number }): TextGradient {
+export function textGradient(cells: ToneVars[], root: { w: number; h: number }, off: { x: number; y: number }, box?: { w: number; h: number }): TextGradient {
   const rowH = root.h / GRID_ROWS;
   const image: string[] = [];
   const size: string[] = [];
   const position: string[] = [];
   for (let r = 0; r < GRID_ROWS; r++) {
+    if (box && ((r + 1) * rowH <= off.y - 1 || r * rowH >= off.y + box.h + 1)) continue;
     const stops = Array.from({ length: GRID_COLS }, (_, c) => `rgb(${cells[r * GRID_COLS + c]!.fg}) ${(c * 100) / GRID_COLS}% ${((c + 1) * 100) / GRID_COLS}%`);
     image.push(`linear-gradient(90deg, ${stops.join(', ')})`);
     size.push(`${root.w}px ${rowH}px`);
     position.push(`${-off.x}px ${r * rowH - off.y}px`);
   }
+  if (!image.length) return textGradient(cells, root, off);
   return { image: image.join(', '), size: size.join(', '), position: position.join(', ') };
 }
 
-/** The 12 cell colours as custom properties for the scrim (`--c0`..`--c11`). */
+/** The grid cell colours as custom properties for the scrim (`--c0`..`--c95`), plus the fade of each. */
 export function cellsToStyle(cells: ToneVars[]): string {
   return cells.map((c, i) => `--c${i}:rgb(${c.rgb})`).join(';');
+}
+
+/** Fade (s) of every adaptive colour change; the whole backdrop-to-paint budget is documented in docs/ARCHITECTURE.md 7.4. */
+export const FADE_S = 0.12;
+
+/** `transition` value fading all cell colours (registered as `<color>` properties by [`registerCellProps`]) and the scrim opacity. */
+export const SCRIM_TRANSITION = `${Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => `--c${i} ${FADE_S}s`).join(',')},opacity ${FADE_S}s`;
+
+/**
+ * Horizontal scrim gradient of grid row `r`: each cell is flat up to `BAND_PX` before its right edge and
+ * ramps to the next cell's colour over the 2 * BAND_PX around the edge (a sharp transition that follows the
+ * backdrop border, never a blend across a whole cell). Static: it only references `var(--cN)`.
+ */
+export function scrimRowGradient(r: number): string {
+  const edge = (k: number) => `calc(${k} * 100% / ${GRID_COLS}`;
+  const stops: string[] = [];
+  for (let c = 0; c < GRID_COLS; c++) {
+    const v = `var(--c${r * GRID_COLS + c})`;
+    const from = c === 0 ? '' : ` ${edge(c)} + var(--band))`;
+    const to = c === GRID_COLS - 1 ? '' : ` ${edge(c + 1)} - var(--band))`;
+    stops.push(`${v}${from}${to}`);
+  }
+  return `linear-gradient(90deg, ${stops.join(', ')})`;
+}
+
+/** Inline style of scrim row `r` (a strip of the overlay that fades in over the row above across 2 * BAND_PX). */
+export function scrimRowStyle(r: number): string {
+  const top = r === 0 ? '' : `top:calc(${r} * 100% / ${GRID_ROWS} - var(--band));-webkit-mask-image:linear-gradient(180deg,transparent,#000 calc(2 * var(--band)));mask-image:linear-gradient(180deg,transparent,#000 calc(2 * var(--band)));`;
+  return `${top}background:${scrimRowGradient(r)}`;
+}
+
+let registered = false;
+/** Registers `--c0..` as animatable `<color>` custom properties (idempotent; a no-op where `CSS.registerProperty` is missing: colours then switch without the fade). */
+export function registerCellProps(): void {
+  if (registered || typeof CSS === 'undefined' || !('registerProperty' in CSS)) return;
+  registered = true;
+  for (let i = 0; i < GRID_COLS * GRID_ROWS; i++) {
+    try {
+      CSS.registerProperty({ name: `--c${i}`, syntax: '<color>', inherits: true, initialValue: '#0c0c0f' });
+    } catch {
+      /* already registered (hot reload) */
+    }
+  }
 }
 
 export function varsToStyle(v: ToneVars, k: number, fontPx: number): string {

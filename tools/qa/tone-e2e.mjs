@@ -9,10 +9,15 @@
 //   2. the backend grid: every cell lying wholly inside one backdrop region has that region's polarity
 //   3. the PAINTED scrim (text hidden) under every such cell has that polarity and keeps the region's hue
 //   4. text pixels have WCAG contrast against what is behind them
+//   5. (strict) BORDER BANDS: the painted scrim in bands 8-20 pt on both sides of every backdrop border inside the overlay follows
+//      the side it is on: dark side dark with NO light haze (98th-percentile luminance below a threshold), light side light, hue kept;
+//      the off-grid backdrop (borders in the middle of cells) is checked half a cell further out
+//   6. (strict) LATENCY: time from the layout ack to the painted scrim matching the new backdrop (<= 500 ms); p50/max in results.json
 // The backdrop is a web page (tools/qa/tone-backdrop.html) in the DEFAULT BROWSER, opened with `open` and driven over a local
 // 127.0.0.1 server: another process behind the overlay, as in real use. `--backdrop=app` uses Lowk's own window instead
 // (fallback; also used automatically when the browser page does not come up). results.json is written after every capture.
-// Output: docs/qa/tone-e2e/{gallery.png, gallery-<backdrop>.png, results.json}.   node tools/qa/tone-e2e.mjs [--quick] [--backdrop=app]
+// Output: docs/qa/tone-e2e/{gallery.png, gallery-<backdrop>.png, results.json}.   node tools/qa/tone-e2e.mjs [--quick] [--backdrop=app] [--grid]
+// --grid draws the 12x8 grid lines on the gallery images (the analysis uses the clean captures).
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -137,6 +142,7 @@ process.on('SIGINT', async () => { await cleanup(); process.exit(130); });
 
 // ---------- scenarios ----------
 const RGB = { black: [0, 0, 0], white: [255, 255, 255], navy: [10, 20, 90], red: [200, 30, 30], yellow: [240, 220, 40], teal: [0, 110, 120], grey: [225, 225, 225], green: [30, 140, 60] };
+const GC = 12, GR = 8; // backend tone grid (cols x rows), must equal lowk-stealth tone::GRID_COLS/GRID_ROWS
 const POL = { black: 'dark', navy: 'dark', red: 'dark', teal: 'dark', green: 'dark', white: 'light', yellow: 'light', grey: 'light' };
 // Each backdrop: regions as fractions of the OVERLAY frame, plus a fixed-to-screen variant for some. Region boundaries sit on cell edges
 // (cols 1/4 1/2 3/4, rows 1/3 2/3) so most cells are "pure", but the screen positions below make the boundaries land on different pixels.
@@ -146,6 +152,8 @@ const BACKDROPS = [
   { name: 'vertical-split-top-yellow-bottom-navy', regions: [{ x0: -1, x1: 2, y0: -1, y1: 0.5, c: 'yellow' }, { x0: -1, x1: 2, y0: 0.5, y1: 2, c: 'navy' }] },
   { name: 'left-quarter-green-rest-grey', regions: [{ x0: -1, x1: 0.25, y0: -1, y1: 2, c: 'green' }, { x0: 0.25, x1: 2, y0: -1, y1: 2, c: 'grey' }] },
   { name: 'right-quarter-black-rest-white', regions: [{ x0: -1, x1: 0.75, y0: -1, y1: 2, c: 'white' }, { x0: 0.75, x1: 2, y0: -1, y1: 2, c: 'black' }] },
+  // borders in the MIDDLE of cells (5.16 and 3.28 cells): the grid cannot be exact here, the paint must still follow the majority
+  { name: 'off-grid-quadrants-navy-red-yellow-teal', offGrid: true, regions: [{ x0: -1, x1: 0.43, y0: -1, y1: 0.41, c: 'navy' }, { x0: 0.43, x1: 2, y0: -1, y1: 0.41, c: 'red' }, { x0: -1, x1: 0.43, y0: 0.41, y1: 2, c: 'yellow' }, { x0: 0.43, x1: 2, y0: 0.41, y1: 2, c: 'teal' }] },
 ];
 const appUp = async () => { for (let i = 0; i < 150 && !existsSync(join(data, 'qa.json')); i++) await sleep(100); for (let i = 0; i < 100; i++) { try { await cmd('pid'); return; } catch { await sleep(100); } } };
 await appUp();
@@ -171,6 +179,7 @@ const POSITIONS = [
   { name: 'odd-offset', x: 173, y: 97 },
 ];
 const BDS = has('--quick') ? BACKDROPS.slice(0, 2) : BACKDROPS;
+const latencies = []; // ms from layout ack to the painted scrim matching, one per backdrop change
 
 try {
   await sleep(2500);
@@ -195,7 +204,43 @@ try {
     for (const bd of BDS) {
       const fr = JSON.parse(await cmd('overlay-frame')).frame;
       const rects = bd.regions.map((r) => ({ x: fr.x + r.x0 * fr.w, y: fr.y + r.y0 * fr.h, w: (r.x1 - r.x0) * fr.w, h: (r.y1 - r.y0) * fr.h, c: RGB[r.c] }));
+      // painted scrim (text hidden) of the whole overlay, one lum per cell centre, as fast as a capture goes (latency probe)
+      const probe = async () => {
+        const pth = join(work, 'probe.png');
+        const t = performance.now();
+        const r = await cmd(`region-png ${fr.x} ${fr.y} ${fr.w} ${fr.h} 1 ${pth}`);
+        if (r !== 'ok') throw new Error('probe capture failed: ' + r);
+        const im = readPng(readFileSync(pth)), kk = im.w / fr.w;
+        return { ms: performance.now() - t, lum: Array.from({ length: GC * GR }, (_, i) => lum(avg(im, ((i % GC) + 0.5) * (fr.w / GC) * kk, (Math.floor(i / GC) + 0.5) * (fr.h / GR) * kk, 3))) };
+      };
+      await styleOn(NOTEXT); await sleep(400);
+      const before = await probe();
       await stage({ cmd: 'layout', rects });
+      const tAck = performance.now();
+      let latency = null;
+      {
+        // a cell is a latency witness when its pure expectation is known and the painted polarity before the layout was the other one
+        const cvz = browserCover();
+        const wit = [];
+        for (let i = 0; i < GC * GR; i++) {
+          const x0 = fr.x + (i % GC) * (fr.w / GC) + 8, x1 = fr.x + ((i % GC) + 1) * (fr.w / GC) - 8, y0 = fr.y + Math.floor(i / GC) * (fr.h / GR) + 8, y1 = fr.y + (Math.floor(i / GC) + 1) * (fr.h / GR) - 8;
+          if (!(x0 >= cvz.x && x1 <= cvz.x + cvz.w && y0 >= cvz.y && y1 <= cvz.y + cvz.h)) continue;
+          const rr = bd.regions.filter((r) => x0 >= fr.x + r.x0 * fr.w && x1 <= fr.x + r.x1 * fr.w && y0 >= fr.y + r.y0 * fr.h && y1 <= fr.y + r.y1 * fr.h);
+          if (rr.length !== 1) continue;
+          const dark = POL[rr[0].c] === 'dark', wasDark = before.lum[i] < 0.3;
+          if (dark !== wasDark) wit.push({ i, dark });
+        }
+        if (wit.length >= 3) {
+          let last = null;
+          for (let n = 0; n < 60; n++) {
+            const pr = await probe(); last = pr;
+            if (wit.every((w) => (w.dark ? pr.lum[w.i] < 0.2 : pr.lum[w.i] > 0.5))) { latency = { ms: Math.round(performance.now() - tAck), grab_ms: Math.round(pr.ms), witnesses: wit.length }; break; }
+          }
+          if (!latency) latency = { ms: null, witnesses: wit.length, never: wit.filter((w) => (w.dark ? last.lum[w.i] >= 0.2 : last.lum[w.i] <= 0.5)).map((w) => w.i) };
+        }
+      }
+      if (latency?.ms != null) latencies.push(latency.ms);
+      add(!latency || (latency.ms != null && latency.ms <= 500), `${tag}: backdrop change reaches the painted scrim within 500 ms of the layout ack`, latency ? JSON.stringify(latency) : 'no cell changed polarity: not measured');
       const tag = `${bd.name} @ ${pos.name}`;
       const ofr = JSON.parse(await cmd('overlay-frame'));
       const s = ofr.sampled, f2 = ofr.frame;
@@ -203,19 +248,19 @@ try {
       // lies fully inside ONE colour region (inset INSET pt for the sampler's box filter) and inside what the backdrop
       // really covers (outside it the stage is black / the desktop). Everything else is not asserted.
       const INSET = 8;
-      const cw = f2.w / 4, ch = f2.h / 3;
+      const cw = f2.w / GC, ch = f2.h / GR;
       const cv = browserCover();
       const regs = bd.regions.map((r) => ({ c: r.c, x0: fr.x + r.x0 * fr.w, x1: fr.x + r.x1 * fr.w, y0: fr.y + r.y0 * fr.h, y1: fr.y + r.y1 * fr.h }));
-      const expect = Array.from({ length: 12 }, (_, i) => {
-        const cx0 = f2.x + (i % 4) * cw + INSET, cx1 = f2.x + (i % 4 + 1) * cw - INSET;
-        const cy0 = f2.y + Math.floor(i / 4) * ch + INSET, cy1 = f2.y + (Math.floor(i / 4) + 1) * ch - INSET;
+      const expect = Array.from({ length: GC * GR }, (_, i) => {
+        const cx0 = f2.x + (i % GC) * cw + INSET, cx1 = f2.x + (i % GC + 1) * cw - INSET;
+        const cy0 = f2.y + Math.floor(i / GC) * ch + INSET, cy1 = f2.y + (Math.floor(i / GC) + 1) * ch - INSET;
         const inCover = cx0 >= cv.x && cx1 <= cv.x + cv.w && cy0 >= cv.y && cy1 <= cv.y + cv.h;
         const rr = regs.filter((r) => cx0 >= r.x0 && cx1 <= r.x1 && cy0 >= r.y0 && cy1 <= r.y1);
         return inCover && rr.length === 1 ? rr[0].c : null;
       });
       // Readiness: the first capture per backdrop used to be stale (the browser had not repainted yet). Poll the sampler's
       // own cell_means until every pure cell shows its expected backdrop colour (or time out and fail loudly), then let the
-      // 3-sample median + 250 ms poll settle.
+      // the 2-sample confirmation (2 x 100 ms polls) settle.
       const near = (m, c) => m && Math.abs(m[0] - c[0]) <= 14 && Math.abs(m[1] - c[1]) <= 14 && Math.abs(m[2] - c[2]) <= 14;
       const pureIdx = expect.map((c, i) => (c ? i : -1)).filter((i) => i >= 0);
       // Only frames grabbed AFTER the layout ack and the overlay move count: remember the sampler's frame counter now and
@@ -229,19 +274,19 @@ try {
         ready = frames >= f0 + 2 && mism.length === 0;
         if (!ready) await sleep(250);
       }
-      add(ready, `${tag}: backdrop on screen (sampler cell_means match the pattern)`, ready ? '' : JSON.stringify({ frames_at_ack: f0, frames_now: frames, mismatched_cells: mism.map((i) => ({ cell: i, row: Math.floor(i / 4), expected: RGB[expect[i]], got: lastMeans?.[i] })) }));
+      add(ready, `${tag}: backdrop on screen (sampler cell_means match the pattern)`, ready ? '' : JSON.stringify({ frames_at_ack: f0, frames_now: frames, mismatched_cells: mism.map((i) => ({ cell: i, row: Math.floor(i / GC), expected: RGB[expect[i]], got: lastMeans?.[i] })) }));
       await sleep(1500);
       // 1. the sampler looks where the overlay is
       add(!!s && Math.abs(s.x - f2.x) < 1.5 && Math.abs(s.y - f2.y) < 1.5 && Math.abs(s.w - f2.w) < 1.5 && Math.abs(s.h - f2.h) < 1.5, `${tag}: sampler region == overlay frame`, JSON.stringify({ sampled: s, frame: f2 }));
       const nPure = pureIdx.length;
       // edge positions legitimately leave few pure cells (the overlay straddles region borders or the cover): need at least one
-      add(nPure >= 1, `${tag}: at least one pure cell to assert`, `${nPure}/12 pure (others not asserted)`);
+      add(nPure >= 1, `${tag}: at least one pure cell to assert`, `${nPure}/${GC * GR} pure (others not asserted)`);
       // 2. backend grid
       const diagRaw = JSON.parse(await cmd('tone-diag'));
       const tone = diagRaw.tone;
       const diag = { sampler: diagRaw.sampler, grab: diagRaw.grab };
       const grid = tone.grid?.cells ?? [];
-      add(grid.length === 12, `${tag}: backend sent a 4x3 grid`, `${grid.length} cells`);
+      add(grid.length === GC * GR, `${tag}: backend sent a ${GC}x${GR} grid`, `${grid.length} cells`);
       add(!!diag.grab && !diag.grab.error && (diag.sampler?.grab_errors ?? 1) === 0, `${tag}: sampler grabs succeed`, JSON.stringify({ err: diag.grab?.error, grab_errors: diag.sampler?.grab_errors, last_error: diag.sampler?.last_error }));
       add((diag.sampler?.cell_means ?? []).some((m) => m[0] + m[1] + m[2] > 0), `${tag}: sampler image is not all black`, JSON.stringify(diag.sampler?.cell_means));
       const be = [];
@@ -264,7 +309,7 @@ try {
       const pa = [];
       const cellsOut = [];
       expect.forEach((c, i) => {
-        const cx = ox + ((i % 4) + 0.5) * cw * k, cy = oy + (Math.floor(i / 4) + 0.5) * ch * k;
+        const cx = ox + ((i % GC) + 0.5) * cw * k, cy = oy + (Math.floor(i / GC) + 0.5) * ch * k;
         const S = avg(bare, cx, cy, 5), L = lum(S);
         cellsOut.push({ i, backdrop: c, painted: S.map(Math.round) });
         if (!c) return;
@@ -281,6 +326,44 @@ try {
         if (c === 'yellow' && !(S[2] < Math.min(S[0], S[1]) - 3)) pa.push(`cell ${i} yellow: painted rgb(${S.map(Math.round)}) lost the warm tint`);
       });
       add(pa.length === 0, `${tag}: painted scrim follows the backdrop under each cell`, pa.join(' | '));
+      // 3b. strict: bands 8-20 pt (off-grid backdrop: half a cell further out) on BOTH sides of every border inside the overlay
+      const bandFail = []; const bandsOut = [];
+      {
+        const lo = bd.offGrid ? 0.5 * cw + 6 : 8, hi = lo + 12, trim = hi + 4;
+        const cvz = browserCover();
+        const clip = (a, b, lo2, hi2) => [Math.max(a, lo2), Math.min(b, hi2)];
+        const test = (side, c, x0, x1, y0, y1, lab) => { // rectangle in global points -> painted pixels of `bare`
+          [x0, x1] = clip(x0, x1, Math.max(f2.x + 1, cvz.x), Math.min(f2.x + f2.w - 1, cvz.x + cvz.w));
+          [y0, y1] = clip(y0, y1, Math.max(f2.y + 1, cvz.y), Math.min(f2.y + f2.h - 1, cvz.y + cvz.h));
+          if (x1 - x0 < 4 || y1 - y0 < 4) return;
+          const ls = [], mean = [0, 0, 0]; let n = 0;
+          for (let y = Math.floor((y0 - reg.y) * k); y < Math.ceil((y1 - reg.y) * k); y++) for (let x = Math.floor((x0 - reg.x) * k); x < Math.ceil((x1 - reg.x) * k); x++) { const p = px(bare, x, y); ls.push(lum(p)); mean[0] += p[0]; mean[1] += p[1]; mean[2] += p[2]; n++; }
+          if (!n) return;
+          ls.sort((a, b) => a - b);
+          const M = mean.map((v) => v / n), dark = POL[c] === 'dark';
+          const hi98 = ls[Math.floor((ls.length - 1) * 0.98)], lo02 = ls[Math.floor((ls.length - 1) * 0.02)];
+          let why = '';
+          if (dark && hi98 > 0.25) why = `light haze over a dark region (98th-percentile luminance ${hi98.toFixed(2)} > 0.25)`;
+          else if (!dark && lo02 < 0.45) why = `dark smear over a light region (2nd-percentile luminance ${lo02.toFixed(2)} < 0.45)`;
+          const B = RGB[c], sat = Math.max(...B) - Math.min(...B);
+          if (!why && dark && sat > 90) { const bi = B.indexOf(Math.max(...B)); if (c === 'teal' ? !(M[1] > M[0] + 6 && M[2] > M[0] + 6) : (M[bi] < Math.max(...M) - 0.5 || M[bi] - Math.max(...[0, 1, 2].filter((j) => j !== bi).map((j) => M[j])) < 6)) why = `hue lost (mean rgb ${M.map(Math.round)})`; }
+          if (!why && c === 'yellow' && !(M[2] < Math.min(M[0], M[1]) - 3)) why = `warm tint lost (mean rgb ${M.map(Math.round)})`;
+          bandsOut.push({ border: lab, side, backdrop: c, mean: M.map(Math.round), p02: +lo02.toFixed(2), p98: +hi98.toFixed(2), ok: !why });
+          if (why) bandFail.push(`${lab} ${side} (${c}): ${why}`);
+        };
+        for (const A of regs) for (const B2 of regs) {
+          if (A === B2 || A.c === B2.c) continue;
+          if (Math.abs(A.x1 - B2.x0) < 0.5 && A.x1 > f2.x && A.x1 < f2.x + f2.w) { // vertical border at X
+            const X = A.x1, ya = Math.max(A.y0, B2.y0) + trim, yb = Math.min(A.y1, B2.y1) - trim, lab = `v@${Math.round(X - f2.x)}`;
+            if (yb - ya >= 12) { test('left', A.c, X - hi, X - lo, ya, yb, lab); test('right', B2.c, X + lo, X + hi, ya, yb, lab); }
+          }
+          if (Math.abs(A.y1 - B2.y0) < 0.5 && A.y1 > f2.y && A.y1 < f2.y + f2.h) { // horizontal border at Y
+            const Y = A.y1, xa = Math.max(A.x0, B2.x0) + trim, xb = Math.min(A.x1, B2.x1) - trim, lab = `h@${Math.round(Y - f2.y)}`;
+            if (xb - xa >= 12) { test('above', A.c, xa, xb, Y - hi, Y - lo, lab); test('below', B2.c, xa, xb, Y + lo, Y + hi, lab); }
+          }
+        }
+      }
+      add(bandFail.length === 0, `${tag}: border bands follow the backdrop (no haze across borders)`, bandFail.join(' | ') || `${bandsOut.length} bands`);
       // 4. text contrast against what is directly behind the glyph
       const ratios = []; const bad = [];
       for (let y = Math.round(oy); y < Math.round(oy + f2.h * k); y++) for (let x = Math.round(ox); x < Math.round(ox + f2.w * k); x++) {
@@ -296,9 +379,14 @@ try {
       // tile for the gallery (downscaled 2x by box filter to keep the sheet small)
       const dw = Math.floor(full.w / 2), dh = Math.floor(full.h / 2), t = Buffer.alloc(dw * dh * 3);
       for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) for (let c3 = 0; c3 < 3; c3++) { let sacc = 0; for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) sacc += full.px[((y * 2 + dy) * full.w + x * 2 + dx) * full.bpp + c3]; t[(y * dw + x) * 3 + c3] = sacc / 4; }
+      if (has('--grid')) { // gallery only: the 12x8 grid lines of the overlay frame (tile px = capture px / 2)
+        const dot = (x, y) => { if (x < 0 || y < 0 || x >= dw || y >= dh) return; for (const [c3, v] of [[0, 0], [1, 255], [2, 255]]) t[(y * dw + x) * 3 + c3] = (t[(y * dw + x) * 3 + c3] + v) >> 1; };
+        for (let c = 0; c <= GC; c++) for (let y = Math.round(oy / 2); y <= Math.round((oy + f2.h * k) / 2); y++) dot(Math.round((ox + c * cw * k) / 2), y);
+        for (let r = 0; r <= GR; r++) for (let x = Math.round(ox / 2); x <= Math.round((ox + f2.w * k) / 2); x++) dot(x, Math.round((oy + r * ch * k) / 2));
+      }
       tiles.push({ bd: bd.name, pos: pos.name, w: dw, h: dh, rgb: t });
       const writeResults = () => writeFileSync(join(out, 'results.json'), JSON.stringify({ display: D, backdropKind, partial: true, checks, results }, null, 1));
-      results.push({ backdrop: bd.name, backdropKind, cover: browserCover(), diag,  position: pos.name, frame: f2, sampled: s, region: reg, cells: cellsOut, glyph: { n: ratios.length, p10: pct(0.1), median: pct(0.5) }, backend: grid.map((g) => ({ tone: g.tone, rgb: g.rgb })) });
+      results.push({ backdrop: bd.name, backdropKind, cover: browserCover(), diag,  position: pos.name, latency, bands: bandsOut, frame: f2, sampled: s, region: reg, cells: cellsOut, glyph: { n: ratios.length, p10: pct(0.1), median: pct(0.5) }, backend: grid.map((g) => ({ tone: g.tone, rgb: g.rgb })) });
       writeResults();
     }
   }
@@ -311,8 +399,12 @@ try {
   };
   for (const bd of BDS) sheet(tiles.filter((t) => t.bd === bd.name), join(out, `gallery-${bd.name}.png`), 3);
   sheet(tiles, join(out, 'gallery.png'), POSITIONS.length);
+  const sorted = [...latencies].sort((a, b) => a - b);
+  const latencySummary = { n: sorted.length, p50: sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : null, max: sorted.length ? sorted[sorted.length - 1] : null, samples_ms: latencies, limit_ms: 500 };
+  console.log(`latency (layout ack -> painted scrim): n=${latencySummary.n} p50=${latencySummary.p50} ms max=${latencySummary.max} ms (limit 500)`);
+  add(latencySummary.n > 0 && latencySummary.max <= 500, 'latency: every measured backdrop change painted within 500 ms', JSON.stringify(latencySummary));
   const failed = checks.filter((c) => !c.ok);
-  writeFileSync(join(out, 'results.json'), JSON.stringify({ display: D, order: 'gallery.png: one row per backdrop (' + BDS.map((b) => b.name).join(', ') + '), columns = positions (' + POSITIONS.map((p) => p.name).join(', ') + ')', checks, results }, null, 1));
+  writeFileSync(join(out, 'results.json'), JSON.stringify({ display: D, latency: latencySummary, order: 'gallery.png: one row per backdrop (' + BDS.map((b) => b.name).join(', ') + '), columns = positions (' + POSITIONS.map((p) => p.name).join(', ') + ')', checks, results }, null, 1));
   console.log(`\n${checks.length - failed.length}/${checks.length} checks passed; ${tiles.length} captures (${BDS.length} backdrops x ${POSITIONS.length} positions) -> ${out}`);
   await cleanup();
   process.exit(failed.length ? 1 : 0);

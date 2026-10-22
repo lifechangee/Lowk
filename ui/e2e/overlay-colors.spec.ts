@@ -50,8 +50,8 @@ test.describe('real overlay over the mapped tones', () => {
       const s = data.find((x) => x.name === name)!;
       expect(s, name).toBeTruthy();
       const cell = (b: Block) => ({ tone: s.kind, rgb: rgbOf(b.scrim), fg: rgbOf(b.fg), inv: rgbOf(b.fg) === '247,247,249' ? '0,0,0' : '255,255,255', int: b.int, mv: b.mv, luma: null, busy: null, scrim_min: 0 });
-      const cells = Array.from({ length: 12 }, (_, i) => cell(s.blocks[Math.floor(i / 4)]!));
-      const tone = { ...cell(s.blocks[1]!), grid: { cols: 4, rows: 3, cells } };
+      const cells = Array.from({ length: 96 }, (_, i) => cell(s.blocks[Math.floor((Math.floor(i / 12) * 3) / 8)]!));
+      const tone = { ...cell(s.blocks[1]!), grid: { cols: 12, rows: 8, cells } };
       await page.addInitScript((sw) => ((window as unknown as { __swatch: unknown }).__swatch = sw), { tone, color: s.mean });
       await page.goto('/overlay.html?still=1&bg=swatch&t=60&lang=ru&bare=1');
       await page.waitForSelector('.scrim');
@@ -59,7 +59,7 @@ test.describe('real overlay over the mapped tones', () => {
       const bad = (await measureContrast(page, '.frame', ['.bar'])).filter((x) => x.ratio < 4.5).map((x) => `${x.sel} "${x.text}" ${x.ratio}:1`);
       expect(bad, name).toEqual([]);
       // the scrim keeps the backdrop's hue: for a navy / blue backdrop it is blue, never the black preset
-      const scrim = await page.evaluate(() => getComputedStyle(document.querySelector('.scrim .r1')!).backgroundImage);
+      const scrim = await page.evaluate(() => getComputedStyle(document.querySelector('.scrim i:nth-child(4)')!).backgroundImage);
       expect(scrim).not.toContain('rgb(12, 12, 15)');
       await expect(page.locator('.frame')).toHaveScreenshot(`swatch-${REAL.indexOf(name)}.png`, { maxDiffPixelRatio: 0.02 });
     });
