@@ -82,6 +82,8 @@ jobs:
       - name: Stage sidecars (STT worker per GPU input, embedder CPU)
         run: |
           if [ "$GPU" = cpu ]; then export LOWK_WORKER_FEATURES=""; else export LOWK_WORKER_FEATURES="$GPU"; fi
+          # link.exe must find vulkan-1.lib (run 39755378234: LNK1181)
+          if [ "$GPU" = vulkan ]; then export RUSTFLAGS="-L native=${VULKAN_SDK//\\//}/Lib"; fi
           tools/release/stage-sidecars.sh
       - name: NSIS installer
         working-directory: crates/lowk-app
