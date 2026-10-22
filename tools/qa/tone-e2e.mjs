@@ -192,25 +192,41 @@ try {
       const fr = JSON.parse(await cmd('overlay-frame')).frame;
       const rects = bd.regions.map((r) => ({ x: fr.x + r.x0 * fr.w, y: fr.y + r.y0 * fr.h, w: (r.x1 - r.x0) * fr.w, h: (r.y1 - r.y0) * fr.h, c: RGB[r.c] }));
       await stage({ cmd: 'layout', rects });
-      await sleep(2300);
       const tag = `${bd.name} @ ${pos.name}`;
       const ofr = JSON.parse(await cmd('overlay-frame'));
-      // 1. the sampler looks where the overlay is
       const s = ofr.sampled, f2 = ofr.frame;
-      add(!!s && Math.abs(s.x - f2.x) < 1.5 && Math.abs(s.y - f2.y) < 1.5 && Math.abs(s.w - f2.w) < 1.5 && Math.abs(s.h - f2.h) < 1.5, `${tag}: sampler region == overlay frame`, JSON.stringify({ sampled: s, frame: f2 }));
-      // expected polarity per cell: only cells wholly inside one backdrop region (inset 10 pt)
+      // Expected colour per cell from the REAL overlay frame vs the backdrop geometry: a cell is asserted only when it
+      // lies fully inside ONE colour region (inset INSET pt for the sampler's box filter) and inside what the backdrop
+      // really covers (outside it the stage is black / the desktop). Everything else is not asserted.
+      const INSET = 8;
       const cw = f2.w / 4, ch = f2.h / 3;
+      const cv = browserCover();
+      const regs = bd.regions.map((r) => ({ c: r.c, x0: fr.x + r.x0 * fr.w, x1: fr.x + r.x1 * fr.w, y0: fr.y + r.y0 * fr.h, y1: fr.y + r.y1 * fr.h }));
       const expect = Array.from({ length: 12 }, (_, i) => {
-        const cx0 = f2.x + (i % 4) * cw, cy0 = f2.y + Math.floor(i / 4) * ch;
-        const rr = bd.regions.map((r) => ({ c: r.c, x0: fr.x + r.x0 * fr.w, x1: fr.x + r.x1 * fr.w, y0: fr.y + r.y0 * fr.h, y1: fr.y + r.y1 * fr.h }))
-          .filter((r) => cx0 + 10 >= r.x0 && cx0 + cw - 10 <= r.x1 && cy0 + 10 >= r.y0 && cy0 + ch - 10 <= r.y1);
-        // cells poking off the display see black (the stage paints black outside any region): not pure
-        const cv = browserCover();
-        const onScreen = cx0 >= cv.x && cx0 + cw <= cv.x + cv.w && cy0 >= cv.y && cy0 + ch <= cv.y + cv.h;
-        return onScreen && rr.length === 1 ? rr[0].c : null;
+        const cx0 = f2.x + (i % 4) * cw + INSET, cx1 = f2.x + (i % 4 + 1) * cw - INSET;
+        const cy0 = f2.y + Math.floor(i / 4) * ch + INSET, cy1 = f2.y + (Math.floor(i / 4) + 1) * ch - INSET;
+        const inCover = cx0 >= cv.x && cx1 <= cv.x + cv.w && cy0 >= cv.y && cy1 <= cv.y + cv.h;
+        const rr = regs.filter((r) => cx0 >= r.x0 && cx1 <= r.x1 && cy0 >= r.y0 && cy1 <= r.y1);
+        return inCover && rr.length === 1 ? rr[0].c : null;
       });
-      const nPure = expect.filter(Boolean).length;
-      add(nPure >= 6, `${tag}: enough pure cells`, `${nPure}/12`);
+      // Readiness: the first capture per backdrop used to be stale (the browser had not repainted yet). Poll the sampler's
+      // own cell_means until every pure cell shows its expected backdrop colour (or time out and fail loudly), then let the
+      // 3-sample median + 250 ms poll settle.
+      const near = (m, c) => m && Math.abs(m[0] - c[0]) <= 14 && Math.abs(m[1] - c[1]) <= 14 && Math.abs(m[2] - c[2]) <= 14;
+      const pureIdx = expect.map((c, i) => (c ? i : -1)).filter((i) => i >= 0);
+      let ready = pureIdx.length === 0, lastMeans = null;
+      for (let t = 0; t < 120 && !ready; t++) { // 30 s
+        try { lastMeans = JSON.parse(await cmd('tone-diag')).sampler?.cell_means ?? []; } catch { lastMeans = []; }
+        ready = pureIdx.every((i) => near(lastMeans[i], RGB[expect[i]]));
+        if (!ready) await sleep(250);
+      }
+      add(ready, `${tag}: backdrop on screen (sampler cell_means match the pattern)`, ready ? '' : JSON.stringify({ expected: pureIdx.map((i) => [i, RGB[expect[i]]]), got: lastMeans }));
+      await sleep(1500);
+      // 1. the sampler looks where the overlay is
+      add(!!s && Math.abs(s.x - f2.x) < 1.5 && Math.abs(s.y - f2.y) < 1.5 && Math.abs(s.w - f2.w) < 1.5 && Math.abs(s.h - f2.h) < 1.5, `${tag}: sampler region == overlay frame`, JSON.stringify({ sampled: s, frame: f2 }));
+      const nPure = pureIdx.length;
+      // edge positions legitimately leave few pure cells (the overlay straddles region borders or the cover): need at least one
+      add(nPure >= 1, `${tag}: at least one pure cell to assert`, `${nPure}/12 pure (others not asserted)`);
       // 2. backend grid
       const diagRaw = JSON.parse(await cmd('tone-diag'));
       const tone = diagRaw.tone;

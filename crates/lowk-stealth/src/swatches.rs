@@ -97,6 +97,14 @@ pub fn all() -> Vec<Backdrop> {
     add("Тёмно-красный", flat([110, 10, 20]));
     add("Малиновый", flat([170, 20, 60]));
     add("Розовый", flat([255, 120, 190]));
+    // bright saturated colours: light tinted scrim, dark text (owner decision)
+    add("Жёлтый (замер вживую)", flat([240, 220, 40]));
+    add("Чистый жёлтый", flat([255, 255, 0]));
+    add("Золотой", flat([255, 215, 0]));
+    add("Светло-оранжевый", flat([255, 190, 90]));
+    add("Светло-зелёный", flat([144, 238, 144]));
+    add("Ярко-зелёный", flat([0, 255, 0]));
+    add("Светлый циан", flat([120, 240, 250]));
     // purples / earth
     add("Пурпурный (magenta)", flat([210, 0, 190]));
     add("Фиолетовый", flat([128, 0, 160]));
@@ -455,6 +463,32 @@ mod tests {
                 r.min_muted_wcag(),
                 r.min_accent_wcag()
             );
+        }
+    }
+
+    #[test]
+    fn bright_saturated_backdrops_get_a_light_scrim_and_dark_text() {
+        let rs = run_all();
+        for n in [
+            "Жёлтый",
+            "Жёлтый (замер вживую)",
+            "Чистый жёлтый",
+            "Золотой",
+            "Светло-оранжевый",
+            "Светло-зелёный",
+            "Ярко-зелёный",
+            "Светлый циан",
+            "Лайм",
+            "Розовый",
+        ] {
+            let r = rs
+                .iter()
+                .find(|r| r.name == n)
+                .unwrap_or_else(|| panic!("no swatch {n}"));
+            assert!(r.ok(), "{n}");
+            let sc = r.blocks[1].scrim;
+            let lab = crate::palette::rgb_to_oklab(sc);
+            assert!(lab.l >= 0.94, "{n}: scrim {sc:?} is not light");
         }
     }
 

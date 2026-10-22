@@ -193,6 +193,12 @@ pub const POL_DOWN: f32 = 0.52;
 /// The upper threshold rises by up to this much for fully saturated backdrops (`C >= CHROMA_FULL`).
 pub const POL_CHROMA_BIAS: f32 = 0.20;
 pub const CHROMA_FULL: f32 = 0.25;
+/// Yellow-green hues (OKLCH `h`) look light at any mid lightness: the chroma bias is cut there to
+/// `1 - YELLOW_CUT` (full cut inside `YELLOW_CORE`, linear ramp out to `YELLOW_EDGE`). Yellow, olive-yellow, lime,
+/// yellow-orange and light green get a LIGHT tinted scrim with dark text; red, green, teal, blue, purple do not move.
+pub const YELLOW_CUT: f32 = 0.85;
+pub const YELLOW_CORE: (f32, f32) = (85.0, 125.0);
+pub const YELLOW_EDGE: (f32, f32) = (65.0, 140.0);
 /// Dark scrim: `L = clamp(0.17 + 0.25 * max(L_bg - 0.15, 0), 0.17, 0.30)`, chroma `min(0.6 * C_bg, 0.10)`.
 pub const DARK_L0: f32 = 0.17;
 pub const DARK_L_SLOPE: f32 = 0.25;
@@ -229,12 +235,29 @@ pub struct Scheme {
 
 /// Polarity with hysteresis. `prev`: the previous decision of this region (`true` = dark text).
 pub fn polarity(lab: &Oklab, prev: Option<bool>) -> bool {
-    let bias = POL_CHROMA_BIAS * (lab.chroma() / CHROMA_FULL).min(1.0);
+    let bias = POL_CHROMA_BIAS
+        * (lab.chroma() / CHROMA_FULL).min(1.0)
+        * (1.0 - YELLOW_CUT * yellow_weight(lab.hue()));
     let (up, down) = (POL_UP + bias, POL_DOWN + bias);
     match prev {
         None => lab.l > (up + down) / 2.0,
         Some(true) => lab.l >= down,
         Some(false) => lab.l > up,
+    }
+}
+
+/// 1 inside the yellow core hue band, 0 outside the edge band, linear in between.
+fn yellow_weight(h: f32) -> f32 {
+    let (c0, c1) = YELLOW_CORE;
+    let (e0, e1) = YELLOW_EDGE;
+    if h < e0 || h > e1 {
+        0.0
+    } else if h < c0 {
+        (h - e0) / (c0 - e0)
+    } else if h <= c1 {
+        1.0
+    } else {
+        (e1 - h) / (e1 - c1)
     }
 }
 
@@ -487,6 +510,84 @@ mod tests {
             let v = verdict(&s, c, SCRIM_FLOOR);
             assert!(v.body_wcag >= 7.0 && v.body_lc >= 75.0, "{name} {v:?}");
         }
+    }
+
+    #[test]
+    fn bright_saturated_colours_get_a_light_tinted_scrim() {
+        for (name, c) in [
+            ("yellow", [240u8, 220, 40]),
+            ("yellow-dim (live mean)", [175, 164, 54]),
+            ("olive-yellow (live mean)", [135, 123, 22]),
+            ("pure yellow", [255, 255, 0]),
+            ("lime", [190, 255, 0]),
+            ("light green", [144, 238, 144]),
+            ("bright green", [0, 255, 0]),
+            ("light cyan", [120, 240, 250]),
+            ("pink", [255, 150, 200]),
+            ("light orange", [255, 190, 90]),
+            ("orange", [255, 165, 0]),
+            ("gold", [255, 215, 0]),
+        ] {
+            let lb = lab(c);
+            let s = scheme(&lb, polarity(&lb, None));
+            assert!(s.dark_text && s.fg == BLACK_TEXT, "{name} {c:?} L {:.2}", lb.l);
+            let sl = rgb_to_oklab(s.scrim);
+            assert!(sl.l >= 0.94 && s.tinted, "{name} {:?}", s.scrim);
+            if name.starts_with("yellow") || name.contains("lime") || name == "gold" {
+                // the scrim keeps the warm hue of the backdrop
+                assert!(s.scrim[2] < s.scrim[0].min(s.scrim[1]), "{name} {:?}", s.scrim);
+            }
+            for a in [SCRIM_FLOOR, 0.9, 1.0] {
+                let v = verdict(&s, c, a);
+                assert!(v.body_wcag >= 7.0 && v.body_lc >= 75.0, "{name} {v:?}");
+                assert!(
+                    v.muted_wcag >= 4.5 && v.int_wcag >= 4.0 && v.mv_wcag >= 4.0,
+                    "{name} {v:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn dark_and_mid_saturated_colours_still_get_dark_scrims() {
+        for (name, c) in [
+            ("red", [200u8, 30, 30]),
+            ("bright red", [255, 0, 0]),
+            ("green", [30, 140, 60]),
+            ("mid green", [0, 170, 60]),
+            ("teal", [0, 110, 120]),
+            ("blue", [0, 0, 255]),
+            ("purple", [128, 0, 160]),
+            ("magenta", [220, 0, 200]),
+            ("dark olive", [90, 80, 0]),
+        ] {
+            let lb = lab(c);
+            assert!(!polarity(&lb, None), "{name} L {:.2}", lb.l);
+        }
+    }
+
+    #[test]
+    fn yellow_polarity_does_not_flicker_on_mid_colours() {
+        // sweep a yellow from dark olive to bright yellow and back with noise: the decision flips at most once each way
+        let mut prev: Option<bool> = None;
+        let mut flips = 0;
+        let up: Vec<u8> = (60..=250).step_by(5).collect();
+        for pass in [up.clone(), up.iter().rev().copied().collect()] {
+            for (i, v) in pass.iter().enumerate() {
+                let jitter = if i % 2 == 0 { 3i32 } else { -3 };
+                let c = [
+                    (*v as i32 + jitter).clamp(0, 255) as u8,
+                    (*v as i32 + jitter - 12).clamp(0, 255) as u8,
+                    20,
+                ];
+                let d = polarity(&lab(c), prev);
+                if prev.is_some_and(|p| p != d) {
+                    flips += 1;
+                }
+                prev = Some(d);
+            }
+        }
+        assert!(flips <= 2, "{flips} flips");
     }
 
     #[test]
