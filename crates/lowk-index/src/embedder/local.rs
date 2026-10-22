@@ -332,8 +332,32 @@ mod tests {
         let port = l.local_addr().unwrap().port();
         std::thread::spawn(move || {
             let (mut s, _) = l.accept().unwrap();
+            // Read the whole request (headers + body) before answering: replying after one partial
+            // read and closing made the client fail mid-send (flaky "Invalid argument").
+            let mut req = Vec::new();
             let mut b = [0u8; 4096];
-            let _ = s.read(&mut b);
+            loop {
+                let n = s.read(&mut b).unwrap_or(0);
+                if n == 0 {
+                    break;
+                }
+                req.extend_from_slice(&b[..n]);
+                let text = String::from_utf8_lossy(&req);
+                if let Some(end) = text.find("\r\n\r\n") {
+                    let len = text[..end]
+                        .lines()
+                        .find_map(|l| {
+                            let (k, v) = l.split_once(':')?;
+                            k.eq_ignore_ascii_case("content-length")
+                                .then(|| v.trim().parse::<usize>().ok())
+                                .flatten()
+                        })
+                        .unwrap_or(0);
+                    if req.len() >= end + 4 + len {
+                        break;
+                    }
+                }
+            }
             let body = r#"{"data":[{"index":1,"embedding":[0,1,5]},{"index":0,"embedding":[1,0,5]}]}"#;
             let _ = write!(
                 s,
