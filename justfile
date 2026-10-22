@@ -27,6 +27,11 @@ build: setup worker
     set -euo pipefail
     cd crates/lowk-app
     cfg=(--config tauri.bundle.conf.json)
+    # Default to the trusted "Lowk Dev" identity when it exists (stable TCC + keychain grants across rebuilds).
+    if [ -z "${LOWK_SIGN_IDENTITY+x}" ] && [ "$(uname -s)" = Darwin ] \
+       && security find-identity -v -p codesigning 2>/dev/null | grep -q '"Lowk Dev"'; then
+      export LOWK_SIGN_IDENTITY="Lowk Dev"
+    fi
     if [ -n "${LOWK_SIGN_IDENTITY:-}" ]; then
       cfg+=(--config "{\"bundle\":{\"macOS\":{\"signingIdentity\":\"$LOWK_SIGN_IDENTITY\"}}}")
     fi
