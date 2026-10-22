@@ -131,11 +131,12 @@ jobs:
       - name: app bundle with the STT worker
         run: |
           tools/build-worker.sh
+          tools/build-embed-worker.sh
           cd crates/lowk-app && cargo tauri build --config tauri.bundle.conf.json --bundles app
           cd ../..
           APP=target/release/bundle/macos/Lowk.app/Contents/MacOS
           ls -l "$APP"
-          test -x "$APP/lowk-stt-worker"
+          test -x "$APP/lowk-stt-worker" && test -x "$APP/lowk-embed-worker"
           "$APP/lowk-stt-worker" --version
 
   # Windows: compile + clippy + tests that need no desktop. Runtime/stealth
