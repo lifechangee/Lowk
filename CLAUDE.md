@@ -10,3 +10,8 @@
 - Before the owner sees a build: `just qa-bundle` green on the BUNDLED app from a clean profile, plus the orchestrator's own smoke test of the bundled app (computer use) covering every previously working feature.
 - No silent fallbacks to demo/fake data in user-facing builds. Demo lives only behind the `qa` feature.
 - Every bug the owner reports gets a permanent regression check that runs against the bundle.
+
+## Git hygiene (owner request)
+- Main gets ONE squashed commit per work package / fix batch (clear message). Intermediate commits stay in the agent's worktree branch.
+- Push to main in batches, not after every step (each push triggers CI; rapid pushes create cancelled runs and email noise).
+- Experimental workflows (e.g. release builds) run only via manual dispatch until they are stably green; no runs on every branch push.
