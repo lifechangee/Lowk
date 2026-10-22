@@ -20,6 +20,7 @@ pub fn name(sig: i32) -> &'static str {
     match sig {
         libc::SIGTERM => "SIGTERM",
         libc::SIGINT => "SIGINT",
+        #[cfg(unix)]
         libc::SIGHUP => "SIGHUP",
         _ => "signal",
     }
@@ -28,7 +29,11 @@ pub fn name(sig: i32) -> &'static str {
 pub fn install(handle: AppHandle, session: Arc<Session>) {
     // SAFETY: `on_signal` only performs an atomic store.
     unsafe {
-        for s in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP] {
+        #[cfg(unix)]
+        let sigs = [libc::SIGTERM, libc::SIGINT, libc::SIGHUP];
+        #[cfg(not(unix))]
+        let sigs = [libc::SIGTERM, libc::SIGINT];
+        for s in sigs {
             libc::signal(s, on_signal as *const () as libc::sighandler_t);
         }
     }

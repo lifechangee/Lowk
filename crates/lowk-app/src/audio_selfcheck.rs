@@ -25,6 +25,7 @@ fn check(ok: bool, name: &str, detail: impl std::fmt::Display) -> bool {
     println!("CHECK {} {name} :: {detail}", if ok { "PASS" } else { "FAIL" });
     ok
 }
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn skip(name: &str, why: impl std::fmt::Display) {
     println!("CHECK SKIP {name} :: {why}");
 }
