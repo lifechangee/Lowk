@@ -169,6 +169,22 @@ pub fn box_down(px: &[u8], iw: u32, ih: u32, ow: u32, oh: u32) -> Vec<u8> {
     out
 }
 
+/// Pixel size to request from ScreenCaptureKit for a `src_w` x `src_h` pt source rect so that the answer is at least
+/// `cap_w*ss` x `cap_h*ss`. The request MUST have the source's aspect ratio: SCK keeps the aspect of `sourceRect` and
+/// letterboxes the rest with black (top-anchored), so a 24x18 (4:3) request for a 600x384 pt window used to come back
+/// with the top ~85% filled and black below, which `box_down` then averaged in (lower tone rows dimmed to 0.5625).
+pub fn request_px(src_w: f64, src_h: f64, cap_w: u32, cap_h: u32, ss: u32) -> (u32, u32) {
+    let (tw, th) = (f64::from(cap_w * ss), f64::from(cap_h * ss));
+    if src_w <= 0.0 || src_h <= 0.0 {
+        return (cap_w * ss, cap_h * ss);
+    }
+    let k = (tw / src_w).max(th / src_h);
+    (
+        ((src_w * k).round() as u32).max(1),
+        ((src_h * k).round() as u32).max(1),
+    )
+}
+
 /// Mean RGB of an RGBA bitmap (diagnostics).
 pub fn mean_rgb(px: &[u8]) -> [u8; 3] {
     let n = (px.len() / 4).max(1) as u64;
@@ -216,6 +232,134 @@ impl GrabDiag {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// What SCK does with a request whose aspect differs from the source: scale to fit, top-left anchored, black rest.
+    fn sck_fit(src: &[u8], sw: usize, sh: usize, rw: usize, rh: usize) -> (Vec<u8>, usize, usize) {
+        let k = (rw as f64 / sw as f64).min(rh as f64 / sh as f64);
+        let (fw, fh) = (
+            ((sw as f64 * k) as usize).max(1),
+            ((sh as f64 * k) as usize).max(1),
+        );
+        let mut out = vec![0u8; rw * rh * 4];
+        for y in 0..fh {
+            for x in 0..fw {
+                let (sx, sy) = (x * sw / fw, y * sh / fh);
+                out[(y * rw + x) * 4..(y * rw + x) * 4 + 4]
+                    .copy_from_slice(&src[(sy * sw + sx) * 4..(sy * sw + sx) * 4 + 4]);
+            }
+        }
+        (out, rw, rh)
+    }
+
+    /// A 600x384 pt window, top half yellow, bottom half navy (the harness backdrop), rendered at 1 px/pt.
+    fn split_src() -> (Vec<u8>, usize, usize) {
+        let (w, h) = (600usize, 384usize);
+        let mut v = Vec::new();
+        for y in 0..h {
+            for _ in 0..w {
+                v.extend_from_slice(if y < h / 2 {
+                    &[240, 220, 40, 255]
+                } else {
+                    &[10, 20, 90, 255]
+                });
+            }
+        }
+        (v, w, h)
+    }
+
+    fn row_means(px: &[u8], w: usize, h: usize) -> Vec<[u8; 3]> {
+        // 3 tone rows of an RGBA bitmap
+        (0..3)
+            .map(|r| {
+                let (y0, y1) = (r * h / 3, (r + 1) * h / 3);
+                let mut s = [0u64; 3];
+                for y in y0..y1 {
+                    for x in 0..w {
+                        for c in 0..3 {
+                            s[c] += u64::from(px[(y * w + x) * 4 + c]);
+                        }
+                    }
+                }
+                let n = ((y1 - y0) * w) as u64;
+                [(s[0] / n) as u8, (s[1] / n) as u8, (s[2] / n) as u8]
+            })
+            .collect()
+    }
+
+    #[test]
+    fn mismatched_aspect_request_letterboxes_and_dims_the_bottom_row() {
+        // The bug: ask 8x the 24x18 output for a 600x384 source -> black bars -> bottom row 0.5625 of the truth.
+        let (src, sw, sh) = split_src();
+        let (img, iw, ih) = sck_fit(&src, sw, sh, 192, 144);
+        let px = box_down(&img, iw as u32, ih as u32, 24, 18);
+        let rows = row_means(&px, 24, 18);
+        assert!(rows[2][2] < 60, "bottom navy dimmed: {:?}", rows[2]);
+    }
+
+    #[test]
+    fn request_px_keeps_source_aspect_so_every_tone_row_is_true() {
+        let (src, sw, sh) = split_src();
+        for (cw, ch) in [(24u32, 18u32), (12, 18), (24, 9)] {
+            let (rw, rh) = request_px(sw as f64, sh as f64, cw, ch, 8);
+            assert!(rw >= cw * 8 && rh >= ch * 8);
+            assert!((rw as f64 / rh as f64 - sw as f64 / sh as f64).abs() < 0.02);
+            let (img, iw, ih) = sck_fit(&src, sw, sh, rw as usize, rh as usize);
+            let px = box_down(&img, iw as u32, ih as u32, cw, ch);
+            let rows = row_means(&px, cw as usize, ch as usize);
+            assert_eq!(rows[0], [240, 220, 40], "{cw}x{ch}");
+            assert!(
+                rows[2][2] >= 88 && rows[2][2] <= 92,
+                "navy bottom row true {cw}x{ch}: {:?}",
+                rows[2]
+            );
+        }
+    }
+
+    #[test]
+    fn lower_rows_only_changes_reach_every_cell_through_padded_buffers() {
+        // frames where ONLY the lower two tone rows change; strides padded to 16/64/256 bytes
+        let (w, h) = (24usize, 18usize);
+        for pad in [0usize, 8, 40, 232] {
+            let bpr = w * 4 + pad;
+            for (n, col) in [[200u8, 10, 10], [10, 200, 10], [10, 10, 200]].iter().enumerate() {
+                let mut buf = vec![0xEEu8; bpr * h];
+                for y in 0..h {
+                    for x in 0..w {
+                        let c = if y >= 6 { *col } else { [50, 50, 50] };
+                        buf[y * bpr + x * 4..y * bpr + x * 4 + 4].copy_from_slice(&[c[0], c[1], c[2], 255]);
+                    }
+                }
+                let px = unpad_rows(&buf, w, h, bpr).unwrap();
+                assert_eq!(px.len(), w * h * 4, "pad {pad} frame {n}");
+                let means = lowk_stealth_free_cell_means(&px, w, h);
+                assert_eq!(&means[..4], &[[50, 50, 50]; 4]);
+                assert!(
+                    means[4..].iter().all(|m| m == col),
+                    "pad {pad} frame {n}: {means:?}"
+                );
+            }
+        }
+    }
+
+    /// Local 4x3 mean (this crate does not depend on lowk-stealth; same math as `tone::cell_means`).
+    fn lowk_stealth_free_cell_means(px: &[u8], w: usize, h: usize) -> Vec<[u8; 3]> {
+        (0..12)
+            .map(|i| {
+                let (c, r) = (i % 4, i / 4);
+                let mut s = [0u64; 3];
+                let mut n = 0u64;
+                for y in r * h / 3..(r + 1) * h / 3 {
+                    for x in c * w / 4..(c + 1) * w / 4 {
+                        for k in 0..3 {
+                            s[k] += u64::from(px[(y * w + x) * 4 + k]);
+                        }
+                        n += 1;
+                    }
+                }
+                [(s[0] / n) as u8, (s[1] / n) as u8, (s[2] / n) as u8]
+            })
+            .collect()
+    }
+
     const fn r(x: f64, y: f64, w: f64, h: f64) -> Rect {
         Rect { x, y, w, h }
     }

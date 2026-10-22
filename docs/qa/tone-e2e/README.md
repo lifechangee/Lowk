@@ -35,6 +35,15 @@ not touched. If a prompt does appear anyway, press Cancel and tell the orchestra
    reading the scrim without text. No sound, no dialogs.
 5. At the end the backdrop closes, Lowk quits. Total 5 positions x 5 backdrops = 25 captures.
 
+## Known failure, fixed: lower rows dimmed / not following
+
+Run 3 showed only row 1 following the backdrop and rows 2-3 dimmed by exactly 0.5625. Cause: the sampler asked
+ScreenCaptureKit for 8x the 24x18 output (4:3) for a 600x384 pt (1.56:1) window; SCK keeps the source aspect and
+letterboxes with black below, so ~15% of the image was black bars and the grid rows were also squeezed. The request now
+has the source's aspect (`geometry::request_px`, unit-tested with a letterboxing SCK model). The harness also waits for
+`tone-diag.sampler.frames` to advance twice after each layout ack/move before comparing, lists the mismatching cells
+(index, row, expected, got) on failure, and retries a lost browser ack up to 4 times. Not yet re-run live.
+
 ## Output (this folder)
 
 - `gallery.png`: one row per backdrop, one column per position (the overlay exactly as a person sees it over the backdrop).

@@ -148,10 +148,12 @@ fn grab_inner(
     let scales: &[u32] = if cached { &[OVERSAMPLE, 1] } else { &[1] };
     let mut px = Vec::new();
     for (n, &ss) in scales.iter().enumerate() {
-        diag.requested_px = (cw * ss, ch * ss);
+        // Same aspect as the source rect, else SCK letterboxes with black and the bottom tone rows come out dimmed.
+        let (rw, rh) = crate::geometry::request_px(plan.src.w, plan.src.h, cw, ch, ss);
+        diag.requested_px = (rw, rh);
         let cfg = SCStreamConfiguration::new()
-            .with_width(cw * ss)
-            .with_height(ch * ss)
+            .with_width(rw)
+            .with_height(rh)
             .with_source_rect(src)
             .with_shows_cursor(false);
         let img = SCScreenshotManager::capture_image(&filter, &cfg).map_err(|e| fail("capture", e))?;

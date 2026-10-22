@@ -103,10 +103,14 @@ const startBackdropServer = () => new Promise((res) => {
 let backdropKind = has('--backdrop=app') ? 'app' : 'browser';
 let cover = null; // the rectangle (global top-left points) the backdrop really covers
 const browserLayout = async (rects) => {
-  bk.seq++; bk.rects = rects;
-  for (let i = 0; i < 100 && bk.ack !== bk.seq; i++) await sleep(50);
-  if (bk.ack !== bk.seq) throw new Error('browser backdrop did not acknowledge a layout');
-  return 'ok';
+  // A lost ack (seen once per run) is retried a few times with a fresh seq before giving up.
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    bk.seq++; bk.rects = rects;
+    for (let i = 0; i < 100 && bk.ack !== bk.seq; i++) await sleep(50);
+    if (bk.ack === bk.seq) return 'ok';
+    console.log(`browser backdrop did not acknowledge layout (attempt ${attempt}/4)`);
+  }
+  throw new Error('browser backdrop did not acknowledge a layout');
 };
 const stage = async (o) => {
   if (backdropKind === 'browser') {
@@ -214,13 +218,18 @@ try {
       // 3-sample median + 250 ms poll settle.
       const near = (m, c) => m && Math.abs(m[0] - c[0]) <= 14 && Math.abs(m[1] - c[1]) <= 14 && Math.abs(m[2] - c[2]) <= 14;
       const pureIdx = expect.map((c, i) => (c ? i : -1)).filter((i) => i >= 0);
-      let ready = pureIdx.length === 0, lastMeans = null;
+      // Only frames grabbed AFTER the layout ack and the overlay move count: remember the sampler's frame counter now and
+      // wait for it to advance by 2 before comparing (tone-diag.sampler.frames; a frame in flight at the ack may be stale).
+      const frameNow = async () => { try { return JSON.parse(await cmd('tone-diag')).sampler?.frames ?? 0; } catch { return 0; } };
+      const f0 = await frameNow();
+      let ready = pureIdx.length === 0, lastMeans = null, frames = f0, mism = [];
       for (let t = 0; t < 120 && !ready; t++) { // 30 s
-        try { lastMeans = JSON.parse(await cmd('tone-diag')).sampler?.cell_means ?? []; } catch { lastMeans = []; }
-        ready = pureIdx.every((i) => near(lastMeans[i], RGB[expect[i]]));
+        try { const d = JSON.parse(await cmd('tone-diag')); lastMeans = d.sampler?.cell_means ?? []; frames = d.sampler?.frames ?? frames; } catch { lastMeans = []; }
+        mism = pureIdx.filter((i) => !near(lastMeans[i], RGB[expect[i]]));
+        ready = frames >= f0 + 2 && mism.length === 0;
         if (!ready) await sleep(250);
       }
-      add(ready, `${tag}: backdrop on screen (sampler cell_means match the pattern)`, ready ? '' : JSON.stringify({ expected: pureIdx.map((i) => [i, RGB[expect[i]]]), got: lastMeans }));
+      add(ready, `${tag}: backdrop on screen (sampler cell_means match the pattern)`, ready ? '' : JSON.stringify({ frames_at_ack: f0, frames_now: frames, mismatched_cells: mism.map((i) => ({ cell: i, row: Math.floor(i / 4), expected: RGB[expect[i]], got: lastMeans?.[i] })) }));
       await sleep(1500);
       // 1. the sampler looks where the overlay is
       add(!!s && Math.abs(s.x - f2.x) < 1.5 && Math.abs(s.y - f2.y) < 1.5 && Math.abs(s.w - f2.w) < 1.5 && Math.abs(s.h - f2.h) < 1.5, `${tag}: sampler region == overlay frame`, JSON.stringify({ sampled: s, frame: f2 }));

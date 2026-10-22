@@ -104,6 +104,8 @@ struct SamplerDiag {
     last_error: Option<String>,
     admitted: u64,
     emitted: u64,
+    /// Successful grabs; QA waits for it to advance past a layout ack so it never compares a stale frame.
+    frames: u64,
     /// Raw mean colour of each grid cell of the last bitmap the sampler got.
     cell_means: Vec<[u8; 3]>,
 }
@@ -214,12 +216,13 @@ impl Stealth {
             .map(|c| format!("[{},{},{}]", c[0], c[1], c[2]))
             .collect();
         format!(
-            "{{\"ticks\":{},\"grab_errors\":{},\"last_error\":{},\"admitted\":{},\"emitted\":{},\"cell_means\":[{}]}}",
+            "{{\"ticks\":{},\"grab_errors\":{},\"last_error\":{},\"admitted\":{},\"emitted\":{},\"frames\":{},\"cell_means\":[{}]}}",
             d.ticks,
             d.grab_errors,
             d.last_error.as_ref().map_or("null".to_string(), |e| format!("{e:?}")),
             d.admitted,
             d.emitted,
+            d.frames,
             cells.join(",")
         )
     }
@@ -279,7 +282,11 @@ impl Stealth {
                             continue;
                         }
                     };
-                    tone.diag.lock().cell_means = tone::cell_means(&bmp, tone::SAMPLE_W, tone::SAMPLE_H);
+                    {
+                        let mut d = tone.diag.lock();
+                        d.cell_means = tone::cell_means(&bmp, tone::SAMPLE_W, tone::SAMPLE_H);
+                        d.frames += 1;
+                    }
                     if !gate.admit(&bmp) {
                         continue;
                     }
