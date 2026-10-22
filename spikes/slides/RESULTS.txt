@@ -1,0 +1,7 @@
+A  default        {'recall': 1.0, 'precision': 1.0, 'fp': 0, 'fn': 0, 'tp': 50, 'per': {'new': [30, 30], 'add_bullet': [10, 10], 'add_word': [10, 10]}}
+B  noise 4        {'recall': 1.0, 'precision': 1.0, 'fp': 0, 'fn': 0, 'tp': 50, 'per': {'new': [30, 30], 'add_bullet': [10, 10], 'add_word': [10, 10]}}
+C  no video mask  {'recall': 1.0, 'precision': 1.0, 'fp': 0, 'fn': 0, 'tp': 50, 'per': {'new': [30, 30], 'add_bullet': [10, 10], 'add_word': [10, 10]}}
+D  min cells 1    {'recall': 1.0, 'precision': 0.7142857142857143, 'fp': 20, 'fn': 0, 'tp': 50, 'per': {'new': [30, 30], 'add_bullet': [10, 10], 'add_word': [10, 10]}}
+E  T_CELL 3       {'recall': 1.0, 'precision': 0.9615384615384616, 'fp': 2, 'fn': 0, 'tp': 50, 'per': {'new': [30, 30], 'add_bullet': [10, 10], 'add_word': [10, 10]}}
+F  T_CELL 10      {'recall': 1.0, 'precision': 1.0, 'fp': 0, 'fn': 0, 'tp': 50, 'per': {'new': [30, 30], 'add_bullet': [10, 10], 'add_word': [10, 10]}}
+python3 spikes/slides/prefilter.py --seeds 10  74.33s user 0.56s system 99% cpu 1:15.03 total
