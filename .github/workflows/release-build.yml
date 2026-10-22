@@ -22,7 +22,7 @@ on:
 
 concurrency:
   group: release-build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -66,7 +66,7 @@ jobs:
           vulkan_version: 1.4.309.0
           install_runtime: false
           cache: true
-          stripdown: true
+          stripdown: false
       - name: Cache llama.cpp build
         uses: actions/cache@v4
         with:
