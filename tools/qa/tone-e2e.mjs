@@ -163,8 +163,10 @@ console.log(`display ${D.w}x${D.h} pt, scale ${D.scale}`);
 if (backdropKind === 'browser') {
   const bport = await startBackdropServer();
   spawnSync('open', [`http://127.0.0.1:${bport}/`], { stdio: 'inherit' });
-  console.log('backdrop page opened in your default browser; make it fill the screen (Ctrl+Cmd+F) - waiting up to 90 s');
-  for (let i = 0; i < 900 && !(bk.hello && bk.hello.full); i++) await sleep(100);
+  console.log('backdrop page opened in your default browser; make it fill the screen (Ctrl+Cmd+F) - starts within 10 s of the page loading');
+  // wait for the page (up to 30 s), then at most 10 s more for full screen
+  for (let i = 0; i < 300 && !bk.hello; i++) await sleep(100);
+  for (let i = 0; i < 100 && bk.hello && !bk.hello.full; i++) await sleep(100);
   if (!bk.hello) { console.log('browser page did not report in: falling back to the in-app backdrop'); backdropKind = 'app'; }
   else if (!bk.hello.full) console.log('browser window is not full-screen: only the part it covers is checked (cells outside it are not asserted)');
 }
@@ -182,10 +184,10 @@ const BDS = has('--quick') ? BACKDROPS.slice(0, 2) : BACKDROPS;
 const latencies = []; // ms from layout ack to the painted scrim matching, one per backdrop change
 
 try {
-  await sleep(2500);
+  await sleep(800);
   await cmd('overlay-show');
   await cmd('demo-start');
-  await sleep(6000);
+  await sleep(2500);
   await cmd('demo-stop');
   await sleep(600);
   await cmd('overlay-show');
