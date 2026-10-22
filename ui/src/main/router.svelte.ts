@@ -16,7 +16,7 @@ export const NO_SEARCH: SearchParams = { q: '', folder: '', tag: '', from: '', t
 export type Route =
   | { name: 'home' }
   | { name: 'folder'; id: string; tab: FolderTab }
-  | { name: 'call'; id: string; at: number | null }
+  | { name: 'call'; id: string; at: number | null; match?: string }
   | { name: 'doc'; id: string; page: number | null }
   | ({ name: 'search' } & SearchParams)
   | { name: 'settings'; page: SettingsPage }
@@ -35,7 +35,7 @@ export function parse(hash: string): Route {
   const query = new URLSearchParams(qi < 0 ? '' : raw.slice(qi + 1));
   const [, a, b, c] = path.split('/');
   if (a === 'folder' && b) return { name: 'folder', id: decodeURIComponent(b), tab: FOLDER_TABS.includes(c as FolderTab) ? (c as FolderTab) : 'calls' };
-  if (a === 'call' && b) return { name: 'call', id: decodeURIComponent(b), at: num(query.get('t')) };
+  if (a === 'call' && b) return { name: 'call', id: decodeURIComponent(b), at: num(query.get('t')), ...(query.get('m') ? { match: query.get('m')! } : {}) };
   if (a === 'doc' && b) return { name: 'doc', id: decodeURIComponent(b), page: num(query.get('p')) };
   if (a === 'search') {
     const kind = query.get('kind') as SearchKind | null;
@@ -56,7 +56,7 @@ const withQuery = (path: string, q: Record<string, string | number | null | unde
 export const hrefs = {
   home: '#/',
   folder: (id: string, tab: FolderTab = 'calls') => `#/folder/${encodeURIComponent(id)}${tab === 'calls' ? '' : '/' + tab}`,
-  call: (id: string, at: number | null = null) => withQuery(`#/call/${encodeURIComponent(id)}`, { t: at === null ? null : Math.floor(at) }),
+  call: (id: string, at: number | null = null, match: string | null = null) => withQuery(`#/call/${encodeURIComponent(id)}`, { t: at === null ? null : Math.floor(at), m: match }),
   doc: (id: string, page: number | null = null) => withQuery(`#/doc/${encodeURIComponent(id)}`, { p: page }),
   search: (p: Partial<SearchParams> = {}) => withQuery('#/search', { ...NO_SEARCH, ...p }),
   settings: (page: SettingsPage = 'general') => `#/settings/${page}`,

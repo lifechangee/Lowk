@@ -5,7 +5,7 @@ export type Block =
   | { k: 'h'; level: number; text: Inline[] }
   | { k: 'p'; text: Inline[] }
   | { k: 'ul'; items: Inline[][] }
-  | { k: 'ol'; items: Inline[][] }
+  | { k: 'ol'; items: Inline[][]; nums: number[] }
   | { k: 'quote'; text: Inline[] }
   | { k: 'code'; text: string }
   | { k: 'table'; head: Inline[][]; rows: Inline[][][] };
@@ -58,8 +58,13 @@ export function blocks(md: string): Block[] {
     }
     if (/^\s*\d+[.)]\s+/.test(line)) {
       const items: Inline[][] = [];
-      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i]!)) items.push(inline(lines[i++]!.replace(/^\s*\d+[.)]\s+/, '')));
-      out.push({ k: 'ol', items });
+      const nums: number[] = [];
+      // keep the document's own numbers (a clause list that starts at 3, or skips): never renumber from 1
+      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i]!)) {
+        nums.push(Number(/^\s*(\d+)/.exec(lines[i]!)![1]));
+        items.push(inline(lines[i++]!.replace(/^\s*\d+[.)]\s+/, '')));
+      }
+      out.push({ k: 'ol', items, nums });
       continue;
     }
     if (line.startsWith('>')) {

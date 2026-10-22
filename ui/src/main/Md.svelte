@@ -13,7 +13,7 @@
       {#if b.level <= 2}<h3 class="h2">{@render txt(b.text)}</h3>{:else}<h4 class="h3">{@render txt(b.text)}</h4>{/if}
     {:else if b.k === 'p'}<p>{@render txt(b.text)}</p>
     {:else if b.k === 'ul'}<ul>{#each b.items as it, j (j)}<li>{@render txt(it)}</li>{/each}</ul>
-    {:else if b.k === 'ol'}<ol>{#each b.items as it, j (j)}<li>{@render txt(it)}</li>{/each}</ol>
+    {:else if b.k === 'ol'}<ol>{#each b.items as it, j (j)}<li value={b.nums[j]}>{@render txt(it)}</li>{/each}</ol>
     {:else if b.k === 'quote'}<blockquote>{@render txt(b.text)}</blockquote>
     {:else if b.k === 'code'}<pre>{b.text}</pre>
     {:else if b.k === 'table'}

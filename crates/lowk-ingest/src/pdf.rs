@@ -207,7 +207,7 @@ pub fn convert(
                         ));
                     }
                     ocr_pages.push(pno);
-                    pages.push(Page::Ocr(sanitize(&o.text)));
+                    pages.push(Page::Ocr(sanitize(&crate::ocr_text::reflow(&o.text))));
                     continue;
                 }
                 Ok(_) => {

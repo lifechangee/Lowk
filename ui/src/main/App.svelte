@@ -123,7 +123,7 @@
           {:else}
             <main class="ctr">
               {#if route.name === 'call'}
-                {#if call && call.ended === null}<LivePage />{:else if call || !library.loaded}{#key route.id}<CallPage id={route.id} at={route.at} />{/key}{/if}
+                {#if call && call.ended === null}<LivePage />{:else if call || !library.loaded}{#key route.id}<CallPage id={route.id} at={route.at} match={route.match ?? null} />{/key}{/if}
               {:else if route.name === 'doc'}{#key route.id}<DocPage id={route.id} page={route.page} />{/key}
               {:else if route.name === 'folder'}<FolderView folder={route.id} tab={route.tab} />{/if}
             </main>

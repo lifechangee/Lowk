@@ -9,6 +9,7 @@
   import { hrefs, router, SEARCH_KINDS, type SearchKind, type SearchParams } from '../router.svelte';
   import { library } from '../state.svelte';
   import HitRow from './HitRow.svelte';
+  import EnableSemantic from './EnableSemantic.svelte';
   import ModeNotice from './ModeNotice.svelte';
   import { buildQuery, groupHits, hasFilters, isHybrid } from './util';
 
@@ -23,6 +24,8 @@
   let input: HTMLInputElement | undefined = $state();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let seq = 0;
+  let editing = $state<'' | 'from' | 'to'>('');
+  function focusOnMount(n: HTMLInputElement) { n.focus(); try { n.showPicker?.(); } catch { /* needs a gesture; focus is enough */ } }
 
   $effect(() => { text = params.q; });
   $effect(() => { queueMicrotask(() => { if (!params.q) input?.focus(); }); });
@@ -73,11 +76,23 @@
     <h1>{tm('common.search')}</h1>
     <div class="box"><Icon name="search" size={16} /><input bind:this={input} bind:value={text} placeholder={tm('search.placeholder')} autocomplete="off" aria-label={tm('common.search')} oninput={typed} onkeydown={(e) => e.key === 'Enter' && go({ q: text })} /></div>
 
+    <EnableSemantic />
+
     <div class="filters" data-testid="search-filters" role="group" aria-label={tm('search.filters')}>
       <label><span>{tm('m.folder')}</span><Select label={tm('m.folder')} value={params.folder} options={folderOptions} onchange={(v) => go({ folder: v })} /></label>
       <label><span>{tm('main.tags')}</span><Select label={tm('main.tags')} value={params.tag} options={tagOptions} onchange={(v) => go({ tag: v })} /></label>
-      <label><span>{tm('search.filter.from')}</span><input class="date" type="date" value={params.from} max={params.to || undefined} aria-label={tm('search.filter.from')} onchange={(e) => go({ from: e.currentTarget.value })} /></label>
-      <label><span>{tm('search.filter.to')}</span><input class="date" type="date" value={params.to} min={params.from || undefined} aria-label={tm('search.filter.to')} onchange={(e) => go({ to: e.currentTarget.value })} /></label>
+      {#each [['from', 'search.filter.from'], ['to', 'search.filter.to']] as const as [k, label] (k)}
+        <label><span>{tm(label)}</span>
+          {#if params[k] || editing === k}
+            <span class="dw">
+              <input class="date" data-testid={`date-${k}`} type="date" value={params[k]} max={k === 'from' ? params.to || undefined : undefined} min={k === 'to' ? params.from || undefined : undefined} aria-label={tm(label)} use:focusOnMount onblur={() => { if (editing === k) editing = ''; }} onchange={(e) => { editing = ''; go({ [k]: e.currentTarget.value }); }} />
+              {#if params[k]}<button class="x" aria-label={tm('search.filter.clear')} onclick={() => go({ [k]: '' })}><Icon name="close" size={12} /></button>{/if}
+            </span>
+          {:else}
+            <button class="date any" data-testid={`date-${k}`} aria-label={`${tm(label)}: ${tm('search.filter.anyDate')}`} onclick={() => (editing = k)}>{tm('search.filter.anyDate')}</button>
+          {/if}
+        </label>
+      {/each}
     </div>
     <div class="kinds" role="radiogroup" aria-label={tm('search.filter.kind')}>
       {#each ['', ...SEARCH_KINDS] as const as k (k)}
@@ -132,6 +147,12 @@
   .filters label { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
   .filters span { font: 600 var(--fs-xs) var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx3); }
   .date { box-sizing: border-box; height: 32px; width: 100%; min-width: 0; border-radius: var(--r); border: 1px solid var(--line); background: var(--bg); color: var(--tx); padding: 0 var(--s3); font: 13px/20px var(--font); color-scheme: dark; }
+  .date.any { all: unset; box-sizing: border-box; cursor: pointer; height: 32px; width: 100%; border-radius: var(--r); border: 1px dashed var(--line); color: var(--tx3); padding: 0 var(--s3); font: 13px/30px var(--font); }
+  .date.any:hover, .date.any:focus-visible { border-color: var(--tx3); color: var(--tx2); }
+  .dw { position: relative; display: block; }
+  .dw .date { padding-right: 28px; }
+  .x { all: unset; cursor: pointer; position: absolute; right: 6px; top: 8px; width: 16px; height: 16px; display: grid; place-items: center; color: var(--tx3); }
+  .x:hover, .x:focus-visible { color: var(--tx); }
   .date:focus { border-color: var(--ac); outline: none; }
   .kinds { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; align-items: center; }
   .kb { all: unset; box-sizing: border-box; cursor: pointer; height: 28px; padding: 0 var(--s3); border-radius: 99px; border: 1px solid var(--line); color: var(--tx2); font-size: 12px; line-height: 26px; }

@@ -13,3 +13,7 @@ Bugs:
 | M2-S4 | Semantic search off until the embedding model is installed — fine, but home/search should offer a one-click install (currently only a small notice + Settings link). |
 
 Not testable by orchestrator: native file dialog navigation (computer-use key injection under RU layout can't use ⌘⇧G), Ask/summary/tags/sources live (no OpenRouter key in the app keychain — owner must enter it; agents may not enter keys), overlay visuals (stealth hides them from my screenshots).
+
+## With the owner's OpenRouter key (entered by the owner)
+- Key saved to Keychain, «Ключ работает». Summary on the 12-min demo call: generated in a few seconds by deepseek-v4.1-flash-1017, correct sections (Главное / Решения / Задачи / Вопросы ко мне → Мой ответ), RU with EN terms. PASS.
+- M2-S5 (new, minor): summary text says «Me упомянул…» — internal speaker id "Me" leaks; should be «Я» (RU) / "I" or the user's name.

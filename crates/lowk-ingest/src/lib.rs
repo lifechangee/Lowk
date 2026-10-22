@@ -21,6 +21,7 @@ mod md;
 pub mod ocr;
 #[cfg(target_os = "macos")]
 mod ocr_macos;
+pub mod ocr_text;
 #[cfg(windows)]
 mod ocr_windows;
 mod pdf;
@@ -30,6 +31,7 @@ mod text;
 mod xml;
 
 pub use ocr::{platform_ocr, NoOcr, Ocr, OcrOutput, StubOcr};
+pub use ocr_text::reflow as reflow_ocr_text;
 
 use lowk_types::{
     AppError, DocIngestor, DocKind, ErrorCode, IngestRequest, IngestWarningCode, IngestedDoc, Result,

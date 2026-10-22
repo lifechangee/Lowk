@@ -33,7 +33,7 @@ pub fn convert(
         .and_then(|r| r.into_dimensions().ok());
     let out = ocr.recognize_image(path, &languages_or_default(&req.languages))?;
     progress.report(1, 1)?;
-    let text = sanitize(&out.text);
+    let text = sanitize(&crate::ocr_text::reflow(&out.text));
     if alnum_count(&text) == 0 {
         return Err(AppError::new(ErrorCode::DocEmpty)
             .with_param("reason", "no_text_in_image")

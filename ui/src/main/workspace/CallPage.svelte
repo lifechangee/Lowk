@@ -16,9 +16,10 @@
   import { tm } from '../i18n';
   import Md from '../Md.svelte';
   import { hrefs, router } from '../router.svelte';
+  import { pickLine } from '../search/util';
   import { library, ui } from '../state.svelte';
 
-  let { id, at = null }: { id: string; at?: number | null } = $props();
+  let { id, at = null, match = null }: { id: string; at?: number | null; match?: string | null } = $props();
 
   let detail = $state<CallDetail | null>(null);
   let md = $state('');
@@ -49,9 +50,7 @@
     if (t === null || !detail) return;
     ui.callTab = 'transcript';
     void tick().then(() => {
-      let best = -1;
-      detail!.transcript.forEach((u, i) => { if (u.at_s <= t + 1) best = i; });
-      if (best < 0) best = 0;
+      const best = pickLine(detail!.transcript, t, match);
       hitIdx = best;
       body?.querySelector<HTMLElement>(`[data-line="${best}"]`)?.scrollIntoView({ block: 'center' });
       setTimeout(() => { if (hitIdx === best) hitIdx = null; }, 2600);

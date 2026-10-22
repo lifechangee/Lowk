@@ -79,6 +79,10 @@ fn check_dir(dir: &Path) {
         let res = ing.convert(&req, &mut |_, _| {}, &|| true);
         match (expect, res) {
             ("ok", Ok(d)) => {
+                if let Ok(dump) = std::env::var("LOWK_CORPUS_DUMP") {
+                    let _ = std::fs::create_dir_all(&dump);
+                    let _ = std::fs::write(Path::new(&dump).join(format!("{file}.md")), &d.md);
+                }
                 if let Ok(truth) = std::fs::read_to_string(dir.join("truth").join(format!("{file}.txt"))) {
                     let r = word_recall(&truth, &d.md);
                     let floor = if flags.contains("ocr") { 0.85 } else { 0.97 };
@@ -89,6 +93,30 @@ fn check_dir(dir: &Path) {
                         d.md.chars().count(),
                         r * 100.0
                     ));
+                    if flags.contains("ocr") {
+                        // M2-S3: structure, not just words. Same number of paragraphs/clauses as the source
+                        // (no sentence broken across lines), and the clause numbers 1., 2., 3. ... in order.
+                        let body: Vec<&str> =
+                            d.md.lines()
+                                .filter(|l| !l.trim().is_empty() && !l.starts_with("<!--"))
+                                .collect();
+                        let src: Vec<&str> = truth.lines().filter(|l| !l.trim().is_empty()).collect();
+                        report.push(format!("{file:<32} lines={} (source {})", body.len(), src.len()));
+                        if body.len() != src.len() {
+                            problems.push(format!(
+                                "{file}: {} lines after OCR, source has {}",
+                                body.len(),
+                                src.len()
+                            ));
+                        }
+                        if clause_numbers(&d.md) != clause_numbers(&truth) {
+                            problems.push(format!(
+                                "{file}: clause numbers {:?}, source {:?}",
+                                clause_numbers(&d.md),
+                                clause_numbers(&truth)
+                            ));
+                        }
+                    }
                     if r < floor {
                         problems.push(format!(
                             "{file}: word recall {:.1}% below {:.0}%",
@@ -133,6 +161,16 @@ fn check_dir(dir: &Path) {
         );
     }
     assert!(problems.is_empty(), "corpus problems:\n{}", problems.join("\n"));
+}
+
+/// Leading `N.` of every line, in order.
+fn clause_numbers(s: &str) -> Vec<u32> {
+    s.lines()
+        .filter_map(|l| {
+            let d: String = l.chars().take_while(char::is_ascii_digit).collect();
+            (!d.is_empty() && l[d.len()..].starts_with(". ")).then(|| d.parse().ok())?
+        })
+        .collect()
 }
 
 fn markers(md: &str) -> Vec<u32> {

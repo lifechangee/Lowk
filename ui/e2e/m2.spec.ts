@@ -121,6 +121,36 @@ test.describe('search', () => {
     await expect(page.locator('.ln.hit')).toBeVisible();
   });
 
+  test('M2-S1: date filters are empty and inactive by default, and filter only once set', async ({ page }) => {
+    await page.goto('/main.html?lang=en#/search?q=EBITDA');
+    await expect(page.getByTestId('date-from')).toHaveText('Any date');
+    await expect(page.getByTestId('date-to')).toHaveText('Any date');
+    expect(await page.locator('input[type=date]').count()).toBe(0);
+    await expect(page.getByRole('button', { name: 'Clear filters' })).toHaveCount(0);
+    await page.getByTestId('date-from').click();
+    await page.locator('input[type=date]').fill('2999-01-01');
+    await expect(page).toHaveURL(/from=2999-01-01/);
+    await expect(page.getByTestId('search-none')).toBeVisible();
+  });
+
+  test('M2-S2: opening a call at a chunk start highlights the line that matches', async ({ page }) => {
+    await page.goto(`/main.html?lang=en#/call/${CALL1}?t=0&m=${encodeURIComponent('ebitda')}`);
+    await expect(page.locator('.ln.hit')).toContainText('EBITDA margin');
+  });
+
+  test('M2-S4: model missing -> one-click enable with progress on search and home; hidden once installed', async ({ page }) => {
+    await page.goto('/main.html?lang=ru&embedder=missing#/search?q=EBITDA');
+    const btn = page.getByRole('button', { name: /Включить поиск по смыслу \(≈310 МБ\)/ });
+    await expect(btn).toBeVisible();
+    await btn.click();
+    await expect(page.getByTestId('enable-semantic').getByRole('progressbar')).toBeVisible();
+    await expect(page.getByTestId('enable-semantic')).toHaveCount(0, { timeout: 10_000 });
+    await page.goto('/main.html?lang=en&embedder=missing#/');
+    await expect(page.getByRole('button', { name: 'Turn on search by meaning (≈310 MB)' })).toBeVisible();
+    await page.goto('/main.html?lang=en#/');
+    await expect(page.getByTestId('enable-semantic')).toHaveCount(0);
+  });
+
   test('keyword-only notice while the semantic index is not ready, with the reason', async ({ page }) => {
     await page.goto('/main.html?lang=en&embedder=building#/search?q=EBITDA');
     await expect(page.getByTestId('mode-notice')).toContainText('building');

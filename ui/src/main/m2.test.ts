@@ -8,7 +8,7 @@ import { MockBackend } from './api/mock';
 import { blocks, inline } from './md';
 import { estimateTokens, pinnedOverflow, splitFrontmatter, splitPages, unitOf } from './docs/util';
 import { hrefs, parse } from './router.svelte';
-import { buildQuery, groupHits, hitHref, segments } from './search/util';
+import { buildQuery, groupHits, hitHref, matchTerms, pickLine, segments } from './search/util';
 import { TOUR, TOUR_STEPS } from './tour/tour.svelte';
 
 describe('every ErrorCode has a translation in both languages', () => {
@@ -106,6 +106,14 @@ describe('markdown reader', () => {
   });
 });
 
+describe('M2-S3: numbered clauses keep their own numbers', () => {
+  it('a list that starts at 3 or is split by a page marker is not renumbered from 1', () => {
+    const b = blocks('3. Price\n4. Warranty\n\n<!-- p:2 -->\n5. Secrecy');
+    const ol = b.filter((x) => x.k === 'ol') as { nums: number[] }[];
+    expect(ol.map((x) => x.nums)).toEqual([[3, 4], [5]]);
+  });
+});
+
 describe('mock backend: M2 contracts', () => {
   it('imports a document, converts it and keeps the pinned budget meter honest', async () => {
     const api = new MockBackend();
@@ -138,5 +146,23 @@ describe('mock backend: M2 contracts', () => {
     expect(r.total).toBeGreaterThan(0);
     expect(r.hits[0]!.highlights.length).toBeGreaterThan(0);
     expect(r.mode_used).toBe('hybrid'); // the default mock has the embedder installed
+  });
+});
+
+describe('M2-S2: a call hit opens at the matching line, not the chunk start', () => {
+  const lines = [
+    { at_s: 0, text: 'Здравствуйте, начнём встречу' },
+    { at_s: 5, text: 'Петрович просит перенести срок' },
+    { at_s: 9, text: 'Хорошо, договорились' },
+  ];
+  it('picks the first line containing a matched term', () => expect(pickLine(lines, 0, 'петрович')).toBe(1));
+  it('falls back to the nearest line at the time without a match', () => {
+    expect(pickLine(lines, 9, null)).toBe(2);
+    expect(pickLine(lines, 0, 'нетакого')).toBe(0);
+  });
+  it('terms come from the hit highlights and round-trip through the URL', () => {
+    const hit = { snippet: 'Петрович просит', highlights: [[0, 8]], source: { kind: 'call', id: 'C1', at_s: 0 } } as unknown as SearchHit;
+    expect(matchTerms(hit)).toBe('петрович');
+    expect(parse(hitHref(hit))).toEqual({ name: 'call', id: 'C1', at: 0, match: 'петрович' });
   });
 });

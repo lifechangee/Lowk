@@ -34,7 +34,33 @@ export function hitHref(hit: SearchHit): string {
   const s = hit.source;
   if (s.kind === 'doc') return hrefs.doc(s.id, s.page);
   if (s.kind === 'instructions') return hrefs.folder(s.id, 'instructions');
-  return hrefs.call(s.id, s.at_s);
+  return hrefs.call(s.id, s.at_s, matchTerms(hit));
+}
+
+/** The matched words of a hit (distinct, lowercase, `|`-joined) so a call can open at the MATCHING line: a chunk starts earlier than the line that matched. */
+export function matchTerms(hit: SearchHit): string | null {
+  const terms: string[] = [];
+  for (const [a, b] of hit.highlights) {
+    const w = hit.snippet.slice(a, b).trim().toLowerCase();
+    if (w.length > 1 && !terms.includes(w)) terms.push(w);
+    if (terms.length >= 4) break;
+  }
+  return terms.length ? terms.join('|') : null;
+}
+
+/** Line to scroll to: the first line from the chunk start (`t`, with 1 s slack) onward that contains a matched term;
+ * else the nearest line at or before `t`. The chunk's start can precede the matching line by minutes. */
+export function pickLine(lines: { at_s: number; text: string }[], t: number, match?: string | null): number {
+  let near = -1;
+  lines.forEach((u, i) => { if (u.at_s <= t + 1) near = i; });
+  const terms = (match ?? '').split('|').filter(Boolean);
+  if (terms.length) {
+    for (let i = Math.max(near, 0); i < lines.length; i++) {
+      const tx = (lines[i]?.text ?? '').toLowerCase();
+      if (terms.some((w) => tx.includes(w))) return i;
+    }
+  }
+  return Math.max(near, 0);
 }
 
 export function buildQuery(p: SearchParams, limit: number, offset = 0): SearchQuery {

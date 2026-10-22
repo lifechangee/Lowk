@@ -13,6 +13,7 @@
   import { hrefs } from '../router.svelte';
   import { callRow, dnd } from '../dnd.svelte';
   import { library, prefs, session, ui } from '../state.svelte';
+  import EnableSemantic from '../search/EnableSemantic.svelte';
   import { tour } from '../tour/tour.svelte';
 
   const last = $derived(library.recent.find((c) => c.ended !== null));
@@ -32,6 +33,8 @@
     <p class="lead lbl">
       {tm('main.libraryStats', { calls: library.active.length, folders: library.folders.length, last: last ? `${when(last.started, new Date(), false).toLocaleLowerCase(locale.lang)}, ${duration(last.duration_s)}` : '—' })}
     </p>
+
+    <EnableSemantic />
 
     {#if empty}
       <section class="empty" data-testid="home-empty">

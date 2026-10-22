@@ -2,6 +2,7 @@
 //! Images load through Vision's own URL handler (any ImageIO format incl. HEIC); PDF pages are
 //! rasterised with CoreGraphics at about 2200 px on the long side (roughly 200-260 dpi for A4).
 use crate::ocr::{languages_or_default, Ocr, OcrOutput};
+use crate::ocr_text::{layout, Obs};
 use lowk_types::{AppError, ErrorCode, Result};
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
@@ -56,37 +57,28 @@ fn request(languages: &[String]) -> Retained<VNRecognizeTextRequest> {
 }
 
 fn collect(req: &VNRecognizeTextRequest) -> OcrOutput {
-    let mut obs: Vec<(f64, f64, String, f32)> = vec![];
+    let mut obs: Vec<Obs> = vec![];
+    let mut conf_sum = 0.0f32;
     if let Some(results) = req.results() {
         for o in results.iter() {
             let o: &VNRecognizedTextObservation = &o;
             let cands = o.topCandidates(1);
             if let Some(c) = cands.firstObject() {
-                // boundingBox: normalised, origin bottom-left
                 let b = unsafe { o.boundingBox() };
-                obs.push((
-                    b.origin.y + b.size.height,
-                    b.origin.x,
-                    c.string().to_string(),
-                    c.confidence(),
-                ));
+                conf_sum += c.confidence();
+                obs.push(Obs {
+                    x: b.origin.x,
+                    y: b.origin.y + b.size.height / 2.0,
+                    h: b.size.height,
+                    text: c.string().to_string(),
+                });
             }
         }
     }
-    // top to bottom, then left to right; lines whose tops are within ~1% of the page share a row
-    obs.sort_by(|a, b| {
-        if (a.0 - b.0).abs() < 0.01 {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        } else {
-            b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
-        }
-    });
     let n = obs.len();
-    let conf = (n > 0).then(|| obs.iter().map(|o| o.3).sum::<f32>() / n as f32);
-    let text = obs.into_iter().map(|o| o.2).collect::<Vec<_>>().join("\n");
     OcrOutput {
-        text,
-        confidence: conf,
+        text: layout(obs).join("\n"),
+        confidence: (n > 0).then(|| conf_sum / n as f32),
     }
 }
 
