@@ -27,3 +27,11 @@ Not testable by orchestrator: native file dialog navigation (computer-use key in
 | O4 | Medium | Adaptive gradient glitchy and lags ~3 s. | fix agent |
 | O5 | Medium | ⌘↵ sometimes answers with a counter-question. | fix agent |
 Works: ⌘↵ answers are accurate.
+
+## Owner re-test (2026-10-22, fresh bundle 4f81c7f)
+- O1/O2 FIXED: whole-system capture on speakers — YouTube audible; speaking into mic doesn't close the app.
+- O3 FIXED: «Академ справка.PDF» added.
+- O5 FIXED: no counter-questions.
+- O4 PARTIAL: tone faster, but hue handling is wrong — light blue OK, dark/saturated blue rendered as black. Need a designed colour base: background colour (hue+lum) → scrim tint + text colour (white/black) per cell.
+- NEW O6: overlay subtitles stop advancing (stuck; can't see newer speech, incl. own).
+- NEW O7: AI answer in the overlay can't be scrolled — only part of a long answer is visible.
