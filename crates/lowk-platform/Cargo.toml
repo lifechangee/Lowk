@@ -12,6 +12,7 @@ lowk-types.workspace = true
 serde.workspace = true
 sysinfo.workspace = true
 keyring.workspace = true
+zeroize.workspace = true
 directories.workspace = true
 sys-locale.workspace = true
 tracing.workspace = true

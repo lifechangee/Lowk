@@ -120,6 +120,7 @@ raw-window-handle = "0.6"
 # platform
 sysinfo = "0.39"
 keyring = "4.2"
+zeroize = "1"
 directories = "6.0"
 sys-locale = "0.3"
 windows = "0.62"
