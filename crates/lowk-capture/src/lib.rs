@@ -2,10 +2,11 @@
 //! excluded and encodes PNG + a small thumbnail; the region grabs feed the adaptive tone.
 use lowk_types::{AppError, ErrorCode, Rect, RegionSampler, Result};
 
+pub mod geometry;
 #[cfg(target_os = "macos")]
 mod mac;
 #[cfg(target_os = "macos")]
-pub use mac::{SckGrab, SckSampler};
+pub use mac::{grab_scaled, keep_window_titled, SckGrab, SckSampler};
 #[cfg(windows)]
 mod win;
 

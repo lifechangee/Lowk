@@ -1,0 +1,234 @@
+# Lowk settings. Safe to edit while the app is closed.
+schema_version = 1
+
+[audio]
+aec = "auto"
+keep_audio = false
+
+[audio.default_source]
+id = "com.hnc.Discord"
+kind = "app"
+
+[[binds]]
+action = "ask"
+swallow = false
+
+[binds.trigger]
+key = "Enter"
+kind = "combo"
+
+[binds.trigger.mods]
+alt = false
+ctrl = false
+meta = true
+shift = false
+
+[[binds]]
+action = "screenshot"
+swallow = false
+
+[binds.trigger]
+key = "KeyS"
+kind = "combo"
+
+[binds.trigger.mods]
+alt = false
+ctrl = false
+meta = true
+shift = true
+
+[[binds]]
+action = "screenshot_area"
+swallow = false
+
+[binds.trigger]
+key = "KeyA"
+kind = "combo"
+
+[binds.trigger.mods]
+alt = false
+ctrl = false
+meta = true
+shift = true
+
+[[binds]]
+action = "toggle_interactive"
+swallow = false
+
+[binds.trigger]
+key = "KeyI"
+kind = "combo"
+
+[binds.trigger.mods]
+alt = false
+ctrl = false
+meta = true
+shift = true
+
+[[binds]]
+action = "toggle_overlay"
+swallow = false
+
+[binds.trigger]
+key = "Backslash"
+kind = "combo"
+
+[binds.trigger.mods]
+alt = false
+ctrl = false
+meta = true
+shift = false
+
+[[binds]]
+action = "panic_hide"
+swallow = false
+
+[binds.trigger]
+key = "KeyH"
+kind = "combo"
+
+[binds.trigger.mods]
+alt = false
+ctrl = false
+meta = true
+shift = true
+
+[[binds]]
+action = "toggle_record"
+swallow = false
+
+[binds.trigger]
+key = "KeyR"
+kind = "combo"
+
+[binds.trigger.mods]
+alt = false
+ctrl = false
+meta = true
+shift = true
+
+[[binds]]
+action = "move_hold"
+swallow = false
+
+[binds.trigger]
+kind = "modifier_only"
+
+[binds.trigger.mods]
+alt = true
+ctrl = false
+meta = false
+shift = false
+
+[capture]
+default_source = "one_app"
+monitors = "all"
+
+[docs]
+max_file_mb = 500
+ocr = true
+pinned_budget_tokens = 6000
+retrieved_budget_tokens = 6000
+warn_slow_mb = 25
+
+[embedder]
+cloud_model = "google/gemini-embedding-001"
+mode = "local"
+model = "embeddinggemma-2-q8_0"
+
+[llm]
+base_url = "https://openrouter.ai/api/v1"
+data_collection_deny = true
+default_template = "brief"
+local_base_url = ""
+local_model = ""
+model = "deepseek/deepseek-v4.1-flash-1017"
+pinned_provider = "inference-net/fp8"
+provider = "openrouter"
+reasoning = false
+summary_model = "deepseek/deepseek-v4.1-flash-1017"
+
+[onboarding]
+done = true
+recording_notice_ack = true
+step = 3
+tour_done = true
+
+[overlay]
+accent = "#8ba6c4"
+display = "primary"
+font_px = 15
+opacity = 66
+pill_edge = "right"
+tone_mode = "auto"
+visibility = "recording_only"
+
+[overlay.pill_positions]
+
+[overlay.positions.primary]
+x = 541.0
+y = 296.0
+
+[stealth]
+hide_main = false
+verify_interval_ms = 1000
+
+[stt]
+background_correction = true
+cloud_vendor = "soniox"
+engine = ""
+hallucination_phrases = []
+languages = [
+    "ru",
+    "en",
+]
+last_languages = [
+    "ru",
+    "en",
+]
+vocab_hints = []
+
+[[templates]]
+id = "brief"
+instruction = "Кратко ответь на вопрос, заданный в системе/приложении."
+needs_my_answer = false
+reasoning = false
+vision = false
+
+[templates.names]
+en = "Brief"
+ru = "Кратко"
+
+[[templates]]
+id = "complement"
+instruction = "Я уже ответил. Добавь недостающие детали, не повторяя сказанное."
+needs_my_answer = true
+reasoning = false
+vision = false
+
+[templates.names]
+en = "Complement my answer"
+ru = "Дополни мой ответ"
+
+[[templates]]
+id = "summary"
+instruction = "Сделай краткое резюме созвона: ключевые темы, решения, договорённости и следующие шаги. Отвечай на языке разговора."
+needs_my_answer = false
+reasoning = false
+vision = false
+
+[templates.names]
+en = "Summary"
+ru = "Резюме"
+
+[ui]
+font_px = 14
+language = "auto"
+
+[updates]
+check_daily = true
+
+[vault]
+path = "~/Documents/Lowk"
+trash_dir = ".lowk/trash"
+unsorted_dir = "Unsorted"

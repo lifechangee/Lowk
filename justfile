@@ -84,6 +84,33 @@ qa-report:
 qa-bundle *args:
     node tools/qa/bundle-qa.mjs {{args}}
 
+# OWNER-RUN LIVE CHECK ONLY (agents never run this). The qa-feature bundle (debug profile, qa control channel) at
+# target/debug/bundle/macos/Lowk.app, signed with the SAME identity ("Lowk Dev" by default) and bundle id as `just build`,
+# so the existing Screen Recording / Input grants apply and no new prompt appears. Never hand this build to anyone.
+build-qa: setup worker
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd crates/lowk-app
+    cfg=(--config tauri.bundle.conf.json)
+    if [ -z "${LOWK_SIGN_IDENTITY+x}" ] && [ "$(uname -s)" = Darwin ] \
+       && security find-identity -v -p codesigning 2>/dev/null | grep -q '"Lowk Dev"'; then
+      export LOWK_SIGN_IDENTITY="Lowk Dev"
+    fi
+    if [ -n "${LOWK_SIGN_IDENTITY:-}" ]; then
+      cfg+=(--config "{\"bundle\":{\"macOS\":{\"signingIdentity\":\"$LOWK_SIGN_IDENTITY\"}}}")
+    fi
+    feat=(--features aec,qa)
+    export PATH="$HOME/.local/bin:$PATH"
+    if ! command -v meson >/dev/null || ! command -v ninja >/dev/null; then uv tool install meson && uv tool install ninja; fi
+    cargo tauri build --debug "${cfg[@]}" --bundles app -- "${feat[@]}"
+    cd ../..
+    tools/sign-bundle.sh target/debug/bundle/macos/Lowk.app
+
+# OWNER-RUN: tone e2e inside the qa bundle (just build-qa first): Lowk draws known backdrops in its own window, the overlay
+# is captured over them at 5 positions -> docs/qa/tone-e2e/. See docs/qa/tone-e2e/README.md for what appears on screen.
+qa-tone *args:
+    node tools/qa/tone-e2e.mjs {{args}}
+
 # CI guard: the qa feature can never reach a release build.
 qa-guard:
     tools/qa/check-no-qa-release.sh

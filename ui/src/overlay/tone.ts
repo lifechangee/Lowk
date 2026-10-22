@@ -109,17 +109,52 @@ export interface BlockTone {
  */
 export function blockTone(cells: ToneVars[], rect: { x0: number; y0: number; x1: number; y1: number }): BlockTone {
   const c0 = Math.min(GRID_COLS - 1, Math.max(0, Math.floor(rect.x0 * GRID_COLS)));
-  const c1 = Math.min(GRID_COLS - 1, Math.max(c0, Math.ceil(rect.x1 * GRID_COLS) - 1));
+  const c1 = Math.min(GRID_COLS - 1, Math.max(c0, Math.ceil(rect.x1 * GRID_COLS - 1e-6) - 1));
   const r0 = Math.min(GRID_ROWS - 1, Math.max(0, Math.floor(rect.y0 * GRID_ROWS)));
-  const r1 = Math.min(GRID_ROWS - 1, Math.max(r0, Math.ceil(rect.y1 * GRID_ROWS) - 1));
+  const r1 = Math.min(GRID_ROWS - 1, Math.max(r0, Math.ceil(rect.y1 * GRID_ROWS - 1e-6) - 1));
   const under: ToneVars[] = [];
   for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) under.push(cells[r * GRID_COLS + c]!);
   const l = under.map((v) => luma(v.rgb));
-  const avg = l.reduce((a, b) => a + b, 0) / l.length;
+  // The candidate whose text colour has the best WORST contrast against every scrim under the block.
+  const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
   let best = 0;
-  for (let i = 1; i < under.length; i++) if (Math.abs(l[i]! - avg) < Math.abs(l[best]! - avg)) best = i;
+  let bestMin = -1;
+  under.forEach((cand, i) => {
+    const fl = luma(cand.fg);
+    const worst = Math.min(...l.map((x) => ratio(fl, x)));
+    if (worst > bestMin + 1e-6) {
+      bestMin = worst;
+      best = i;
+    }
+  });
   const v = under[best]!;
   return { fg: v.fg, inv: v.inv, rgb: v.rgb, int: v.int, mv: v.mv, mixed: Math.max(...l) - Math.min(...l) > 0.3 };
+}
+
+export interface TextGradient {
+  image: string;
+  size: string;
+  position: string;
+}
+
+/**
+ * Per-cell text colour for a long text element (subtitle line, answer): the 12 cell text colours as three
+ * hard-stop gradient rows laid over the whole overlay (`root`), shifted by the element's own offset (`off`,
+ * px from the overlay's top-left), so every glyph takes the colour of the cell BEHIND it. Used with
+ * `background-clip: text`; there is no per-row or per-block averaging.
+ */
+export function textGradient(cells: ToneVars[], root: { w: number; h: number }, off: { x: number; y: number }): TextGradient {
+  const rowH = root.h / GRID_ROWS;
+  const image: string[] = [];
+  const size: string[] = [];
+  const position: string[] = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    const stops = Array.from({ length: GRID_COLS }, (_, c) => `rgb(${cells[r * GRID_COLS + c]!.fg}) ${(c * 100) / GRID_COLS}% ${((c + 1) * 100) / GRID_COLS}%`);
+    image.push(`linear-gradient(90deg, ${stops.join(', ')})`);
+    size.push(`${root.w}px ${rowH}px`);
+    position.push(`${-off.x}px ${r * rowH - off.y}px`);
+  }
+  return { image: image.join(', '), size: size.join(', '), position: position.join(', ') };
 }
 
 /** The 12 cell colours as custom properties for the scrim (`--c0`..`--c11`). */

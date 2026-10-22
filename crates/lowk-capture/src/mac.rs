@@ -5,6 +5,14 @@ use lowk_types::{AppError, ErrorCode, Rect, RegionSampler, Result, ScreenGrab};
 use screencapturekit::prelude::*;
 use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 
+/// QA only: the title of one of OUR windows that the tone sampler must still see (a backdrop window drawn by the qa
+/// build itself). Never set outside the `qa` feature, so normal builds exclude every window of the process.
+static KEEP_TITLE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+pub fn keep_window_titled(title: Option<String>) {
+    *KEEP_TITLE.lock().unwrap_or_else(|e| e.into_inner()) = title;
+}
+
 fn fail(what: &str, e: impl std::fmt::Display) -> AppError {
     AppError::new(ErrorCode::PermScreenRecording).with_detail(format!("{what}: {e}"))
 }
@@ -50,24 +58,31 @@ fn grab_with(
 ) -> Result<(Vec<u8>, u32, u32)> {
     let content = content(cached)?;
     let displays = content.displays();
-    let (cx, cy) = (rect.x + rect.w / 2.0, rect.y + rect.h / 2.0);
-    let display = displays
+    let frames: Vec<Rect> = displays
         .iter()
-        .find(|d| {
+        .map(|d| {
             let f = d.frame();
-            cx >= f.origin.x
-                && cx < f.origin.x + f.size.width
-                && cy >= f.origin.y
-                && cy < f.origin.y + f.size.height
+            Rect {
+                x: f.origin.x,
+                y: f.origin.y,
+                w: f.size.width,
+                h: f.size.height,
+            }
         })
-        .or_else(|| displays.first())
+        .collect();
+    // Pure geometry (unit-tested): display with most of the window, source rect relative to it, proportional placement.
+    let (nat_w, nat_h) = out.unwrap_or((rect.w.max(1.0) as u32, rect.h.max(1.0) as u32));
+    let plan = crate::geometry::plan(&rect, &frames, nat_w, nat_h)
         .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("no display"))?;
+    let display = &displays[plan.display];
     let own = std::process::id() as i32;
     let windows = content.windows();
+    let keep = KEEP_TITLE.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let skip: Vec<&SCWindow> = if exclude_own {
         windows
             .iter()
             .filter(|w| w.owning_application().is_some_and(|a| a.process_id() == own))
+            .filter(|w| keep.as_deref().is_none_or(|k| w.title().as_deref() != Some(k)))
             .collect()
     } else {
         vec![]
@@ -77,17 +92,10 @@ fn grab_with(
         .with_excluding_windows(&skip)
         .build()
         .map_err(|e| fail("filter", e))?;
-    let f = display.frame();
-    let (w, h) = out.unwrap_or((rect.w.max(1.0) as u32, rect.h.max(1.0) as u32));
-    let src = CGRect::new(
-        rect.x - f.origin.x,
-        rect.y - f.origin.y,
-        rect.w.max(1.0),
-        rect.h.max(1.0),
-    );
+    let src = CGRect::new(plan.src.x, plan.src.y, plan.src.w, plan.src.h);
     let cfg = SCStreamConfiguration::new()
-        .with_width(w)
-        .with_height(h)
+        .with_width(plan.cap_w)
+        .with_height(plan.cap_h)
         .with_source_rect(src)
         .with_shows_cursor(false);
     let img = SCScreenshotManager::capture_image(&filter, &cfg).map_err(|e| fail("capture", e))?;
@@ -96,9 +104,15 @@ fn grab_with(
     if px.len() != (iw * ih * 4) as usize {
         return Err(AppError::new(ErrorCode::Unknown).with_detail("unexpected pixel buffer size"));
     }
+    let (cw, ch) = (plan.cap_w, plan.cap_h);
+    let px = if (iw, ih) == (cw, ch) {
+        px
+    } else {
+        fit(&px, iw, ih, cw, ch)
+    };
     match out {
-        Some((ow, oh)) if (iw, ih) != (ow, oh) => Ok((fit(&px, iw, ih, ow, oh), ow, oh)),
-        _ => Ok((px, iw, ih)),
+        Some(_) => Ok((crate::geometry::compose(&plan, &px), plan.out_w, plan.out_h)),
+        None => Ok((px, cw, ch)),
     }
 }
 
@@ -123,6 +137,15 @@ impl RegionSampler for SckSampler {
     fn grab_region(&self, rect: Rect, w: u32, h: u32) -> Result<Vec<u8>> {
         grab_with(rect, Some((w, h)), true, true).map(|(px, ..)| px)
     }
+}
+
+/// QA: `rect` (global top-left points) as the person sees it (nothing excluded) at `scale` pixels per point.
+pub fn grab_scaled(rect: Rect, scale: f64) -> Result<(Vec<u8>, u32, u32)> {
+    let (w, h) = (
+        ((rect.w * scale).round() as u32).max(1),
+        ((rect.h * scale).round() as u32).max(1),
+    );
+    grab(rect, Some((w, h)), false)
 }
 
 /// What a normal capturer sees (no exclusion): the stealth self-test pixel layer.

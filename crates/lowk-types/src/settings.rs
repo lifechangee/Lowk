@@ -79,6 +79,28 @@ impl Settings {
     /// ⌘⇧A = area. A swapped pair (or both on the same combo) is put back on the defaults.
     /// Returns true when something changed.
     pub fn migrate_binds(&mut self, os: Os) -> bool {
+        let added = self.add_missing_default_binds(os);
+        self.repair_screenshot_binds(os) || added
+    }
+
+    /// New default binds (e.g. hold-Ctrl = clickable) missing from saved settings are added; a customised or
+    /// already present action is never touched, and a default whose trigger is taken by another bind is skipped.
+    fn add_missing_default_binds(&mut self, os: Os) -> bool {
+        let mut changed = false;
+        for d in default_binds(os) {
+            if d.template.is_some() || self.binds.iter().any(|b| b.action == d.action) {
+                continue;
+            }
+            if self.binds.iter().any(|b| b.trigger == d.trigger) {
+                continue;
+            }
+            self.binds.push(d);
+            changed = true;
+        }
+        changed
+    }
+
+    fn repair_screenshot_binds(&mut self, os: Os) -> bool {
         let defaults = default_binds(os);
         let want = |a: ActionId| defaults.iter().find(|b| b.action == a).map(|b| b.trigger.clone());
         let (Some(shot), Some(area)) = (want(ActionId::Screenshot), want(ActionId::ScreenshotArea)) else {

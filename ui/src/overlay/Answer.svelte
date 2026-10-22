@@ -25,15 +25,15 @@
 </script>
 
 <div class="ans" data-blk>
-  <div class="chain">
+  <div class="chain" data-blk>
     {#each labels as l, i (l)}
-      {#if i}<em>›</em>{/if}
-      <span class:on={i === idx} class:done={i < idx}>{ot(l, lang)}</span>
+      {#if i}<em data-gt>›</em>{/if}
+      <span data-gt class:on={i === idx} class:done={i < idx}>{ot(l, lang)}</span>
     {/each}
-    <b class="mdl lbl">{store.model}</b>
+    <b class="mdl lbl" data-gt>{store.model}</b>
   </div>
   <div class="bodywrap">
-    <div class="body" bind:this={body} use:follow={opts} data-testid="ans-body">
+    <div class="body" bind:this={body} use:follow={opts} data-testid="ans-body"><div class="bt" data-gt>
       {#if store.answerError}
         <span class="err">{ot(errKey, lang)}</span>
         {#if store.errorCode === 'api_key_missing'}<button class="lnk" onclick={() => source?.openSettings?.()}>{ot('overlay.answer.openSettings', lang)}</button>{/if}
@@ -42,7 +42,7 @@
       {:else}
         {#each parts as p, i (i)}{#if p.bold}<b>{p.text}</b>{:else}{p.text}{/if}{/each}{#if store.streaming}<span class="caret"></span>{/if}
       {/if}
-    </div>
+    </div></div>
     {#if more}<button class="more" tabindex="-1" data-testid="ans-more" onwheel={(e) => body?.scrollBy(0, e.deltaY)} onclick={() => body?.dispatchEvent(new Event('lowk-jump'))}>{ot('overlay.more.ans', lang)}</button>{/if}
   </div>
   {#if store.sources.length || store.withheld}

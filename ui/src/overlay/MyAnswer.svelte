@@ -7,6 +7,6 @@
 </script>
 
 <div class="my" data-blk>
-  <span class="t lbl">↳ {ot('overlay.my.title', lang)}</span>
-  <span class="tx" class:ph={!store.myAnswer}>{store.myAnswer || ot('overlay.my.empty', lang)}</span>
+  <span class="t lbl" data-gt>↳ {ot('overlay.my.title', lang)}</span>
+  <span class="tx" data-gt class:ph={!store.myAnswer}>{store.myAnswer || ot('overlay.my.empty', lang)}</span>
 </div>

@@ -2,6 +2,58 @@ use lowk_store::*;
 use lowk_types::*;
 use std::fs;
 
+/// Owner's real saved settings (copy; predates hold-Ctrl): the migration adds the missing default binds
+/// without touching anything customised, writes them to disk, and is idempotent.
+#[test]
+fn owner_settings_gain_new_default_binds_without_overriding() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("settings.toml");
+    fs::copy(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/owner-settings.toml"),
+        &p,
+    )
+    .unwrap();
+    let before = FileSettingsStore::open(d.path()).unwrap().get();
+    let trig = |s: &Settings, a: ActionId| s.binds.iter().find(|b| b.action == a).map(|b| b.trigger.clone());
+    assert_eq!(
+        trig(&before, ActionId::ClickHold),
+        Some(Trigger::ModifierOnly { mods: Mods::CTRL })
+    );
+    // existing ones untouched: owner's Alt move-hold and Cmd-Enter ask stay exactly as saved
+    assert_eq!(
+        trig(&before, ActionId::MoveHold),
+        Some(Trigger::ModifierOnly { mods: Mods::ALT })
+    );
+    assert_eq!(
+        trig(&before, ActionId::Ask),
+        Some(Trigger::Combo {
+            mods: Mods::META,
+            key: KeyCode::new("Enter")
+        })
+    );
+    // no two binds share a trigger
+    for (i, a) in before.binds.iter().enumerate() {
+        for b in &before.binds[i + 1..] {
+            assert_ne!(a.trigger, b.trigger, "{:?} vs {:?}", a.action, b.action);
+        }
+    }
+    // persisted, and a second open changes nothing
+    assert!(fs::read_to_string(&p).unwrap().contains("click_hold"));
+    assert_eq!(FileSettingsStore::open(d.path()).unwrap().get(), before);
+    // a user who customised click_hold keeps it
+    let mut custom = before.clone();
+    for b in &mut custom.binds {
+        if b.action == ActionId::ClickHold {
+            b.trigger = Trigger::ModifierOnly { mods: Mods::META };
+        }
+    }
+    assert!(!custom.migrate_binds(Os::Macos));
+    assert_eq!(
+        trig(&custom, ActionId::ClickHold),
+        Some(Trigger::ModifierOnly { mods: Mods::META })
+    );
+}
+
 #[test]
 fn defaults_written_patch_persists_and_notifies() {
     let d = tempfile::tempdir().unwrap();

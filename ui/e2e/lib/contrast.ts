@@ -18,7 +18,7 @@ export async function measureContrast(page: Page, rootSel: string, ignore: strin
   const boxes = await page.evaluate(
     ({ rootSel, ignore }) => {
       const root = document.querySelector(rootSel) ?? document.body;
-      const res: { sel: string; text: string; color: string; size: number; weight: number; x: number; y: number; w: number; h: number }[] = [];
+      const res: { sel: string; text: string; color: string; size: number; weight: number; x: number; y: number; w: number; h: number; cells?: { l: number; t: number; w: number; h: number; rgb: string[] } }[] = [];
       // a modal scrim dims everything behind it: only the dialog itself is measured then
       const modal = document.querySelector('[role=dialog]');
       for (const el of root.querySelectorAll('*')) {
@@ -60,18 +60,31 @@ export async function measureContrast(page: Page, rootSel: string, ignore: strin
         const m = cs.color.match(/[\d.]+/g)!.map(Number);
         const a = (m[3] ?? 1) * op;
         const cls = [...el.classList].filter((c) => !c.startsWith('svelte-'))[0];
-        res.push({ sel: el.tagName.toLowerCase() + (cls ? '.' + cls : ''), text: txt.trim().slice(0, 40), color: `${m[0]},${m[1]},${m[2]},${a}`, size: parseFloat(cs.fontSize), weight: Number(cs.fontWeight) || 400, x: u.x, y: u.y, w: u.width, h: u.height });
+        // per-cell text colour (`[data-grad]`: gradient clipped to the glyphs): the colour at a pixel is the cell colour behind it
+        let cells: { l: number; t: number; w: number; h: number; rgb: string[] } | undefined;
+        const ge = el.closest('[data-grad]');
+        if (ge && !el.matches('.spk, .caret')) {
+          const ov = el.closest('.ov')!.getBoundingClientRect();
+          const rows = getComputedStyle(ge).backgroundImage.split(/\), (?=linear-gradient)/);
+          const rgb: string[] = [];
+          for (const row of rows) {
+            const all = [...row.matchAll(/rgb\((\d+), (\d+), (\d+)\)/g)].map((q) => `${q[1]},${q[2]},${q[3]}`);
+            rgb.push(...(all.length === 8 ? all.filter((_, i) => i % 2 === 0) : all));
+          }
+          if (rgb.length === 12) cells = { l: ov.left, t: ov.top, w: ov.width, h: ov.height, rgb };
+        }
+        res.push({ cells, sel: el.tagName.toLowerCase() + (cls ? '.' + cls : ''), text: txt.trim().slice(0, 40), color: `${m[0]},${m[1]},${m[2]},${a}`, size: parseFloat(cs.fontSize), weight: Number(cs.fontWeight) || 400, x: u.x, y: u.y, w: u.width, h: u.height });
       }
       return res;
     },
     { rootSel, ignore },
   );
   if (!boxes.length) return [];
-  const style = await page.addStyleTag({ content: '*{color:transparent !important;text-shadow:none !important;-webkit-text-fill-color:transparent !important}svg{visibility:hidden !important}' });
+  const style = await page.addStyleTag({ content: '[data-grad]{background-image:none !important}*{color:transparent !important;text-shadow:none !important;-webkit-text-fill-color:transparent !important}svg{visibility:hidden !important}' });
   const png = (await page.screenshot()).toString('base64');
   await style.evaluate((n) => n.remove());
   return page.evaluate(
-    async ({ png, boxes }) => {
+    async ({ png, boxes }: { png: string; boxes: { sel: string; text: string; color: string; size: number; weight: number; x: number; y: number; w: number; h: number; cells?: { l: number; t: number; w: number; h: number; rgb: string[] } }[] }) => {
       const img = new Image();
       img.src = 'data:image/png;base64,' + png;
       await img.decode();
@@ -88,11 +101,18 @@ export async function measureContrast(page: Page, rootSel: string, ignore: strin
         const w = Math.min(img.width - x, Math.ceil(b.w)), h = Math.min(img.height - y, Math.ceil(b.h));
         if (w < 2 || h < 2) continue;
         const d = g.getImageData(x, y, w, h).data;
-        const [tr, tg, tb, ta] = b.color.split(',').map(Number) as [number, number, number, number];
+        const [tr0, tg0, tb0, ta] = b.color.split(',').map(Number) as [number, number, number, number];
         const ratios: number[] = [];
         const step = Math.max(1, Math.floor((w * h) / 400));
         for (let i = 0; i < w * h; i += step) {
           const r = d[i * 4]!, gg = d[i * 4 + 1]!, bb = d[i * 4 + 2]!;
+          let tr = tr0, tg = tg0, tb = tb0;
+          if (b.cells) {
+            const c = b.cells;
+            const col = Math.min(3, Math.max(0, Math.floor(((x + (i % w) - c.l) / c.w) * 4)));
+            const row = Math.min(2, Math.max(0, Math.floor(((y + Math.floor(i / w) - c.t) / c.h) * 3)));
+            [tr, tg, tb] = c.rgb[row * 4 + col]!.split(',').map(Number) as [number, number, number];
+          }
           const fr = tr * ta + r * (1 - ta), fg = tg * ta + gg * (1 - ta), fb = tb * ta + bb * (1 - ta);
           const l1 = lum(fr, fg, fb), l2 = lum(r, gg, bb);
           ratios.push((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05));

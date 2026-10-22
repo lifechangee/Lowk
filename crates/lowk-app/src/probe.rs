@@ -187,6 +187,13 @@ pub(crate) fn run(st: &Shared, line: &str) -> String {
             st.input.lock().status()
         ),
         ["tone"] => format!("{:?}", stealth.current_tone()),
+        // QA: the full tone (incl. the 4x3 grid) as JSON, the overlay's native frame and the region the sampler last grabbed.
+        ["tone-json"] => serde_json::to_string(&stealth.current_tone()).unwrap_or_default(),
+        ["overlay-frame"] => format!(
+            "{{\"frame\":{},\"sampled\":{}}}",
+            serde_json::to_string(&stealth.overlay.frame()).unwrap_or_default(),
+            serde_json::to_string(&stealth.last_sample_rect()).unwrap_or_default()
+        ),
         ["state"] => format!(
             "status={:?} mode={:?} selftest={:?}",
             stealth.controller.status(),

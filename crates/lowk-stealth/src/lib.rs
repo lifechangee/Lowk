@@ -91,6 +91,8 @@ pub struct Stealth {
 struct ToneShared {
     state: Mutex<AdaptiveTone>,
     cb: Mutex<Box<dyn Fn(Tone) + Send>>,
+    /// Region (global top-left points) of the last backdrop grab: QA reads it to prove the sampler looks where the overlay is.
+    last_rect: Mutex<Option<Rect>>,
 }
 
 /// Stops the tone sampler thread on drop.
@@ -145,6 +147,7 @@ pub fn create_stealth(
         tone: Arc::new(ToneShared {
             state: Mutex::new(AdaptiveTone::new(ToneMode::Auto)),
             cb: Mutex::new(tone),
+            last_rect: Mutex::new(None),
         }),
         _watchdog: watchdog,
     })
@@ -181,6 +184,11 @@ impl Stealth {
     /// Last emitted (or forced) tone, for a window that loads after the event.
     pub fn current_tone(&self) -> Tone {
         self.tone.state.lock().current()
+    }
+
+    /// Region of the last backdrop grab (QA).
+    pub fn last_sample_rect(&self) -> Option<Rect> {
+        *self.tone.last_rect.lock()
     }
 
     /// Forced palette (`auto|light|dark`); emits the new tone immediately.
@@ -227,6 +235,7 @@ impl Stealth {
                     flagged = false;
                     last_poll = Instant::now();
                     let frame = ctl.frame();
+                    *tone.last_rect.lock() = Some(frame);
                     let Ok(bmp) = sampler.grab_region(frame, tone::SAMPLE_W, tone::SAMPLE_H) else {
                         continue;
                     };

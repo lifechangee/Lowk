@@ -40,6 +40,10 @@ pub struct ToneParams {
     pub color_off: f32,
     /// Target WCAG contrast for the scrim computation.
     pub target_contrast: f32,
+    /// A pure-black FRAME is a real black backdrop (macOS: a denied grab is an error, never a black frame).
+    /// Windows returns black for protected surfaces, so there it means "unknown, keep the previous tone".
+    /// A pure-black CELL inside a frame that is not black is always real black: never "unknown".
+    pub black_known: bool,
 }
 
 impl Default for ToneParams {
@@ -50,6 +54,7 @@ impl Default for ToneParams {
             color_on: 0.05,
             color_off: 0.035,
             target_contrast: 4.5,
+            black_known: !cfg!(windows),
         }
     }
 }
@@ -75,12 +80,17 @@ pub fn luminance(r: u8, g: u8, b: u8) -> f32 {
 /// length, empty, or pure black (the sampler's "unknown, keep previous" value,
 /// e.g. a GDI grab of a protected surface or no Screen Recording permission).
 pub fn analyze(rgba: &[u8], w: u32, h: u32) -> Option<SampleStats> {
+    analyze_opts(rgba, w, h, false)
+}
+
+/// [`analyze`], with `black_known` accepting an all-black bitmap as real black.
+pub fn analyze_opts(rgba: &[u8], w: u32, h: u32, black_known: bool) -> Option<SampleStats> {
     let n = (w as usize).checked_mul(h as usize)?;
     if n == 0 || rgba.len() < n * 4 {
         return None;
     }
     let px = &rgba[..n * 4];
-    if px.chunks_exact(4).all(|p| p[0] == 0 && p[1] == 0 && p[2] == 0) {
+    if !black_known && px.chunks_exact(4).all(|p| p[0] == 0 && p[1] == 0 && p[2] == 0) {
         return None;
     }
     let mut ys: Vec<f32> = Vec::with_capacity(n);
@@ -397,7 +407,7 @@ impl AdaptiveTone {
             }
             return None;
         }
-        let stats = analyze(rgba, w, h)?;
+        let stats = analyze_opts(rgba, w, h, self.params.black_known)?;
         let mut tone = self.global.select(&self.params, stats);
         self.last_floor = Some(tone.scrim_min);
 
@@ -409,7 +419,7 @@ impl AdaptiveTone {
             for i in 0..GRID_COLS * GRID_ROWS {
                 let (col, row) = (i % GRID_COLS, i / GRID_COLS);
                 let (bmp, cw, ch) = cell_bitmap(rgba, wu, hu, col, row);
-                let fresh = match analyze(&bmp, cw, ch) {
+                let fresh = match analyze_opts(&bmp, cw, ch, true) {
                     Some(cs) => self.cells[i].select(&self.params, cs),
                     // Unknown cell (pure black): keep what we had, else the global tone.
                     None => self.cell_last[i].clone().unwrap_or_else(|| tone.clone()),
@@ -548,10 +558,54 @@ mod tests {
     #[test]
     fn black_is_unknown() {
         assert!(analyze(&flat(0, 0, 0), SAMPLE_W, SAMPLE_H).is_none());
-        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        let mut t = AdaptiveTone::with_params(
+            ToneMode::Auto,
+            ToneParams {
+                black_known: false,
+                ..ToneParams::default()
+            },
+        );
         assert!(feed(&mut t, &flat(0, 0, 0)).is_none());
         assert!(analyze(&[1, 2, 3], 4, 4).is_none());
         assert!(analyze(&[], 0, 0).is_none());
+    }
+
+    /// Regression (owner: only the LEFT of the backdrop changed): a pure-black cell used to be "unknown" and kept the
+    /// previous (light) scrim forever. Black next to white must be a dark cell next to a light one, and a black frame is dark.
+    #[test]
+    fn black_cells_and_black_frames_are_real_black() {
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        for _ in 0..4 {
+            feed(&mut t, &flat(255, 255, 255));
+        }
+        let bmp = split_lr(0, 255);
+        for _ in 0..4 {
+            feed(&mut t, &bmp);
+        }
+        let g = t.current().grid.unwrap();
+        for (i, c) in g.cells.iter().enumerate() {
+            let left = i % GRID_COLS < GRID_COLS / 2;
+            assert_eq!(c.tone == ToneKind::Light, !left, "cell {i}: {:?}", c.rgb);
+        }
+        let mut t = AdaptiveTone::with_params(
+            ToneMode::Auto,
+            ToneParams {
+                black_known: true,
+                ..ToneParams::default()
+            },
+        );
+        feed(&mut t, &flat(255, 255, 255));
+        for _ in 0..4 {
+            feed(&mut t, &flat(0, 0, 0));
+        }
+        assert_eq!(t.current().tone, ToneKind::Dark);
+        assert!(t
+            .current()
+            .grid
+            .unwrap()
+            .cells
+            .iter()
+            .all(|c| c.tone == ToneKind::Dark));
     }
 
     #[test]

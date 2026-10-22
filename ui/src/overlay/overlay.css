@@ -78,8 +78,11 @@
 }
 .ov.nofade, .ov.nofade *, .ov.nofade .scrim { transition: none !important; }
 .ov :where([data-blk]) { position: relative; color: var(--tx); text-shadow: var(--ts); }
-/* Cells under the block disagree (dark next to light): one local scrim in the block's own tone keeps its text legible. */
-.ov :is(.sub, .ans, .my, .inp, .foot)[data-mixed] { background: rgba(var(--brgb), 0.72); }
+/* Per-cell text colour: long text carries a gradient of the 12 cell text colours (set inline by Overlay.svelte) clipped to its
+   glyphs. No halo here: shadows paint over a clipped background, and the scrim already guarantees the contrast.
+   There is deliberately NO block-wide local scrim: a row spanning a dark and a light cell must keep both colours. */
+.ov [data-grad] { -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none; background-repeat: no-repeat; }
+.ov [data-grad] :is(.spk, .caret) { -webkit-text-fill-color: currentcolor; }
 
 .ov *, .ov *::before, .ov *::after {
   box-sizing: border-box;

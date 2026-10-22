@@ -310,6 +310,50 @@ fn run(st: &Shared, line: &str) -> String {
             }));
             "ok".into()
         }
+        // Adaptive-tone e2e: `region-png X Y W H SCALE /path.png` writes the screen region as the person sees it
+        // (exclusion must have been lifted with `exclusion off`). Done in-process so no helper needs its own TCC grant.
+        "region-png" => {
+            let v: Vec<&str> = rest.split_whitespace().collect();
+            let n = |i: usize| v.get(i).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+            let Some(path) = v.get(5) else {
+                return "usage: region-png X Y W H SCALE PATH".into();
+            };
+            let r = lowk_types::Rect {
+                x: n(0),
+                y: n(1),
+                w: n(2),
+                h: n(3),
+            };
+            #[cfg(target_os = "macos")]
+            {
+                match lowk_capture::grab_scaled(r, n(4).max(1.0))
+                    .and_then(|(px, w, h)| lowk_capture::encode_png(&px, w, h))
+                {
+                    Ok(png) => {
+                        std::fs::write(path, png).map_or_else(|e| format!("error: {e}"), |_| "ok".into())
+                    }
+                    Err(e) => format!("error: {e}"),
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = (r, path);
+                "error: macOS only".into()
+            }
+        }
+        // Tone e2e backdrop: a borderless window of THIS process (so no helper app and no extra permission) that paints
+        // known colour regions behind the overlay. `backdrop-info` -> primary display in points; `backdrop-set <json>`
+        // with [{x,y,w,h,c:[r,g,b]}] in global top-left points; `backdrop-close`.
+        "backdrop-info" => backdrop_info(st),
+        "backdrop-set" => backdrop_set(st, rest),
+        "backdrop-close" => {
+            if let Some(w) = st.app.get_webview_window(BACKDROP) {
+                let _ = w.destroy();
+            }
+            #[cfg(target_os = "macos")]
+            lowk_capture::keep_window_titled(None);
+            "ok".into()
+        }
         "opacity" => crate::probe::run(
             st,
             &format!("settings-patch {{\"overlay\":{{\"opacity\":{rest}}}}}"),
@@ -420,4 +464,91 @@ fn percent_decode(s: &str) -> String {
         i += 1;
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+const BACKDROP: &str = "qa-backdrop";
+
+fn backdrop_info(st: &Shared) -> String {
+    match st.app.primary_monitor() {
+        Ok(Some(m)) => {
+            let k = m.scale_factor();
+            format!(
+                "{{\"x\":{},\"y\":{},\"w\":{},\"h\":{},\"scale\":{k}}}",
+                f64::from(m.position().x) / k,
+                f64::from(m.position().y) / k,
+                f64::from(m.size().width) / k,
+                f64::from(m.size().height) / k
+            )
+        }
+        _ => "error: no primary monitor".into(),
+    }
+}
+
+fn backdrop_set(st: &Shared, json: &str) -> String {
+    let Ok(rects) = serde_json::from_str::<Vec<serde_json::Value>>(json) else {
+        return "error: bad json".into();
+    };
+    let info: serde_json::Value = serde_json::from_str(&backdrop_info(st)).unwrap_or_default();
+    let g = |k: &str| info[k].as_f64().unwrap_or(0.0);
+    let (ox, oy, w, h) = (g("x"), g("y"), g("w"), g("h"));
+    if st.app.get_webview_window(BACKDROP).is_none() {
+        // The sampler excludes every window of this process except this one: it must see the backdrop like a normal app's window.
+        #[cfg(target_os = "macos")]
+        lowk_capture::keep_window_titled(Some("lowk-qa-backdrop".into()));
+        let (tx, rx) = std::sync::mpsc::channel();
+        let app = st.app.clone();
+        let app2 = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            let r = tauri::WebviewWindowBuilder::new(
+                &app2,
+                BACKDROP,
+                tauri::WebviewUrl::External("about:blank".parse().expect("url")),
+            )
+            .title("lowk-qa-backdrop")
+            .position(ox, oy)
+            .inner_size(w, h)
+            .decorations(false)
+            .shadow(false)
+            .resizable(false)
+            .skip_taskbar(true)
+            .focused(false)
+            .build()
+            .map(|win| {
+                let _ = win.set_ignore_cursor_events(true);
+            })
+            .map_err(|e| e.to_string());
+            let _ = tx.send(r);
+        });
+        match rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => return format!("error: {e}"),
+            Err(_) => return "error: backdrop window timeout".into(),
+        }
+    }
+    let Some(win) = wait_window(st, BACKDROP) else {
+        return "error: no backdrop window".into();
+    };
+    let mut html = String::new();
+    for r in &rects {
+        let n = |k: &str| r[k].as_f64().unwrap_or(0.0);
+        let c: Vec<i64> = r["c"]
+            .as_array()
+            .map(|a| a.iter().map(|v| v.as_i64().unwrap_or(0)).collect())
+            .unwrap_or_default();
+        html.push_str(&format!(
+            "<div style=\"position:absolute;left:{}px;top:{}px;width:{}px;height:{}px;background:rgb({},{},{})\"></div>",
+            n("x") - ox,
+            n("y") - oy,
+            n("w"),
+            n("h"),
+            c.first().unwrap_or(&0),
+            c.get(1).unwrap_or(&0),
+            c.get(2).unwrap_or(&0)
+        ));
+    }
+    let js = format!(
+        "document.documentElement.style.cssText='margin:0;background:#000;overflow:hidden';document.body.style.cssText='margin:0;background:#000;overflow:hidden';document.body.innerHTML={}",
+        js_str(&html)
+    );
+    format!("{:?}", win.eval(&js).map_err(|e| e.to_string()))
 }

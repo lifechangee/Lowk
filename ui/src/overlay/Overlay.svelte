@@ -2,7 +2,7 @@
   import './overlay.css';
   import type { OverlayStore } from './store.svelte';
   import type { OverlaySource } from './source';
-  import { blockTone, cellsToStyle, varsToStyle } from './tone';
+  import { blockTone, cellsToStyle, textGradient, varsToStyle } from './tone';
   import { tick } from 'svelte';
     import Header from './Header.svelte';
   import Subtitle from './Subtitle.svelte';
@@ -52,6 +52,35 @@
       requestAnimationFrame(() => root?.classList.remove('nofade'));
     }
   }
+  // Long text (`[data-gt]`: subtitle lines, answer, «Мой ответ») takes the colour of the cell behind EACH glyph:
+  // a hard-stop gradient of the 12 cell text colours, clipped to the text (see overlay.css `[data-grad]`).
+  function measureText() {
+    if (!root) return;
+    const r = root.getBoundingClientRect();
+    for (const el of root.querySelectorAll<HTMLElement>('[data-gt]')) {
+      if (!store.grid || !r.width || !r.height) {
+        el.removeAttribute('data-grad');
+        el.style.removeProperty('background-image');
+        el.style.removeProperty('background-size');
+        el.style.removeProperty('background-position');
+        continue;
+      }
+      const b = el.getBoundingClientRect();
+      const g = textGradient(store.grid, { w: r.width, h: r.height }, { x: b.left - r.left, y: b.top - r.top });
+      el.style.backgroundImage = g.image;
+      el.style.backgroundSize = g.size;
+      el.style.backgroundPosition = g.position;
+      el.setAttribute('data-grad', '');
+    }
+  }
+  let raf = 0;
+  const soon = () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      measureText();
+    });
+  };
   $effect(() => {
     store.grid;
     store.mode;
@@ -59,10 +88,25 @@
     store.phase;
     store.lang;
     if (!root) return;
-    void tick().then(measure);
-    const ro = new ResizeObserver(measure);
+    void tick().then(() => {
+      measure();
+      measureText();
+    });
+    const ro = new ResizeObserver(() => {
+      measure();
+      measureText();
+    });
     ro.observe(root);
-    return () => ro.disconnect();
+    // streamed text, new subtitle lines and scrolling move the text relative to the overlay
+    const mo = new MutationObserver(soon);
+    mo.observe(root, { childList: true, subtree: true, characterData: true });
+    root.addEventListener('scroll', soon, true);
+    const el = root;
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      el.removeEventListener('scroll', soon, true);
+    };
   });
 
   // Interactive header drag: pointer deltas in screen points; the backend moves the window.
