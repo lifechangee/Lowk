@@ -13,5 +13,5 @@
 
 ## Git hygiene (owner request)
 - Main gets ONE squashed commit per work package / fix batch (clear message). Intermediate commits stay in the agent's worktree branch.
-- Push to main in batches, not after every step (each push triggers CI; rapid pushes create cancelled runs and email noise).
+- Commit locally as often as needed (git works fine offline); push to GitHub only at meaningful milestones (end of a work package / verified fix batch), not after every step — each push triggers CI and emails.
 - Experimental workflows (e.g. release builds) run only via manual dispatch until they are stably green; no runs on every branch push.
