@@ -12,7 +12,10 @@ pub mod guard;
 pub mod magnet;
 pub mod mode;
 mod native;
+pub mod palette;
 pub mod policy;
+#[cfg(any(test, feature = "swatches"))]
+pub mod swatches;
 pub mod tone;
 
 pub use backend::{Readback, WindowBackend};

@@ -17,7 +17,7 @@ export interface ToneVars {
 /** Fallback palettes (also used when `tone_mode` forces a fixed palette). Values from mockups v3. */
 export const PRESETS: Record<ToneKind, ToneVars> = {
   dark: { rgb: '12,12,15', fg: '247,247,249', inv: '0,0,0', int: '94,224,138', mv: '255,194,74', mrgb: '26,26,31', smin: 0 },
-  light: { rgb: '255,255,255', fg: '10,11,15', inv: '255,255,255', int: '14,130,62', mv: '166,96,0', mrgb: '252,252,253', smin: 0 },
+  light: { rgb: '255,255,255', fg: '10,11,15', inv: '255,255,255', int: '0,113,49', mv: '130,91,0', mrgb: '252,252,253', smin: 0 },
   color: { rgb: '40,14,80', fg: '255,255,255', inv: '30,0,60', int: '90,255,150', mv: '255,214,102', mrgb: '48,22,90', smin: 0 },
 };
 

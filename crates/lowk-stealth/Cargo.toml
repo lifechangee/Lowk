@@ -7,6 +7,14 @@ rust-version.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+# Swatch-sheet generator (docs/design/overlay-color-base.md): `cargo run -p lowk-stealth --features swatches --example overlay_swatches`.
+swatches = []
+
+[[example]]
+name = "overlay_swatches"
+required-features = ["swatches"]
+
 [dependencies]
 lowk-types.workspace = true
 parking_lot.workspace = true

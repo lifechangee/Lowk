@@ -61,6 +61,8 @@ export const overlay = {
   'overlay.audioLost': 'App audio lost. Looking for it…',
   'overlay.sttFailed': 'Speech engine stopped. Check Settings > Providers.',
   'overlay.waiting': 'Listening…',
+  'overlay.more.sub': 'new ↓',
+  'overlay.more.ans': 'more ↓',
   'overlay.answer.empty': 'Press {key} to ask the AI',
   'overlay.answer.error': 'Could not get an answer',
   'overlay.answer.noKey': 'No OpenRouter API key is set.',

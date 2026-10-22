@@ -231,6 +231,85 @@ fn run(st: &Shared, line: &str) -> String {
             crate::commands::capture::clear_queue(st);
             "ok".into()
         }
+        // O6: replay utterances `<from> <to>` (one per ~4 s of a call) through the real event bus: partials, final,
+        // every 7th long, every 5th the user's own («Я»); ids start over at 80 (engine restart).
+        "stt-replay" => {
+            let mut it = rest.split_whitespace().filter_map(|x| x.parse::<u32>().ok());
+            let (from, to) = (it.next().unwrap_or(0), it.next().unwrap_or(0));
+            let mut last = String::new();
+            for i in from..to {
+                let utt = u64::from(if i < 80 { i + 1 } else { i - 79 });
+                let stream = if i % 5 == 4 {
+                    lowk_types::Stream::Me
+                } else {
+                    lowk_types::Stream::System
+                };
+                let n = if i % 7 == 3 { 40 } else { 8 + i % 6 };
+                let words = [
+                    "мы",
+                    "обсуждаем",
+                    "квартальный",
+                    "отчёт",
+                    "и",
+                    "план",
+                    "на",
+                    "месяц",
+                    "по",
+                    "бюджету",
+                ];
+                let text: String = std::iter::once(format!("Реплика {}", i + 1))
+                    .chain((0..n).map(|k| words[((i + k) % 10) as usize].to_string()))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let chars: Vec<char> = text.chars().collect();
+                for (rev, cut) in [
+                    (0u32, chars.len() / 3),
+                    (0, chars.len() * 2 / 3),
+                    (1, chars.len()),
+                ] {
+                    st.emit(lowk_types::AppEvent::Stt(lowk_types::SttEvent {
+                        stream,
+                        utt,
+                        rev,
+                        kind: if cut == chars.len() {
+                            lowk_types::SttKind::Final
+                        } else {
+                            lowk_types::SttKind::Partial
+                        },
+                        text: chars[..cut].iter().collect(),
+                        lang: None,
+                        t_start_ns: 0,
+                        t_audio_end_ns: 0,
+                        t_emit_ns: 0,
+                    }));
+                    std::thread::sleep(Duration::from_millis(8));
+                }
+                last = text;
+            }
+            last
+        }
+        // O7: stream a long answer (`<lines>` numbered paragraphs) as an LLM request would.
+        "llm-replay" => {
+            let n: u32 = rest.parse().unwrap_or(30);
+            let req = lowk_types::Ulid::new();
+            st.emit(lowk_types::AppEvent::Llm(lowk_types::LlmEvent::Start {
+                req_id: req,
+                qa_id: lowk_types::Ulid::new(),
+            }));
+            for i in 0..n {
+                st.emit(lowk_types::AppEvent::Llm(lowk_types::LlmEvent::Delta {
+                    req_id: req,
+                    text: format!("{}. **Пункт {}**: довольно длинное объяснение, которое занимает несколько строк в окне ответа.\n", i + 1, i + 1),
+                }));
+                std::thread::sleep(Duration::from_millis(15));
+            }
+            st.emit(lowk_types::AppEvent::Llm(lowk_types::LlmEvent::Done {
+                req_id: req,
+                truncated: false,
+                usage: None,
+            }));
+            "ok".into()
+        }
         "opacity" => crate::probe::run(
             st,
             &format!("settings-patch {{\"overlay\":{{\"opacity\":{rest}}}}}"),

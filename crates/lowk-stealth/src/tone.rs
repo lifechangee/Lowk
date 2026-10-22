@@ -1,21 +1,23 @@
-//! Adaptive tone: luminance of the pixels under the overlay -> palette tokens.
+//! Adaptive tone: colour of the pixels under the overlay -> palette tokens (O4: OKLab colour base, see
+//! [`crate::palette`] and docs/design/overlay-color-base.md).
 //!
 //! Pure functions plus a small state machine ([`AdaptiveTone`]); no OS code, so
 //! it is unit-tested with synthetic bitmaps. The sampler (a task in the app
 //! layer driving a `RegionSampler`) feeds it a 24x18 RGBA bitmap every 250 ms (see POLL_MS).
 //!
 //! Algorithm (docs/ARCHITECTURE.md 7.4):
-//! 1. linear-light luminance per pixel; median, p10, p90, "busyness";
-//! 2. median of the last three medians (rejects one-frame flashes);
-//! 3. Schmitt trigger on that value: to dark text above [`ToneParams::up`],
-//!    to light text below [`ToneParams::down`];
-//! 4. saturated mid-tone backgrounds select the tinted `Color` palette (also
-//!    with hysteresis);
+//! 1. linear-light luminance per pixel; median, p10, p90, "busyness"; the mean colour in OKLab;
+//! 2. median of the last three samples (rejects one-frame flashes), per OKLab component;
+//! 3. polarity: Schmitt trigger on OKLab lightness, its upper gate rising with chroma
+//!    ([`palette::polarity`]); light backdrop = dark text on a light scrim, otherwise white text on a dark one;
+//! 4. the scrim keeps the backdrop's hue with lower chroma and a lightness set for contrast, the accents are
+//!    re-derived for it ([`palette::scheme`]); the `Color` kind marks a clearly tinted dark scrim (with hysteresis);
 //! 5. a new [`Tone`] is only emitted when it differs enough
-//!    ([`ToneParams::deadband`]) so the UI never animates on noise.
+//!    ([`ToneParams::deadband`], scrim colour distance) so the UI never animates on noise.
 //! 6. (F5) the same pipeline runs per cell of a 4 x 3 grid; the result rides on
 //!    the emitted tone as [`Tone::grid`], the global tone stays as the fallback.
 
+use crate::palette::{self, Oklab, Rgb};
 use lowk_types::{Tone, ToneGrid, ToneKind, ToneMode};
 use std::collections::VecDeque;
 
@@ -29,17 +31,13 @@ pub const GRID_ROWS: usize = 3;
 
 #[derive(Clone, Copy, Debug)]
 pub struct ToneParams {
-    /// Background luma above which text turns dark (light palette).
-    pub up: f32,
-    /// Background luma below which text turns light (dark palette).
-    pub down: f32,
     /// Minimum luma change that justifies emitting a new tone.
     pub deadband: f32,
-    /// Chroma (max-min of mean sRGB, 0..1) to enter / leave the `Color` palette.
+    /// Minimum OKLab distance of the scrim colour that justifies emitting a new tone.
+    pub scrim_delta: f32,
+    /// Backdrop chroma (OKLCH C) to enter / leave the `Color` kind.
     pub color_on: f32,
     pub color_off: f32,
-    /// Saturated backgrounds brighter than this are treated as light.
-    pub color_max_luma: f32,
     /// Target WCAG contrast for the scrim computation.
     pub target_contrast: f32,
 }
@@ -47,12 +45,10 @@ pub struct ToneParams {
 impl Default for ToneParams {
     fn default() -> Self {
         Self {
-            up: 0.22,
-            down: 0.14,
             deadband: 0.03,
-            color_on: 0.30,
-            color_off: 0.22,
-            color_max_luma: 0.5,
+            scrim_delta: 0.02,
+            color_on: 0.05,
+            color_off: 0.035,
             target_contrast: 4.5,
         }
     }
@@ -67,23 +63,12 @@ pub struct SampleStats {
     pub p90: f32,
     /// Spread of perceptual lightness between p90 and p10, 0..1.
     pub busy: f32,
-    /// Mean colour, sRGB 0..255.
-    pub mean_rgb: [f32; 3],
-    /// max-min of the mean colour, 0..1.
-    pub chroma: f32,
-}
-
-fn srgb_to_linear(c: u8) -> f32 {
-    let c = c as f32 / 255.0;
-    if c <= 0.04045 {
-        c / 12.92
-    } else {
-        ((c + 0.055) / 1.055).powf(2.4)
-    }
+    /// Mean colour (averaged in linear light) in OKLab.
+    pub lab: Oklab,
 }
 
 pub fn luminance(r: u8, g: u8, b: u8) -> f32 {
-    0.2126 * srgb_to_linear(r) + 0.7152 * srgb_to_linear(g) + 0.0722 * srgb_to_linear(b)
+    palette::rel_luminance([r, g, b])
 }
 
 /// Analyse an RGBA8 bitmap. Returns `None` for an unusable sample: wrong
@@ -103,7 +88,7 @@ pub fn analyze(rgba: &[u8], w: u32, h: u32) -> Option<SampleStats> {
     for p in px.chunks_exact(4) {
         ys.push(luminance(p[0], p[1], p[2]));
         for (s, c) in sum.iter_mut().zip(p) {
-            *s += *c as f64;
+            *s += f64::from(palette::srgb_to_linear(*c));
         }
     }
     ys.sort_by(|a, b| a.total_cmp(b));
@@ -114,22 +99,18 @@ pub fn analyze(rgba: &[u8], w: u32, h: u32) -> Option<SampleStats> {
         (sum[1] / n as f64) as f32,
         (sum[2] / n as f64) as f32,
     ];
-    let chroma =
-        (mean.iter().cloned().fold(0.0, f32::max) - mean.iter().cloned().fold(255.0, f32::min)) / 255.0;
     Some(SampleStats {
         median,
         p10,
         p90,
         busy: (p90.sqrt() - p10.sqrt()).clamp(0.0, 1.0),
-        mean_rgb: mean,
-        chroma,
+        lab: palette::linear_to_oklab(mean[0], mean[1], mean[2]),
     })
 }
 
 /// WCAG contrast ratio of two relative luminances.
 pub fn contrast(a: f32, b: f32) -> f32 {
-    let (hi, lo) = if a > b { (a, b) } else { (b, a) };
-    (hi + 0.05) / (lo + 0.05)
+    palette::wcag(a, b)
 }
 
 /// Smallest scrim opacity (0..1) such that text of luminance `fg` over a
@@ -166,125 +147,117 @@ pub fn opacity_k(percent: u8) -> f32 {
     f32::from(percent.min(90)) / 100.0
 }
 
-struct Palette {
+/// Original neutral look (docs/design/lowk-mockups-v3.html); the accents of the neutral presets.
+struct Preset {
     rgb: &'static str,
     fg: &'static str,
     inv: &'static str,
     int: &'static str,
     mv: &'static str,
-    scrim_luma: f32,
-    fg_luma: f32,
 }
-
-// Values from docs/design/lowk-mockups-v3.html.
-const DARK: Palette = Palette {
+const DARK: Preset = Preset {
     rgb: "12,12,15",
     fg: "247,247,249",
     inv: "0,0,0",
     int: "94,224,138",
     mv: "255,194,74",
-    scrim_luma: 0.004,
-    fg_luma: 0.93,
 };
-const LIGHT: Palette = Palette {
+const LIGHT: Preset = Preset {
     rgb: "255,255,255",
     fg: "10,11,15",
     inv: "255,255,255",
-    int: "14,130,62",
-    mv: "166,96,0",
-    scrim_luma: 1.0,
-    fg_luma: 0.004,
+    int: "0,113,49",
+    mv: "130,91,0",
 };
 
-fn tone_from(kind: ToneKind, p: &Palette, rgb: String, inv: String, stats: &SampleStats) -> Tone {
+fn tone_from(kind: ToneKind, sch: &palette::Scheme, stats: &SampleStats, target: f32) -> Tone {
+    // Neutral dark backdrops keep the exact original look; everything else uses the derived colours
+    // (the neutral light accents are re-derived too: the old ones fell below 3:1 over a dark pixel under the scrim).
+    let (rgb, fg, inv, int, mv) = if sch.tinted || sch.dark_text {
+        (
+            palette::fmt(sch.scrim),
+            palette::fmt(sch.fg),
+            palette::fmt(sch.inv),
+            palette::fmt(sch.int),
+            palette::fmt(sch.mv),
+        )
+    } else {
+        (
+            DARK.rgb.into(),
+            DARK.fg.into(),
+            DARK.inv.into(),
+            DARK.int.into(),
+            DARK.mv.into(),
+        )
+    };
+    let worst = if sch.dark_text { stats.p10 } else { stats.p90 };
     Tone {
         tone: kind,
         rgb,
-        fg: p.fg.into(),
+        fg,
         inv,
-        int: p.int.into(),
-        mv: p.mv.into(),
+        int,
+        mv,
         luma: stats.median,
         busy: stats.busy,
-        scrim_min: scrim_floor(kind, stats_worst(kind, stats)),
+        scrim_min: required_scrim_alpha(
+            palette::rel_luminance(sch.scrim),
+            palette::rel_luminance(sch.fg),
+            worst,
+            target,
+        ),
         grid: None,
     }
 }
 
-fn stats_worst(kind: ToneKind, s: &SampleStats) -> f32 {
-    if kind == ToneKind::Light {
-        s.p10
-    } else {
-        s.p90
-    }
-}
-
-/// Scrim opacity floor for the worst-case backdrop pixel behind the text.
-fn scrim_floor(kind: ToneKind, worst: f32) -> f32 {
-    let (scrim, fg) = match kind {
-        ToneKind::Light => (LIGHT.scrim_luma, LIGHT.fg_luma),
-        _ => (DARK.scrim_luma, DARK.fg_luma),
-    };
-    required_scrim_alpha(scrim, fg, worst, ToneParams::default().target_contrast)
-}
-
-/// Median-of-3 smoothing + Schmitt trigger + colour gate for one region.
+/// Median-of-3 smoothing + polarity Schmitt trigger + colour gate for one region.
 #[derive(Default)]
 struct Chan {
-    hist: VecDeque<f32>,
-    light_bg: Option<bool>,
+    hist: VecDeque<[f32; 4]>,
+    dark_text: Option<bool>,
     color: bool,
 }
 
+fn median3(v: &VecDeque<[f32; 4]>, k: usize) -> f32 {
+    let mut x: Vec<f32> = v.iter().map(|e| e[k]).collect();
+    x.sort_by(|a, b| a.total_cmp(b));
+    x[x.len() / 2]
+}
+
 impl Chan {
-    /// Feed one analysed sample; returns the tone (grid unset) and the stats
-    /// with the smoothed median.
-    fn select(&mut self, params: &ToneParams, stats: SampleStats) -> (Tone, SampleStats) {
+    /// Feed one analysed sample; returns the tone (grid unset) and the stats with the smoothed median.
+    fn select(&mut self, params: &ToneParams, stats: SampleStats) -> Tone {
         if self.hist.len() == 3 {
             self.hist.pop_front();
         }
-        self.hist.push_back(stats.median);
-        let smooth = {
-            let mut v: Vec<f32> = self.hist.iter().copied().collect();
-            v.sort_by(|a, b| a.total_cmp(b));
-            v[v.len() / 2]
+        self.hist
+            .push_back([stats.median, stats.lab.l, stats.lab.a, stats.lab.b]);
+        let lab = Oklab {
+            l: median3(&self.hist, 1),
+            a: median3(&self.hist, 2),
+            b: median3(&self.hist, 3),
         };
-        let light_bg = match self.light_bg {
-            None => smooth > (params.up + params.down) / 2.0,
-            Some(true) => smooth >= params.down,
-            Some(false) => smooth > params.up,
-        };
-        self.light_bg = Some(light_bg);
+        let mut stats = stats;
+        stats.median = median3(&self.hist, 0);
+        stats.lab = lab;
 
-        let chroma_gate = if self.color {
+        let dark_text = palette::polarity(&lab, self.dark_text);
+        self.dark_text = Some(dark_text);
+        let scheme = palette::scheme(&lab, dark_text);
+        let gate = if self.color {
             params.color_off
         } else {
             params.color_on
         };
-        let luma_gate = if self.color {
-            params.color_max_luma + 0.05
+        self.color = !dark_text && scheme.tinted && lab.chroma() >= gate;
+        let kind = if dark_text {
+            ToneKind::Light
+        } else if self.color {
+            ToneKind::Color
         } else {
-            params.color_max_luma
+            ToneKind::Dark
         };
-        self.color = stats.chroma >= chroma_gate && smooth < luma_gate && smooth > params.down * 0.4;
-
-        let mut stats = stats;
-        stats.median = smooth;
-        let tone = if self.color {
-            let (rgb, inv) = tint(&stats.mean_rgb);
-            tone_from(ToneKind::Color, &COLOR_PAL, rgb, inv, &stats)
-        } else if light_bg {
-            tone_from(
-                ToneKind::Light,
-                &LIGHT,
-                LIGHT.rgb.into(),
-                LIGHT.inv.into(),
-                &stats,
-            )
-        } else {
-            tone_from(ToneKind::Dark, &DARK, DARK.rgb.into(), DARK.inv.into(), &stats)
-        };
-        (tone, stats)
+        tone_from(kind, &scheme, &stats, params.target_contrast)
     }
 }
 
@@ -293,7 +266,7 @@ fn differs(prev: &Tone, new: &Tone, params: &ToneParams) -> bool {
     prev.tone != new.tone
         || (prev.luma - new.luma).abs() >= params.deadband
         || (prev.scrim_min - new.scrim_min).abs() >= 0.05
-        || (new.tone == ToneKind::Color && rgb_dist(&prev.rgb, &new.rgb) > 12.0)
+        || scrim_dist(&prev.rgb, &new.rgb) >= params.scrim_delta
 }
 
 /// RGBA8 sub-bitmap of grid cell (`col`, `row`).
@@ -317,7 +290,7 @@ fn uniform_grid(t: &Tone) -> ToneGrid {
     }
 }
 
-fn fixed_with_grid(kind: ToneKind, p: &Palette) -> Tone {
+fn fixed_with_grid(kind: ToneKind, p: &Preset) -> Tone {
     let mut t = fixed(kind, p);
     t.grid = Some(uniform_grid(&t));
     t
@@ -366,7 +339,8 @@ pub struct AdaptiveTone {
     cells: Vec<Chan>,
     cell_last: Vec<Option<Tone>>,
     last: Option<Tone>,
-    last_stats: Option<SampleStats>,
+    /// Scrim and text luminance of the last global decision + its worst backdrop luma (for [`Self::min_scrim_alpha`]).
+    last_floor: Option<f32>,
 }
 
 impl AdaptiveTone {
@@ -381,7 +355,7 @@ impl AdaptiveTone {
             cells: (0..GRID_COLS * GRID_ROWS).map(|_| Chan::default()).collect(),
             cell_last: vec![None; GRID_COLS * GRID_ROWS],
             last: None,
-            last_stats: None,
+            last_floor: None,
         }
     }
 
@@ -407,14 +381,7 @@ impl AdaptiveTone {
     /// Scrim opacity floor (0..1) that keeps the contrast target for the last
     /// sample, for the UI to use as a lower bound of `--k * .85`.
     pub fn min_scrim_alpha(&self) -> f32 {
-        let (Some(s), Some(t)) = (&self.last_stats, &self.last) else {
-            return 0.0;
-        };
-        let (scrim, fg, worst) = match t.tone {
-            ToneKind::Light => (LIGHT.scrim_luma, LIGHT.fg_luma, s.p10),
-            _ => (DARK.scrim_luma, DARK.fg_luma, s.p90),
-        };
-        required_scrim_alpha(scrim, fg, worst, self.params.target_contrast)
+        self.last_floor.unwrap_or(0.0)
     }
 
     /// Feed one sample. Returns the new tone to emit, or `None` when the
@@ -431,8 +398,8 @@ impl AdaptiveTone {
             return None;
         }
         let stats = analyze(rgba, w, h)?;
-        let (mut tone, stats) = self.global.select(&self.params, stats);
-        self.last_stats = Some(stats);
+        let mut tone = self.global.select(&self.params, stats);
+        self.last_floor = Some(tone.scrim_min);
 
         // Per-region tones (F5). Skipped when the bitmap does not tile evenly.
         let mut grid_changed = false;
@@ -443,7 +410,7 @@ impl AdaptiveTone {
                 let (col, row) = (i % GRID_COLS, i / GRID_COLS);
                 let (bmp, cw, ch) = cell_bitmap(rgba, wu, hu, col, row);
                 let fresh = match analyze(&bmp, cw, ch) {
-                    Some(cs) => self.cells[i].select(&self.params, cs).0,
+                    Some(cs) => self.cells[i].select(&self.params, cs),
                     // Unknown cell (pure black): keep what we had, else the global tone.
                     None => self.cell_last[i].clone().unwrap_or_else(|| tone.clone()),
                 };
@@ -483,17 +450,7 @@ impl AdaptiveTone {
     }
 }
 
-const COLOR_PAL: Palette = Palette {
-    rgb: "",
-    fg: "255,255,255",
-    inv: "",
-    int: "90,255,150",
-    mv: "255,214,102",
-    scrim_luma: 0.012,
-    fg_luma: 1.0,
-};
-
-fn fixed(kind: ToneKind, p: &Palette) -> Tone {
+fn fixed(kind: ToneKind, p: &Preset) -> Tone {
     Tone {
         tone: kind,
         rgb: p.rgb.into(),
@@ -508,29 +465,17 @@ fn fixed(kind: ToneKind, p: &Palette) -> Tone {
     }
 }
 
-/// Dark scrim tinted with the background hue, and the matching `inv` colour.
-fn tint(mean: &[f32; 3]) -> (String, String) {
-    let max = mean.iter().cloned().fold(1.0, f32::max);
-    let k = 80.0 / max;
-    let c: Vec<u8> = mean
-        .iter()
-        .zip([12.0f32, 12.0, 15.0])
-        .map(|(m, base)| (0.85 * m * k + 0.15 * base).clamp(0.0, 90.0) as u8)
-        .collect();
-    let inv: Vec<u8> = c.iter().map(|v| (*v as f32 * 0.7) as u8).collect();
-    (
-        format!("{},{},{}", c[0], c[1], c[2]),
-        format!("{},{},{}", inv[0], inv[1], inv[2]),
-    )
+fn parse_rgb(s: &str) -> Option<Rgb> {
+    let v: Vec<u8> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+    <[u8; 3]>::try_from(v).ok()
 }
 
-fn rgb_dist(a: &str, b: &str) -> f32 {
-    let p = |s: &str| -> Vec<f32> { s.split(',').filter_map(|x| x.trim().parse().ok()).collect() };
-    let (a, b) = (p(a), p(b));
-    if a.len() != 3 || b.len() != 3 {
-        return 255.0;
+/// OKLab distance of two `r,g,b` strings (large when either does not parse).
+fn scrim_dist(a: &str, b: &str) -> f32 {
+    match (parse_rgb(a), parse_rgb(b)) {
+        (Some(a), Some(b)) => palette::rgb_to_oklab(a).dist(&palette::rgb_to_oklab(b)),
+        _ => 1.0,
     }
-    a.iter().zip(&b).map(|(x, y)| (x - y).abs()).fold(0.0, f32::max)
 }
 
 #[cfg(test)]
@@ -626,10 +571,107 @@ mod tests {
         let mut t = AdaptiveTone::new(ToneMode::Auto);
         let c = feed(&mut t, &flat(120, 30, 190)).unwrap();
         assert_eq!(c.tone, ToneKind::Color);
-        assert_eq!(c.fg, "255,255,255");
+        assert_eq!(c.fg, "247,247,249");
         let rgb: Vec<u8> = c.rgb.split(',').map(|x| x.parse().unwrap()).collect();
         assert!(rgb[2] > rgb[1], "tint follows the hue: {rgb:?}");
         assert!(rgb.iter().all(|v| *v <= 90));
+    }
+
+    fn rgbs(t: &Tone) -> Vec<u8> {
+        t.rgb.split(',').map(|x| x.parse().unwrap()).collect()
+    }
+
+    /// O4: dark / saturated blue used to fall through to the black preset; light blue was fine.
+    #[test]
+    fn navy_and_dark_blue_keep_their_hue() {
+        for navy in [
+            [0u8, 0, 128],
+            [8, 16, 70],
+            [20, 40, 160],
+            [0, 0, 255],
+            [30, 60, 130],
+        ] {
+            let mut t = AdaptiveTone::new(ToneMode::Auto);
+            let c = feed(&mut t, &flat(navy[0], navy[1], navy[2])).unwrap();
+            assert_eq!(c.tone, ToneKind::Color, "{navy:?}");
+            let rgb = rgbs(&c);
+            assert!(
+                rgb[2] > rgb[0] + 20 && rgb[2] > rgb[1] + 8,
+                "{navy:?} -> {rgb:?} is not blue"
+            );
+            assert_ne!(c.rgb, "12,12,15", "{navy:?} fell back to the black preset");
+            // the accents are re-derived for the tinted scrim and stay readable on it
+            assert_ne!(c.int, "94,224,138");
+        }
+        // light blue: dark text on a pale blue-ish scrim
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        let c = feed(&mut t, &flat(170, 205, 255)).unwrap();
+        assert_eq!(c.tone, ToneKind::Light);
+        assert_eq!(c.fg, "10,11,15");
+        let rgb = rgbs(&c);
+        assert!(rgb[2] >= rgb[0] && rgb.iter().all(|v| *v >= 235), "{rgb:?}");
+    }
+
+    #[test]
+    fn red_purple_green_teal_get_dark_tinted_scrims() {
+        let want = |bg: [u8; 3], dom: usize| {
+            let mut t = AdaptiveTone::new(ToneMode::Auto);
+            let c = feed(&mut t, &flat(bg[0], bg[1], bg[2])).unwrap();
+            assert_eq!(c.tone, ToneKind::Color, "{bg:?}");
+            let rgb = rgbs(&c);
+            let max = *rgb.iter().max().unwrap();
+            assert_eq!(rgb[dom], max, "{bg:?} -> {rgb:?}");
+            assert!(max <= 110, "dark scrim: {rgb:?}");
+        };
+        want([200, 30, 30], 0);
+        want([160, 20, 40], 0);
+        want([0, 150, 60], 1);
+        want([0, 128, 128], 2); // teal: blue and green channels lead
+    }
+
+    #[test]
+    fn colour_transition_has_hysteresis_and_no_flicker() {
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        for _ in 0..4 {
+            feed(&mut t, &flat(20, 40, 150));
+        }
+        // a slow drift of the blue backdrop must not flip polarity back and forth around the gate
+        let mut flips = 0;
+        let mut last = ToneKind::Color;
+        for i in 0..40 {
+            let v = 40 + (i % 5) as u8 * 3; // 40..52 jitter around the gate
+            if let Some(x) = feed(&mut t, &flat(v, v + 30, 175)) {
+                if x.tone != last {
+                    flips += 1;
+                    last = x.tone;
+                }
+            }
+        }
+        assert!(flips <= 1, "{flips} flips");
+        // a one-frame flash of white does not move the scrim
+        let before = t.current();
+        let flash = feed(&mut t, &flat(255, 255, 255));
+        assert!(flash.is_none() || flash.unwrap().tone != ToneKind::Light);
+        assert_eq!(before.tone, t.current().tone);
+    }
+
+    #[test]
+    fn photo_like_noise_gets_a_stable_legible_tone() {
+        // deterministic pseudo-random "photo": mid brightness, strong local contrast, warm cast
+        let mut x = 0x2545_f491_u32;
+        let mut r = || {
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            (x >> 8) as u8
+        };
+        let bmp: Vec<u8> = (0..SAMPLE_W * SAMPLE_H)
+            .flat_map(|_| [r() / 2 + 90, r() / 2 + 50, r() / 3 + 30, 255])
+            .collect();
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        let tone = feed(&mut t, &bmp).unwrap();
+        assert!(tone.scrim_min <= 0.95);
+        assert!(feed(&mut t, &bmp).is_none(), "the same frame never re-emits");
     }
 
     #[test]

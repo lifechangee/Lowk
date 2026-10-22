@@ -170,3 +170,31 @@ describe('sources and refusals (M2)', () => {
     expect(s.streaming).toBe(false);
   });
 });
+
+describe('subtitle history (O6)', () => {
+  const stt = (stream: 'me' | 'system', utt: number, kind: 'partial' | 'final', text: string, rev = 0) => ({ stream, utt, rev, kind, text, lang: null, t_start_ns: 0, t_audio_end_ns: 0, t_emit_ns: 0 });
+  it('always ends with the newest line, corrections update in place', () => {
+    const s = new OverlayStore();
+    s.applyStt(stt('system', 5, 'final', 'старая'));
+    s.applyStt(stt('system', 6, 'partial', 'нов'));
+    s.applyStt(stt('system', 5, 'final', 'старая (исправлено)', 1)); // late Whisper correction
+    expect(s.lines.map((l) => l.text)).toEqual(['старая (исправлено)', 'нов']);
+    expect(s.sub?.text).toBe('нов');
+    s.applyStt(stt('system', 6, 'final', 'новая реплика', 1));
+    expect(s.sub).toMatchObject({ text: 'новая реплика', partial: false });
+  });
+  it('an engine restart (lower utterance ids) is not dropped', () => {
+    const s = new OverlayStore();
+    s.applyStt(stt('system', 1_000_005, 'final', 'до рестарта'));
+    s.applyStt(stt('system', 1, 'final', 'после рестарта'));
+    expect(s.sub?.text).toBe('после рестарта');
+  });
+  it('keeps a bounded history and a superseded partial loses its caret', () => {
+    const s = new OverlayStore();
+    s.applyStt(stt('me', 1, 'partial', 'а'));
+    for (let i = 2; i < 200; i++) s.applyStt(stt('system', i, 'final', `r${i}`));
+    expect(s.lines.length).toBe(60);
+    expect(s.lines.every((l) => !l.partial)).toBe(true);
+    expect(s.sub?.text).toBe('r199');
+  });
+});

@@ -4,6 +4,7 @@
   import type { SourceRef } from '../lib/ipc/bindings';
   import { splitBold } from './store.svelte';
   import { ot } from './i18n';
+  import { follow } from './follow';
 
   let { store, source }: { store: OverlayStore; source?: OverlaySource } = $props();
   const errKey = $derived(store.errorCode === 'api_key_missing' ? 'overlay.answer.noKey' : store.errorCode === 'local_only_blocked' ? 'overlay.answer.localOnly' : 'overlay.answer.error');
@@ -18,12 +19,9 @@
   const idx = $derived(order.indexOf(store.stage));
   const labels = ['overlay.chain.question', 'overlay.chain.hint', 'overlay.chain.my'] as const;
   let body: HTMLDivElement | undefined = $state();
-
-  // Keep the newest text visible while streaming (fixed-size area, no scrollbar).
-  $effect(() => {
-    store.answer;
-    if (body) body.scrollTop = body.scrollHeight;
-  });
+  let more = $state(false);
+  // Follows the stream; the person can scroll up (hold ⌃ / ⌘⇧I) and it then stays put until they scroll back to the end.
+  const opts = { idleMs: Infinity, onState: (s: { overflow: boolean; atEnd: boolean }) => (more = s.overflow && !s.atEnd) };
 </script>
 
 <div class="ans" data-blk>
@@ -34,15 +32,18 @@
     {/each}
     <b class="mdl lbl">{store.model}</b>
   </div>
-  <div class="body" bind:this={body}>
-    {#if store.answerError}
-      <span class="err">{ot(errKey, lang)}</span>
-      {#if store.errorCode === 'api_key_missing'}<button class="lnk" onclick={() => source?.openSettings?.()}>{ot('overlay.answer.openSettings', lang)}</button>{/if}
-    {:else if !store.hasAnswered}
-      <span class="empty">{ot('overlay.answer.empty', lang, { key: store.keys.ask })}</span>
-    {:else}
-      {#each parts as p, i (i)}{#if p.bold}<b>{p.text}</b>{:else}{p.text}{/if}{/each}{#if store.streaming}<span class="caret"></span>{/if}
-    {/if}
+  <div class="bodywrap">
+    <div class="body" bind:this={body} use:follow={opts} data-testid="ans-body">
+      {#if store.answerError}
+        <span class="err">{ot(errKey, lang)}</span>
+        {#if store.errorCode === 'api_key_missing'}<button class="lnk" onclick={() => source?.openSettings?.()}>{ot('overlay.answer.openSettings', lang)}</button>{/if}
+      {:else if !store.hasAnswered}
+        <span class="empty">{ot('overlay.answer.empty', lang, { key: store.keys.ask })}</span>
+      {:else}
+        {#each parts as p, i (i)}{#if p.bold}<b>{p.text}</b>{:else}{p.text}{/if}{/each}{#if store.streaming}<span class="caret"></span>{/if}
+      {/if}
+    </div>
+    {#if more}<button class="more" tabindex="-1" data-testid="ans-more" onwheel={(e) => body?.scrollBy(0, e.deltaY)} onclick={() => body?.dispatchEvent(new Event('lowk-jump'))}>{ot('overlay.more.ans', lang)}</button>{/if}
   </div>
   {#if store.sources.length || store.withheld}
     <div class="srcs">

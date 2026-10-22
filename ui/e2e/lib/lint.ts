@@ -98,7 +98,8 @@ export function lintInPage(opts: LintOpts): Issue[] {
       const ar = a.getBoundingClientRect();
       const acs = getComputedStyle(a);
       const sx = acs.overflowX === 'auto' || acs.overflowX === 'scroll';
-      const sy = acs.overflowY === 'auto' || acs.overflowY === 'scroll';
+      // `data-follow`: a viewport that follows its newest text by script (overlay subtitles / answer; wheel-scrollable when clickable)
+      const sy = acs.overflowY === 'auto' || acs.overflowY === 'scroll' || a.hasAttribute('data-follow');
       if (!xScrolls && !sx && (tr.right > ar.right + 1 || tr.left < ar.left - 1) && cs.textOverflow !== 'ellipsis') clippedBy ??= name(a) + ' (x)';
       if (!yScrolls && !sy && (tr.bottom > ar.bottom + 1 || tr.top < ar.top - 1)) clippedBy ??= name(a) + ' (y)';
       if (sx) xScrolls = true;

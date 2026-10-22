@@ -17,7 +17,10 @@
   store.isMac = /mac/i.test(navigator.platform);
   const source = new MockSource({ autoplay: q.get('still') !== '1', duplicate: q.get('dup') === '1' });
 
-  let bg = $state<'dark' | 'light' | 'color' | 'live' | 'split'>((q.get('bg') as 'dark') ?? 'dark');
+  // bg=swatch: the colour-base spec (e2e/overlay-colors.spec.ts) injects `window.__swatch = { tone, color }`:
+  // a real `overlay://tone` payload (with grid) from docs/design/overlay-color-swatches.json over a flat backdrop.
+  const sw = (window as unknown as { __swatch?: { tone: ToneEvent; color: string } }).__swatch;
+  let bg = $state<'dark' | 'light' | 'color' | 'live' | 'split' | 'swatch'>((q.get('bg') as 'dark') ?? 'dark');
   store.transparency = Number(q.get('t') ?? 60);
   store.lang = q.get('lang') === 'en' ? 'en' : 'ru';
   let view = $state<'overlay' | 'pill'>(q.get('view') === 'pill' ? 'pill' : 'overlay');
@@ -29,12 +32,13 @@
   let priorMode: OverlayMode = 'passive';
   let liveIdx = 0;
 
-  const kind = $derived<ToneKind>(bg === 'live' ? (['dark', 'light', 'color'] as const)[liveIdx % 3]! : bg === 'split' ? 'dark' : bg);
+  const kind = $derived<ToneKind>(bg === 'swatch' ? (sw?.tone.tone ?? 'dark') : bg === 'live' ? (['dark', 'light', 'color'] as const)[liveIdx % 3]! : bg === 'split' ? 'dark' : bg);
   const toneOf = (k: ToneKind): Tone => ({ tone: k, rgb: PRESETS[k].rgb, fg: PRESETS[k].fg, inv: PRESETS[k].inv, int: PRESETS[k].int, mv: PRESETS[k].mv, luma: null, busy: null });
   // Same payload shape as the real `overlay://tone` event, including the per-region grid (F5).
   // `split` = dark code on the left, light document on the right, bright slide strip at the bottom.
   // grid=0 drops the grid to exercise the global-tone fallback.
   const toneEvent = $derived.by<ToneEvent>(() => {
+    if (bg === 'swatch' && sw) return sw.tone;
     const t = toneOf(kind);
     if (bg !== 'split' || q.get('grid') === '0') return t;
     const cells = Array.from({ length: 12 }, (_, i) => toneOf(Math.floor(i / 4) === 2 ? 'color' : i % 4 < 2 ? 'dark' : 'light'));
@@ -65,6 +69,8 @@
   }
 
   onMount(() => {
+    // QA hook (dev stage only): the Playwright specs drive the store with long synthetic calls / answers.
+    if (q.get('expose') === '1') (window as unknown as { __ovStore: OverlayStore }).__ovStore = store;
     source.start(store);
     if (q.get('still') === '1') preload();
     if (view === 'pill') store.phase = 'idle';
@@ -126,8 +132,10 @@
 
 <svelte:window onkeydown={onKeyDown} onkeyup={onKeyUp} onpointermove={onMove} onpointerdown={onDown} onpointerup={() => (dragging = false)} />
 
-<div class="stage bg-{bg === 'live' ? kind : bg}" class:bare>
-  {#if bg === 'split'}
+<div class="stage bg-{bg === 'live' ? kind : bg}" class:bare style:background={bg === 'swatch' ? sw?.color : undefined}>
+  {#if bg === 'swatch'}
+    <!-- flat backdrop -->
+  {:else if bg === 'split'}
     <div class="splitbg"></div>
   {:else if bg === 'dark' || (bg === 'live' && kind === 'dark')}
     <pre class="code">// Считаем EBITDA margin по сегментам

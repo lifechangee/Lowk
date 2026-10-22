@@ -110,7 +110,7 @@ async function stageLive(o = {}) {
     const st0 = JSON.parse(await a.ev('main', `JSON.stringify(await window.__TAURI_INTERNALS__.invoke('session_state'))`));
     add({ name: P + 'record bind starts a REAL call (not the demo) with the file sources', ok: st0.phase === 'recording' && st0.demo === false, detail: JSON.stringify(st0) });
 
-    const probe = `(()=>{const q=s=>document.querySelector(s);const sub=q('.sub .txt');return {sub:sub?sub.innerText:null,caret:!!q('.sub .caret'),my:(q('.my .tx.ph')?'':((q('.my .tx')||{}).innerText||'')),ans:(q('.ans .body')||{}).innerText||'',wait:(q('.sub .wait')||{}).innerText||null}})()`;
+    const probe = `(()=>{const q=s=>document.querySelector(s);const sub=[...document.querySelectorAll('.sub .txt')].pop();return {sub:sub?sub.innerText:null,caret:!!q('.sub .caret'),my:(q('.my .tx.ph')?'':((q('.my .tx')||{}).innerText||'')),ans:(q('.ans .body')||{}).innerText||'',wait:(q('.sub .wait')||{}).innerText||null}})()`;
     const samples = [];
     let firstSub = null, askAt = null, ask1 = null, ask2 = null, shots = [];
     let phase = 'pre';
@@ -290,7 +290,7 @@ async function stageInstall() {
 
 /** Waits for the first overlay subtitle; returns ms since `t0` (null on timeout). Also records the loading text. */
 async function watchStart(a, t0, maxMs) {
-  const probe = `(()=>{const q=s=>document.querySelector(s);const l=q('[data-testid=stt-loading]');const sub=q('.sub .txt');const w=q('.sub .wait');return {loading:l?l.innerText:null,sub:sub?sub.innerText:null,wait:w?w.innerText:null}})()`;
+  const probe = `(()=>{const q=s=>document.querySelector(s);const l=q('[data-testid=stt-loading]');const sub=[...document.querySelectorAll('.sub .txt')].pop();const w=q('.sub .wait');return {loading:l?l.innerText:null,sub:sub?sub.innerText:null,wait:w?w.innerText:null}})()`;
   const seen = { loadingAt: null, loadingText: null, subAt: null, loadingAfterSub: false, mainLoading: null };
   while (Date.now() - t0 < maxMs) {
     const s = await a.ev('overlay', probe).catch(() => null);

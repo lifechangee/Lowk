@@ -11,9 +11,13 @@ export type LlmIn = LlmEvent & { seq?: number };
 export interface SubLine {
   stream: 'me' | 'system';
   utt: number;
+  rev: number;
   text: string;
   partial: boolean;
 }
+
+/** How many subtitle lines the overlay keeps (the scrollable history; older ones are dropped). */
+export const MAX_SUB_LINES = 60;
 
 /** Which link of the Question -> AI hint -> My answer chain is active. */
 export type ChainStage = 'question' | 'hint' | 'my';
@@ -59,15 +63,15 @@ export class OverlayStore {
   templateId = $state('brief');
   menuOpen = $state(false);
 
-  sub = $state<SubLine | null>(null);
+  /** Subtitle history, oldest first: finals plus the line being spoken. The newest line is always the last. */
+  lines = $state<SubLine[]>([]);
+  sub = $derived<SubLine | null>(this.lines.length ? this.lines[this.lines.length - 1]! : null);
   /** Engine failure of a stream (`stt://error`); cleared by the next transcript event. */
   sttError = $state<{ recoverable: boolean } | null>(null);
   /** The local speech model is still loading (`stt://loading`); audio is buffered and transcribed once it is up. */
   sttLoading = $state(false);
   /** The captured app's audio is gone and could not be re-acquired (`audio://notice`); cleared when it returns. */
   audioLost = $state(false);
-  /** Highest utterance id seen per stream: a lower one is a background correction of the past. */
-  #maxUtt: Record<string, number> = {};
   answer = $state('');
   streaming = $state(false);
   answerError = $state(false);
@@ -105,10 +109,28 @@ export class OverlayStore {
     const stream = e.stream;
     const partial = e.kind === 'partial';
     this.sttError = null;
-    // A Whisper correction of an older utterance must not replace the line being spoken now.
-    if (e.utt < (this.#maxUtt[stream] ?? 0)) return;
-    this.#maxUtt[stream] = e.utt;
-    this.sub = { stream, utt: e.utt, text: e.text, partial };
+    // A revision of a line we already show (partial growth, the final, a Whisper correction) updates it IN PLACE: a
+    // correction of an older utterance never replaces the line being spoken now. An utterance id we have not seen
+    // is always a NEW line, even if its number is lower than before (engine restart / switch, ids start over):
+    // dropping it by id is what froze the subtitles for good.
+    let i = -1;
+    for (let k = this.lines.length - 1; k >= 0; k--) {
+      const l = this.lines[k]!;
+      if (l.stream === stream && l.utt === e.utt) {
+        i = k;
+        break;
+      }
+    }
+    if (i >= 0) {
+      const cur = this.lines[i]!;
+      if (e.rev < cur.rev || (partial && !cur.partial)) return; // stale revision
+      this.lines[i] = { stream, utt: e.utt, rev: e.rev, text: e.text, partial };
+    } else {
+      // A newer utterance of the same stream means the earlier unfinished one is over (its final may never come).
+      for (const l of this.lines) if (l.stream === stream && l.partial) l.partial = false;
+      this.lines.push({ stream, utt: e.utt, rev: e.rev, text: e.text, partial });
+      if (this.lines.length > MAX_SUB_LINES) this.lines.splice(0, this.lines.length - MAX_SUB_LINES);
+    }
     if (!partial) {
       if (stream === 'system' && this.stage !== 'hint') this.stage = 'question';
       if (stream === 'me' && this.armed && !this.serverMyAnswer) {
@@ -197,9 +219,8 @@ export class OverlayStore {
   }
 
   reset(): void {
-    this.sub = null;
+    this.lines = [];
     this.sttError = null;
-    this.#maxUtt = {};
     this.answer = '';
     this.streaming = false;
     this.answerError = false;

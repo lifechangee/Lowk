@@ -61,6 +61,8 @@ export const overlay = {
   'overlay.audioLost': 'Звук приложения пропал. Ищу снова…',
   'overlay.sttFailed': 'Распознавание остановилось. Проверьте Настройки > Провайдеры.',
   'overlay.waiting': 'Слушаю…',
+  'overlay.more.sub': 'новое ↓',
+  'overlay.more.ans': 'ещё ↓',
   'overlay.answer.empty': 'Нажмите {key}, чтобы спросить ИИ',
   'overlay.answer.error': 'Не удалось получить ответ',
   'overlay.answer.noKey': 'Не задан ключ OpenRouter.',

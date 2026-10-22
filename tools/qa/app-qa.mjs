@@ -361,6 +361,23 @@ try {
   const w = JSON.parse(await cmd('win main'));
   const hash = await ev('main', 'location.hash').catch(() => '?');
   add({ name: 'F8 overlay stop button ends the recording and opens main on library home (real app)', ok: clicked === true && w.exists && w.visible && (hash === '#/' || hash === ''), detail: `clicked=${clicked} main visible=${w.visible} hash=${hash}` });
+
+  // O6 / O7: a long call replayed through the real event bus (accelerated: one utterance per ~4 s of call time,
+  // 45 = 3 min, 150 = 10 min). The newest line must be visible inside the subtitle viewport, ids restart at 80.
+  await cmd('overlay-show');
+  await sleep(800);
+  const subVisible = (last) => ev('overlay', `(()=>{const h=document.querySelector('.sub .hist');if(!h)return {err:'no hist'};const l=[...document.querySelectorAll('.sub .ln')].pop();const hb=h.getBoundingClientRect(),lb=l.getBoundingClientRect();return {text:l.innerText,bottom:lb.bottom,histBottom:hb.bottom,histTop:hb.top,n:document.querySelectorAll('.sub .ln').length,subH:document.querySelector('.sub').getBoundingClientRect().height}})()`).then((r) => ({ ...r, ok: r.text?.includes(last.slice(-30)) && r.bottom <= r.histBottom + 1.5 && r.bottom > r.histTop + 4 && r.subH === 56 && r.n <= 60 }));
+  const last3 = await cmd('stt-replay 0 45');
+  await sleep(300);
+  const v3 = await subVisible(last3);
+  const last10 = await cmd('stt-replay 45 150');
+  await sleep(300);
+  const v10 = await subVisible(last10);
+  add({ name: 'O6 subtitles: the newest final line is visible after 3 and after 10 minutes of a replayed call (real WKWebView)', ok: v3.ok === true && v10.ok === true && /Реплика 150/.test(v10.text ?? ''), detail: `3min ${JSON.stringify(v3)} | 10min ${JSON.stringify(v10)}` });
+  await cmd('llm-replay 36');
+  await sleep(500);
+  const a = await ev('overlay', `(()=>{const b=document.querySelector('.ans .body');const o=document.querySelector('.ov').getBoundingClientRect(),n=document.querySelector('.ans').getBoundingClientRect();return {max:b.scrollHeight-b.clientHeight,top:b.scrollTop,text:b.innerText.includes('Пункт 36'),inside:n.bottom<=o.bottom+1}})()`);
+  add({ name: 'O7 a long streamed answer follows the stream inside the strict bounds (real WKWebView)', ok: a.max > 200 && a.top >= a.max - 4 && a.text && a.inside, detail: JSON.stringify(a) });
 } catch (e) {
   add({ name: 'real-app QA run', ok: false, detail: String(e.message ?? e) });
 } finally {

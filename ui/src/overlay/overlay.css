@@ -198,7 +198,8 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
   padding: 8px 16px; height: 56px; flex: none; font-size: calc(var(--ov-fs, 13px) + 1px); line-height: 20px;
   border-bottom: 1px solid var(--ln); overflow: hidden; display: flex; align-items: center;
 }
-.sub .txt { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; min-width: 0; }
+.sub .hist { max-height: 100%; width: 100%; min-width: 0; overflow: hidden; overscroll-behavior: contain; }
+.sub .txt { overflow-wrap: anywhere; min-width: 0; }
 .sub .wait { color: var(--tx2); }
 .spk {
   font-size: 10px; line-height: 16px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-right: 8px;
@@ -215,9 +216,10 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 .chain span { opacity: 0.6; white-space: nowrap; }
 .chain span.done { opacity: 0.85; }
 .chain span.on { opacity: 1; font-weight: 700; color: var(--tx); }
-.chain em { font-style: normal; opacity: 0.8; flex: none; }
+.chain em { font-style: normal; flex: none; }
 .chain .mdl { margin-left: auto; color: var(--tx); opacity: 0.85; font-weight: 400; min-width: 0; flex: 0 1 auto; }
-.ans .body { flex: 1 1 0; min-height: 0; overflow: hidden; overflow-wrap: anywhere; position: relative; }
+.ans .bodywrap { flex: 1 1 0; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.ans .body { flex: 1 1 0; min-height: 0; overflow: hidden; overflow-wrap: anywhere; position: relative; overscroll-behavior: contain; }
 .ans .body b { font-weight: 650; }
 .ans .empty { color: var(--tx2); }
 .ans .err { color: var(--tx); font-style: italic; }
@@ -275,3 +277,15 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 .ans .srcs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; max-height: 3.4em; overflow: hidden; }
 .ans .srcs .chip { max-width: 100%; padding: 1px 7px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--tx) 25%, transparent); background: transparent; color: var(--tx2); font: inherit; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; pointer-events: auto; }
 .ans .srcs .chip.held { cursor: default; font-style: italic; }
+
+/* ---- scrolling (O6/O7): the text areas follow the newest text on their own; they scroll by wheel / trackpad only while
+   the overlay is clickable (hold ⌃ = hover, ⌘⇧I = interactive). «ещё ↓» shows while the view is not at the end. ---- */
+.ov.interactive .sub .hist, .ov.hover .sub .hist, .ov.interactive .ans .body, .ov.hover .ans .body { overflow-y: auto; scrollbar-width: thin; }
+.ov .hist::-webkit-scrollbar, .ov .ans .body::-webkit-scrollbar { width: 4px; }
+.ov .hist::-webkit-scrollbar-thumb, .ov .ans .body::-webkit-scrollbar-thumb { background: var(--chipbd); border-radius: 2px; }
+.more {
+  all: unset; box-sizing: border-box; position: absolute; right: 8px; bottom: 4px; z-index: 5; padding: 0 8px; border-radius: 999px;
+  font: 600 11px/16px var(--font); color: var(--tx); background: var(--menu); border: 1px solid var(--chipbd); text-shadow: none; pointer-events: none; white-space: nowrap;
+}
+.ov.interactive .more, .ov.hover .more { pointer-events: auto; cursor: pointer; }
+.sub .more { right: 12px; bottom: 2px; }
