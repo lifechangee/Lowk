@@ -87,6 +87,43 @@ check(!bin.includes('X-Lowk-Qa-Token'), 'no QA control channel in the shipped bi
 // S4: the shipped binary contains WebRTC AEC3 (macOS bundles are built with the `aec` feature).
 check(bin.includes('EchoCanceller3') || bin.includes('echo_canceller3'), 'S4: WebRTC AEC3 is linked into the bundle');
 
+// ---- 2b. M2: the embedder sidecar and the document / search / Ask pipeline, run by the BUNDLE'S OWN binary
+// (`lowk --selfcheck-m2`, headless, no window, no sound): ingest PDF + XLSX (+ DOCX, PPTX, CSV, MD, scanned PDF via
+// Apple Vision), search finds them, the index rebuilds from the vault, semantic search with the bundled
+// llama-server sidecar (when the pinned EmbeddingGemma file is on this Mac), local-only folders never reach the
+// cloud (LLM, embeddings, retrieval), the Ask flow with sources and the custom template against a stub server,
+// summary + tags, folder export/import, and one real OpenRouter ask when a key is in ~/.lowk-test-keys.
+const embedWorker = join(APP, 'Contents/MacOS/lowk-embed-worker');
+check(existsSync(embedWorker) && run('/usr/bin/codesign', ['--verify', embedWorker]).status === 0, 'embedder sidecar is inside the bundle and signed');
+{
+  const mb = (f) => (statSync(f).size / 1048576).toFixed(1);
+  const du = run('du', ['-sk', APP]).stdout.split('\t')[0];
+  rec('INFO', `bundle size ${(Number(du) / 1024).toFixed(0)} MB`, `lowk ${mb(exe)} MB, stt worker ${mb(worker)} MB, embed worker ${existsSync(embedWorker) ? mb(embedWorker) : '-'} MB`);
+}
+{
+  const PINNED_SHA = '2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135';
+  const modelCandidates = [process.env.LOWK_EMBED_MODEL, join(homedir(), 'Library/Application Support/DigUp/Models/embeddinggemma-2-Q8_0.gguf')].filter(Boolean);
+  const model = modelCandidates.find((f) => existsSync(f) && run('shasum', ['-a', '256', f]).stdout.startsWith(PINNED_SHA));
+  let liveKey = process.env.OPENROUTER_API_KEY;
+  if (!liveKey && existsSync(join(homedir(), '.lowk-test-keys'))) liveKey = /^(?:export )?OPENROUTER_API_KEY=(.*)$/m.exec(readFileSync(join(homedir(), '.lowk-test-keys'), 'utf8'))?.[1]?.trim().replace(/^["']|["']$/g, '');
+  const sh = mkdtempSync(join(tmpdir(), 'lowk-selfcheck-home-'));
+  const args = ['--selfcheck-m2', '--fixtures', join(root, 'fixtures/ingest'), '--ocr', '--require-worker'];
+  if (model) args.push('--model', model);
+  if (liveKey && !has('--no-live')) args.push('--live');
+  const r = spawnSync(exe, args, { encoding: 'utf8', timeout: 900000, env: { ...process.env, HOME: sh, LOWK_DATA_DIR: join(sh, 'data'), LOWK_DEV_KEYS: '1', OPENROUTER_API_KEY: liveKey ?? '' } });
+  const out = (r.stdout ?? '') + (r.stderr ?? '');
+  const lines = [...out.matchAll(/^CHECK (PASS|FAIL|SKIP) (.*?) :: (.*)$/gm)];
+  for (const [, v, name, detail] of lines) {
+    const d = detail.replace(liveKey ?? '\u0000', '<key>').slice(0, 160);
+    if (v === 'PASS') pass(`M2 ${name}`, d);
+    else if (v === 'FAIL') fail(`M2 ${name}`, d);
+    else rec('SKIP', `M2 ${name}`, d);
+  }
+  check(lines.length >= 25 && /^SELFCHECK \d+ checks, 0 failed/m.test(out) && r.status === 0, 'M2 self-check of the bundle ran to the end', `exit ${r.status}, ${lines.length} checks`);
+  if (!model) grant('M2 semantic search with the bundled sidecar', 'no pinned EmbeddingGemma file on this Mac (set LOWK_EMBED_MODEL or install the model from the app)');
+  rmSync(sh, { recursive: true, force: true });
+}
+
 if (has('--no-run')) { summary(); restore(); process.exit(results.some((r) => r.verdict === 'FAIL') ? 1 : 0); }
 
 // ---- 3. launch the bundle (clean profile: empty data dir AND empty HOME, so nothing from the dev machine leaks in)
