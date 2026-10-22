@@ -40,6 +40,13 @@ impl Lang {
             },
         }
     }
+    /// How the summary refers to the call owner (the transcript's internal `Me`) and the other side.
+    fn speakers(self) -> (&'static str, &'static str) {
+        match self {
+            Lang::Ru => ("«я» (от первого лица)", "«собеседник»"),
+            Lang::En => ("\"I\" (first person)", "\"the other side\""),
+        }
+    }
     fn name(self) -> &'static str {
         match self {
             Lang::Ru => "Russian",
@@ -90,14 +97,18 @@ Use only what was said; do not invent facts, names, numbers or tasks. Be terse: 
 
 fn lang_rules(lang: Lang) -> String {
     let h = lang.headings();
+    let (owner, other) = lang.speakers();
     format!(
         "Write the summary entirely in {lang} (keep product names and English terms as spoken). \
+The transcript labels are internal: never write \"Me\" or \"Other\" in the summary; refer to the call owner as {owner} and to the other side as {other} (or by name when the transcript gives one). \
 Output ONLY this Markdown, with exactly these four headings in this order and no other text:\n\
 ## {kp}\n- 3 to 5 bullets: the main points\n\
 ## {de}\n- one bullet per decision made; if none write \"- {none}\"\n\
 ## {ta}\n- one bullet per task as \"**<who>:** <what>\" (who = person or team; if the owner is not clear write the task without bold); if none write \"- {none}\"\n\
 ## {qu}\n- one bullet per question put to Me, as \"**<question>** → {ma}: <how Me answered>\"; if Me did not answer write \"{ma}: —\"; if none write \"- {none}\"",
         lang = lang.name(),
+        owner = owner,
+        other = other,
         kp = h.key_points,
         de = h.decisions,
         ta = h.tasks,
@@ -461,6 +472,10 @@ mod tests {
         let p = user_prompt(&i, "transcript", "x");
         assert!(p.contains("(no answer recorded)") && p.contains("<qa>"));
         assert!(lang_rules(Lang::Ru).contains("Вопросы ко мне"));
+        // M2-S5: the internal speaker id must not leak into the summary text
+        assert!(lang_rules(Lang::Ru).contains("never write \"Me\""));
+        assert!(lang_rules(Lang::Ru).contains("«я»"));
+        assert!(lang_rules(Lang::En).contains("\"I\" (first person)"));
         assert!(lang_rules(Lang::Ru).contains("Мой ответ"));
     }
 }
