@@ -41,6 +41,7 @@ pub fn secret_set(st: State<'_, Shared>, provider_id: String, value: String) -> 
         if let Some(svc) = st.m2.read().clone() {
             // a new key: pin the fastest provider, and let the cloud embedder (if chosen) start
             svc.spawn_provider_probe();
+            st.spawn_ask_warmup(None);
             if st.settings.get().embedder.mode == EmbedderMode::Cloud {
                 svc.apply_embedder();
             }

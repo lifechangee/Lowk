@@ -147,6 +147,8 @@ pub trait HintGenerator: Send + Sync {
     fn model(&self) -> String {
         "stub".into()
     }
+    /// Opens the provider connection ahead of the first Ask. Must send no user data.
+    fn warm(&self, _folder: &FolderRef) {}
 }
 
 /// Streams a fixed answer word by word.

@@ -1,0 +1,12 @@
+# Generated legal corpus (RU/EN). file<TAB>expect<TAB>pages<TAB>key phrases;;...<TAB>flags. Truth texts: truth/<file>.txt
+supply-contract-ru.pdf	ok	3	ДОГОВОР ПОСТАВКИ;;2 480 000;;включая НДС;;Арбитражном суде города Москвы	
+nda-en.pdf	ok	2	MUTUAL NON-DISCLOSURE AGREEMENT;;Confidential Information means;;laws of England and Wales	
+sla-bilingual.pdf	ok	1	Service Level Agreement;;99.9;;Компенсация	
+scan-contract-ru.pdf	ok	2	ДОГОВОР ПОСТАВКИ;;Поставщик обязуется	ocr
+scan-nda-en.pdf	ok	1	NON-DISCLOSURE AGREEMENT;;Confidential Information	ocr
+lease-ru.docx	ok	-	Договор аренды нежилого помещения;;Невский проспект;;290 000	
+services-en.docx	ok	-	Master Services Agreement;;Statement of Work;;12,500	
+compliance-training-ru.pptx	ok	3	комплаенс-службу;;Персональные данные;;горячую линию доверия	
+board-update-en.pptx	ok	2	Quarterly Board Update;;Settlement reserve unchanged;;audit committee feedback	
+payments-ru.xlsx	ok	2	Балтийская логистика;;1250000;;Всего оплачено	
+invoices-en.xlsx	ok	1	Orion Legal LLP;;INV-1057;;Overdue	

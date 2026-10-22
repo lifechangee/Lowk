@@ -261,6 +261,22 @@ impl OpenAiClient {
         res.map_err(|e| self.net_err(e))
     }
 
+    /// Opens (and pools) the TLS connection to the provider with one authenticated GET that
+    /// carries no user data, so the first real request skips DNS + TCP + TLS (~0.3-1 s cold).
+    /// Errors are returned for logging only; a failed warm-up changes nothing.
+    pub fn warm(&self) -> Result<Duration> {
+        let t0 = Instant::now();
+        let path = match self.cfg.kind {
+            ProviderKind::OpenRouter => format!("models/{}/endpoints", self.cfg.model),
+            _ => "models".to_string(),
+        };
+        let url = self.cfg.endpoint(&path);
+        let mut resp = self.request(true, &url, None, &ChatOptions::default())?;
+        // drain the body so the connection returns to the pool
+        let _ = resp.body_mut().read_to_vec();
+        Ok(t0.elapsed())
+    }
+
     /// GET a JSON document from the API (used by the latency probe).
     pub(crate) fn get_json(&self, path: &str) -> Result<Value> {
         let url = self.cfg.endpoint(path);

@@ -636,6 +636,18 @@ impl SearchIndex for Index {
 }
 
 impl Index {
+    /// Starts the local query embedder (worker process, model load) with a constant string, so the
+    /// first Ask does not pay for it. Never touches a cloud embedder; sends no user data.
+    pub fn warm_query_embedder(&self) {
+        let Some(emb) = self.inner.embedder.read().clone() else { return };
+        if emb.is_cloud() {
+            return;
+        }
+        let t0 = std::time::Instant::now();
+        let r = emb.embed_query(&emb.format_query("warm"));
+        tracing::info!(ms = t0.elapsed().as_millis() as u64, ok = r.is_ok(), "query embedder warm");
+    }
+
     fn reload_vectors(&self) -> Result<()> {
         let emb = self.inner.embedder.read().clone();
         let Some(emb) = emb else { return Ok(()) };

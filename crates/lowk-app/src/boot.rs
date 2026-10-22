@@ -196,6 +196,7 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         if let Err(e) = state.open_vault(None) {
             tracing::warn!(%e, "vault not opened at startup");
         }
+        state.spawn_ask_warmup(None);
     }
 
     // ---- initial visibility, then the main window ----

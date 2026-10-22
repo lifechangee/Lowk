@@ -1,0 +1,16 @@
+Vendor
+Invoice
+Amount USD
+Status
+Orion Legal LLP
+INV-1041
+18250
+Paid
+Delta Notary
+INV-1057
+640
+Overdue
+Kestrel Audit
+INV-1063
+9800
+Pending

@@ -352,3 +352,33 @@ fn chat_client_trait_stream_works_and_fake_llm_default_stream_ex() {
         .unwrap();
     assert_eq!(o.text, "one two");
 }
+
+#[test]
+fn warm_up_sends_only_an_authenticated_get_without_user_data() {
+    let s = MockServer::start(|r, _| {
+        if r.path.ends_with("/chat/completions") {
+            Reply::answer(&["ok"])
+        } else {
+            Reply::json(200, r#"{"data":{"endpoints":[]}}"#)
+        }
+    });
+    let client = OpenAiClient::new(cfg(&s));
+    client.warm().unwrap();
+    let reqs = s.requests();
+    assert_eq!(reqs.len(), 1);
+    assert_eq!(reqs[0].method, "GET");
+    assert!(reqs[0].path.contains("/models/") && reqs[0].path.ends_with("/endpoints"));
+    assert!(reqs[0].body.is_empty(), "no body, so no user data");
+    assert_eq!(reqs[0].header("authorization"), Some(&format!("Bearer {KEY}")[..]));
+    // the real request after the warm-up works on the same client
+    let (r, deltas) = run(&client, &ledger());
+    assert_eq!(r.unwrap().text, "ok");
+    assert_eq!(deltas, ["ok"]);
+    // a dead host is an error to log, never a panic
+    let dead = MockServer::scripted(vec![Reply::json(200, "{}")]);
+    let url = dead.base_url();
+    drop(dead);
+    let mut c = cfg(&s);
+    c.base_url = url;
+    assert!(OpenAiClient::new(c).warm().is_err());
+}

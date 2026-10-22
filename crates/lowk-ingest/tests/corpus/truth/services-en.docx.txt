@@ -1,0 +1,13 @@
+Master Services Agreement
+The Supplier shall provide the consulting services described in each Statement of Work with due skill and care.
+Invoices are payable within thirty days of receipt. Late payments bear interest at four percent per annum.
+Either party may terminate for convenience on sixty days notice.
+Liability is capped at the fees paid in the prior twelve months.
+Deliverable
+Fee (USD)
+Discovery workshop
+12,500
+Implementation
+48,000
+Support retainer
+3,200

@@ -1,0 +1,7 @@
+MUTUAL NON-DISCLOSURE AGREEMENT
+This Agreement is made on 2 April 2026 between Harbor Analytics Ltd, a company registered in England (the Discloser), and Lumen Robotics Inc, a Delaware corporation (the Recipient).
+1. Confidential Information means any non-public technical, financial or commercial information disclosed in writing or orally, including source code, pricing models and customer lists.
+2. Obligations. The Recipient shall keep the Confidential Information strictly confidential, use it solely to evaluate the proposed partnership, and protect it with at least reasonable care.
+3. Exclusions. The obligations do not apply to information that is public through no fault of the Recipient, was already known to it, or is independently developed.
+4. Term. This Agreement remains in force for three years. The duty of confidentiality survives termination for a further period of five years.
+5. Governing law. This Agreement is governed by the laws of England and Wales, and the courts of London have exclusive jurisdiction. Signed by Mary Cooper and Daniel Reyes.

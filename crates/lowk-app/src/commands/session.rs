@@ -74,7 +74,10 @@ fn start(st: &AppState, o: StartOpts) -> Result<SessionState> {
     }
     st.heal_engine_setting();
     let o = effective(st, o)?;
+    let folder = o.folder.clone();
     st.session.start(o)?;
+    // the first Ask comes within seconds: connect the LLM provider and wake the embedder now
+    st.spawn_ask_warmup(folder);
     Ok(st.session.state())
 }
 

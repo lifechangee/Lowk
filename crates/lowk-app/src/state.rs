@@ -133,6 +133,23 @@ impl AppState {
             .ok_or_else(|| AppError::new(ErrorCode::VaultNotOpen))
     }
 
+    /// Pre-connects what the first Ask needs, in the background: the LLM provider connection (TLS)
+    /// and the local query embedder. Sends no user data. Called at app start, when a recording
+    /// starts and when a new key is saved.
+    pub fn spawn_ask_warmup(&self, folder: Option<FolderRef>) {
+        if std::env::var_os("LOWK_NO_WARMUP").is_some() {
+            return;
+        }
+        let session = self.session.clone();
+        let idx = self.m2.read().as_ref().map(|s| s.index.clone());
+        let _ = std::thread::Builder::new().name("lowk-ask-warm".into()).spawn(move || {
+            session.warm_hints(&folder.unwrap_or(FolderRef::Unsorted));
+            if let Some(ix) = idx {
+                ix.warm_query_embedder();
+            }
+        });
+    }
+
     /// The services of the open vault (documents, index, summary); opens the configured vault on first use.
     pub fn svc(&self) -> Result<Arc<crate::m2::Services>> {
         if let Some(s) = self.m2.read().clone() {

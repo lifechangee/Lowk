@@ -236,6 +236,11 @@ impl Session {
         rx
     }
 
+    /// Pre-connects the LLM provider (TLS) for Asks in `folder`. Blocking; call from a thread.
+    pub fn warm_hints(&self, folder: &FolderRef) {
+        self.inner.deps.hints.warm(folder);
+    }
+
     pub fn state(&self) -> SessionState {
         self.inner.core().state.clone()
     }

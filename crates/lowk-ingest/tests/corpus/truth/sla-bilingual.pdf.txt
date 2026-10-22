@@ -1,0 +1,4 @@
+Соглашение об уровне услуг / Service Level Agreement (SLA)
+Исполнитель (Provider) обеспечивает доступность сервиса не менее 99.9 процента в месяц. The Provider guarantees monthly availability of at least 99.9 percent.
+Инциденты уровня P1 принимаются в работу в течение 30 минут. Priority P1 incidents are acknowledged within 30 minutes and resolved within four hours.
+Компенсация (Service credit): 10 процентов ежемесячной платы за каждые 0,1 процента ниже порога. Credits are the sole remedy for downtime.

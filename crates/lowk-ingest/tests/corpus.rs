@@ -9,6 +9,39 @@ use std::path::Path;
 #[test]
 fn corpus_matches_manifest() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/ingest");
+    check_dir(&dir);
+}
+
+/// The generated RU/EN legal corpus (tests/corpus, made by gen/make_corpus.py). Besides the manifest
+/// checks it measures extraction quality against `truth/<file>.txt`: word recall per file, printed
+/// as a table (`--nocapture`), with a floor of 0.97 for text formats and 0.85 for OCR.
+#[test]
+fn legal_corpus_extraction_quality() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/corpus");
+    check_dir(&dir);
+}
+
+fn words(s: &str) -> std::collections::HashMap<String, u32> {
+    let mut m = std::collections::HashMap::new();
+    for w in s
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.chars().count() > 1)
+    {
+        *m.entry(w.to_lowercase()).or_insert(0) += 1;
+    }
+    m
+}
+
+/// Share of the reference words (with multiplicity) found in the extraction.
+fn word_recall(truth: &str, got: &str) -> f64 {
+    let (t, g) = (words(truth), words(got));
+    let total: u32 = t.values().sum();
+    let hit: u32 = t.iter().map(|(w, n)| (*n).min(g.get(w).copied().unwrap_or(0))).sum();
+    f64::from(hit) / f64::from(total.max(1))
+}
+
+fn check_dir(dir: &Path) {
+    let mut report = vec![];
     let manifest = std::fs::read_to_string(dir.join("MANIFEST.tsv")).expect("manifest");
     let ing = Ingestor::new();
     let mut checked = 0;
@@ -43,6 +76,20 @@ fn corpus_matches_manifest() {
         let res = ing.convert(&req, &mut |_, _| {}, &|| true);
         match (expect, res) {
             ("ok", Ok(d)) => {
+                if let Ok(truth) = std::fs::read_to_string(dir.join("truth").join(format!("{file}.txt"))) {
+                    let r = word_recall(&truth, &d.md);
+                    let floor = if flags.contains("ocr") { 0.85 } else { 0.97 };
+                    report.push(format!(
+                        "{file:<32} {:<10} pages={:<4} chars={:<6} word_recall={:.1}%",
+                        d.converter,
+                        d.pages.map_or("-".into(), |p| p.to_string()),
+                        d.md.chars().count(),
+                        r * 100.0
+                    ));
+                    if r < floor {
+                        problems.push(format!("{file}: word recall {:.1}% below {:.0}%", r * 100.0, floor * 100.0));
+                    }
+                }
                 if pages != "-" && d.pages != pages.parse().ok() {
                     problems.push(format!("{file}: pages {:?}, expected {pages}", d.pages));
                 }
@@ -71,6 +118,9 @@ fn corpus_matches_manifest() {
         }
     }
     assert!(checked > 0);
+    if !report.is_empty() {
+        eprintln!("--- extraction quality ({}) ---\n{}", dir.display(), report.join("\n"));
+    }
     assert!(problems.is_empty(), "corpus problems:\n{}", problems.join("\n"));
 }
 
