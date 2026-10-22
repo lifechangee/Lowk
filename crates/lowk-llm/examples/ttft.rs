@@ -15,7 +15,10 @@ fn run(cfg: &LlmConfig, n: usize, label: &str) {
             seq: 1,
             stream: Stream::System,
             offset_s: 65,
-            text: format!("[{i}-{}] А что значит EBITDA в вашем отчёте за квартал?", Ulid::new()),
+            text: format!(
+                "[{i}-{}] А что значит EBITDA в вашем отчёте за квартал?",
+                Ulid::new()
+            ),
             is_final: true,
         };
         let t = b.build(&BuildInput {
@@ -26,17 +29,37 @@ fn run(cfg: &LlmConfig, n: usize, label: &str) {
         l.append(t.message);
         let t0 = Instant::now();
         let mut first = None;
-        let o = ChatOptions { max_tokens: Some(60), ..ChatOptions::default() };
-        let r = client.complete(&l, &o, &mut |_| { first.get_or_insert_with(|| t0.elapsed().as_millis()); }, &|| true);
+        let o = ChatOptions {
+            max_tokens: Some(60),
+            ..ChatOptions::default()
+        };
+        let r = client.complete(
+            &l,
+            &o,
+            &mut |_| {
+                first.get_or_insert_with(|| t0.elapsed().as_millis());
+            },
+            &|| true,
+        );
         match (r, first) {
             (Ok(_), Some(f)) => ms.push(f),
             (r, _) => eprintln!("{label} run {i} failed: {:?}", r.err().map(|e| e.code)),
         }
     }
     ms.sort();
-    if ms.is_empty() { println!("{label}: no samples"); return; }
+    if ms.is_empty() {
+        println!("{label}: no samples");
+        return;
+    }
     let p = |q: f32| ms[((ms.len() as f32 - 1.0) * q).round() as usize];
-    println!("{label}: n={} TTFT p50={} ms p95={} ms min={} max={}  all={ms:?}", ms.len(), p(0.5), p(0.95), ms[0], ms[ms.len() - 1]);
+    println!(
+        "{label}: n={} TTFT p50={} ms p95={} ms min={} max={}  all={ms:?}",
+        ms.len(),
+        p(0.5),
+        p(0.95),
+        ms[0],
+        ms[ms.len() - 1]
+    );
 }
 
 fn main() {
@@ -52,7 +75,14 @@ fn main() {
     let cfg = LlmConfig::for_summary(&s, Some(key.clone()));
     match probe_fastest_provider(&cfg, &s.model, &ProbeOptions::default(), &|| true) {
         Ok(r) => {
-            println!("probe: best={} samples={:?}", r.best, r.samples.iter().map(|x| (x.provider.clone(), x.ttft_ms)).collect::<Vec<_>>());
+            println!(
+                "probe: best={} samples={:?}",
+                r.best,
+                r.samples
+                    .iter()
+                    .map(|x| (x.provider.clone(), x.ttft_ms))
+                    .collect::<Vec<_>>()
+            );
             s.pinned_provider = Some(r.best);
         }
         Err(e) => println!("probe failed: {e}"),
