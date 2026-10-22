@@ -39,3 +39,9 @@ CUDA needs the CUDA toolkit on the runner and NVIDIA GPUs on the user's side, so
 - Scripts: `tools/release/stage-sidecars.sh` (builds and stages both sidecars, writes `tauri.release.conf.json`,
   generated, not committed), `tools/release/make-dmg.sh` (dmg + zip from the signed app).
 - Caches: rust-cache, pnpm store, llama.cpp build dir; a warm run is much faster than the first.
+
+## Known state of the Windows Vulkan variant
+`windows_gpu=cpu` is verified green (run 39751106683). `vulkan` got through cmake (SPIRV-Headers from vcpkg, run
+39755378234) but failed at link with LNK1181 `vulkan-1.lib`; fixed afterwards by passing
+`-L native=$VULKAN_SDK/Lib` via RUSTFLAGS in the sidecar step. That fix has NOT been verified by a run yet:
+if `vulkan` still fails, use `cpu`.
