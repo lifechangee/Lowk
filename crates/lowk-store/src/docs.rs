@@ -25,6 +25,22 @@ fn file_name(p: &Path) -> String {
         .unwrap_or_default()
 }
 
+/// Extension implied by the first bytes of a file with a missing or unknown extension.
+fn sniff_ext(p: &Path) -> Option<&'static str> {
+    let mut head = [0u8; 1024];
+    let n = fs::File::open(p).and_then(|mut f| f.read(&mut head)).ok()?;
+    let h = &head[..n];
+    if h.windows(5).any(|w| w == b"%PDF-") {
+        Some("pdf")
+    } else if h.starts_with(&[0x89, b'P', b'N', b'G']) {
+        Some("png")
+    } else if h.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        Some("jpg")
+    } else {
+        None
+    }
+}
+
 fn stem_of(name: &str) -> String {
     name.strip_suffix(".md").unwrap_or(name).to_string()
 }
@@ -264,11 +280,21 @@ impl VaultInner {
             .extension()
             .map(|e| e.to_string_lossy().into_owned())
             .unwrap_or_default();
-        let kind = DocKind::from_extension(&ext).ok_or_else(|| {
-            AppError::new(ErrorCode::DocUnsupported)
-                .with_param("ext", &ext)
-                .with_detail(format!("no converter for .{ext}"))
-        })?;
+        // the extension decides (any case); a missing or unknown one falls back to the file's magic bytes
+        let (kind, ext) = match DocKind::from_extension(&ext) {
+            Some(k) => (k, ext),
+            None => match sniff_ext(src) {
+                Some(e) => (
+                    DocKind::from_extension(e).expect("sniffed ext is known"),
+                    e.to_string(),
+                ),
+                None => {
+                    return Err(AppError::new(ErrorCode::DocUnsupported)
+                        .with_param("ext", &ext)
+                        .with_detail(format!("no converter for .{ext}")))
+                }
+            },
+        };
         let dir = self.docs_dir_of(&n.folder)?;
         fs::create_dir_all(&dir)?;
         let imported = file_name(src);
@@ -826,5 +852,23 @@ impl DocumentStore for VaultDocs {
     }
     fn restore_doc(&self, id: &DocId) -> Result<Document> {
         VaultInner::restore_doc(&self.0, id)
+    }
+}
+
+#[cfg(test)]
+mod sniff_tests {
+    use super::*;
+
+    #[test]
+    fn pdf_without_a_useful_extension_is_recognised_by_content() {
+        let d = std::env::temp_dir().join(format!("lowk-sniff-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        let p = d.join("Академ справка.download");
+        std::fs::write(&p, b"\xEF\xBB\xBF%PDF-1.4\n1 0 obj").unwrap();
+        assert_eq!(sniff_ext(&p), Some("pdf"));
+        std::fs::write(&p, b"just text").unwrap();
+        assert_eq!(sniff_ext(&p), None);
+        assert_eq!(DocKind::from_extension("PDF"), Some(DocKind::Pdf));
+        let _ = std::fs::remove_dir_all(&d);
     }
 }

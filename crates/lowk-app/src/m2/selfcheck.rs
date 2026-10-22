@@ -1027,4 +1027,46 @@ mod tests {
         assert_eq!(vault.list_docs(&f).unwrap().len(), 6);
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    /// Owner bug: a PDF with an UPPERCASE extension, a Cyrillic name and a space failed with «unknown
+    /// error». Kind comes from the extension case-insensitively and the whole path is UTF-8 safe;
+    /// every failure reaches the UI as a specific code. `LOWK_PROBE_FILE` runs the same path on a real file.
+    #[test]
+    fn uppercase_cyrillic_pdf_name_imports() {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/ingest");
+        let tmp = std::env::temp_dir().join(format!("lowk-qa-name-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let ctx = make_ctx(&tmp, Some("sk-or-x".into()), ModelStore::new(tmp.join("models")));
+        let vault = Vault::open(&tmp.join("vault")).unwrap();
+        let svc = Services::start(ctx.env.clone(), vault.clone()).unwrap();
+        let f = new_folder(&vault, "Names", true, "");
+        let src = match std::env::var("LOWK_PROBE_FILE") {
+            Ok(p) => std::path::PathBuf::from(p),
+            Err(_) => {
+                let p = tmp.join("Академ справка.PDF");
+                std::fs::copy(fixtures.join("text.pdf"), &p).unwrap();
+                p
+            }
+        };
+        let d = svc
+            .import_docs(&[NewDocument {
+                folder: f.clone(),
+                source_path: src.to_string_lossy().into_owned(),
+                title: None,
+                pin: false,
+                tags: vec![],
+                on_duplicate: Default::default(),
+            }])
+            .expect("import")
+            .remove(0);
+        assert_eq!(d.kind, DocKind::Pdf);
+        let done = wait_ready(&svc, &d.id, 120).expect("finished");
+        eprintln!(
+            "NAME-TEST status={:?} error={:?}",
+            done.status,
+            done.error.as_ref().map(|e| e.code)
+        );
+        assert_eq!(done.status, IngestStatus::Ready, "{:?}", done.error);
+    }
 }

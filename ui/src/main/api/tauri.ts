@@ -11,7 +11,14 @@ export { CommandError };
 
 type Res<T> = { status: 'ok'; data: T } | { status: 'error'; error: AppError };
 function ok<T>(r: Res<T>): T {
-  if (r.status === 'error') throw new CommandError(r.error);
+  if (r.status === 'error') {
+    // Tauri itself rejects with a plain string (command not allowed, bad arguments): keep it visible, never «unknown error»
+    if (typeof r.error === 'string') {
+      console.error('[lowk] command rejected:', r.error);
+      throw new CommandError({ code: 'unknown', params: {}, detail: r.error } as unknown as AppError);
+    }
+    throw new CommandError(r.error);
+  }
   return r.data;
 }
 

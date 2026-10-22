@@ -25,8 +25,6 @@ pub use tone::AdaptiveTone;
 use lowk_types::*;
 use parking_lot::Mutex;
 use raw_window_handle::RawWindowHandle;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -202,40 +200,36 @@ impl Stealth {
         }
     }
 
-    /// Start the sampler task: every ~2 s while the overlay is visible, plus a
-    /// debounced 150 ms re-sample after move/resize/display change. Unchanged
-    /// bitmaps are skipped. Needs the sampler to exclude our own windows.
+    /// Start the sampler task: every `tone::POLL_MS` (250 ms) while the overlay is visible and at once after a
+    /// move/resize/display change. Unchanged bitmaps are skipped once the smoothing settled. Needs the sampler to exclude our own windows.
     pub fn spawn_tone_sampler(&self, sampler: Arc<dyn RegionSampler>) -> ToneSampler {
         let stop = Arc::new(AtomicBool::new(false));
         let (stop2, ctl, tone) = (stop.clone(), self.overlay.clone(), self.tone.clone());
         std::thread::Builder::new()
             .name("lowk-tone".into())
             .spawn(move || {
-                let mut last_sample = Instant::now() - Duration::from_secs(10);
-                let mut flagged: Option<Instant> = None;
-                let mut last_hash = 0u64;
+                let mut gate = tone::ChangeGate::default();
+                let mut last_poll = Instant::now() - Duration::from_secs(10);
+                let mut flagged = false;
                 while !stop2.load(Ordering::SeqCst) {
-                    std::thread::sleep(Duration::from_millis(50));
-                    if ctl.resample.swap(false, Ordering::SeqCst) {
-                        flagged = Some(Instant::now());
-                    }
-                    let due = last_sample.elapsed() >= Duration::from_secs(2)
-                        || flagged.is_some_and(|t| t.elapsed() >= Duration::from_millis(150));
-                    if !due || !ctl.guard.is_visible(OVERLAY) {
+                    std::thread::sleep(Duration::from_millis(25));
+                    // a move / resize / display change polls right away (debounced by the 25 ms tick)
+                    flagged |= ctl.resample.swap(false, Ordering::SeqCst);
+                    if !flagged && last_poll.elapsed() < Duration::from_millis(tone::POLL_MS) {
                         continue;
                     }
-                    flagged = None;
-                    last_sample = Instant::now();
+                    if !ctl.guard.is_visible(OVERLAY) {
+                        continue;
+                    }
+                    flagged = false;
+                    last_poll = Instant::now();
                     let frame = ctl.frame();
                     let Ok(bmp) = sampler.grab_region(frame, tone::SAMPLE_W, tone::SAMPLE_H) else {
                         continue;
                     };
-                    let mut h = DefaultHasher::new();
-                    bmp.hash(&mut h);
-                    if h.finish() == last_hash {
+                    if !gate.admit(&bmp) {
                         continue;
                     }
-                    last_hash = h.finish();
                     let t = tone.state.lock().update(&bmp, tone::SAMPLE_W, tone::SAMPLE_H);
                     if let Some(t) = t {
                         (tone.cb.lock())(t);

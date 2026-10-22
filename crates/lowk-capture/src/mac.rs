@@ -13,7 +13,42 @@ fn fail(what: &str, e: impl std::fmt::Display) -> AppError {
 /// (nearest-neighbour fit), else at native size. `exclude_own` removes every
 /// window of this process from the picture.
 fn grab(rect: Rect, out: Option<(u32, u32)>, exclude_own: bool) -> Result<(Vec<u8>, u32, u32)> {
-    let content = SCShareableContent::get().map_err(|e| fail("shareable content", e))?;
+    grab_with(rect, out, exclude_own, false)
+}
+
+thread_local! {
+    /// The tone sampler runs at ~4 Hz; enumerating shareable content on every frame costs more than the
+    /// capture itself, so the sampler thread reuses it for `CONTENT_TTL` (windows of ours come and go).
+    static CONTENT: std::cell::RefCell<Option<(std::time::Instant, SCShareableContent)>> = const { std::cell::RefCell::new(None) };
+}
+const CONTENT_TTL: std::time::Duration = std::time::Duration::from_millis(1500);
+
+fn content(cached: bool) -> Result<SCShareableContent> {
+    if cached {
+        let hit = CONTENT.with(|c| {
+            c.borrow()
+                .as_ref()
+                .filter(|(t, _)| t.elapsed() < CONTENT_TTL)
+                .map(|(_, c)| c.clone())
+        });
+        if let Some(c) = hit {
+            return Ok(c);
+        }
+    }
+    let c = SCShareableContent::get().map_err(|e| fail("shareable content", e))?;
+    if cached {
+        CONTENT.with(|slot| *slot.borrow_mut() = Some((std::time::Instant::now(), c.clone())));
+    }
+    Ok(c)
+}
+
+fn grab_with(
+    rect: Rect,
+    out: Option<(u32, u32)>,
+    exclude_own: bool,
+    cached: bool,
+) -> Result<(Vec<u8>, u32, u32)> {
+    let content = content(cached)?;
     let displays = content.displays();
     let (cx, cy) = (rect.x + rect.w / 2.0, rect.y + rect.h / 2.0);
     let display = displays
@@ -86,7 +121,7 @@ pub struct SckSampler;
 
 impl RegionSampler for SckSampler {
     fn grab_region(&self, rect: Rect, w: u32, h: u32) -> Result<Vec<u8>> {
-        grab(rect, Some((w, h)), true).map(|(px, ..)| px)
+        grab_with(rect, Some((w, h)), true, true).map(|(px, ..)| px)
     }
 }
 

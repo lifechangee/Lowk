@@ -2,7 +2,7 @@
 //!
 //! Pure functions plus a small state machine ([`AdaptiveTone`]); no OS code, so
 //! it is unit-tested with synthetic bitmaps. The sampler (a task in the app
-//! layer driving a `RegionSampler`) feeds it a ~24x16 RGBA bitmap every ~2 s.
+//! layer driving a `RegionSampler`) feeds it a 24x18 RGBA bitmap every 250 ms (see POLL_MS).
 //!
 //! Algorithm (docs/ARCHITECTURE.md 7.4):
 //! 1. linear-light luminance per pixel; median, p10, p90, "busyness";
@@ -323,6 +323,41 @@ fn fixed_with_grid(kind: ToneKind, p: &Palette) -> Tone {
     t
 }
 
+/// How often the sampler looks at the screen under the overlay. A step in the background reaches the
+/// UI after at most two polls (median-of-3 needs two new samples) plus the 200 ms CSS fade.
+pub const POLL_MS: u64 = 250;
+/// A bitmap is fed to [`AdaptiveTone`] when it changed, and this many more times after a change even
+/// though it is identical, so the median-of-3 settles on the new background instead of waiting for
+/// the next change (the old 2 s sampler + skip-unchanged made a step take 4-6 s).
+pub const SETTLE_POLLS: u8 = 2;
+
+/// Cheap change detector in front of the analysis: skips identical bitmaps once the smoothing settled.
+#[derive(Default)]
+pub struct ChangeGate {
+    last: Option<u64>,
+    settle: u8,
+}
+
+impl ChangeGate {
+    /// `true` when `bmp` should be analysed now.
+    pub fn admit(&mut self, bmp: &[u8]) -> bool {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        bmp.hash(&mut h);
+        let id = h.finish();
+        if self.last != Some(id) {
+            self.last = Some(id);
+            self.settle = SETTLE_POLLS;
+            return true;
+        }
+        if self.settle > 0 {
+            self.settle -= 1;
+            return true;
+        }
+        false
+    }
+}
+
 /// Stateful tone selector with smoothing and hysteresis.
 pub struct AdaptiveTone {
     params: ToneParams,
@@ -507,6 +542,55 @@ mod tests {
     }
     fn feed(t: &mut AdaptiveTone, bmp: &[u8]) -> Option<Tone> {
         t.update(bmp, SAMPLE_W, SAMPLE_H)
+    }
+
+    /// Latency check: a background that jumps from dark to light at poll 0 must reach the UI within
+    /// `LATENCY_POLLS` polls (x `POLL_MS`), and the same for light to dark and for a single cell of the grid.
+    #[test]
+    fn step_reaches_the_ui_within_two_polls() {
+        const LATENCY_POLLS: usize = 2;
+        let step = |from: [u8; 3], to: [u8; 3]| {
+            let mut t = AdaptiveTone::new(ToneMode::Auto);
+            let mut gate = ChangeGate::default();
+            let a = flat(from[0], from[1], from[2]);
+            let b = flat(to[0], to[1], to[2]);
+            for _ in 0..8 {
+                if gate.admit(&a) {
+                    feed(&mut t, &a);
+                }
+            }
+            let want = if to[0] > 128 {
+                ToneKind::Light
+            } else {
+                ToneKind::Dark
+            };
+            for poll in 0..LATENCY_POLLS {
+                if gate.admit(&b) {
+                    if let Some(x) = feed(&mut t, &b) {
+                        if x.tone == want {
+                            return Some(poll + 1);
+                        }
+                    }
+                }
+            }
+            None
+        };
+        let up = step([20, 20, 24], [240, 240, 240]).expect("dark -> light within the budget");
+        let down = step([240, 240, 240], [20, 20, 24]).expect("light -> dark within the budget");
+        assert!(
+            up * POLL_MS as usize <= 500 && down * POLL_MS as usize <= 500,
+            "{up} {down}"
+        );
+    }
+
+    #[test]
+    fn gate_skips_identical_bitmaps_only_after_settling() {
+        let mut g = ChangeGate::default();
+        let a = flat(1, 2, 3);
+        assert!(g.admit(&a));
+        assert!(g.admit(&a) && g.admit(&a));
+        assert!(!g.admit(&a), "settled: identical frames are free");
+        assert!(g.admit(&flat(9, 9, 9)), "a change is always analysed");
     }
 
     #[test]

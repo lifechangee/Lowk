@@ -27,6 +27,7 @@
     "allow-demo-start",
     "allow-doc-cancel",
     "allow-doc-delete",
+    "allow-doc-find-duplicates",
     "allow-doc-get",
     "allow-doc-get-md",
     "allow-doc-import",
