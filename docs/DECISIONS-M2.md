@@ -23,3 +23,9 @@ Hybrid beats keyword clearly; semantic-only edges hybrid on this tiny haystack (
 **Latency** (`cargo run --release -p lowk-index --example bench`, 100,294 chunks, Zipfian RU/EN, fake embedder, M4 under heavy load from other agents): keyword p95 94 ms, hybrid p95 160 ms (p50 34 ms); add ~25 ms for the real query embedding.
 
 **Cross-target CI.** rusqlite bundles C, so `just ci-cross` uses a no-op compiler and a fake archiver (clippy never links).
+
+## WP-E: integration
+* **Live model.** `llm.model` default = `deepseek/deepseek-v4.1-flash-1017` (was the unpinned slug: 2.3 s TTFT p50). One-time provider probe pins `llm.pinned_provider` (only when ask and summary model are the same slug). Fallback model: `anthropic/claude-haiku-5.5`. Measured p50 855 ms / p95 1165 ms (n=8).
+* **Local-only policy** is a backend rule with four enforcement points (route, preflight, retrieval, cloud embedder); tests in `route.rs`, `lowk-index/tests/index.rs`, `lowk-session`, `selfcheck.rs`. A "local" URL must be loopback / private LAN / `.local`, otherwise it counts as cloud.
+* **Bundle diagnostics.** `lowk --selfcheck-m2` is the only way to drive the release binary headlessly (no QA channel exists in releases). It uses the same `Services` as the app.
+* **Embedder sidecar** ships as externalBin `lowk-embed-worker` (20.7 MB), model on demand.
