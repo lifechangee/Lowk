@@ -35,3 +35,8 @@ Works: ⌘↵ answers are accurate.
 - O4 PARTIAL: tone faster, but hue handling is wrong — light blue OK, dark/saturated blue rendered as black. Need a designed colour base: background colour (hue+lum) → scrim tint + text colour (white/black) per cell.
 - NEW O6: overlay subtitles stop advancing (stuck; can't see newer speech, incl. own).
 - NEW O7: AI answer in the overlay can't be scrolled — only part of a long answer is visible.
+
+## Live tone e2e with the owner (2026-10-22 evening)
+- Run 1 (before fix): every cell dark 12,12,15 → sampler got black frames (tiny 24×18 SCK grab). Fixed by oversampling + box-average + retry.
+- Run 2 (after fix): 184/200 checks pass; per-cell sampling correct (cell_means match the backdrop: black/white split, navy/red/yellow/teal quadrants). Gallery in docs/qa/tone-e2e/.
+- Remaining: (a) yellow maps to a dark olive scrim (52,47,0) — owner to decide light vs dark for bright saturated colours; (b) first capture per backdrop is stale (browser page not loaded yet) — harness timing; (c) "enough pure cells 4/12" at edge positions — harness geometry, not product.
