@@ -38,3 +38,7 @@ Open, owner said WAIT for him before starting:
 2. Tone change ~2x faster (~0.15 s): evaluate a continuous SCStream instead of polled SCScreenshotManager grabs; ship only if CPU is not worse.
 3. Settings toggle for the adaptive gradient, default OFF (plain scrim + transparency slider); off = no sampling at all (no CPU, no Screen Recording need for this feature). The gradient is mainly for overlays shown in smart glasses.
 Also open: edge-of-screen tone accuracy (see the FAIL list of the last `just qa-tone`), 2 moderate Dependabot alerts, owner live check of hold-⌃, roadmap question batch (Apple Developer, Win10, camera, sync, disguise, Jev key, order).
+
+### Next after the break: lecture-readiness day (owner request 2026-10-23)
+Owner will record streamed lectures in ~2 days: Kontur Tolk (desktop app) on **Windows 11** (i5-10400F + RTX 3060), Russian + English terms, 1.5 h, recording + summary only (plus screenshot + own question during in-lecture quizzes).
+Plan: (1) Deepgram as STT for the first lectures (Windows local engine never ran on real hardware); (2) first joint Windows check with the owner: install, permissions, Tolk-only process capture (Win11 process loopback), 5-min record, summary; (3) silent 2 h soak from a file (memory, lag, losses); (4) summary of a 1.5–2 h transcript (chunking if limits hit); (5) mic on/off button + per-folder "no mic" preset; gradient toggle default OFF; (6) clean bundle + qa-bundle + orchestrator smoke test; then local engine trial on the owner's Windows. Raise priority of "re-transcribe after recording".
