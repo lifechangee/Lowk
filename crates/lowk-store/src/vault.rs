@@ -939,12 +939,9 @@ impl VaultInner {
         let _g = self.op.lock();
         let items = self.trash_items()?;
         let n = items.len();
-        // saved audio and transcript revisions go with their call
+        // saved audio and transcript revisions go with their call (and with every call inside a trashed folder)
         for it in &items {
-            let svc = self.service();
-            for d in ["audio", "revisions"] {
-                let _ = fs::remove_dir_all(svc.join(d).join(it.id.to_string()));
-            }
+            self.purge_item_files(it);
         }
         let t = self.trash_root();
         if t.exists() {
@@ -953,6 +950,57 @@ impl VaultInner {
         fs::create_dir_all(&t)?;
         self.resync()?;
         Ok(n)
+    }
+
+    /// «Delete forever» for one trashed item: removes it from the trash together with its saved audio
+    /// (`.lowk/audio/<call>/`) and transcript revisions (`.lowk/revisions/<call>/`) - for a folder, those of
+    /// every call inside it. Moving to the trash keeps all of that so a restore is complete.
+    pub fn delete_forever(&self, id: &Ulid) -> Result<()> {
+        let _g = self.op.lock();
+        let item = self
+            .trash_items()?
+            .into_iter()
+            .find(|i| i.id == *id)
+            .ok_or_else(|| err(ErrorCode::NotFound, format!("{id} is not in the trash")))?;
+        self.purge_item_files(&item);
+        let _ = fs::remove_dir_all(self.trash_root().join(id.to_string()));
+        fs::remove_file(self.trash_root().join(format!("{id}.trash.json")))?;
+        self.resync()
+    }
+
+    /// Audio + revisions of a trashed item's call(s).
+    fn purge_item_files(&self, it: &TrashItem) {
+        let svc = self.service();
+        let mut ids = vec![it.id];
+        fn walk(dir: &Path, ids: &mut Vec<Ulid>) {
+            let Ok(rd) = fs::read_dir(dir) else { return };
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    walk(&p, ids);
+                } else if p.extension().is_some_and(|x| x == "md") {
+                    if let Ok(t) = fs::read_to_string(&p) {
+                        let t = crate::fm::normalize_eol(&t);
+                        if let (Some(front), _) = crate::fm::split(&t) {
+                            if let Some(id) = front
+                                .get("id")
+                                .and_then(|v| crate::fm::scalar(v).parse::<Ulid>().ok())
+                            {
+                                ids.push(id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if it.kind == ItemKind::Folder {
+            walk(&self.trash_root().join(it.id.to_string()), &mut ids);
+        }
+        for id in ids {
+            for d in ["audio", "revisions"] {
+                let _ = fs::remove_dir_all(svc.join(d).join(id.to_string()));
+            }
+        }
     }
 
     // ---- documents ------------------------------------------------------

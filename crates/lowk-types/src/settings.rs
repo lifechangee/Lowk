@@ -5,7 +5,7 @@
 //! Secrets are never part of settings (they live in the OS keychain).
 use crate::bind::*;
 use crate::hw::Os;
-use crate::{LangTag, Target};
+use crate::{LangTag, MicMode, Target};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::collections::BTreeMap;
@@ -240,7 +240,8 @@ pub struct AudioSettings {
     /// Keep the recorded audio next to the call (opt-in; default text only).
     pub keep_audio: bool,
     /// Global default of «record microphone» (folders may override: `FolderMeta.mic`). Default on.
-    pub record_mic: bool,
+    /// Old files stored a bool; `true`/`false` still load as on/off.
+    pub record_mic: MicMode,
 }
 impl Default for AudioSettings {
     fn default() -> Self {
@@ -249,7 +250,7 @@ impl Default for AudioSettings {
             mic_device: None,
             aec: AecMode::Auto,
             keep_audio: false,
-            record_mic: true,
+            record_mic: MicMode::On,
         }
     }
 }

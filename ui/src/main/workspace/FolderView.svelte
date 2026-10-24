@@ -47,6 +47,7 @@
     { value: 'inherit', label: tm('m.folderMic.inherit') },
     { value: 'on', label: tm('m.folderMic.on') },
     { value: 'off', label: tm('m.folderMic.off') },
+    { value: 'auto', label: tm('m.folderMic.auto') },
   ]);
   async function setMic(mic: MicPreset) {
     try { await api.folderUpdate(folder, { mic }); await library.reload(); } catch (e) { ui.notify(errText(e)); }

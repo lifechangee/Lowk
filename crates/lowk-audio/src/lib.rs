@@ -9,6 +9,7 @@
 //! (rubato -> 20 ms `Frame16k`, AEC on Me) -> the session's `FrameSink`.
 pub mod aec;
 pub mod file;
+pub mod mic_use;
 pub mod pipeline;
 pub mod pipeline_file;
 mod proc_tree;

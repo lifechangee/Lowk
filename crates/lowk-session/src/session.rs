@@ -11,7 +11,7 @@ use lowk_stt::ring::PcmRing;
 use lowk_stt::{CorrectionJob, CorrectionSink, Corrector, SttConfig, SttEngine};
 use lowk_types::*;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::thread::JoinHandle;
@@ -28,6 +28,15 @@ pub fn mic_marker(on: bool, lang: UiLanguage) -> &'static str {
         (_, true) => "Микрофон включён",
         (_, false) => "Микрофон выключен",
     }
+}
+
+/// A request to change the microphone of the running call.
+#[derive(Clone, Copy)]
+enum MicReq {
+    /// The user's choice (button, bind, settings).
+    Mode(MicMode),
+    /// The auto poller saw the call app start / stop holding the microphone.
+    Detected { on: bool, gen: u64 },
 }
 
 /// Allowed phase transitions.
@@ -90,6 +99,8 @@ struct Core {
     stt_errors: Vec<SttError>,
     /// A local engine is still loading its model (mirrors `AppEvent::SttLoading`).
     stt_loading: bool,
+    /// The system source of this call (what «auto» watches for microphone use).
+    mic_target: Option<Target>,
 }
 
 impl Core {
@@ -100,6 +111,8 @@ impl Core {
                 call: None,
                 demo: false,
                 mic_on: true,
+                mic_mode: MicMode::On,
+                mic_auto_unsupported: false,
             },
             clock: None,
             transcript: TranscriptBuf::default(),
@@ -126,6 +139,7 @@ impl Core {
             last_meta: None,
             stt_errors: vec![],
             stt_loading: false,
+            mic_target: None,
         }
     }
 
@@ -217,6 +231,9 @@ struct Inner {
     paused: Arc<AtomicBool>,
     /// Microphone gate: while false, Me frames are dropped before STT and correction (system audio is untouched).
     mic_on: Arc<AtomicBool>,
+    /// Generation of the auto-microphone poller: bumped on every call start and mode change, which retires
+    /// the previous poller thread.
+    mic_gen: AtomicU64,
     demo_done: AtomicBool,
     /// Cancel flag of the Ask being generated.
     ask_cancel: Mutex<Option<Arc<AtomicBool>>>,
@@ -262,6 +279,7 @@ impl Session {
                 cancel: Arc::new(AtomicBool::new(false)),
                 paused: Arc::new(AtomicBool::new(false)),
                 mic_on: Arc::new(AtomicBool::new(true)),
+                mic_gen: AtomicU64::new(0),
                 demo_done: AtomicBool::new(false),
                 ask_cancel: Mutex::new(None),
             }),
@@ -374,9 +392,21 @@ impl Session {
             c.state.call = None;
             // New call: the folder preset (inherit = the global setting) decides whether the microphone starts on.
             let folder = o.folder.clone().unwrap_or(FolderRef::Unsorted);
-            let mic_on = (inner.deps.folder_mic)(&folder).resolve(settings.audio.record_mic);
+            let mode = (inner.deps.folder_mic)(&folder).resolve(settings.audio.record_mic);
+            let target = o.system.clone().or_else(|| settings.audio.default_source.clone());
+            // auto starts with the microphone closed; without detection it records like "on"
+            let unsupported = mode == MicMode::Auto && !inner.auto_supported(&target, o.demo);
+            let mic_on = match mode {
+                MicMode::On => true,
+                MicMode::Off => false,
+                MicMode::Auto => unsupported,
+            };
             c.state.mic_on = mic_on;
+            c.state.mic_mode = mode;
+            c.state.mic_auto_unsupported = unsupported;
+            c.mic_target = target;
             inner.mic_on.store(mic_on, Ordering::SeqCst);
+            inner.mic_gen.fetch_add(1, Ordering::SeqCst);
             c.set_phase(SessionPhase::Starting, &mut out);
         }
         inner.cancel.store(false, Ordering::SeqCst);
@@ -405,6 +435,15 @@ impl Session {
             c.set_phase(SessionPhase::Recording, &mut out);
         }
         inner.flush(out);
+        {
+            let (mode, unsupported) = {
+                let c = inner.core();
+                (c.state.mic_mode, c.state.mic_auto_unsupported)
+            };
+            if mode == MicMode::Auto && !unsupported {
+                inner.spawn_mic_auto(inner.mic_gen.load(Ordering::SeqCst), false);
+            }
+        }
         if o.demo {
             let me = inner.clone();
             let h = std::thread::Builder::new()
@@ -420,46 +459,16 @@ impl Session {
     /// reopens) the input device, Me frames are dropped before STT meanwhile, the system stream keeps running,
     /// AEC is bypassed while off, the open Me utterance is flushed, and a marker line
     /// («Микрофон выключен/включён») lands in the call at the current call time. A no-op when already in that state.
-    // TODO(roadmap): «auto» mode (mic only while the call app holds the microphone open) — see docs/ROADMAP.md.
+    /// A manual switch leaves «auto» (the choice becomes plain on / off).
     pub fn set_mic_enabled(&self, on: bool) -> Result<()> {
-        let inner = &self.inner;
-        let lang = inner.deps.settings.get().ui.language;
-        let mut out = Out::default();
-        let engines = {
-            let mut c = inner.core();
-            match c.state.phase {
-                SessionPhase::Recording | SessionPhase::Paused => {}
-                SessionPhase::Idle => return Err(AppError::new(ErrorCode::SessionIdle)),
-                _ => return Err(AppError::new(ErrorCode::SessionBusy)),
-            }
-            if c.state.mic_on == on {
-                return Ok(());
-            }
-            // Open / release the input device itself (OS mic indicator) before the state flips; a failed
-            // open leaves everything as it was. Demo / replay calls have no capture handle.
-            if let Some(cap) = c.capture.as_ref() {
-                cap.set_mic(on)?;
-            }
-            c.state.mic_on = on;
-            inner.mic_on.store(on, Ordering::SeqCst);
-            let at_s = c
-                .clock
-                .map_or(0, |k| (k.offset_ns(now_mono_ns()) / 1_000_000_000) as u32);
-            c.push_entry(CallEntry::Marker {
-                at_s,
-                text: mic_marker(on, lang).into(),
-            });
-            out.events.push(AppEvent::Session(c.state.clone()));
-            c.engines.clone()
-        };
-        if !on {
-            // the half-spoken Me utterance ends here instead of waiting for audio that will not come
-            if let Some(e) = engines.as_ref().and_then(|e| e.get(&Stream::Me)) {
-                let _ = e.lock().unwrap().flush();
-            }
-        }
-        inner.flush(out);
-        Ok(())
+        self.set_mic_mode(if on { MicMode::On } else { MicMode::Off })
+    }
+
+    /// Chooses the microphone mode of the running call. `Auto` records the microphone only while the selected
+    /// call app holds an input stream (polled ~1 Hz with hysteresis); with a whole-system source or without OS
+    /// support it behaves like `On` and `SessionState::mic_auto_unsupported` says so.
+    pub fn set_mic_mode(&self, mode: MicMode) -> Result<()> {
+        self.inner.change_mic(MicReq::Mode(mode))
     }
 
     pub fn pause(&self) -> Result<()> {
@@ -967,6 +976,134 @@ impl Inner {
 
     /// Stops capture, then flushes and stops the engines. The recorder stays
     /// in place so the final utterances they emit are still journaled.
+    /// Auto needs an app target and OS support (demo / replay calls have no capture to watch).
+    fn auto_supported(&self, target: &Option<Target>, demo: bool) -> bool {
+        !demo && matches!(target, Some(Target::App(_))) && self.deps.mic_probe.supported()
+    }
+
+    /// Applies a microphone request (manual mode or an auto-poller reading) to the running call.
+    fn change_mic(self: &Arc<Self>, req: MicReq) -> Result<()> {
+        let lang = self.deps.settings.get().ui.language;
+        let mut out = Out::default();
+        let mut spawn_auto: Option<(u64, bool)> = None;
+        let (engines, flush_me) = {
+            let mut c = self.core();
+            match c.state.phase {
+                SessionPhase::Recording | SessionPhase::Paused => {}
+                _ if matches!(req, MicReq::Detected { .. }) => return Ok(()),
+                SessionPhase::Idle => return Err(AppError::new(ErrorCode::SessionIdle)),
+                _ => return Err(AppError::new(ErrorCode::SessionBusy)),
+            }
+            let (mode, want_on, unsupported) = match req {
+                MicReq::Mode(MicMode::On) => (MicMode::On, Some(true), false),
+                MicReq::Mode(MicMode::Off) => (MicMode::Off, Some(false), false),
+                MicReq::Mode(MicMode::Auto) => {
+                    let demo = c.state.demo;
+                    if self.auto_supported(&c.mic_target, demo) {
+                        (MicMode::Auto, None, false)
+                    } else {
+                        (MicMode::Auto, Some(true), true)
+                    }
+                }
+                MicReq::Detected { on, gen } => {
+                    if self.mic_gen.load(Ordering::SeqCst) != gen || c.state.mic_mode != MicMode::Auto {
+                        return Ok(());
+                    }
+                    (MicMode::Auto, Some(on), false)
+                }
+            };
+            let mut flush_me = false;
+            if let Some(on) = want_on {
+                if c.state.mic_on != on {
+                    // Open / release the input device itself (OS mic indicator) before the state flips; a
+                    // failed open leaves everything as it was. Demo / replay calls have no capture handle.
+                    if let Some(cap) = c.capture.as_ref() {
+                        cap.set_mic(on)?;
+                    }
+                    c.state.mic_on = on;
+                    self.mic_on.store(on, Ordering::SeqCst);
+                    let at_s = c
+                        .clock
+                        .map_or(0, |k| (k.offset_ns(now_mono_ns()) / 1_000_000_000) as u32);
+                    c.push_entry(CallEntry::Marker {
+                        at_s,
+                        text: mic_marker(on, lang).into(),
+                    });
+                    flush_me = !on;
+                    out.events.push(AppEvent::Session(c.state.clone()));
+                }
+            }
+            if !matches!(req, MicReq::Detected { .. }) {
+                // every manual choice retires the previous poller; a supported auto starts a new one
+                let gen = self.mic_gen.fetch_add(1, Ordering::SeqCst) + 1;
+                if mode == MicMode::Auto && !unsupported {
+                    spawn_auto = Some((gen, c.state.mic_on));
+                }
+                if c.state.mic_mode != mode || c.state.mic_auto_unsupported != unsupported {
+                    c.state.mic_mode = mode;
+                    c.state.mic_auto_unsupported = unsupported;
+                    out.events.push(AppEvent::Session(c.state.clone()));
+                }
+            }
+            (c.engines.clone(), flush_me)
+        };
+        if flush_me {
+            // the half-spoken Me utterance ends here instead of waiting for audio that will not come
+            if let Some(e) = engines.as_ref().and_then(|e| e.get(&Stream::Me)) {
+                let _ = e.lock().unwrap().flush();
+            }
+        }
+        self.flush(out);
+        if let Some((gen, initial)) = spawn_auto {
+            self.spawn_mic_auto(gen, initial);
+        }
+        Ok(())
+    }
+
+    /// Polls whether the call app holds an input stream and follows it with hysteresis. Ends when the
+    /// generation changes (a manual choice, a new call) or the call is over.
+    fn spawn_mic_auto(self: &Arc<Self>, gen: u64, initial: bool) {
+        let weak = self.weak.clone();
+        let cfg = self.deps.mic_auto;
+        let Some(target) = self.core().mic_target.clone() else {
+            return;
+        };
+        let spawned = std::thread::Builder::new()
+            .name("lowk-mic-auto".into())
+            .spawn(move || {
+                let t0 = std::time::Instant::now();
+                let mut deb = lowk_audio::mic_use::Debounce::new(initial, cfg.on_after_ms, cfg.off_after_ms);
+                loop {
+                    std::thread::sleep(std::time::Duration::from_millis(cfg.poll_ms));
+                    let Some(inner) = weak.upgrade() else { break };
+                    if inner.mic_gen.load(Ordering::SeqCst) != gen
+                        || matches!(
+                            inner.core().state.phase,
+                            SessionPhase::Idle | SessionPhase::Stopping
+                        )
+                    {
+                        break;
+                    }
+                    // a failed reading keeps the last state
+                    let Some(raw) = inner.deps.mic_probe.app_holds_input(&target) else {
+                        continue;
+                    };
+                    let now = t0.elapsed().as_millis() as u64;
+                    if let Some(on) = deb.update(now, raw) {
+                        if let Err(e) = inner.change_mic(MicReq::Detected { on, gen }) {
+                            tracing::warn!(?e, on, "auto microphone switch failed");
+                            let actual = inner.core().state.mic_on;
+                            deb =
+                                lowk_audio::mic_use::Debounce::new(actual, cfg.on_after_ms, cfg.off_after_ms);
+                        }
+                    }
+                }
+            });
+        if let Err(e) = spawned {
+            tracing::warn!(?e, "auto microphone poller not started");
+        }
+    }
+
     fn teardown(&self) {
         let (capture, engines) = {
             let mut c = self.core();

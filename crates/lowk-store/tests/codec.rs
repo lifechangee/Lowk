@@ -246,6 +246,7 @@ fn folder_mic_preset_roundtrips_and_inherit_writes_nothing() {
     for (preset, text) in [
         (MicPreset::Off, "record_mic: off"),
         (MicPreset::On, "record_mic: on"),
+        (MicPreset::Auto, "record_mic: auto"),
     ] {
         doc.mic = preset;
         let md = folder_codec::render(&doc);

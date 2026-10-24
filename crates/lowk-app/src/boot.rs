@@ -112,6 +112,7 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
             _ => MicPreset::Inherit,
         })
     };
+    deps.mic_probe = lowk_audio::mic_use::default_probe();
     deps.record_demo = true; // M0: demo calls are real calls, so the library has content
                              // M1: real capture + local/cloud STT. Demo stays the fallback while no engine is ready.
     deps.audio = Arc::new(std::sync::Mutex::new(crate::engines::DynBackend(

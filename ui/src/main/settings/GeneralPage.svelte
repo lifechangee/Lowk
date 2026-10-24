@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { CaptureMonitors, UiLanguage } from '../../lib/ipc';
+  import type { CaptureMonitors, MicMode, UiLanguage } from '../../lib/ipc';
   import Button from '../../lib/components/Button.svelte';
   import SettingRow from '../../lib/components/SettingRow.svelte';
   import Select from '../../lib/components/Select.svelte';
@@ -15,6 +15,7 @@
 
   const s = $derived(prefs.value);
   const src = $derived(s.audio?.default_source);
+  const micValue = $derived(((m: unknown) => (m === false || m === 'off' ? 'off' : m === 'auto' ? 'auto' : 'on'))(s.audio?.record_mic));
   const srcValue = $derived(resolveSource(src, sources.running, s.capture?.default_source));
 </script>
 
@@ -29,7 +30,7 @@
   <div class="srcw"><SourcePicker size="md" label={tm('m.defaultSource')} value={srcValue} onchange={(v) => prefs.patch({ capture: { default_source: v.startsWith('app:') ? 'one_app' : 'whole_system' }, audio: { default_source: v.startsWith('app:') ? { kind: 'app', id: v.slice(4) } : { kind: 'whole_system' } } })} /></div>
 </SettingRow>
 <SettingRow label={tm('m.recordMic')} hint={tm('m.recordMicHint')}>
-  <Toggle checked={s.audio?.record_mic ?? true} label={tm('m.recordMic')} onchange={(v) => prefs.patch({ audio: { record_mic: v } })} />
+  <Select label={tm('m.recordMic')} value={micValue} options={[{ value: 'on', label: tm('m.folderMic.on') }, { value: 'off', label: tm('m.folderMic.off') }, { value: 'auto', label: tm('m.folderMic.auto') }]} onchange={(v) => prefs.patch({ audio: { record_mic: v as MicMode } })} />
 </SettingRow>
 <SettingRow label={tm('settings.keepAudio')} hint={tm('m.keepAudioHint')}>
   <Toggle checked={s.audio?.keep_audio ?? false} label={tm('settings.keepAudio')} onchange={(v) => prefs.patch({ audio: { keep_audio: v } })} />

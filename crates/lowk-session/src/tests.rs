@@ -881,11 +881,15 @@ fn mic_toggle_outside_a_recording_is_refused() {
 fn new_call_mic_follows_folder_preset_and_global_default() {
     let folder = FolderRef::User(Ulid::from_parts(7, 7));
     // (preset of the folder, global record_mic) -> mic on at start
+    let (on, off) = (MicMode::On, MicMode::Off);
     let cases = [
-        (MicPreset::Inherit, true, true),
-        (MicPreset::Inherit, false, false),
-        (MicPreset::On, false, true),
-        (MicPreset::Off, true, false),
+        (MicPreset::Inherit, on, true),
+        (MicPreset::Inherit, off, false),
+        (MicPreset::On, off, true),
+        (MicPreset::Off, on, false),
+        // auto without detection (no probe / no app target) records like "on"
+        (MicPreset::Auto, off, true),
+        (MicPreset::Inherit, MicMode::Auto, true),
     ];
     for (preset, global, want) in cases {
         let r = rig(|d| {
@@ -900,7 +904,7 @@ fn new_call_mic_follows_folder_preset_and_global_default() {
                 ..opts(false)
             })
             .unwrap();
-        assert_eq!(r.session.state().mic_on, want, "{preset:?} / global {global}");
+        assert_eq!(r.session.state().mic_on, want, "{preset:?} / global {global:?}");
         // a muted start really drops the Me frames
         for i in 0..25 {
             r.audio.push_frame(frame(Stream::Me, 1_000 + i));
@@ -908,7 +912,7 @@ fn new_call_mic_follows_folder_preset_and_global_default() {
         assert_eq!(
             r.session.snapshot().transcript.len(),
             usize::from(want),
-            "{preset:?} / global {global}"
+            "{preset:?} / global {global:?}"
         );
         r.session.stop().unwrap();
         assert!(
@@ -936,7 +940,7 @@ fn call_starting_with_mic_off_never_opens_the_mic_source() {
 fn global_mic_off_never_opens_the_mic_source() {
     let r = rig(|d| {
         let mut s = Settings::default();
-        s.audio.record_mic = false;
+        s.audio.record_mic = MicMode::Off;
         d.settings = Arc::new(MemSettingsStore::new(s));
     });
     r.session.start(opts(false)).unwrap();
@@ -1265,4 +1269,134 @@ fn vision_template_with_an_empty_queue_grabs_the_screen() {
     wait_llm_end(&rx);
     assert_eq!(*hints.seen.lock().unwrap(), vec![(0, false), (1, true)]);
     r.session.stop().unwrap();
+}
+
+// --- microphone: auto ----------------------------------------------------
+
+use lowk_audio::mic_use::FakeMicUseProbe;
+
+fn auto_opts() -> StartOpts {
+    StartOpts {
+        system: Some(Target::App("us.zoom.xos".into())),
+        ..opts(false)
+    }
+}
+
+/// A rig whose folder preset is auto and whose probe is scripted; timing shrunk (poll 5 ms, on 30 ms, off 90 ms).
+fn auto_rig(probe: &FakeMicUseProbe) -> Rig {
+    let probe = probe.clone();
+    rig(move |d| {
+        d.folder_mic = Arc::new(|_| MicPreset::Auto);
+        d.mic_probe = Arc::new(probe);
+        d.mic_auto = crate::deps::MicAutoCfg {
+            poll_ms: 5,
+            on_after_ms: 30,
+            off_after_ms: 90,
+        };
+    })
+}
+
+fn wait_for(what: &str, f: impl Fn() -> bool) {
+    for _ in 0..400 {
+        if f() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    panic!("timed out waiting for: {what}");
+}
+
+#[test]
+fn auto_opens_and_closes_the_mic_with_the_call_app_and_writes_markers() {
+    let probe = FakeMicUseProbe::new(false);
+    let r = auto_rig(&probe);
+    r.session.start(auto_opts()).unwrap();
+    let st = r.session.state();
+    assert_eq!(st.mic_mode, MicMode::Auto);
+    assert!(!st.mic_on && !st.mic_auto_unsupported, "auto starts closed");
+    assert_eq!(
+        r.audio.mic_opens(),
+        0,
+        "the mic is never opened while the app does not hold it"
+    );
+    // the app opens its microphone: Lowk follows
+    probe.set(Some(true));
+    wait_for("mic on", || r.audio.mic_open());
+    assert!(r.session.state().mic_on);
+    // a failed reading keeps the state
+    probe.set(None);
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    assert!(r.audio.mic_open());
+    // the app releases it: Lowk closes it too
+    probe.set(Some(false));
+    wait_for("mic off", || !r.audio.mic_open());
+    assert!(!r.session.state().mic_on);
+    assert_eq!((r.audio.mic_opens(), r.audio.mic_closes()), (1, 1));
+    r.session.stop().unwrap();
+    assert_eq!(marker_texts(&r), vec!["Микрофон включён", "Микрофон выключен"]);
+}
+
+#[test]
+fn auto_ignores_blips_shorter_than_the_hysteresis() {
+    let probe = FakeMicUseProbe::new(false);
+    let r = auto_rig(&probe);
+    r.session.start(auto_opts()).unwrap();
+    probe.set(Some(true));
+    std::thread::sleep(std::time::Duration::from_millis(10));
+    probe.set(Some(false));
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert_eq!(
+        r.audio.mic_opens(),
+        0,
+        "a blip shorter than the on delay does nothing"
+    );
+    r.session.stop().unwrap();
+    assert!(marker_texts(&r).is_empty());
+}
+
+#[test]
+fn auto_without_detection_or_with_whole_system_behaves_like_on() {
+    // whole-system source: nothing to attribute the microphone to
+    let probe = FakeMicUseProbe::new(false);
+    let r = auto_rig(&probe);
+    r.session.start(opts(false)).unwrap();
+    let st = r.session.state();
+    assert!(st.mic_on && st.mic_auto_unsupported && st.mic_mode == MicMode::Auto);
+    assert!(r.audio.mic_open());
+    r.session.stop().unwrap();
+    // unsupported OS: the default probe says so
+    let r = rig(|d| d.folder_mic = Arc::new(|_| MicPreset::Auto));
+    r.session.start(auto_opts()).unwrap();
+    let st = r.session.state();
+    assert!(st.mic_on && st.mic_auto_unsupported);
+    r.session.stop().unwrap();
+}
+
+#[test]
+fn manual_choice_leaves_auto_and_auto_can_be_chosen_mid_call() {
+    let probe = FakeMicUseProbe::new(false);
+    let r = rig({
+        let probe = probe.clone();
+        move |d| {
+            d.mic_probe = Arc::new(probe);
+            d.mic_auto = crate::deps::MicAutoCfg {
+                poll_ms: 5,
+                on_after_ms: 30,
+                off_after_ms: 90,
+            };
+        }
+    });
+    r.session.start(auto_opts()).unwrap();
+    assert_eq!(r.session.state().mic_mode, MicMode::On);
+    // switch to auto while the app is not using the mic: closes after the off delay
+    r.session.set_mic_mode(MicMode::Auto).unwrap();
+    assert_eq!(r.session.state().mic_mode, MicMode::Auto);
+    wait_for("closes", || !r.audio.mic_open());
+    // a manual "on" leaves auto: the poller no longer closes it
+    r.session.set_mic_enabled(true).unwrap();
+    assert_eq!(r.session.state().mic_mode, MicMode::On);
+    std::thread::sleep(std::time::Duration::from_millis(250));
+    assert!(r.audio.mic_open() && r.session.state().mic_on);
+    r.session.stop().unwrap();
+    assert_eq!(marker_texts(&r), vec!["Микрофон выключен", "Микрофон включён"]);
 }

@@ -3,6 +3,43 @@ use crate::{CallId, FolderRef, LangTag, QaId, SessionClock, SttEvent, Ulid};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+/// How the microphone is recorded during a call.
+///
+/// `Auto`: the microphone is open only while the selected call app itself holds an input (capture)
+/// stream; otherwise it stays closed. Deserializes from the old `bool` setting too (`true` = on).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum MicMode {
+    #[default]
+    On,
+    Off,
+    Auto,
+}
+
+impl<'de> Deserialize<'de> for MicMode {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Self, D::Error> {
+        struct V;
+        impl serde::de::Visitor<'_> for V {
+            type Value = MicMode;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a bool or one of \"on\", \"off\", \"auto\"")
+            }
+            fn visit_bool<E: serde::de::Error>(self, v: bool) -> std::result::Result<MicMode, E> {
+                Ok(if v { MicMode::On } else { MicMode::Off })
+            }
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> std::result::Result<MicMode, E> {
+                match v {
+                    "on" | "true" => Ok(MicMode::On),
+                    "off" | "false" => Ok(MicMode::Off),
+                    "auto" => Ok(MicMode::Auto),
+                    other => Err(E::unknown_variant(other, &["on", "off", "auto"])),
+                }
+            }
+        }
+        d.deserialize_any(V)
+    }
+}
+
 /// Per-folder «record microphone» preset.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
@@ -12,15 +49,17 @@ pub enum MicPreset {
     Inherit,
     On,
     Off,
+    Auto,
 }
 
 impl MicPreset {
-    /// Whether a new call in a folder with this preset starts with the microphone on.
-    pub fn resolve(self, global: bool) -> bool {
+    /// The mode a new call in a folder with this preset starts in.
+    pub fn resolve(self, global: MicMode) -> MicMode {
         match self {
             MicPreset::Inherit => global,
-            MicPreset::On => true,
-            MicPreset::Off => false,
+            MicPreset::On => MicMode::On,
+            MicPreset::Off => MicMode::Off,
+            MicPreset::Auto => MicMode::Auto,
         }
     }
 }

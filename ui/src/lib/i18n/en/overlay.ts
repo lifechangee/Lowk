@@ -82,6 +82,8 @@ export const overlay = {
   'overlay.action.stop': 'Stop recording',
   'overlay.mic.off': 'Turn microphone off',
   'overlay.mic.on': 'Turn microphone on',
+  'overlay.mic.autoOn': 'Auto: microphone on (call app is using it). Click to turn off',
+  'overlay.mic.autoOff': 'Auto: microphone closed. Click to turn on manually',
   'overlay.mic.muted': 'Microphone off',
   'overlay.mic.live': 'Microphone on',
   'overlay.state.paused': 'Paused',

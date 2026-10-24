@@ -404,3 +404,86 @@ fn file_names_are_windows_safe() {
     assert_eq!(sanitize_name("  .. "), "Untitled");
     assert!(sanitize_name(&"я".repeat(300)).chars().count() <= 120);
 }
+
+fn fake_saved_files(d: &std::path::Path, id: &Ulid) {
+    for (dir, f) in [("audio", "me.wav"), ("revisions", "r1.md")] {
+        let p = d.join(".lowk").join(dir).join(id.to_string());
+        fs::create_dir_all(&p).unwrap();
+        fs::write(p.join(f), b"x").unwrap();
+    }
+}
+
+fn saved(d: &std::path::Path, id: &Ulid) -> (bool, bool) {
+    let b = |dir: &str| d.join(".lowk").join(dir).join(id.to_string()).exists();
+    (b("audio"), b("revisions"))
+}
+
+#[test]
+fn trash_purge_removes_saved_audio_and_revisions_only_on_permanent_delete() {
+    let (d, v) = open();
+    let a = record(&v, FolderRef::Unsorted).id;
+    let b = record(&v, FolderRef::Unsorted).id;
+    let folder = v
+        .create_folder(NewFolder {
+            title: "Lectures".into(),
+            tags: vec![],
+            allow_cloud: true,
+            instructions: String::new(),
+        })
+        .unwrap();
+    let FolderRef::User(fid) = folder.id.clone() else {
+        panic!()
+    };
+    let c = record(&v, FolderRef::User(fid)).id;
+    for id in [&a, &b, &c] {
+        fake_saved_files(d.path(), id);
+    }
+    // moving to the trash keeps everything (restorable)
+    v.delete(&a).unwrap();
+    v.delete(&b).unwrap();
+    v.delete(&fid).unwrap();
+    for id in [&a, &b, &c] {
+        assert_eq!(saved(d.path(), id), (true, true), "kept in the trash");
+    }
+    v.restore(&a).unwrap();
+    assert_eq!(saved(d.path(), &a), (true, true), "restore keeps them");
+    v.delete(&a).unwrap();
+    // delete forever: that call only
+    v.delete_forever(&b).unwrap();
+    assert_eq!(saved(d.path(), &b), (false, false));
+    assert_eq!(saved(d.path(), &a), (true, true));
+    assert_eq!(
+        saved(d.path(), &c),
+        (true, true),
+        "the folder is still in the trash"
+    );
+    // delete forever of a folder takes its calls' files along
+    v.delete_forever(&fid).unwrap();
+    assert_eq!(saved(d.path(), &c), (false, false));
+    // empty trash purges the rest
+    assert_eq!(saved(d.path(), &a), (true, true));
+    v.empty_trash().unwrap();
+    assert_eq!(saved(d.path(), &a), (false, false));
+}
+
+#[test]
+fn empty_trash_purges_calls_inside_a_trashed_folder() {
+    let (d, v) = open();
+    let folder = v
+        .create_folder(NewFolder {
+            title: "L".into(),
+            tags: vec![],
+            allow_cloud: true,
+            instructions: String::new(),
+        })
+        .unwrap();
+    let FolderRef::User(fid) = folder.id.clone() else {
+        panic!()
+    };
+    let c = record(&v, FolderRef::User(fid)).id;
+    fake_saved_files(d.path(), &c);
+    v.delete(&fid).unwrap();
+    assert_eq!(saved(d.path(), &c), (true, true));
+    v.empty_trash().unwrap();
+    assert_eq!(saved(d.path(), &c), (false, false));
+}

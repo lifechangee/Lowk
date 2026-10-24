@@ -37,6 +37,8 @@ export class OverlayStore {
   phase = $state<SessionPhase>('idle');
   /** The microphone is recorded (`SessionState.mic_on`); false = muted for this call. */
   micOn = $state(true);
+  /** `SessionState.mic_mode`: auto = the microphone follows the call app. */
+  micAuto = $state(false);
   /** Elapsed recording time in ms (the source or a ticker updates it). */
   elapsedMs = $state(0);
   tone = $state<ToneVars>(PRESETS.dark);

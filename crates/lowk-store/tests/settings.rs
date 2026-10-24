@@ -231,7 +231,7 @@ fn old_settings_file_loads_with_gradient_off_and_mic_on() {
     let cur = s.get();
     assert!(!cur.overlay.adaptive_scrim);
     assert!(!cur.overlay.sampler_wanted());
-    assert!(cur.audio.record_mic);
+    assert_eq!(cur.audio.record_mic, lowk_types::MicMode::On);
     assert!(
         cur.binds.iter().all(|b| b.action != ActionId::ToggleMic),
         "the mic bind is not added unasked"
@@ -243,5 +243,5 @@ fn old_settings_file_loads_with_gradient_off_and_mic_on() {
     .unwrap();
     let again = FileSettingsStore::open(d.path()).unwrap().get();
     assert!(again.overlay.adaptive_scrim);
-    assert!(!again.audio.record_mic);
+    assert_eq!(again.audio.record_mic, lowk_types::MicMode::Off);
 }

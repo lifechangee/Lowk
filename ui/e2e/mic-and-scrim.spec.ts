@@ -61,10 +61,10 @@ test('folder preset «off» starts new calls with the microphone off; «inherit�
 
 test('global «record my microphone» off + inherit starts muted, and the setting is in General', async ({ page }) => {
   await page.goto('/main.html?lang=en#/settings/general');
-  const tg = page.getByRole('switch', { name: 'Record my microphone' });
-  await expect(tg).toHaveAttribute('aria-checked', 'true'); // default: on
-  await tg.click();
-  await expect(tg).toHaveAttribute('aria-checked', 'false');
+  const tg = page.getByLabel('Record my microphone');
+  await expect(tg).toHaveValue('on'); // default: on
+  await tg.selectOption('off');
+  await expect(tg).toHaveValue('off');
   await page.evaluate(() => (location.hash = '#/'));
   await startCall(page);
   await openLive(page);
@@ -92,4 +92,43 @@ test('adaptive scrim: off by default, hint mentions Screen Recording, toggles on
 test('adaptive scrim (RU) label', async ({ page }) => {
   await page.goto('/main.html?lang=ru#/settings/appearance');
   await expect(page.getByRole('switch', { name: 'Адаптивный цвет подложки (для очков)' })).toHaveAttribute('aria-checked', 'false');
+});
+
+test('auto mode: folder + settings options, live control shows Auto and the limitation, manual switch leaves auto', async ({ page }) => {
+  await page.addInitScript(() => ((globalThis as { __lowkMockAutoApp?: boolean }).__lowkMockAutoApp = true));
+  await page.goto('/main.html?lang=en#/settings/general');
+  const tg = page.getByLabel('Record my microphone');
+  await expect(tg.locator('option[value="auto"]')).toHaveText(/Auto \(when the call app is using the microphone\)/);
+  await tg.selectOption('auto');
+  await page.evaluate(() => (location.hash = '#/'));
+  await startCall(page);
+  await openLive(page);
+  const auto = page.getByTestId('mic-auto');
+  await expect(auto).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('mic-toggle')).toHaveAttribute('aria-pressed', 'false'); // closed until the app uses it
+  await expect(page.getByTestId('mic-auto-hint')).toContainText('not using the microphone');
+  await expect(page.getByTestId('mic-auto-hint')).toContainText('mute button inside Zoom/Tolk is not visible');
+  await page.getByTestId('mic-toggle').click(); // manual choice leaves auto
+  await expect(auto).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('mic-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await auto.click();
+  await expect(auto).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('auto without a single-app source says it records like «on»', async ({ page }) => {
+  await page.addInitScript(() => ((globalThis as { __lowkMockAutoApp?: boolean }).__lowkMockAutoApp = false));
+  await page.goto('/main.html?lang=en#/settings/general');
+  await page.getByLabel('Record my microphone').selectOption('auto');
+  await page.evaluate(() => (location.hash = '#/'));
+  await startCall(page);
+  await openLive(page);
+  await expect(page.getByTestId('mic-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('mic-auto-hint')).toContainText('works like «On»');
+});
+
+test('folder select offers the auto preset', async ({ page }) => {
+  await page.goto(`/main.html?lang=en#/folder/${ACME}`);
+  const sel = page.getByTestId('folder-mic').locator('select');
+  await sel.selectOption('auto');
+  await expect(sel).toHaveValue('auto');
 });

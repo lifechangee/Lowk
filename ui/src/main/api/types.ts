@@ -17,6 +17,7 @@ import type {
   IndexStatus,
   IngestProgress,
   LlmProviderStatus,
+  MicMode,
   MicPreset,
   NewFolder,
   Os,
@@ -238,6 +239,8 @@ export interface Backend {
   sessionStop(): Promise<void>;
   /** Microphone on/off during a recording (the recording and the system audio keep going). */
   sessionSetMic(on: boolean): Promise<SessionState>;
+  /** Microphone mode during a recording: on, off or auto (only while the call app holds the microphone). */
+  sessionSetMicMode(mode: MicMode): Promise<SessionState>;
   /** Live transcript feed for the call page while recording. Returns an unsubscribe fn. */
   onLiveLine(cb: (line: LiveLine) => void): () => void;
 }

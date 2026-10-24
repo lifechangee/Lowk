@@ -1,5 +1,5 @@
 //! Session DTOs.
-use crate::{CallId, FolderRef, SessionClock, Target, TranscriptLine};
+use crate::{CallId, FolderRef, MicMode, SessionClock, Target, TranscriptLine};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
@@ -22,6 +22,12 @@ pub struct SessionState {
     /// The microphone is being recorded (false = muted for this call; system audio is unaffected).
     #[serde(default = "mic_default")]
     pub mic_on: bool,
+    /// What the user chose for this call: on / off / auto (auto = follow the call app's use of the microphone).
+    #[serde(default)]
+    pub mic_mode: MicMode,
+    /// Auto was chosen but cannot be detected here (whole-system source or no OS support): it records like "on".
+    #[serde(default)]
+    pub mic_auto_unsupported: bool,
 }
 
 fn mic_default() -> bool {

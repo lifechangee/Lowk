@@ -1,7 +1,7 @@
 // View state for the main window. No business logic: everything goes through `api`.
 import { locale } from '../lib/i18n/locale.svelte';
 import type { Key, LangSetting } from '../lib/i18n';
-import type { CallMeta, FolderMeta, IndexStatus, Settings, SourceInfo, Target } from '../lib/ipc';
+import type { CallMeta, FolderMeta, IndexStatus, MicMode, Settings, SourceInfo, Target } from '../lib/ipc';
 import { api, CommandError, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type EngineNeeded, type FolderKey, type LiveLine } from './api';
 import { EVENTS, on } from '../lib/ipc';
 import type { SessionState } from '../lib/ipc';
@@ -120,6 +120,10 @@ class Session {
   sttLoading = $state(false);
   /** The microphone is recorded (false = muted for this call; the system audio keeps recording). */
   micOn = $state(true);
+  /** What was chosen for this call (`SessionState.mic_mode`): on, off or auto (only while the call app holds the microphone). */
+  micMode = $state<MicMode>('on');
+  /** Auto was chosen but cannot be detected (whole-system source / no OS support): it records like «on». */
+  micAutoUnsupported = $state(false);
   elapsed = $derived(this.phase === 'recording' ? Math.max(0, Math.floor((this.now - this.startedAt) / 1000)) : 0);
   #tick: ReturnType<typeof setInterval> | null = null;
   #off: (() => void) | null = null;
@@ -137,7 +141,7 @@ class Session {
     }
     // The backend remembers the pick as `stt.last_languages`; mirror it so the selector keeps it without a reload.
     if (languages?.length) prefs.value = mergePatch(prefs.value, { stt: { last_languages: languages } });
-    this.micOn = st.mic_on ?? true;
+    this.#mirrorMic(st);
     this.#begin(st.call, folder ?? SYS_UNSORTED, sourceLabel);
     await library.reload();
   }
@@ -171,7 +175,7 @@ class Session {
   }
   /** Follow a session started or stopped elsewhere (record bind, overlay, demo end). */
   sync(s: SessionState): void {
-    this.micOn = s.mic_on ?? true;
+    this.#mirrorMic(s);
     if (s.phase === 'recording' && this.phase === 'idle') this.#begin(s.call, SYS_UNSORTED, '');
     else if (s.phase === 'idle' && this.phase === 'recording') {
       const done = this.callId;
@@ -189,12 +193,22 @@ class Session {
     void focusMainWindow();
     setTimeout(() => { if (ui.justFinished === call) ui.justFinished = null; }, 6000);
   }
+  #mirrorMic(s: SessionState): void {
+    this.micOn = s.mic_on ?? true;
+    this.micMode = s.mic_mode ?? 'on';
+    this.micAutoUnsupported = s.mic_auto_unsupported ?? false;
+  }
+  /** Live mic mode (on / off / auto); the backend writes the transcript markers on every switch. */
+  async setMicMode(mode: MicMode): Promise<void> {
+    if (this.phase !== 'recording') return;
+    this.#mirrorMic(await api.sessionSetMicMode(mode));
+  }
   /** Live mic switch (button in the recording bar); the backend writes the transcript marker. */
   async setMic(on: boolean): Promise<void> {
     if (this.phase !== 'recording') return;
     const prev = this.micOn;
     this.micOn = on;
-    try { this.micOn = (await api.sessionSetMic(on)).mic_on ?? true; } catch (e) { this.micOn = prev; throw e; }
+    try { this.#mirrorMic(await api.sessionSetMic(on)); } catch (e) { this.micOn = prev; throw e; }
   }
   async stop(): Promise<void> {
     if (this.phase !== 'recording') return;

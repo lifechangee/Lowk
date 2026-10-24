@@ -61,6 +61,8 @@ export const commands = {
 	callSetTags: (id: Ulid, tags: string[]) => typedError<CallMeta, AppError>(__TAURI_INVOKE("call_set_tags", { id, tags })),
 	/**  The only hard delete («Очистить корзину»). Returns the number of items removed. */
 	trashEmpty: () => typedError<number, AppError>(__TAURI_INVOKE("trash_empty")),
+	/**  «Delete forever» for one item in the Trash: also removes its saved audio and transcript revisions. */
+	trashDeleteForever: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("trash_delete_forever", { id })),
 	/**
 	 *  `*.zip` writes a zip (Obsidian opens the unzipped result as is); anything else copies the vault to
 	 *  a new directory.
@@ -112,6 +114,8 @@ export const commands = {
 	sessionPause: () => typedError<null, AppError>(__TAURI_INVOKE("session_pause")),
 	/**  Overlay button / main-window control: microphone on or off while recording, without stopping it. */
 	sessionSetMic: (on: boolean) => typedError<SessionState, AppError>(__TAURI_INVOKE("session_set_mic", { on })),
+	/**  Microphone mode of the running recording: on, off or auto (only while the call app holds the microphone). */
+	sessionSetMicMode: (mode: MicMode) => typedError<SessionState, AppError>(__TAURI_INVOKE("session_set_mic_mode", { mode })),
 	sessionResume: () => typedError<null, AppError>(__TAURI_INVOKE("session_resume")),
 	sessionState: () => __TAURI_INVOKE<SessionState>("session_state"),
 	sessionSnapshot: () => __TAURI_INVOKE<SessionSnapshot>("session_snapshot"),
@@ -325,8 +329,11 @@ export type AudioSettings = {
 	aec?: AecMode,
 	/**  Keep the recorded audio next to the call (opt-in; default text only). */
 	keep_audio?: boolean,
-	/**  Global default of «record microphone» (folders may override: `FolderMeta.mic`). Default on. */
-	record_mic?: boolean,
+	/**
+	 *  Global default of «record microphone» (folders may override: `FolderMeta.mic`). Default on.
+	 *  Old files stored a bool; `true`/`false` still load as on/off.
+	 */
+	record_mic?: MicMode,
 };
 
 export type BindEvent = BindEvent_Serialize | BindEvent_Deserialize;
@@ -927,10 +934,18 @@ export type LocalizedName = {
 	en: string,
 };
 
+/**
+ *  How the microphone is recorded during a call.
+ * 
+ *  `Auto`: the microphone is open only while the selected call app itself holds an input (capture)
+ *  stream; otherwise it stays closed. Deserializes from the old `bool` setting too (`true` = on).
+ */
+export type MicMode = "on" | "off" | "auto";
+
 /**  Per-folder «record microphone» preset. */
 export type MicPreset = 
 /**  Follow the global setting (`audio.record_mic`). */
-"inherit" | "on" | "off";
+"inherit" | "on" | "off" | "auto";
 
 /**  Modifier set. `meta` is Command on macOS and the Windows key on Windows. */
 export type Mods = {
@@ -1296,6 +1311,10 @@ export type SessionState = {
 	demo: boolean,
 	/**  The microphone is being recorded (false = muted for this call; system audio is unaffected). */
 	mic_on?: boolean,
+	/**  What the user chose for this call: on / off / auto (auto = follow the call app's use of the microphone). */
+	mic_mode?: MicMode,
+	/**  Auto was chosen but cannot be detected here (whole-system source or no OS support): it records like "on". */
+	mic_auto_unsupported?: boolean,
 };
 
 export type Settings = Settings_Serialize | Settings_Deserialize;

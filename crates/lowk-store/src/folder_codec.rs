@@ -138,6 +138,7 @@ pub fn parse(md: &str) -> FolderDoc {
     doc.mic = match get("record_mic").as_deref() {
         Some("on" | "true") => MicPreset::On,
         Some("off" | "false") => MicPreset::Off,
+        Some("auto") => MicPreset::Auto,
         _ => MicPreset::Inherit,
     };
     doc.retx = match get("retranscribe").as_deref() {
@@ -201,6 +202,7 @@ pub fn render(doc: &FolderDoc) -> String {
     match doc.mic {
         MicPreset::On => f.set_ordered("record_mic", "on".into(), &ORDER),
         MicPreset::Off => f.set_ordered("record_mic", "off".into(), &ORDER),
+        MicPreset::Auto => f.set_ordered("record_mic", "auto".into(), &ORDER),
         MicPreset::Inherit => f.remove("record_mic"),
     }
     match doc.retx {

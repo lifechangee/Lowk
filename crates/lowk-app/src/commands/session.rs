@@ -114,6 +114,14 @@ pub fn session_set_mic(st: State<'_, Shared>, on: bool) -> Result<SessionState> 
     Ok(st.session.state())
 }
 
+/// Microphone mode of the running recording: on, off or auto (only while the call app holds the microphone).
+#[tauri::command(async)]
+#[specta::specta]
+pub fn session_set_mic_mode(st: State<'_, Shared>, mode: MicMode) -> Result<SessionState> {
+    st.session.set_mic_mode(mode)?;
+    Ok(st.session.state())
+}
+
 #[tauri::command(async)]
 #[specta::specta]
 pub fn session_start(st: State<'_, Shared>, opts: StartOpts) -> Result<SessionState> {

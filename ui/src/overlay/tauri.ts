@@ -79,6 +79,7 @@ export class TauriSource implements OverlaySource {
     if (e.phase === 'idle') store.sttLoading = false;
     store.phase = e.phase;
     store.micOn = e.mic_on ?? true;
+    store.micAuto = e.mic_mode === 'auto' && !e.mic_auto_unsupported;
   }
 
   #applySettings(s: Settings): void {

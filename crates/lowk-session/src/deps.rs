@@ -252,6 +252,28 @@ pub struct SessionDeps {
     pub record_demo: bool,
     /// The «record microphone» preset of a folder (the app reads it from `_folder.md`); inherit by default.
     pub folder_mic: Arc<dyn Fn(&FolderRef) -> MicPreset + Send + Sync>,
+    /// «Microphone: auto» detection (does the call app hold an input stream?); unsupported by default.
+    pub mic_probe: Arc<dyn lowk_audio::mic_use::MicUseProbe>,
+    pub mic_auto: MicAutoCfg,
+}
+
+/// Timing of the auto microphone: poll period and hysteresis (on after the app held the microphone for
+/// `on_after_ms`, off after it released it for `off_after_ms`). Tests shrink it.
+#[derive(Clone, Copy, Debug)]
+pub struct MicAutoCfg {
+    pub poll_ms: u64,
+    pub on_after_ms: u64,
+    pub off_after_ms: u64,
+}
+
+impl Default for MicAutoCfg {
+    fn default() -> Self {
+        Self {
+            poll_ms: 1000,
+            on_after_ms: 1000,
+            off_after_ms: 3000,
+        }
+    }
 }
 
 impl SessionDeps {
@@ -278,6 +300,8 @@ impl SessionDeps {
             demo_pace: DemoPace::Realtime(1.0),
             record_demo: false,
             folder_mic: Arc::new(|_| MicPreset::Inherit),
+            mic_probe: Arc::new(lowk_audio::mic_use::NoMicUseProbe),
+            mic_auto: MicAutoCfg::default(),
         }
     }
 }

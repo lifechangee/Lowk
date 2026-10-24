@@ -187,6 +187,8 @@ fn events_roundtrip_and_names() {
             call: Some(Ulid::new()),
             demo: false,
             mic_on: true,
+            mic_mode: MicMode::On,
+            mic_auto_unsupported: false,
         }),
         AppEvent::Llm(LlmEvent::Delta {
             req_id: Ulid::new(),
@@ -531,17 +533,35 @@ fn m2_contracts_roundtrip() {
 }
 
 #[test]
-fn mic_preset_resolution_incl_inherit() {
-    for global in [true, false] {
+fn mic_preset_resolution_incl_inherit_and_auto() {
+    for global in [MicMode::On, MicMode::Off, MicMode::Auto] {
         assert_eq!(
             MicPreset::Inherit.resolve(global),
             global,
             "inherit follows the global setting"
         );
-        assert!(MicPreset::On.resolve(global));
-        assert!(!MicPreset::Off.resolve(global));
+        assert_eq!(MicPreset::On.resolve(global), MicMode::On);
+        assert_eq!(MicPreset::Off.resolve(global), MicMode::Off);
+        assert_eq!(MicPreset::Auto.resolve(global), MicMode::Auto);
     }
     assert_eq!(MicPreset::default(), MicPreset::Inherit);
+}
+
+#[test]
+fn mic_mode_migrates_from_the_old_bool_setting() {
+    let load = |v: serde_json::Value| -> Settings {
+        serde_json::from_value(serde_json::json!({ "audio": { "record_mic": v } })).unwrap()
+    };
+    assert_eq!(load(serde_json::json!(true)).audio.record_mic, MicMode::On);
+    assert_eq!(load(serde_json::json!(false)).audio.record_mic, MicMode::Off);
+    assert_eq!(load(serde_json::json!("auto")).audio.record_mic, MicMode::Auto);
+    assert_eq!(load(serde_json::json!("off")).audio.record_mic, MicMode::Off);
+    // written back as a string
+    let s = load(serde_json::json!(false));
+    assert_eq!(serde_json::to_value(&s).unwrap()["audio"]["record_mic"], "off");
+    let bad: Result<Settings, _> =
+        serde_json::from_value(serde_json::json!({ "audio": { "record_mic": "sometimes" } }));
+    assert!(bad.is_err());
 }
 
 #[test]
@@ -562,7 +582,7 @@ fn retranscribe_defaults_are_off_and_the_folder_preset_resolves_like_the_mic_one
 #[test]
 fn mic_and_adaptive_scrim_defaults() {
     let s = Settings::defaults_for(Os::Macos);
-    assert!(s.audio.record_mic, "global default: microphone on");
+    assert_eq!(s.audio.record_mic, MicMode::On, "global default: microphone on");
     assert!(!s.overlay.adaptive_scrim, "adaptive scrim is opt-in");
     assert!(
         default_binds(Os::Macos)
@@ -583,7 +603,11 @@ fn old_settings_file_migrates_to_gradient_off_and_mic_on() {
     let s: Settings = serde_json::from_value(old).unwrap();
     assert!(!s.overlay.adaptive_scrim, "existing users get the gradient off");
     assert_eq!(s.overlay.opacity, 40, "other values survive");
-    assert!(s.audio.record_mic, "existing users keep recording the microphone");
+    assert_eq!(
+        s.audio.record_mic,
+        MicMode::On,
+        "existing users keep recording the microphone"
+    );
     assert!(s.audio.keep_audio);
     // an explicit opt-in survives a patch round trip
     let on = s

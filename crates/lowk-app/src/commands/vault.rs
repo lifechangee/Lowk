@@ -341,6 +341,13 @@ pub fn trash_empty(st: State<'_, Shared>) -> Result<u32> {
     Ok(vault(&st)?.empty_trash()? as u32)
 }
 
+/// «Delete forever» for one item in the Trash: also removes its saved audio and transcript revisions.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn trash_delete_forever(st: State<'_, Shared>, id: Ulid) -> Result<()> {
+    vault(&st)?.delete_forever(&id)
+}
+
 /// `*.zip` writes a zip (Obsidian opens the unzipped result as is); anything else copies the vault to
 /// a new directory.
 #[tauri::command(async)]

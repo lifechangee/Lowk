@@ -82,6 +82,8 @@ export const overlay = {
   'overlay.action.stop': 'Остановить запись',
   'overlay.mic.off': 'Выключить микрофон',
   'overlay.mic.on': 'Включить микрофон',
+  'overlay.mic.autoOn': 'Авто: микрофон включён (по приложению созвона). Нажмите, чтобы выключить',
+  'overlay.mic.autoOff': 'Авто: микрофон выключен. Нажмите, чтобы включить вручную',
   'overlay.mic.muted': 'Микрофон выключен',
   'overlay.mic.live': 'Микрофон включён',
   'overlay.state.paused': 'Пауза',

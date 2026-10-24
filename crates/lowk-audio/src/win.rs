@@ -161,6 +161,52 @@ fn sessions() -> Result<Vec<AppRow>> {
     Ok(apps.into_values().collect())
 }
 
+/// «Microphone: auto»: every process (with its parent) plus whether it has an Active WASAPI capture
+/// session on any active capture endpoint (`IAudioSessionManager2`). `None` when the audio
+/// enumeration itself failed (the caller keeps its last state).
+pub(crate) fn capture_session_rows() -> Option<Vec<crate::mic_use::ProcRow>> {
+    let _ = initialize_mta();
+    let en = DeviceEnumerator::new().ok()?;
+    let devices = en.get_device_collection(&Direction::Capture).ok()?;
+    let mut active: std::collections::BTreeSet<u32> = Default::default();
+    for dev in &devices {
+        let Ok(dev) = dev else { continue };
+        let Ok(mgr) = dev.get_iaudiosessionmanager() else {
+            continue;
+        };
+        let Ok(list) = mgr.get_audiosessionenumerator() else {
+            continue;
+        };
+        for i in 0..list.get_count().unwrap_or(0) {
+            let Ok(c) = list.get_session(i) else { continue };
+            let pid = c.get_process_id().unwrap_or(0);
+            if pid != 0 && matches!(c.get_state(), Ok(SessionState::Active)) {
+                active.insert(pid);
+            }
+        }
+    }
+    let mut sys = System::new();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    Some(
+        sys.processes()
+            .values()
+            .map(|p| {
+                let name = p.name().to_string_lossy().to_lowercase();
+                let mut keys = vec![name.trim_end_matches(".exe").to_string(), name];
+                if let Some(e) = p.exe() {
+                    keys.push(e.to_string_lossy().to_lowercase());
+                }
+                crate::mic_use::ProcRow {
+                    pid: p.pid().as_u32(),
+                    parent: p.parent().map(|pp| pp.as_u32()),
+                    keys,
+                    holds_input: active.contains(&p.pid().as_u32()),
+                }
+            })
+            .collect(),
+    )
+}
+
 pub fn list_sources() -> Result<Vec<SourceInfo>> {
     let mut v: Vec<SourceInfo> = sessions()?
         .into_iter()

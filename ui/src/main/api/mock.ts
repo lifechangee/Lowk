@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command WP6 has not wired yet. Mutations are real within the page's life.
-import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -42,7 +42,7 @@ export class MockBackend implements Backend {
   #settings: Settings;
   #live = new Set<(l: LiveLine) => void>();
   #liveTimer: ReturnType<typeof setInterval> | null = null;
-  #session: SessionState = { phase: 'idle', call: null, demo: false, mic_on: true };
+  #session: SessionState = { phase: 'idle', call: null, demo: false, mic_on: true, mic_mode: 'on', mic_auto_unsupported: false };
   // ---- M2 ----
   #documents: Document[] = makeDocuments(this.#now);
   #docMds = new Map<string, string>();
@@ -670,7 +670,9 @@ export class MockBackend implements Backend {
     if (opts.languages?.length) this.#settings = mergePatch(this.#settings, { stt: { last_languages: opts.languages } });
     // like the backend: the folder preset (inherit = settings) decides if the mic starts on
     const preset = opts.folder?.kind === 'user' ? (this.#folders.find((f) => f.id.kind === 'user' && f.id.id === (opts.folder as { id: string }).id)?.mic ?? 'inherit') : 'inherit';
-    this.#session = { phase: 'recording', call: id, demo: true, mic_on: preset === 'inherit' ? (this.#settings.audio?.record_mic ?? true) : preset === 'on' };
+    const g = this.#settings.audio?.record_mic as unknown;
+    const globalMode: MicMode = g === false || g === 'off' ? 'off' : g === 'auto' ? 'auto' : 'on';
+    this.#session = this.#micState(preset === 'inherit' ? globalMode : preset, (globalThis as { __lowkMockAutoApp?: boolean }).__lowkMockAutoApp ?? opts.system?.kind === 'app', { phase: 'recording', call: id, demo: true });
     let i = 0;
     this.#liveTimer = setInterval(() => { const l = LIVE_LINES[i++ % LIVE_LINES.length]!; this.#live.forEach((cb) => cb(l)); }, 2600);
     return this.#session;
@@ -680,11 +682,26 @@ export class MockBackend implements Backend {
     this.#liveTimer = null;
     const c = this.#session.call ? this.#call(this.#session.call) : undefined;
     if (c) { c.ended = new Date().toISOString(); c.duration_s = Math.max(1, Math.round((Date.now() - Date.parse(c.started)) / 1000)); c.title = c.title || 'Новый созвон'; }
-    this.#session = { phase: 'idle', call: null, demo: false, mic_on: true };
+    this.#session = { phase: 'idle', call: null, demo: false, mic_on: true, mic_mode: 'on', mic_auto_unsupported: false };
+  }
+  #autoApp = false;
+  /** Mic fields for a mode like the backend: auto starts closed, or records like «on» when it cannot be detected. */
+  #micState(mode: MicMode, canDetect: boolean, base: Pick<SessionState, 'phase' | 'call' | 'demo'>): SessionState {
+    this.#autoApp = canDetect;
+    const unsupported = mode === 'auto' && !canDetect;
+    return { ...base, mic_mode: mode, mic_auto_unsupported: unsupported, mic_on: mode === 'on' || unsupported };
+  }
+  async sessionSetMicMode(mode: MicMode): Promise<SessionState> {
+    if (this.#session.phase !== 'recording') throw appErr('session_idle');
+    const { phase, call, demo } = this.#session;
+    const prev = this.#session.mic_on;
+    this.#session = this.#micState(mode, this.#autoApp, { phase, call, demo });
+    if (mode === 'auto' && !this.#session.mic_auto_unsupported) this.#session.mic_on = prev; // keeps the state until the app lets go
+    return this.#session;
   }
   async sessionSetMic(on: boolean): Promise<SessionState> {
     if (this.#session.phase !== 'recording') throw appErr('session_idle');
-    this.#session = { ...this.#session, mic_on: on };
+    this.#session = { ...this.#session, mic_on: on, mic_mode: on ? 'on' : 'off', mic_auto_unsupported: false };
     return this.#session;
   }
   onLiveLine(cb: (l: LiveLine) => void): () => void { this.#live.add(cb); return () => this.#live.delete(cb); }
