@@ -236,3 +236,12 @@ describe('subtitle history (O6)', () => {
     expect(s.sub?.text).toBe('r199');
   });
 });
+
+describe('microphone state', () => {
+  it('defaults to on and follows the session', () => {
+    const s = new OverlayStore();
+    expect(s.micOn).toBe(true);
+    s.micOn = false;
+    expect(s.micOn).toBe(false);
+  });
+});

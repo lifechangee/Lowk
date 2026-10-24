@@ -81,6 +81,19 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         vault: vault.clone(),
         emitter: emitter.clone(),
     });
+    // «Record microphone» preset of the folder a new call starts in (`_folder.md`); unreadable = inherit.
+    deps.folder_mic = {
+        let vault = vault.clone();
+        Arc::new(move |f: &FolderRef| match f {
+            FolderRef::User(id) => vault
+                .read()
+                .as_ref()
+                .and_then(|v| v.folder_doc(id).ok())
+                .map(|d| d.mic)
+                .unwrap_or_default(),
+            _ => MicPreset::Inherit,
+        })
+    };
     deps.record_demo = true; // M0: demo calls are real calls, so the library has content
                              // M1: real capture + local/cloud STT. Demo stays the fallback while no engine is ready.
     deps.audio = Arc::new(std::sync::Mutex::new(crate::engines::DynBackend(
@@ -159,12 +172,15 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     ) {
         Ok(stealth) => {
             stealth.set_event_sink(emitter.clone());
-            stealth.set_tone_mode(s.overlay.tone_mode);
+            stealth.set_tone_mode(s.overlay.effective_tone_mode());
             if let Some(g) = capture::screen_grab() {
                 stealth.overlay.set_selftest_capture(g);
             }
             let stealth = Arc::new(stealth);
-            *state.tone.lock() = Some(stealth.spawn_tone_sampler(capture::sampler()));
+            // The sampler (ScreenCaptureKit / Windows capture) exists only for the adaptive scrim, which is opt-in.
+            state.tone.set_enabled(s.overlay.sampler_wanted(), || {
+                stealth.spawn_tone_sampler(capture::sampler())
+            });
             let _ = state.stealth.set(stealth);
             state.place_overlay();
         }
@@ -327,8 +343,15 @@ fn on_settings(st: &Shared, old: &Settings, new: &Settings) {
                 tracing::warn!(%e, "hide_main not applied");
             }
         }
-        if old.overlay.tone_mode != new.overlay.tone_mode {
-            stealth.set_tone_mode(new.overlay.tone_mode);
+        if old.overlay.effective_tone_mode() != new.overlay.effective_tone_mode() {
+            stealth.set_tone_mode(new.overlay.effective_tone_mode());
+        }
+        if old.overlay.sampler_wanted() != new.overlay.sampler_wanted() {
+            let on = new.overlay.sampler_wanted();
+            let running = st
+                .tone
+                .set_enabled(on, || stealth.spawn_tone_sampler(capture::sampler()));
+            tracing::info!(adaptive_scrim = on, running, "adaptive scrim sampler switched");
         }
     }
     // F12: the chosen source (onboarding / settings) and the mode the UI shows never disagree.

@@ -236,6 +236,8 @@ pub struct AudioSettings {
     pub aec: AecMode,
     /// Keep the recorded audio next to the call (opt-in; default text only).
     pub keep_audio: bool,
+    /// Global default of «record microphone» (folders may override: `FolderMeta.mic`). Default on.
+    pub record_mic: bool,
 }
 impl Default for AudioSettings {
     fn default() -> Self {
@@ -244,6 +246,7 @@ impl Default for AudioSettings {
             mic_device: None,
             aec: AecMode::Auto,
             keep_audio: false,
+            record_mic: true,
         }
     }
 }
@@ -452,6 +455,10 @@ pub struct OverlaySettings {
     pub pill_edge: PillEdge,
     pub tone_mode: ToneMode,
     pub accent: String,
+    /// «Adaptive scrim colour (for smart glasses)»: the screen under the overlay is sampled and the scrim follows
+    /// it. Default OFF (also for settings files written before the key existed): the sampler does not run at all and
+    /// the overlay uses a fixed dark scrim with the transparency slider.
+    pub adaptive_scrim: bool,
 }
 impl Default for OverlaySettings {
     fn default() -> Self {
@@ -465,6 +472,24 @@ impl Default for OverlaySettings {
             pill_edge: PillEdge::Right,
             tone_mode: ToneMode::Auto,
             accent: DEFAULT_ACCENT.into(),
+            adaptive_scrim: false,
+        }
+    }
+}
+
+impl OverlaySettings {
+    /// The screen sampler (ScreenCaptureKit / Windows capture) runs only for the adaptive scrim.
+    pub fn sampler_wanted(&self) -> bool {
+        self.adaptive_scrim
+    }
+
+    /// The palette the overlay uses: the adaptive one only when the setting is on; otherwise the plain scrim
+    /// (a fixed dark preset, or the light one when forced) with the transparency slider.
+    pub fn effective_tone_mode(&self) -> ToneMode {
+        match (self.adaptive_scrim, self.tone_mode) {
+            (true, m) => m,
+            (false, ToneMode::Light) => ToneMode::Light,
+            (false, _) => ToneMode::Dark,
         }
     }
 }

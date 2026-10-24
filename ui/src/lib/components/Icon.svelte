@@ -11,6 +11,7 @@
     trash: '<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5M7 7v4M9 7v4"/>',
     restore: '<path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3"/>',
     mic: '<rect x="6" y="2" width="4" height="7" rx="2"/><path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2"/>',
+    'mic-off': '<path d="M10 5.5V4a2 2 0 0 0-3.8-.9M6 6v1a2 2 0 0 0 3.2 1.6M3.5 7.5a4.5 4.5 0 0 0 7.2 3.6M12.5 7.5a4.4 4.4 0 0 1-.4 1.8M8 12v2M2 2l12 12"/>',
     monitor: '<rect x="2" y="3" width="12" height="8.5" rx="1.5"/><path d="M5.5 14h5"/>',
     keyboard: '<rect x="1.5" y="4" width="13" height="8" rx="1.5"/><path d="M4.5 7h.01M7.5 7h.01M10.5 7h.01M5 9.5h6"/>',
     check: '<path d="m3 8.5 3.2 3.2L13 4.8"/>',

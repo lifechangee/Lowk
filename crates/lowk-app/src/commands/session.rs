@@ -100,6 +100,20 @@ pub fn toggle_record(st: &Arc<AppState>) -> Result<()> {
     }
 }
 
+/// The microphone bind: flips the mic of the running recording (idle: `SessionIdle`, which the bind handler ignores).
+pub fn toggle_mic(st: &Arc<AppState>) -> Result<()> {
+    let on = !st.session.state().mic_on;
+    st.session.set_mic_enabled(on)
+}
+
+/// Overlay button / main-window control: microphone on or off while recording, without stopping it.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn session_set_mic(st: State<'_, Shared>, on: bool) -> Result<SessionState> {
+    st.session.set_mic_enabled(on)?;
+    Ok(st.session.state())
+}
+
 #[tauri::command(async)]
 #[specta::specta]
 pub fn session_start(st: State<'_, Shared>, opts: StartOpts) -> Result<SessionState> {

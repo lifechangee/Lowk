@@ -28,6 +28,9 @@
 <SettingRow label={tm('m.defaultSource')} hint={tm('m.defaultSourceHint')}>
   <div class="srcw"><SourcePicker size="md" label={tm('m.defaultSource')} value={srcValue} onchange={(v) => prefs.patch({ capture: { default_source: v.startsWith('app:') ? 'one_app' : 'whole_system' }, audio: { default_source: v.startsWith('app:') ? { kind: 'app', id: v.slice(4) } : { kind: 'whole_system' } } })} /></div>
 </SettingRow>
+<SettingRow label={tm('m.recordMic')} hint={tm('m.recordMicHint')}>
+  <Toggle checked={s.audio?.record_mic ?? true} label={tm('m.recordMic')} onchange={(v) => prefs.patch({ audio: { record_mic: v } })} />
+</SettingRow>
 <SettingRow label={tm('settings.keepAudio')} hint={tm('m.keepAudioHint')}>
   <Toggle checked={s.audio?.keep_audio ?? false} label={tm('settings.keepAudio')} onchange={(v) => prefs.patch({ audio: { keep_audio: v } })} />
 </SettingRow>

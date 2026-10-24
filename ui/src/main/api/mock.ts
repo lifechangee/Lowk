@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command WP6 has not wired yet. Mutations are real within the page's life.
-import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -42,7 +42,7 @@ export class MockBackend implements Backend {
   #settings: Settings;
   #live = new Set<(l: LiveLine) => void>();
   #liveTimer: ReturnType<typeof setInterval> | null = null;
-  #session: SessionState = { phase: 'idle', call: null, demo: false };
+  #session: SessionState = { phase: 'idle', call: null, demo: false, mic_on: true };
   // ---- M2 ----
   #documents: Document[] = makeDocuments(this.#now);
   #docMds = new Map<string, string>();
@@ -119,17 +119,18 @@ export class MockBackend implements Backend {
   }
   async folderCreate(input: NewFolder): Promise<FolderMeta> {
     const id = '01JC8Z3K6Q9X2M4N7R5T0V' + String(900 + this.#folders.length).padStart(4, '0');
-    const meta: FolderMeta = { id: { kind: 'user', id }, title: input.title, tags: input.tags, allow_cloud: input.allow_cloud, default_template: null, path: input.title, call_count: 0 };
+    const meta: FolderMeta = { id: { kind: 'user', id }, title: input.title, tags: input.tags, allow_cloud: input.allow_cloud, default_template: null, mic: 'inherit', path: input.title, call_count: 0 };
     this.#folders.push(meta);
     this.#instructions.set(id, input.instructions);
     return meta;
   }
-  async folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean }): Promise<void> {
+  async folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset }): Promise<void> {
     const f = this.#folders.find((x) => folderKey(x.id) === id);
     if (!f) return;
     if (patch.instructions !== undefined) this.#instructions.set(id, patch.instructions);
     if (patch.tags) f.tags = patch.tags;
     if (patch.allow_cloud !== undefined) f.allow_cloud = patch.allow_cloud;
+    if (patch.mic !== undefined) f.mic = patch.mic;
   }
   #call(id: string): CallMeta | undefined { return this.#calls.find((c) => c.id === id); }
   async callTrash(id: string): Promise<void> { const c = this.#call(id); if (c) c.deleted = true; }
@@ -596,7 +597,9 @@ export class MockBackend implements Backend {
     // QA hook: what the window asked for (languages of the call), like the real backend's frontmatter.
     (globalThis as { __lowkStartOpts?: StartOpts }).__lowkStartOpts = opts;
     if (opts.languages?.length) this.#settings = mergePatch(this.#settings, { stt: { last_languages: opts.languages } });
-    this.#session = { phase: 'recording', call: id, demo: true };
+    // like the backend: the folder preset (inherit = settings) decides if the mic starts on
+    const preset = opts.folder?.kind === 'user' ? (this.#folders.find((f) => f.id.kind === 'user' && f.id.id === (opts.folder as { id: string }).id)?.mic ?? 'inherit') : 'inherit';
+    this.#session = { phase: 'recording', call: id, demo: true, mic_on: preset === 'inherit' ? (this.#settings.audio?.record_mic ?? true) : preset === 'on' };
     let i = 0;
     this.#liveTimer = setInterval(() => { const l = LIVE_LINES[i++ % LIVE_LINES.length]!; this.#live.forEach((cb) => cb(l)); }, 2600);
     return this.#session;
@@ -606,7 +609,12 @@ export class MockBackend implements Backend {
     this.#liveTimer = null;
     const c = this.#session.call ? this.#call(this.#session.call) : undefined;
     if (c) { c.ended = new Date().toISOString(); c.duration_s = Math.max(1, Math.round((Date.now() - Date.parse(c.started)) / 1000)); c.title = c.title || 'Новый созвон'; }
-    this.#session = { phase: 'idle', call: null, demo: false };
+    this.#session = { phase: 'idle', call: null, demo: false, mic_on: true };
+  }
+  async sessionSetMic(on: boolean): Promise<SessionState> {
+    if (this.#session.phase !== 'recording') throw appErr('session_idle');
+    this.#session = { ...this.#session, mic_on: on };
+    return this.#session;
   }
   onLiveLine(cb: (l: LiveLine) => void): () => void { this.#live.add(cb); return () => this.#live.delete(cb); }
 }

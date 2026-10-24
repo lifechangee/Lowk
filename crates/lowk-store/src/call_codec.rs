@@ -47,6 +47,11 @@ pub enum Block {
     },
     Qa(QaBlock),
     Image(ImageBlock),
+    /// `[00:12:34] *Микрофон выключен*`: a state-change line (single `*` italics, not a speaker turn).
+    Marker {
+        at_s: u32,
+        text: String,
+    },
     /// Anything we do not understand, preserved verbatim.
     Raw(String),
 }
@@ -310,6 +315,17 @@ fn parse_turn(line: &str) -> Option<(u32, Speaker, String, String)> {
     ))
 }
 
+fn parse_marker(line: &str) -> Option<(u32, String)> {
+    let rest = line.strip_prefix('[')?;
+    let (ts, rest) = rest.split_once(']')?;
+    let at = parse_ts(ts)?;
+    let body = rest.strip_prefix(" *")?.strip_suffix('*')?;
+    if body.is_empty() || body.starts_with('*') || body.contains('*') || body.contains('\n') {
+        return None;
+    }
+    Some((at, body.to_string()))
+}
+
 fn parse_blocks(text: &str) -> Vec<Block> {
     let lines: Vec<&str> = text.lines().collect();
     let mut out: Vec<Block> = vec![];
@@ -358,6 +374,9 @@ fn parse_blocks(text: &str) -> Vec<Block> {
             }
             out.push(Block::Image(b));
             i = j;
+        } else if let Some((at_s, text)) = parse_marker(line) {
+            out.push(Block::Marker { at_s, text });
+            i += 1;
         } else if let Some((at_s, speaker, text, _)) = parse_turn(line) {
             out.push(Block::Turn { at_s, speaker, text });
             i += 1;
@@ -538,6 +557,7 @@ fn render_block(b: &Block, fm: &CallFm) -> String {
             }
             s
         }
+        Block::Marker { at_s, text } => format!("[{}] *{}*", fmt_ts(*at_s), text.replace('*', "")),
         Block::Raw(r) => r.clone(),
     }
 }

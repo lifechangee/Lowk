@@ -78,7 +78,7 @@ const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) +
 // ---------- app + stage ----------
 const data = join(work, 'data');
 mkdirSync(data, { recursive: true });
-writeFileSync(join(data, 'settings.toml'), `[onboarding]\ndone = true\nrecording_notice_ack = true\n[vault]\npath = "${work}/vault"\n[overlay]\nopacity = 66\nvisibility = "always"\n`);
+writeFileSync(join(data, 'settings.toml'), `[onboarding]\ndone = true\nrecording_notice_ack = true\n[vault]\npath = "${work}/vault"\n[overlay]\nopacity = 66\nvisibility = "always"\nadaptive_scrim = true\n`);
 const port = 19000 + Math.floor(Math.random() * 1000);
 const token = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
 // Launched through LaunchServices (`open`), NOT as a child of this shell: macOS then attributes Screen Recording to Lowk itself

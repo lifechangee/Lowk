@@ -2,7 +2,7 @@
 use crate::emitter::UiEmitter;
 use lowk_input::InputManager;
 use lowk_session::Session;
-use lowk_stealth::{Stealth, ToneSampler};
+use lowk_stealth::{SamplerSlot, Stealth};
 use lowk_store::{FileSettingsStore, Vault};
 use lowk_types::*;
 use parking_lot::{Mutex, RwLock};
@@ -51,7 +51,8 @@ pub struct AppState {
     pub emitter: Arc<UiEmitter>,
     pub driver: Driver,
     pub stealth: OnceLock<Arc<Stealth>>,
-    pub tone: Mutex<Option<ToneSampler>>,
+    /// The adaptive-scrim sampler; empty (and never constructed) while the setting is off.
+    pub tone: SamplerSlot,
     pub binds_report: Mutex<BindReport>,
     pub applied_binds: Mutex<Vec<BindSpec>>,
     pub drag_origin: Mutex<Option<(f64, f64)>>,
@@ -101,7 +102,7 @@ impl AppState {
             emitter,
             driver: Driver::new(),
             stealth: OnceLock::new(),
-            tone: Mutex::new(None),
+            tone: SamplerSlot::default(),
             binds_report: Mutex::new(BindReport::default()),
             applied_binds: Mutex::new(vec![]),
             drag_origin: Mutex::new(None),

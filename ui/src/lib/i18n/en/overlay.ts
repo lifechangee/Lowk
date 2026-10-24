@@ -76,6 +76,10 @@ export const overlay = {
   'overlay.new': 'new',
   'overlay.state.idle': 'Not recording',
   'overlay.action.stop': 'Stop recording',
+  'overlay.mic.off': 'Turn microphone off',
+  'overlay.mic.on': 'Turn microphone on',
+  'overlay.mic.muted': 'Microphone off',
+  'overlay.mic.live': 'Microphone on',
   'overlay.state.paused': 'Paused',
   'overlay.hint.degraded': 'Holding {key} does not work: enable “Input Monitoring” in Lowk → Permissions',
 } as const;

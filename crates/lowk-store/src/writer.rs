@@ -189,6 +189,12 @@ impl Model {
                     callout: true,
                 }));
             }
+            CallEntry::Marker { at_s, text } => {
+                self.doc.blocks_mut().push(Block::Marker {
+                    at_s: *at_s,
+                    text: text.clone(),
+                });
+            }
             CallEntry::MyAnswer { qa_id, at_s, text } => {
                 let id = qa_id.to_string();
                 let text = &lowk_types::text::clean_speech(text);
@@ -221,6 +227,7 @@ impl Model {
             Block::Turn { at_s, .. } => Some(*at_s),
             Block::Qa(q) => Some(q.at_s),
             Block::Image(i) => Some(i.at_s),
+            Block::Marker { at_s, .. } => Some(*at_s),
             Block::Raw(_) => None,
         };
         let mut pos = blocks.len();

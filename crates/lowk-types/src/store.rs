@@ -3,6 +3,28 @@ use crate::{CallId, FolderRef, LangTag, QaId, SessionClock, SttEvent, Ulid};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+/// Per-folder «record microphone» preset.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum MicPreset {
+    /// Follow the global setting (`audio.record_mic`).
+    #[default]
+    Inherit,
+    On,
+    Off,
+}
+
+impl MicPreset {
+    /// Whether a new call in a folder with this preset starts with the microphone on.
+    pub fn resolve(self, global: bool) -> bool {
+        match self {
+            MicPreset::Inherit => global,
+            MicPreset::On => true,
+            MicPreset::Off => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct FolderMeta {
     pub id: FolderRef,
@@ -10,6 +32,9 @@ pub struct FolderMeta {
     pub tags: Vec<String>,
     pub allow_cloud: bool,
     pub default_template: Option<String>,
+    /// «Record microphone» preset for new calls in this folder.
+    #[serde(default)]
+    pub mic: MicPreset,
     /// Path relative to the vault root.
     pub path: String,
     pub call_count: u32,
@@ -84,6 +109,11 @@ pub enum CallEntry {
         rel_path: String,
         source: String,
         caption: String,
+    },
+    /// A state-change line in the transcript (e.g. «Микрофон выключен»), stamped with the call time.
+    Marker {
+        at_s: u32,
+        text: String,
     },
     MyAnswer {
         qa_id: QaId,

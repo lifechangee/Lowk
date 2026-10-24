@@ -19,6 +19,13 @@ pub struct SessionState {
     pub call: Option<CallId>,
     /// True while the demo/replay feed drives the session.
     pub demo: bool,
+    /// The microphone is being recorded (false = muted for this call; system audio is unaffected).
+    #[serde(default = "mic_default")]
+    pub mic_on: bool,
+}
+
+fn mic_default() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]

@@ -221,3 +221,35 @@ fn s6_lines_are_ordered_by_audio_time_not_by_final_arrival() {
     );
     assert!(pos("Вопрос про метрики") < pos("lowk-qa"));
 }
+
+#[test]
+fn mic_marker_line_roundtrips_and_is_not_a_speaker_turn() {
+    let src = "---\nlowk: 1\ntype: call\nid: X\ntitle: \"t\"\n---\n\n# t\n\n## Транскрипт\n\n[00:00:05] **Система:** привет\n\n[00:00:12] *Микрофон выключен*\n\n[00:01:30] *Микрофон включён*\n\n[00:01:41] **Я:** снова тут\n";
+    let doc = call_codec::parse(src);
+    let blocks = doc.blocks();
+    assert!(
+        matches!(&blocks[1], Block::Marker { at_s: 12, text } if text == "Микрофон выключен"),
+        "{blocks:?}"
+    );
+    assert!(matches!(&blocks[2], Block::Marker { at_s: 90, text } if text == "Микрофон включён"));
+    assert!(matches!(&blocks[3], Block::Turn { .. }));
+    let out = call_codec::render(&doc);
+    assert!(out.ends_with(&src[src.find("## Транскрипт").unwrap()..]), "{out}");
+}
+
+#[test]
+fn folder_mic_preset_roundtrips_and_inherit_writes_nothing() {
+    use lowk_types::MicPreset;
+    let mut doc = folder_codec::parse(&fixture("folder_full.md"));
+    assert_eq!(doc.mic, MicPreset::Inherit, "no key = inherit");
+    assert!(!folder_codec::render(&doc).contains("record_mic"));
+    for (preset, text) in [
+        (MicPreset::Off, "record_mic: off"),
+        (MicPreset::On, "record_mic: on"),
+    ] {
+        doc.mic = preset;
+        let md = folder_codec::render(&doc);
+        assert!(md.contains(text), "{md}");
+        assert_eq!(folder_codec::parse(&md).mic, preset);
+    }
+}

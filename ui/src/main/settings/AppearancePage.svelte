@@ -3,6 +3,7 @@
   import OptionCard from '../../lib/components/OptionCard.svelte';
   import SettingRow from '../../lib/components/SettingRow.svelte';
   import Select from '../../lib/components/Select.svelte';
+  import Toggle from '../../lib/components/Toggle.svelte';
   import Slider from '../../lib/components/Slider.svelte';
   import SizeSteps, { MAIN_STEPS, OVERLAY_STEPS, nearestStep } from '../../lib/components/SizeSteps.svelte';
   import { tm } from '../i18n';
@@ -40,6 +41,9 @@
 
 <SettingRow label={tm('m.fontSize')} hint={tm('m.fontSizeHint')}>
   <span class="fixed"><SizeSteps value={ovPx} steps={OVERLAY_STEPS} label={tm('m.fontSize')} onpick={(v) => patch({ font_px: v })} /></span>
+</SettingRow>
+<SettingRow label={tm('m.adaptiveScrim')} hint={tm('m.adaptiveScrimHint')}>
+  <Toggle checked={o.adaptive_scrim ?? false} label={tm('m.adaptiveScrim')} onchange={(v) => patch({ adaptive_scrim: v })} />
 </SettingRow>
 <SettingRow label={tm('m.toneMode')} hint={tm('m.toneModeHint')}>
   <Select label={tm('m.toneMode')} value={o.tone_mode ?? 'auto'} options={tones.map((t) => ({ value: t, label: tm(`m.tone.${t}` as MKey) }))} onchange={(v) => patch({ tone_mode: v })} />

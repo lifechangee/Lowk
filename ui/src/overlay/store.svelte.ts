@@ -35,6 +35,8 @@ export class OverlayStore {
   lang = $state<Lang>('ru');
   mode = $state<OverlayMode>('passive');
   phase = $state<SessionPhase>('idle');
+  /** The microphone is recorded (`SessionState.mic_on`); false = muted for this call. */
+  micOn = $state(true);
   /** Elapsed recording time in ms (the source or a ticker updates it). */
   elapsedMs = $state(0);
   tone = $state<ToneVars>(PRESETS.dark);

@@ -186,6 +186,7 @@ fn events_roundtrip_and_names() {
             phase: SessionPhase::Recording,
             call: Some(Ulid::new()),
             demo: false,
+            mic_on: true,
         }),
         AppEvent::Llm(LlmEvent::Delta {
             req_id: Ulid::new(),
@@ -527,4 +528,53 @@ fn m2_contracts_roundtrip() {
         )
         .unwrap();
     assert!(!sum.key_points.is_empty());
+}
+
+#[test]
+fn mic_preset_resolution_incl_inherit() {
+    for global in [true, false] {
+        assert_eq!(
+            MicPreset::Inherit.resolve(global),
+            global,
+            "inherit follows the global setting"
+        );
+        assert!(MicPreset::On.resolve(global));
+        assert!(!MicPreset::Off.resolve(global));
+    }
+    assert_eq!(MicPreset::default(), MicPreset::Inherit);
+}
+
+#[test]
+fn mic_and_adaptive_scrim_defaults() {
+    let s = Settings::defaults_for(Os::Macos);
+    assert!(s.audio.record_mic, "global default: microphone on");
+    assert!(!s.overlay.adaptive_scrim, "adaptive scrim is opt-in");
+    assert!(
+        default_binds(Os::Macos)
+            .iter()
+            .all(|b| b.action != ActionId::ToggleMic),
+        "the mic bind is unbound by default"
+    );
+}
+
+#[test]
+fn old_settings_file_migrates_to_gradient_off_and_mic_on() {
+    // A file written before both keys existed (and with a customised overlay section).
+    let old = serde_json::json!({
+        "schema_version": 1,
+        "audio": { "aec": "off", "keep_audio": true },
+        "overlay": { "opacity": 40, "tone_mode": "light" }
+    });
+    let s: Settings = serde_json::from_value(old).unwrap();
+    assert!(!s.overlay.adaptive_scrim, "existing users get the gradient off");
+    assert_eq!(s.overlay.opacity, 40, "other values survive");
+    assert!(s.audio.record_mic, "existing users keep recording the microphone");
+    assert!(s.audio.keep_audio);
+    // an explicit opt-in survives a patch round trip
+    let on = s
+        .apply_patch(&SettingsPatch(
+            serde_json::json!({ "overlay": { "adaptive_scrim": true } }),
+        ))
+        .unwrap();
+    assert!(on.overlay.adaptive_scrim);
 }

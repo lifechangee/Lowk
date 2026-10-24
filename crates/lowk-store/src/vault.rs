@@ -49,6 +49,7 @@ pub struct FolderPatch {
     pub allow_cloud: Option<bool>,
     /// `Some(None)` clears the default template.
     pub default_template: Option<Option<String>>,
+    pub mic: Option<MicPreset>,
     pub instructions: Option<String>,
 }
 
@@ -520,14 +521,15 @@ impl VaultInner {
         };
         let mut out = vec![];
         for f in &sc.folders {
-            let (title, tags, allow_cloud, default_template) = match &f.doc {
+            let (title, tags, allow_cloud, default_template, mic) = match &f.doc {
                 Some(d) => (
                     d.title.clone(),
                     d.tags.clone(),
                     d.allow_cloud,
                     d.default_template.clone(),
+                    d.mic,
                 ),
-                None => ("Unsorted".into(), vec![], true, None),
+                None => ("Unsorted".into(), vec![], true, None, MicPreset::Inherit),
             };
             out.push(FolderMeta {
                 id: f.fref.clone(),
@@ -535,6 +537,7 @@ impl VaultInner {
                 tags,
                 allow_cloud,
                 default_template,
+                mic,
                 path: f.dir.clone(),
                 call_count: count(&f.fref),
             });
@@ -545,6 +548,7 @@ impl VaultInner {
             tags: vec![],
             allow_cloud: false,
             default_template: None,
+            mic: MicPreset::Inherit,
             path: TRASH_DIR.into(),
             call_count: count(&FolderRef::Trash),
         });
@@ -602,6 +606,9 @@ impl VaultInner {
         }
         if let Some(t) = p.default_template {
             doc.default_template = t;
+        }
+        if let Some(m) = p.mic {
+            doc.mic = m;
         }
         if let Some(i) = p.instructions {
             doc.set_instructions(&i);

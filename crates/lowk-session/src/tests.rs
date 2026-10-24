@@ -775,3 +775,144 @@ fn refused_ask_retrieves_and_sends_nothing() {
     assert!(r.session.qa_records().is_empty());
     r.session.stop().unwrap();
 }
+
+fn marker_texts(r: &Rig) -> Vec<String> {
+    r.store
+        .entries
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|e| match e {
+            CallEntry::Marker { text, .. } => Some(text.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn finals_of(r: &Rig, stream: Stream) -> usize {
+    r.store
+        .entries
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|e| matches!(e, CallEntry::Final { event } if event.stream == stream))
+        .count()
+}
+
+#[test]
+fn mic_off_drops_me_frames_keeps_system_and_writes_markers() {
+    let r = rig(|_| {});
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    assert!(r.session.state().mic_on, "default: the microphone records");
+    // mic on: both streams reach the engines (25 frames = partials + a final on flush)
+    for i in 0..25 {
+        r.audio.push_frame(frame(Stream::Me, 1_000 + i));
+    }
+    r.session.set_mic_enabled(false).unwrap();
+    assert!(!r.session.state().mic_on);
+    let transcript_len = r.session.snapshot().transcript.len();
+    // mic off: 40 Me frames go nowhere, System frames still transcribe
+    for i in 0..40 {
+        r.audio.push_frame(frame(Stream::Me, 2_000 + i));
+    }
+    assert_eq!(
+        r.session.snapshot().transcript.len(),
+        transcript_len,
+        "no new Me line while muted"
+    );
+    for i in 0..25 {
+        r.audio.push_frame(frame(Stream::System, 3_000 + i));
+    }
+    assert!(r.audio.is_capturing(), "system-audio capture is not torn down");
+    assert_eq!(
+        r.session.snapshot().transcript.len(),
+        transcript_len + 1,
+        "System keeps transcribing"
+    );
+    // idempotent: a repeated off adds no second marker
+    r.session.set_mic_enabled(false).unwrap();
+    r.session.set_mic_enabled(true).unwrap();
+    assert!(r.session.state().mic_on);
+    r.session.stop().unwrap();
+
+    assert_eq!(marker_texts(&r), vec!["Микрофон выключен", "Микрофон включён"]);
+    assert_eq!(
+        finals_of(&r, Stream::Me),
+        1,
+        "only the speech before the mute is journaled"
+    );
+    assert_eq!(finals_of(&r, Stream::System), 1);
+    let states: Vec<bool> = rx
+        .try_iter()
+        .filter_map(|e| match e {
+            AppEvent::Session(s) => Some(s.mic_on),
+            _ => None,
+        })
+        .collect();
+    assert!(states.contains(&false) && states.last() == Some(&true));
+}
+
+#[test]
+fn mic_marker_follows_the_ui_language() {
+    let r = rig(|d| {
+        let mut s = Settings::default();
+        s.ui.language = UiLanguage::En;
+        d.settings = Arc::new(MemSettingsStore::new(s));
+    });
+    r.session.start(opts(false)).unwrap();
+    r.session.set_mic_enabled(false).unwrap();
+    r.session.set_mic_enabled(true).unwrap();
+    r.session.stop().unwrap();
+    assert_eq!(marker_texts(&r), vec!["Microphone off", "Microphone on"]);
+}
+
+#[test]
+fn mic_toggle_outside_a_recording_is_refused() {
+    let r = rig(|_| {});
+    assert_eq!(
+        r.session.set_mic_enabled(false).unwrap_err().code,
+        ErrorCode::SessionIdle
+    );
+}
+
+#[test]
+fn new_call_mic_follows_folder_preset_and_global_default() {
+    let folder = FolderRef::User(Ulid::from_parts(7, 7));
+    // (preset of the folder, global record_mic) -> mic on at start
+    let cases = [
+        (MicPreset::Inherit, true, true),
+        (MicPreset::Inherit, false, false),
+        (MicPreset::On, false, true),
+        (MicPreset::Off, true, false),
+    ];
+    for (preset, global, want) in cases {
+        let r = rig(|d| {
+            d.folder_mic = Arc::new(move |_| preset);
+            let mut s = Settings::default();
+            s.audio.record_mic = global;
+            d.settings = Arc::new(MemSettingsStore::new(s));
+        });
+        r.session
+            .start(StartOpts {
+                folder: Some(folder.clone()),
+                ..opts(false)
+            })
+            .unwrap();
+        assert_eq!(r.session.state().mic_on, want, "{preset:?} / global {global}");
+        // a muted start really drops the Me frames
+        for i in 0..25 {
+            r.audio.push_frame(frame(Stream::Me, 1_000 + i));
+        }
+        assert_eq!(
+            r.session.snapshot().transcript.len(),
+            usize::from(want),
+            "{preset:?} / global {global}"
+        );
+        r.session.stop().unwrap();
+        assert!(
+            marker_texts(&r).is_empty(),
+            "the preset start is not a toggle: no marker"
+        );
+    }
+}

@@ -20,6 +20,16 @@ const NS_PER_MS: u64 = 1_000_000;
 /// Journal -> `.md` cadence (call time).
 const MATERIALIZE_EVERY_NS: u64 = 20_000_000_000;
 
+/// The transcript marker for a microphone switch, in the UI language (Russian unless English is chosen).
+pub fn mic_marker(on: bool, lang: UiLanguage) -> &'static str {
+    match (lang, on) {
+        (UiLanguage::En, true) => "Microphone on",
+        (UiLanguage::En, false) => "Microphone off",
+        (_, true) => "Микрофон включён",
+        (_, false) => "Микрофон выключен",
+    }
+}
+
 /// Allowed phase transitions.
 pub fn phase_allowed(from: SessionPhase, to: SessionPhase) -> bool {
     use SessionPhase::*;
@@ -89,6 +99,7 @@ impl Core {
                 phase: SessionPhase::Idle,
                 call: None,
                 demo: false,
+                mic_on: true,
             },
             clock: None,
             transcript: TranscriptBuf::default(),
@@ -172,6 +183,8 @@ struct Inner {
     qa_subs: Mutex<Vec<Sender<QaUpdate>>>,
     cancel: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
+    /// Microphone gate: while false, Me frames are dropped before STT and correction (system audio is untouched).
+    mic_on: Arc<AtomicBool>,
     demo_done: AtomicBool,
     /// Cancel flag of the Ask being generated.
     ask_cancel: Mutex<Option<Arc<AtomicBool>>>,
@@ -216,6 +229,7 @@ impl Session {
                 qa_subs: Mutex::new(vec![]),
                 cancel: Arc::new(AtomicBool::new(false)),
                 paused: Arc::new(AtomicBool::new(false)),
+                mic_on: Arc::new(AtomicBool::new(true)),
                 demo_done: AtomicBool::new(false),
                 ask_cancel: Mutex::new(None),
             }),
@@ -326,6 +340,11 @@ impl Session {
             };
             c.state.demo = o.demo;
             c.state.call = None;
+            // New call: the folder preset (inherit = the global setting) decides whether the microphone starts on.
+            let folder = o.folder.clone().unwrap_or(FolderRef::Unsorted);
+            let mic_on = (inner.deps.folder_mic)(&folder).resolve(settings.audio.record_mic);
+            c.state.mic_on = mic_on;
+            inner.mic_on.store(mic_on, Ordering::SeqCst);
             c.set_phase(SessionPhase::Starting, &mut out);
         }
         inner.cancel.store(false, Ordering::SeqCst);
@@ -363,6 +382,46 @@ impl Session {
             inner.core().demo_thread = Some(h);
         }
         Ok(call_id)
+    }
+
+    /// Turns the microphone on/off during a recording without stopping it: Me frames are dropped before STT
+    /// (system-audio capture and AEC keep running), the open Me utterance is closed, and a marker line
+    /// («Микрофон выключен/включён») lands in the call at the current call time. A no-op when already in that state.
+    // TODO(roadmap): «auto» mode (mic only while the call app holds the microphone open) — see docs/ROADMAP.md.
+    pub fn set_mic_enabled(&self, on: bool) -> Result<()> {
+        let inner = &self.inner;
+        let lang = inner.deps.settings.get().ui.language;
+        let mut out = Out::default();
+        let engines = {
+            let mut c = inner.core();
+            match c.state.phase {
+                SessionPhase::Recording | SessionPhase::Paused => {}
+                SessionPhase::Idle => return Err(AppError::new(ErrorCode::SessionIdle)),
+                _ => return Err(AppError::new(ErrorCode::SessionBusy)),
+            }
+            if c.state.mic_on == on {
+                return Ok(());
+            }
+            c.state.mic_on = on;
+            inner.mic_on.store(on, Ordering::SeqCst);
+            let at_s = c
+                .clock
+                .map_or(0, |k| (k.offset_ns(now_mono_ns()) / 1_000_000_000) as u32);
+            c.push_entry(CallEntry::Marker {
+                at_s,
+                text: mic_marker(on, lang).into(),
+            });
+            out.events.push(AppEvent::Session(c.state.clone()));
+            c.engines.clone()
+        };
+        if !on {
+            // the half-spoken Me utterance ends here instead of waiting for audio that will not come
+            if let Some(e) = engines.as_ref().and_then(|e| e.get(&Stream::Me)) {
+                let _ = e.lock().unwrap().flush();
+            }
+        }
+        inner.flush(out);
+        Ok(())
     }
 
     pub fn pause(&self) -> Result<()> {
@@ -742,8 +801,13 @@ impl Inner {
         }
 
         let paused = self.paused.clone();
+        let mic_on = self.mic_on.clone();
         let frame_sink: FrameSink = Arc::new(move |f: Frame16k| {
             if paused.load(Ordering::Relaxed) {
+                return;
+            }
+            // Microphone off: the Me stream goes nowhere (no STT, no correction ring); System is untouched.
+            if f.stream == Stream::Me && !mic_on.load(Ordering::Relaxed) {
                 return;
             }
             if let Some(r) = rings.as_ref().and_then(|r| r.get(&f.stream)) {

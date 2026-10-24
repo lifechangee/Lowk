@@ -17,7 +17,7 @@ export const F_EMPTY = ulid(5);
 const user = (id: string) => ({ kind: 'user' as const, id });
 
 export function makeFolders(): FolderMeta[] {
-  const f = (id: string, title: string, tags: string[], allow = true): FolderMeta => ({ id: user(id), title, tags, allow_cloud: allow, default_template: 'brief', path: title, call_count: 0 });
+  const f = (id: string, title: string, tags: string[], allow = true): FolderMeta => ({ id: user(id), title, tags, allow_cloud: allow, default_template: 'brief', mic: 'inherit', path: title, call_count: 0 });
   return [
     f(F_ACME, 'Acme Corp', ['продажи', 'финтех', 'ключевой клиент']),
     f(F_NOVA, 'Nova Bank', ['интеграция']),

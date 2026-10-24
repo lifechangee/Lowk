@@ -4,8 +4,8 @@ use crate::replay::DemoPace;
 use lowk_audio::{AudioBackend, NoopAudioBackend};
 use lowk_stt::{Corrector, EngineRegistry, FakeEngineFactory};
 use lowk_types::{
-    CallEntry, CallId, CallMeta, ContextPack, FolderRef, LlmUsage, MainThread, NewCall, QaId, Result,
-    Retriever, SettingsStore, SourceRef, TranscriptLine, Ulid,
+    CallEntry, CallId, CallMeta, ContextPack, FolderRef, LlmUsage, MainThread, MicPreset, NewCall, QaId,
+    Result, Retriever, SettingsStore, SourceRef, TranscriptLine, Ulid,
 };
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -182,6 +182,8 @@ pub struct SessionDeps {
     pub demo_pace: DemoPace,
     /// Write demo calls to the store too (off by default; tests turn it on).
     pub record_demo: bool,
+    /// The «record microphone» preset of a folder (the app reads it from `_folder.md`); inherit by default.
+    pub folder_mic: Arc<dyn Fn(&FolderRef) -> MicPreset + Send + Sync>,
 }
 
 impl SessionDeps {
@@ -206,6 +208,7 @@ impl SessionDeps {
             hints: Arc::new(StubHints::default()),
             demo_pace: DemoPace::Realtime(1.0),
             record_demo: false,
+            folder_mic: Arc::new(|_| MicPreset::Inherit),
         }
     }
 }

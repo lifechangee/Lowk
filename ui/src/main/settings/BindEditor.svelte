@@ -31,7 +31,7 @@
     ...actions.map((a) => ({ slot: { action: a } as Slot, label: label(a), hint: hint(a) })),
     ...templates.map((t) => ({ slot: t.slot, label: t.label })),
   ]);
-  const HINTS = new Set<ActionId>(['ask', 'ask_brief', 'ask_complement', 'click_hold', 'screenshot', 'toggle_interactive', 'move_hold', 'next_template', 'toggle_overlay', 'panic_hide']);
+  const HINTS = new Set<ActionId>(['ask', 'ask_brief', 'ask_complement', 'click_hold', 'screenshot', 'toggle_interactive', 'move_hold', 'next_template', 'toggle_overlay', 'panic_hide', 'toggle_mic']);
 
   async function commit(a: Slot, tr: Trigger | null) {
     rec = null;

@@ -76,6 +76,10 @@ export const overlay = {
   'overlay.new': 'новое',
   'overlay.state.idle': 'Не записывается',
   'overlay.action.stop': 'Остановить запись',
+  'overlay.mic.off': 'Выключить микрофон',
+  'overlay.mic.on': 'Включить микрофон',
+  'overlay.mic.muted': 'Микрофон выключен',
+  'overlay.mic.live': 'Микрофон включён',
   'overlay.state.paused': 'Пауза',
   'overlay.hint.degraded': 'Удержание {key} не работает: включите «Мониторинг ввода» в Lowk → Разрешения',
 } as const;

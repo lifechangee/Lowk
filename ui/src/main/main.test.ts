@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { en, ru } from '../lib/i18n';
 import { mergePatch } from './api/mock';
-import { bindFor, bindWarnings, defaultBinds, formatTrigger, orphanTemplateBinds, templateSlot, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
+import { ACTIONS_PRIMARY, bindFor, bindWarnings, defaultBinds, formatTrigger, orphanTemplateBinds, templateSlot, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
 import { parse } from './router.svelte';
 import { greeting } from './fmt';
 import type { SourceInfo } from '../lib/ipc';
@@ -168,5 +168,22 @@ describe('template binds', () => {
   it('a bind of a deleted template is reported as an orphan', () => {
     const b = withBind(withBind([], 'ask_template', k('KeyJ'), 'a'), 'ask_template', k('KeyK'), 'gone');
     expect(orphanTemplateBinds(b, ['a']).map((x) => x.template)).toEqual(['gone']);
+  });
+});
+
+describe('microphone toggle and adaptive scrim', () => {
+  it('the mic bind is assignable in the editor but unbound by default', () => {
+    expect(ACTIONS_PRIMARY).toContain('toggle_mic');
+    for (const os of ['macos', 'windows'] as const) expect(defaultBinds(os).some((x) => x.action === 'toggle_mic')).toBe(false);
+  });
+  it('the new strings exist in both languages', () => {
+    for (const k of ['m.adaptiveScrim', 'm.adaptiveScrimHint', 'm.recordMic', 'm.folderMic', 'm.folderMic.inherit', 'm.act.toggle_mic', 'overlay.mic.off', 'overlay.mic.on'] as const) {
+      expect(ru[k], k).toBeTruthy();
+      expect(en[k], k).toBeTruthy();
+    }
+    expect(ru['m.adaptiveScrim']).toBe('Адаптивный цвет подложки (для очков)');
+    expect(en['m.adaptiveScrim']).toBe('Adaptive scrim colour (for smart glasses)');
+    expect(en['m.adaptiveScrimHint']).toContain('Screen Recording');
+    expect(ru['m.adaptiveScrimHint']).toContain('Запись экрана');
   });
 });

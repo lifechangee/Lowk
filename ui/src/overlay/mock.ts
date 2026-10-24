@@ -2,6 +2,7 @@
 // the real IPC events use. Runs in `vite dev`; never bundled into the app entry (dynamic import).
 import type { LlmIn, OverlayStore } from './store.svelte';
 import type { OverlaySource } from './source';
+import { ot } from './i18n';
 import type { Stream } from '../lib/ipc/bindings';
 
 interface Beat {
@@ -176,6 +177,12 @@ export class MockSource implements OverlaySource {
     const s = this.#store;
     s.phase = 'idle';
     s.flash(s.lang === 'ru' ? 'Запись остановлена' : 'Recording stopped');
+  }
+
+  setMic(on: boolean): void {
+    const s = this.#store;
+    s.micOn = on;
+    s.flash(ot(on ? 'overlay.mic.live' : 'overlay.mic.muted', s.lang));
   }
 
   toggleRecord(): void {

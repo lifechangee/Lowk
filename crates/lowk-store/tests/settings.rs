@@ -210,3 +210,38 @@ fn s2_open_migrates_swapped_screenshot_binds_on_disk() {
     let st2 = FileSettingsStore::open(d.path()).unwrap();
     assert_eq!(st2.get().binds, st.get().binds);
 }
+
+/// Owner's old settings file has neither new key: after loading, the adaptive scrim is OFF and the microphone is ON,
+/// the rest is untouched, and an explicit opt-in is persisted and survives a reopen.
+#[test]
+fn old_settings_file_loads_with_gradient_off_and_mic_on() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("settings.toml");
+    fs::copy(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/owner-settings.toml"),
+        &p,
+    )
+    .unwrap();
+    let raw = fs::read_to_string(&p).unwrap();
+    assert!(
+        !raw.contains("adaptive_scrim") && !raw.contains("record_mic"),
+        "fixture predates both keys"
+    );
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    let cur = s.get();
+    assert!(!cur.overlay.adaptive_scrim);
+    assert!(!cur.overlay.sampler_wanted());
+    assert!(cur.audio.record_mic);
+    assert!(
+        cur.binds.iter().all(|b| b.action != ActionId::ToggleMic),
+        "the mic bind is not added unasked"
+    );
+    s.patch(SettingsPatch(serde_json::json!({
+        "overlay": { "adaptive_scrim": true },
+        "audio": { "record_mic": false }
+    })))
+    .unwrap();
+    let again = FileSettingsStore::open(d.path()).unwrap().get();
+    assert!(again.overlay.adaptive_scrim);
+    assert!(!again.audio.record_mic);
+}

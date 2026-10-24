@@ -118,6 +118,8 @@ class Session {
   lines = $state<(LiveLine & { at_s: number })[]>([]);
   /** The local speech model is still loading (`stt://loading`). */
   sttLoading = $state(false);
+  /** The microphone is recorded (false = muted for this call; the system audio keeps recording). */
+  micOn = $state(true);
   elapsed = $derived(this.phase === 'recording' ? Math.max(0, Math.floor((this.now - this.startedAt) / 1000)) : 0);
   #tick: ReturnType<typeof setInterval> | null = null;
   #off: (() => void) | null = null;
@@ -135,6 +137,7 @@ class Session {
     }
     // The backend remembers the pick as `stt.last_languages`; mirror it so the selector keeps it without a reload.
     if (languages?.length) prefs.value = mergePatch(prefs.value, { stt: { last_languages: languages } });
+    this.micOn = st.mic_on ?? true;
     this.#begin(st.call, folder ?? SYS_UNSORTED, sourceLabel);
     await library.reload();
   }
@@ -156,6 +159,7 @@ class Session {
   }
   /** Follow a session started or stopped elsewhere (record bind, overlay, demo end). */
   sync(s: SessionState): void {
+    this.micOn = s.mic_on ?? true;
     if (s.phase === 'recording' && this.phase === 'idle') this.#begin(s.call, SYS_UNSORTED, '');
     else if (s.phase === 'idle' && this.phase === 'recording') {
       const done = this.callId;
@@ -172,6 +176,13 @@ class Session {
     router.go(hrefs.home);
     void focusMainWindow();
     setTimeout(() => { if (ui.justFinished === call) ui.justFinished = null; }, 6000);
+  }
+  /** Live mic switch (button in the recording bar); the backend writes the transcript marker. */
+  async setMic(on: boolean): Promise<void> {
+    if (this.phase !== 'recording') return;
+    const prev = this.micOn;
+    this.micOn = on;
+    try { this.micOn = (await api.sessionSetMic(on)).mic_on ?? true; } catch (e) { this.micOn = prev; throw e; }
   }
   async stop(): Promise<void> {
     if (this.phase !== 'recording') return;

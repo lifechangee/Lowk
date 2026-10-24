@@ -17,6 +17,7 @@ import type {
   IndexStatus,
   IngestProgress,
   LlmProviderStatus,
+  MicPreset,
   NewFolder,
   Os,
   PermKind,
@@ -124,7 +125,7 @@ export interface Backend {
   folderGet(key: FolderKey): Promise<FolderDetail | null>;
   callGet(id: string): Promise<CallDetail | null>;
   folderCreate(input: NewFolder): Promise<FolderMeta>;
-  folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean }): Promise<void>;
+  folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset }): Promise<void>;
   callTrash(id: string): Promise<void>;
   callRestore(id: string): Promise<void>;
   callMove(id: string, folder: FolderKey): Promise<void>;
@@ -215,6 +216,8 @@ export interface Backend {
 
   sessionStart(opts: StartOpts): Promise<SessionState>;
   sessionStop(): Promise<void>;
+  /** Microphone on/off during a recording (the recording and the system audio keep going). */
+  sessionSetMic(on: boolean): Promise<SessionState>;
   /** Live transcript feed for the call page while recording. Returns an unsubscribe fn. */
   onLiveLine(cb: (line: LiveLine) => void): () => void;
 }

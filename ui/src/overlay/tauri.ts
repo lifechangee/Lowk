@@ -78,6 +78,7 @@ export class TauriSource implements OverlaySource {
     }
     if (e.phase === 'idle') store.sttLoading = false;
     store.phase = e.phase;
+    store.micOn = e.mic_on ?? true;
   }
 
   #applySettings(s: Settings): void {
@@ -125,6 +126,11 @@ export class TauriSource implements OverlaySource {
     quiet(recording ? commands.sessionStop() : commands.sessionStart({ title: null, folder: null, system: null, mic: null, demo: false }));
   };
   stopRecording = () => quiet(commands.sessionStop());
+  setMic = (on: boolean) => {
+    // optimistic; the session event that follows is the truth
+    if (this.#store) this.#store.micOn = on;
+    void commands.sessionSetMic(on).then((r) => r.status === 'ok' && this.#store && (this.#store.micOn = r.data.mic_on ?? true)).catch(() => {});
+  };
   escape = () => quiet(commands.overlayEscape());
   dragStart = () => quiet(commands.overlayDragStart());
   dragTo = (dx: number, dy: number) => quiet(commands.overlayDragTo(dx, dy));

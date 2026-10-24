@@ -16,6 +16,8 @@
   import { tm } from '../i18n';
   import { hrefs, router, type FolderTab } from '../router.svelte';
   import { callRow } from '../dnd.svelte';
+  import Select from '../../lib/components/Select.svelte';
+  import type { MicPreset } from '../../lib/ipc';
   import { library, ui } from '../state.svelte';
 
   let { folder, tab }: { folder: string; tab: FolderTab } = $props();
@@ -41,6 +43,14 @@
   async function setTags(tags: string[]) {
     try { await api.folderUpdate(folder, { tags }); await library.reload(); } catch (e) { ui.notify(errText(e)); }
   }
+  const micOptions: Array<{ value: MicPreset; label: string }> = $derived([
+    { value: 'inherit', label: tm('m.folderMic.inherit') },
+    { value: 'on', label: tm('m.folderMic.on') },
+    { value: 'off', label: tm('m.folderMic.off') },
+  ]);
+  async function setMic(mic: MicPreset) {
+    try { await api.folderUpdate(folder, { mic }); await library.reload(); } catch (e) { ui.notify(errText(e)); }
+  }
   async function exportFolder() {
     try {
       const dest = await api.pickSavePath(`${title}.zip`);
@@ -63,6 +73,7 @@
         <h1 class="lbl">{title}</h1>
         <div class="meta">
           <span>{tPlural('main.calls', calls.length)}</span>
+          {#if meta}<span class="micsel" data-testid="folder-mic"><span class="micl">{tm('m.folderMic')}</span><Select label={tm('m.folderMic')} value={meta.mic ?? 'inherit'} options={micOptions} onchange={setMic} /></span>{/if}
           {#if meta}<TagEditor tags={meta.tags} addLabel={tm('main.addTag')} newLabel={tm('main.newTag')} removeLabel={(t) => tm('main.removeTag', { tag: t })} onchange={setTags} />{/if}
         </div>
       </div>
@@ -137,6 +148,9 @@
   .hd { min-width: 0; flex: 1; }
   h1 { font-size: 24px; line-height: 32px; margin: 0; font-weight: 650; letter-spacing: -0.025em; }
   .meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); align-items: center; color: var(--tx2); font-size: 12px; line-height: 20px; margin-top: var(--s1); }
+  .micsel { display: inline-flex; align-items: center; gap: var(--s2); }
+  .micsel :global(.sel) { width: 150px; height: 26px; font-size: 12px; }
+  .micl { color: var(--tx3); }
   .note { color: var(--tx2); font-size: 13px; margin: var(--s3) 0 0; }
   .doc { flex: 1; overflow: auto; padding: var(--s6) 0 64px; min-height: 0; }
   .tbl { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }

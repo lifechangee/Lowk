@@ -3,7 +3,7 @@
 // File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
 import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { MockBackend } from './mock';
 import { CommandError, folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider } from './types';
 
@@ -55,8 +55,8 @@ export class TauriBackend extends MockBackend {
     try { return ok(await commands.callGet(id)) as CallDetail; } catch { return null; }
   }
   override async folderCreate(input: NewFolder): Promise<FolderMeta> { return ok(await commands.folderCreate(input)); }
-  override async folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean }): Promise<void> {
-    ok(await commands.folderUpdate(id, { title: null, tags: patch.tags ?? null, allow_cloud: patch.allow_cloud ?? null, default_template: null, instructions: patch.instructions ?? null }));
+  override async folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset }): Promise<void> {
+    ok(await commands.folderUpdate(id, { title: null, tags: patch.tags ?? null, allow_cloud: patch.allow_cloud ?? null, default_template: null, mic: patch.mic ?? null, instructions: patch.instructions ?? null }));
   }
   override async callTrash(id: string): Promise<void> { ok(await commands.callDelete(id)); }
   override async callRestore(id: string): Promise<void> { ok(await commands.callRestore(id)); }
@@ -111,6 +111,7 @@ export class TauriBackend extends MockBackend {
 
   override async sessionStart(opts: StartOpts): Promise<SessionState> { return ok(await commands.sessionStart(opts)); }
   override async sessionStop(): Promise<void> { ok(await commands.sessionStop()); }
+  override async sessionSetMic(on: boolean): Promise<SessionState> { return ok(await commands.sessionSetMic(on)); }
   override onLiveLine(cb: (line: LiveLine) => void): () => void {
     let off: (() => void) | undefined;
     let dead = false;

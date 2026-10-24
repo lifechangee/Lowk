@@ -19,6 +19,8 @@ pub enum ActionId {
     PrevTemplate,
     CancelAnswer,
     ClearShots,
+    /// Microphone on/off during a recording (default unbound; roadmap «auto» mode: docs/ROADMAP.md).
+    ToggleMic,
     /// G6: hold = the overlay is clickable without taking focus (default Ctrl).
     ClickHold,
     /// G6: ask with a fixed template, no overlay mode switch needed.

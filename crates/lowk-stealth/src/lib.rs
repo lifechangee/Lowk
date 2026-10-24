@@ -120,6 +120,36 @@ impl Drop for ToneSampler {
     }
 }
 
+/// Owns the running tone sampler (or nothing). The adaptive-scrim setting drives it: while the setting is off nothing
+/// is constructed and no screen is ever grabbed; turning it on starts the sampler, turning it off drops (stops) it.
+/// Generic over the handle so tests can use a stand-in for [`ToneSampler`].
+pub struct SamplerSlot<T = ToneSampler> {
+    slot: Mutex<Option<T>>,
+}
+impl<T> Default for SamplerSlot<T> {
+    fn default() -> Self {
+        Self {
+            slot: Mutex::new(None),
+        }
+    }
+}
+impl<T> SamplerSlot<T> {
+    /// Brings the slot in line with `on`. `start` runs only when the sampler has to be started (never while off,
+    /// never twice in a row). Returns whether a sampler is running afterwards.
+    pub fn set_enabled(&self, on: bool, start: impl FnOnce() -> T) -> bool {
+        let mut g = self.slot.lock();
+        match (on, g.is_some()) {
+            (true, false) => *g = Some(start()),
+            (false, true) => *g = None, // Drop stops the sampler thread
+            _ => {}
+        }
+        g.is_some()
+    }
+    pub fn is_running(&self) -> bool {
+        self.slot.lock().is_some()
+    }
+}
+
 pub fn create_stealth(
     win: RawWindows,
     main_thread: Arc<dyn MainThread>,
@@ -300,5 +330,85 @@ impl Stealth {
             })
             .expect("spawn tone sampler");
         ToneSampler { stop }
+    }
+}
+
+#[cfg(test)]
+mod sampler_slot_tests {
+    use super::*;
+    use std::sync::atomic::AtomicUsize;
+
+    /// Stand-in for the real capture: counts every grab.
+    #[derive(Default)]
+    struct CountingSampler(AtomicUsize);
+    impl RegionSampler for CountingSampler {
+        fn grab_region(&self, _r: Rect, _w: u32, _h: u32) -> Result<Vec<u8>> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(vec![])
+        }
+    }
+    /// Stand-in for `ToneSampler`: "stops" when dropped.
+    struct Handle(Arc<AtomicBool>);
+    impl Drop for Handle {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::SeqCst);
+        }
+    }
+
+    #[test]
+    fn sampler_is_not_started_while_the_adaptive_scrim_is_off() {
+        let (starts, stopped) = (Arc::new(AtomicUsize::new(0)), Arc::new(AtomicBool::new(false)));
+        let sampler = Arc::new(CountingSampler::default());
+        let slot: SamplerSlot<Handle> = SamplerSlot::default();
+        let start = || {
+            starts.fetch_add(1, Ordering::SeqCst);
+            Handle(stopped.clone())
+        };
+        let off = OverlaySettings::default();
+        assert!(!off.adaptive_scrim, "default: off");
+        // startup with the default settings and repeated "off" applications: nothing is created, nothing grabbed
+        for _ in 0..3 {
+            assert!(!slot.set_enabled(off.sampler_wanted(), start));
+        }
+        assert_eq!(starts.load(Ordering::SeqCst), 0);
+        assert_eq!(sampler.0.load(Ordering::SeqCst), 0, "no screen grab while off");
+        assert!(!slot.is_running());
+
+        // turned on at runtime: starts once (idempotent)
+        let on = OverlaySettings {
+            adaptive_scrim: true,
+            ..OverlaySettings::default()
+        };
+        assert!(slot.set_enabled(on.sampler_wanted(), start));
+        assert!(slot.set_enabled(on.sampler_wanted(), start));
+        assert_eq!(starts.load(Ordering::SeqCst), 1);
+        assert!(!stopped.load(Ordering::SeqCst));
+
+        // turned off again: the sampler is stopped
+        assert!(!slot.set_enabled(off.sampler_wanted(), start));
+        assert!(
+            stopped.load(Ordering::SeqCst),
+            "the sampler thread is told to stop"
+        );
+        assert_eq!(starts.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn plain_scrim_is_a_fixed_preset_until_adaptive_is_on() {
+        let mut o = OverlaySettings::default();
+        assert_eq!(
+            o.effective_tone_mode(),
+            ToneMode::Dark,
+            "auto without sampling = the plain dark scrim"
+        );
+        o.tone_mode = ToneMode::Light;
+        assert_eq!(
+            o.effective_tone_mode(),
+            ToneMode::Light,
+            "a forced light palette still applies"
+        );
+        o.tone_mode = ToneMode::Auto;
+        o.adaptive_scrim = true;
+        assert_eq!(o.effective_tone_mode(), ToneMode::Auto);
     }
 }

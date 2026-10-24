@@ -106,6 +106,8 @@ export const commands = {
 	sessionStart: (opts: StartOpts) => typedError<SessionState, AppError>(__TAURI_INVOKE("session_start", { opts })),
 	sessionStop: () => typedError<null, AppError>(__TAURI_INVOKE("session_stop")),
 	sessionPause: () => typedError<null, AppError>(__TAURI_INVOKE("session_pause")),
+	/**  Overlay button / main-window control: microphone on or off while recording, without stopping it. */
+	sessionSetMic: (on: boolean) => typedError<SessionState, AppError>(__TAURI_INVOKE("session_set_mic", { on })),
 	sessionResume: () => typedError<null, AppError>(__TAURI_INVOKE("session_resume")),
 	sessionState: () => __TAURI_INVOKE<SessionState>("session_state"),
 	sessionSnapshot: () => __TAURI_INVOKE<SessionSnapshot>("session_snapshot"),
@@ -203,6 +205,8 @@ export const commands = {
 
 /* Types */
 export type ActionId = "toggle_record" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | "clear_shots" | 
+/**  Microphone on/off during a recording (default unbound; roadmap «auto» mode: docs/ROADMAP.md). */
+"toggle_mic" | 
 /**  G6: hold = the overlay is clickable without taking focus (default Ctrl). */
 "click_hold" | 
 /**  G6: ask with a fixed template, no overlay mode switch needed. */
@@ -298,6 +302,8 @@ export type AudioSettings = {
 	aec?: AecMode,
 	/**  Keep the recorded audio next to the call (opt-in; default text only). */
 	keep_audio?: boolean,
+	/**  Global default of «record microphone» (folders may override: `FolderMeta.mic`). Default on. */
+	record_mic?: boolean,
 };
 
 export type BindEvent = BindEvent_Serialize | BindEvent_Deserialize;
@@ -397,7 +403,9 @@ export type CallDetail = {
 };
 
 /**  What `CallWriter::push` accepts. */
-export type CallEntry = { type: "final"; event: SttEvent } | { type: "qa"; id: Ulid; at_s: number; template: string; model: string; range: string; question: string; answer: string } | { type: "image"; at_s: number; rel_path: string; source: string; caption: string } | { type: "my_answer"; qa_id: Ulid; at_s: number; text: string };
+export type CallEntry = { type: "final"; event: SttEvent } | { type: "qa"; id: Ulid; at_s: number; template: string; model: string; range: string; question: string; answer: string } | { type: "image"; at_s: number; rel_path: string; source: string; caption: string } | 
+/**  A state-change line in the transcript (e.g. «Микрофон выключен»), stamped with the call time. */
+{ type: "marker"; at_s: number; text: string } | { type: "my_answer"; qa_id: Ulid; at_s: number; text: string };
 
 export type CallMeta = {
 	id: Ulid,
@@ -666,6 +674,8 @@ export type FolderMeta = {
 	tags: string[],
 	allow_cloud: boolean,
 	default_template: string | null,
+	/**  «Record microphone» preset for new calls in this folder. */
+	mic?: MicPreset,
 	/**  Path relative to the vault root. */
 	path: string,
 	call_count: number,
@@ -684,6 +694,8 @@ export type FolderUpdate = {
 	allow_cloud?: boolean | null,
 	/**  Empty string clears the folder's default template. */
 	default_template?: string | null,
+	/**  «Record microphone» preset of the folder. */
+	mic?: MicPreset | null,
 	instructions?: string | null,
 };
 
@@ -870,6 +882,11 @@ export type LocalizedName = {
 	en: string,
 };
 
+/**  Per-folder «record microphone» preset. */
+export type MicPreset = 
+/**  Follow the global setting (`audio.record_mic`). */
+"inherit" | "on" | "off";
+
 /**  Modifier set. `meta` is Command on macOS and the Windows key on Windows. */
 export type Mods = {
 	ctrl?: boolean,
@@ -962,6 +979,12 @@ export type OverlaySettings = {
 	pill_edge?: PillEdge,
 	tone_mode?: ToneMode,
 	accent?: string,
+	/**
+	 *  «Adaptive scrim colour (for smart glasses)»: the screen under the overlay is sampled and the scrim follows
+	 *  it. Default OFF (also for settings files written before the key existed): the sampler does not run at all and
+	 *  the overlay uses a fixed dark scrim with the transparency slider.
+	 */
+	adaptive_scrim?: boolean,
 };
 
 /**  When the overlay is shown while not recording. */
@@ -1184,6 +1207,8 @@ export type SessionState = {
 	call: Ulid | null,
 	/**  True while the demo/replay feed drives the session. */
 	demo: boolean,
+	/**  The microphone is being recorded (false = muted for this call; system audio is unaffected). */
+	mic_on?: boolean,
 };
 
 export type Settings = Settings_Serialize | Settings_Deserialize;

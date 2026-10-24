@@ -80,6 +80,8 @@ pub struct FolderUpdate {
     pub allow_cloud: Option<bool>,
     /// Empty string clears the folder's default template.
     pub default_template: Option<String>,
+    /// «Record microphone» preset of the folder.
+    pub mic: Option<MicPreset>,
     pub instructions: Option<String>,
 }
 
@@ -95,6 +97,7 @@ pub fn folder_update(st: State<'_, Shared>, id: Ulid, patch: FolderUpdate) -> Re
             default_template: patch
                 .default_template
                 .map(|t| if t.is_empty() { None } else { Some(t) }),
+            mic: patch.mic,
             instructions: patch.instructions,
         },
     )?;
@@ -249,7 +252,7 @@ fn detail(meta: CallMeta, md: &str, templates: &[Template], lang_ru: bool) -> Ca
                     "manual".into()
                 },
             }),
-            Block::Raw(_) => {}
+            Block::Raw(_) | Block::Marker { .. } => {}
         }
     }
     d

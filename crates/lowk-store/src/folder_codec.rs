@@ -1,6 +1,7 @@
 //! `_folder.md` codec (architecture section 4.3): frontmatter (id, title, tags,
 //! cloud policy, default template), `## Instructions`, `## Documents` list.
 use crate::fm::{self, Frontmatter};
+use lowk_types::MicPreset;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FPart {
@@ -17,13 +18,15 @@ pub struct FolderDoc {
     pub tags: Vec<String>,
     pub allow_cloud: bool,
     pub default_template: Option<String>,
+    /// `record_mic: on|off` in the frontmatter; absent = inherit the global setting.
+    pub mic: MicPreset,
     pub raw: Frontmatter,
     /// Free text before the first section.
     pub intro: String,
     pub parts: Vec<FPart>,
 }
 
-const ORDER: [&str; 7] = [
+const ORDER: [&str; 8] = [
     "lowk",
     "type",
     "id",
@@ -31,6 +34,7 @@ const ORDER: [&str; 7] = [
     "tags",
     "allow_cloud",
     "default_template",
+    "record_mic",
 ];
 
 impl FolderDoc {
@@ -41,6 +45,7 @@ impl FolderDoc {
             tags: vec![],
             allow_cloud: true,
             default_template: None,
+            mic: MicPreset::Inherit,
             raw: Frontmatter::default(),
             intro: String::new(),
             parts: vec![
@@ -126,6 +131,11 @@ pub fn parse(md: &str) -> FolderDoc {
     doc.tags = front.get("tags").map(fm::list).unwrap_or_default();
     doc.allow_cloud = get("allow_cloud").map(|v| v != "false").unwrap_or(true);
     doc.default_template = get("default_template");
+    doc.mic = match get("record_mic").as_deref() {
+        Some("on" | "true") => MicPreset::On,
+        Some("off" | "false") => MicPreset::Off,
+        _ => MicPreset::Inherit,
+    };
     doc.raw = front;
 
     let mut intro: Vec<&str> = vec![];
@@ -178,6 +188,11 @@ pub fn render(doc: &FolderDoc) -> String {
     match &doc.default_template {
         Some(t) => f.set_ordered("default_template", q(t), &ORDER),
         None => f.remove("default_template"),
+    }
+    match doc.mic {
+        MicPreset::On => f.set_ordered("record_mic", "on".into(), &ORDER),
+        MicPreset::Off => f.set_ordered("record_mic", "off".into(), &ORDER),
+        MicPreset::Inherit => f.remove("record_mic"),
     }
     let mut chunks = vec![f.render().trim_end().to_string()];
     if !doc.intro.is_empty() {
