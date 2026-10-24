@@ -21,13 +21,10 @@ ui/playwright-report/
 # Local
 .env
 *.log
-.claude/
 
-# QA outputs (docs/qa/index.md stays)
+# QA outputs
 ui/e2e/out/
-docs/qa/report.html
-docs/qa/shots/
-docs/qa/real/
+docs/qa/
 ui/e2e/baselines/
 
 # staged STT worker sidecar (tools/build-worker.sh)

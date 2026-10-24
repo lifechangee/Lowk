@@ -2,14 +2,14 @@ use lowk_store::*;
 use lowk_types::*;
 use std::fs;
 
-/// Owner's real saved settings (copy; predates hold-Ctrl): the migration adds the missing default binds
+/// A real saved settings file (copy; predates hold-Ctrl): the migration adds the missing default binds
 /// without touching anything customised, writes them to disk, and is idempotent.
 #[test]
-fn owner_settings_gain_new_default_binds_without_overriding() {
+fn legacy_settings_gain_new_default_binds_without_overriding() {
     let d = tempfile::tempdir().unwrap();
     let p = d.path().join("settings.toml");
     fs::copy(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/owner-settings.toml"),
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/legacy-settings.toml"),
         &p,
     )
     .unwrap();
@@ -19,7 +19,7 @@ fn owner_settings_gain_new_default_binds_without_overriding() {
         trig(&before, ActionId::ClickHold),
         Some(Trigger::ModifierOnly { mods: Mods::CTRL })
     );
-    // existing ones untouched: owner's Alt move-hold and Cmd-Enter ask stay exactly as saved
+    // existing ones untouched: the Alt move-hold and Cmd-Enter ask stay exactly as saved
     assert_eq!(
         trig(&before, ActionId::MoveHold),
         Some(Trigger::ModifierOnly { mods: Mods::ALT })
@@ -211,14 +211,14 @@ fn s2_open_migrates_swapped_screenshot_binds_on_disk() {
     assert_eq!(st2.get().binds, st.get().binds);
 }
 
-/// Owner's old settings file has neither new key: after loading, the adaptive scrim is OFF and the microphone is ON,
+/// An old settings file has neither new key: after loading, the adaptive scrim is OFF and the microphone is ON,
 /// the rest is untouched, and an explicit opt-in is persisted and survives a reopen.
 #[test]
 fn old_settings_file_loads_with_gradient_off_and_mic_on() {
     let d = tempfile::tempdir().unwrap();
     let p = d.path().join("settings.toml");
     fs::copy(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/owner-settings.toml"),
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/legacy-settings.toml"),
         &p,
     )
     .unwrap();
@@ -266,7 +266,7 @@ fn templates_reasoning_migrates_from_bool_to_tristate() {
     let d = tempfile::tempdir().unwrap();
     let p = d.path().join("settings.toml");
     fs::copy(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/owner-settings.toml"),
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/legacy-settings.toml"),
         &p,
     )
     .unwrap();

@@ -1,4 +1,4 @@
-# cargo-deny configuration. AGPL-3.0-or-later project (docs/ARCHITECTURE.md 12.2).
+# cargo-deny configuration. AGPL-3.0-or-later project (see docs/architecture.md).
 # Changes to this file need architect review.
 
 [graph]
@@ -60,5 +60,5 @@ deny = [
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# tauri-nspanel is pinned by rev; WP2 adds its git URL here.
+# tauri-nspanel is pinned by rev: add its git URL here if it is ever needed.
 allow-git = []

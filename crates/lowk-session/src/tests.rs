@@ -454,7 +454,7 @@ fn failed_ask_emits_error_and_arms_nothing() {
 
 #[test]
 fn ask_takes_the_question_from_the_utterance_still_being_spoken() {
-    // M1 QA: the owner presses Ask while the interviewer is still mid-question. The question
+    // Regression: the user presses Ask while the interviewer is still mid-question. The question
     // must be that partial, not the previous (final) sentence.
     let r = rig(|d| d.hints = Arc::new(StubHints("ok".into())));
     r.session.start(opts(false)).unwrap();
@@ -482,7 +482,7 @@ impl HintGenerator for SlowHints {
 
 #[test]
 fn my_answer_collects_speech_spoken_while_the_hint_is_still_streaming() {
-    // M1 QA: the owner answers along with the generation. Speech that ends before the hint
+    // Regression: the user answers along with the generation. Speech that ends before the hint
     // finishes must not be lost.
     let r = rig(|d| d.hints = Arc::new(SlowHints));
     r.session.start(opts(false)).unwrap();
@@ -1413,7 +1413,7 @@ fn manual_choice_leaves_auto_and_auto_can_be_chosen_mid_call() {
     assert_eq!(marker_texts(&r), vec!["Микрофон выключен", "Микрофон включён"]);
 }
 
-/// Owner bug: an image Ask with nothing typed and nothing said since the last Ask still records its Q&A
+/// Regression: an image Ask with nothing typed and nothing said since the last Ask still records its Q&A
 /// (question «(скриншот)») next to the linked image.
 #[test]
 fn image_ask_without_question_text_still_writes_the_qa() {

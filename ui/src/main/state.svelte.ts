@@ -76,7 +76,7 @@ class Prefs {
   async patch(patch: unknown): Promise<void> {
     this.value = mergePatch(this.value, patch);
     if ((patch as Settings).ui?.language) locale.setSetting((patch as Settings).ui!.language as LangSetting);
-    try { this.value = await api.settingsPatch(patch); } catch { /* keep optimistic value; backend reports via toast in WP6 */ }
+    try { this.value = await api.settingsPatch(patch); } catch { /* keep optimistic value; backend reports via toast */ }
   }
 }
 export const prefs = new Prefs();

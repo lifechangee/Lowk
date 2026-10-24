@@ -188,7 +188,7 @@ pub struct TapSession {
 
 impl TapSession {
     /// Output streams of the capture aggregate. Must be 0: a capture that can play is a playback
-    /// client of the speakers (owner bug B).
+    /// client of the speakers (regression B).
     pub fn output_streams(&self) -> usize {
         devices::output_stream_count(&ca::Device(ca::Obj(self.agg_obj)))
     }
@@ -418,7 +418,7 @@ mod hw_tests {
     use super::*;
 
     /// B: the capture aggregate has no output stream, and no Lowk aggregate survives a teardown,
-    /// also after repeated rebuilds (the watchdog loop of the owner's log).
+    /// also after repeated rebuilds (the watchdog loop seen in a bug report).
     #[test]
     #[ignore = "hardware: needs the System Audio permission; run with --ignored"]
     fn tap_has_no_output_streams_and_leaves_no_aggregate_behind() {

@@ -1,6 +1,6 @@
 //! `settings.toml` in the app config dir (never in the vault): defaults for
 //! every key, unknown keys preserved, atomic writes, JSON-merge-patch updates
-//! (DECISIONS-M0 #3) and subscriptions.
+//! and subscriptions.
 use crate::templates::TemplateSet;
 use crate::util::*;
 use lowk_types::*;

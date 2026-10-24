@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the embedding sidecar: upstream llama.cpp `llama-server` (pinned tag), static, without
 # curl/openssl, as `target/release/lowk-embed-worker[.exe]`. The app talks to it over loopback HTTP
-# (`/v1/embeddings`), see crates/lowk-index/src/embedder/local.rs and docs/DECISIONS-M2.md.
+# (`/v1/embeddings`), see crates/lowk-index/src/embedder/local.rs.
 # Not part of the Cargo workspace: needs git + CMake (+ Metal on macOS, Vulkan SDK for LOWK_EMBED_VULKAN=1).
 set -euo pipefail
 cd "$(dirname "$0")"

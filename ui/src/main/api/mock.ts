@@ -1,5 +1,5 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
-// for every command WP6 has not wired yet. Mutations are real within the page's life.
+// for every command the backend has not wired yet. Mutations are real within the page's life.
 import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
@@ -43,7 +43,7 @@ export class MockBackend implements Backend {
   #live = new Set<(l: LiveLine) => void>();
   #liveTimer: ReturnType<typeof setInterval> | null = null;
   #session: SessionState = { phase: 'idle', call: null, demo: false, mic_on: true, mic_mode: 'on', mic_auto_unsupported: false };
-  // ---- M2 ----
+  // ---- documents, search, summary ----
   #documents: Document[] = makeDocuments(this.#now);
   #docMds = new Map<string, string>();
   #docSubs = new Set<(p: IngestProgress) => void>();
@@ -253,7 +253,7 @@ export class MockBackend implements Backend {
     };
   }
 
-  // ================= M2: documents =================
+  // ================= documents =================
   #doc(id: string): Document {
     const d = this.#documents.find((x) => x.id === id);
     if (!d) throw appErr('not_found');
@@ -403,7 +403,7 @@ export class MockBackend implements Backend {
     return () => this.#docSubs.delete(cb);
   }
 
-  // ================= M2: search + embedder =================
+  // ================= search + embedder =================
   #semantic(): SemanticState {
     if (this.#settings.embedder?.mode === 'off') return { state: 'off' };
     if (!this.#embInstalled) return { state: 'model_missing' };
@@ -581,7 +581,7 @@ export class MockBackend implements Backend {
     this.#retxRev.set(call, (this.#retxRev.get(call) ?? 1) + 1);
   }
 
-  // ================= M2: summary, tags, provider =================
+  // ================= summary, tags, provider =================
   #summaryFor(meta: CallMeta): string { return meta.languages[0] === 'en' ? SUMMARY_MD_EN : SUMMARY_MD; }
   #sumEmit(e: SummaryEvent): void { for (const f of this.#sumSubs) f(e); }
   onSummaryEvent(cb: (e: SummaryEvent) => void): () => void { this.#sumSubs.add(cb); return () => this.#sumSubs.delete(cb); }
@@ -651,7 +651,7 @@ export class MockBackend implements Backend {
     if (qp('key') === 'bad') throw appErr('llm_provider');
   }
 
-  // ================= M2: export / import =================
+  // ================= export / import =================
   async pickSavePath(defaultName: string): Promise<string | null> { return `~/Downloads/${defaultName}`; }
   async pickOpenPath(extension: string): Promise<string | null> { return `~/Downloads/lowk-export.${extension}`; }
   async folderExport(_folder: string, _dest: string): Promise<number> { await delay(400); return 14; }

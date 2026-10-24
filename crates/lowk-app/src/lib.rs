@@ -23,7 +23,7 @@ mod state;
 mod visibility;
 mod windows;
 
-// The QA control channel must never exist in a shipped binary (see docs/QA.md).
+// The QA control channel must never exist in a shipped binary (see docs/testing.md).
 #[cfg(all(feature = "qa", not(debug_assertions)))]
 compile_error!("the `qa` feature is for debug QA builds only; it must not be enabled in release builds");
 
@@ -36,7 +36,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new()
         .commands(commands::all_commands!())
         .types(&types)
-        .dangerously_cast_bigints_to_number() // MonoNs/UttId stay < 2^53 (see DECISIONS-M0)
+        .dangerously_cast_bigints_to_number() // MonoNs/UttId stay < 2^53
 }
 
 /// Writes `ui/src/lib/ipc/bindings.ts` (called by `cargo xtask bindings`).
@@ -75,7 +75,7 @@ fn log_file() -> Option<std::fs::File> {
     let path = dir.join("lowk.log");
     let big = std::fs::metadata(&path).is_ok_and(|m| m.len() > 2_000_000);
     if big {
-        // keep the previous run's log next to the new one (the owner sends both)
+        // keep the previous run's log next to the new one (a bug report needs both)
         let _ = std::fs::rename(&path, dir.join("lowk.prev.log"));
     }
     let mut o = std::fs::OpenOptions::new();

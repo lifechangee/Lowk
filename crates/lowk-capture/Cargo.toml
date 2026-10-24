@@ -1,6 +1,6 @@
 [package]
 name = "lowk-capture"
-description = "Lowk: lowk-capture crate (M0 stub)"
+description = "Lowk: lowk-capture crate (stub)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

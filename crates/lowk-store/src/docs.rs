@@ -1,4 +1,4 @@
-//! Documents in the vault (M2): `<Folder>/Docs/<name>.<ext>` is the untouched original,
+//! Documents in the vault: `<Folder>/Docs/<name>.<ext>` is the untouched original,
 //! `<name>.md` the converted Markdown (`type: doc` frontmatter, see `doc_codec`), optional
 //! `<name>.assets/`. Originals with an `.md` extension are stored as `<name>.md.orig` so they can
 //! never be mistaken for a document file. Everything is plain files: the vault opens in Obsidian,

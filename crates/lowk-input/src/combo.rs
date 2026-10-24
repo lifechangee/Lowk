@@ -150,20 +150,20 @@ pub(crate) mod fake {
     }
 }
 
-/// Owner bug: ⌘⇧S opened the area selection (`ScreenshotArea`). The owner's real `settings.toml` binds
+/// Regression: ⌘⇧S opened the area selection (`ScreenshotArea`). A user's real `settings.toml` binds
 /// `screenshot` to ⌘⇧S and `screenshot_area` to ⌘⇧A; every layer from the file to the registered shortcut and
 /// the low-level matcher must keep that mapping.
 #[cfg(test)]
-mod owner_binds {
+mod custom_binds {
     use super::fake::FakeRegistrar;
     use super::*;
     use crate::matcher::{Matcher, Raw};
     use lowk_types::Settings;
 
-    fn owner_binds() -> Vec<BindSpec> {
+    fn custom_binds() -> Vec<BindSpec> {
         let text = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../lowk-store/tests/fixtures/owner-settings.toml"
+            "/../lowk-store/tests/fixtures/legacy-settings.toml"
         ))
         .unwrap();
         let t: toml::Value = toml::from_str(&text).unwrap();
@@ -172,8 +172,8 @@ mod owner_binds {
     }
 
     #[test]
-    fn owner_toml_registers_cmd_shift_s_for_screenshot_and_cmd_shift_a_for_area() {
-        let binds = owner_binds();
+    fn custom_toml_registers_cmd_shift_s_for_screenshot_and_cmd_shift_a_for_area() {
+        let binds = custom_binds();
         let reg = FakeRegistrar::default();
         let registered = reg.registered.clone();
         let mut c = ComboBackend::new(Box::new(reg));
@@ -196,9 +196,9 @@ mod owner_binds {
     }
 
     #[test]
-    fn owner_toml_binds_dispatch_screenshot_for_cmd_shift_s_and_area_for_cmd_shift_a() {
+    fn custom_toml_binds_dispatch_screenshot_for_cmd_shift_s_and_area_for_cmd_shift_a() {
         let mut m = Matcher::default();
-        m.set_binds(owner_binds());
+        m.set_binds(custom_binds());
         let key = |code: &'static str, down| Raw::Key {
             code,
             down,

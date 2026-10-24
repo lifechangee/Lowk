@@ -1,5 +1,5 @@
 //! On-demand model downloads into app data: resumable, SHA-256 pinned, with progress.
-//! Nothing is bundled with the installer (docs/ARCHITECTURE.md 1.3).
+//! Nothing is bundled with the installer.
 use lowk_types::{AppError, ErrorCode, InstallPhase, Result};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};

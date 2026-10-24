@@ -488,7 +488,7 @@ fn empty_trash_purges_calls_inside_a_trashed_folder() {
     assert_eq!(saved(d.path(), &c), (false, false));
 }
 
-/// Owner bug: an image Ask whose question was empty lost its `[!lowk-qa]` callout next to the `[!lowk-image]`.
+/// Regression: an image Ask whose question was empty lost its `[!lowk-qa]` callout next to the `[!lowk-image]`.
 #[test]
 fn image_ask_qa_with_empty_question_is_in_the_md_and_reads_back() {
     let (d, v) = open();
@@ -540,7 +540,7 @@ fn walk(p: &std::path::Path) -> String {
     s
 }
 
-/// Owner bug: a call left in the recording state by a crash stayed «идёт запись» forever.
+/// Regression: a call left in the recording state by a crash stayed «идёт запись» forever.
 #[test]
 fn startup_reconcile_finishes_calls_left_recording() {
     let d = tempfile::tempdir().unwrap();
@@ -594,7 +594,7 @@ fn startup_reconcile_finishes_a_journalless_unfinished_md() {
     assert!(c.ended.is_some());
 }
 
-/// Owner bug: the sidebar «Корзина» counted 6 right after a recording started although the trash was empty.
+/// Regression: the sidebar «Корзина» counted 6 right after a recording started although the trash was empty.
 /// The library list comes from one scan and only trashed calls are `deleted`, also while a call is being written.
 #[test]
 fn library_list_never_marks_active_or_recording_calls_deleted() {

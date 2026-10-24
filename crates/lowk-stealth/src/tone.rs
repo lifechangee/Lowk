@@ -1,11 +1,11 @@
 //! Adaptive tone: colour of the pixels under the overlay -> palette tokens (O4: OKLab colour base, see
-//! [`crate::palette`] and docs/design/overlay-color-base.md).
+//! [`crate::palette`]).
 //!
 //! Pure functions plus a small state machine ([`AdaptiveTone`]); no OS code, so
 //! it is unit-tested with synthetic bitmaps. The sampler (a task in the app
 //! layer driving a `RegionSampler`) feeds it a 48x32 RGBA bitmap every 100 ms (see POLL_MS).
 //!
-//! Algorithm (docs/ARCHITECTURE.md 7.4):
+//! Algorithm:
 //! 1. linear-light luminance per pixel; median, p10, p90, "busyness"; the mean colour in OKLab;
 //! 2. fast smoothing ([`Chan::smooth`]): small drifts are followed at once, a large change is adopted when a
 //!    second consecutive sample agrees (one-frame flashes are rejected, a step costs two polls);
@@ -829,7 +829,7 @@ mod tests {
         assert!(analyze(&[], 0, 0).is_none());
     }
 
-    /// Regression (owner: only the LEFT of the backdrop changed): a pure-black cell used to be "unknown" and kept the
+    /// Regression (only the LEFT of the backdrop changed): a pure-black cell used to be "unknown" and kept the
     /// previous (light) scrim forever. Black next to white must be a dark cell next to a light one, and a black frame is dark.
     #[test]
     fn black_cells_and_black_frames_are_real_black() {
@@ -1328,7 +1328,7 @@ mod tests {
         g
     }
 
-    /// The owner's live case: navy | red over yellow | teal with borders that are NOT on cell edges.
+    /// A live-check case: navy | red over yellow | teal with borders that are NOT on cell edges.
     #[test]
     fn quadrants_with_off_grid_borders_follow_the_pixels() {
         for (bx, by) in [(22usize, 13usize), (21, 14), (27, 9), (19, 21)] {
@@ -1510,7 +1510,7 @@ mod tests {
     }
 
     /// Cost of one analysis tick (all 96 cells + global) on a busy changing frame. The release number is
-    /// documented in docs/ARCHITECTURE.md 7.4 (well under 1 ms on an M4); here the bound is generous so a
+    /// documented in docs/architecture.md (well under 1 ms on an M4); here the bound is generous so a
     /// debug build on a slow CI runner does not flake.
     #[test]
     fn tick_cost_is_small() {

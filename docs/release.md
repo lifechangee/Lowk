@@ -34,8 +34,8 @@ CUDA needs the CUDA toolkit on the runner and NVIDIA GPUs on the user's side, so
 - Tauri updater signing keys are not used by these builds.
 
 ## Notes
-- These are test builds, not releases. Owner-facing macOS builds still go through `just build` + `just qa-bundle`
-  (release gate in AGENTS.md); Windows runtime is unverified until real hardware.
+- These are test builds, not releases. Release builds of the macOS app go through `just build` + `just qa-bundle`
+  (see [testing.md](testing.md)); Windows runtime is unverified until real hardware.
 - Scripts: `tools/release/stage-sidecars.sh` (builds and stages both sidecars, writes `tauri.release.conf.json`,
   generated, not committed), `tools/release/make-dmg.sh` (dmg + zip from the signed app).
 - Caches: rust-cache, pnpm store, llama.cpp build dir; a warm run is much faster than the first.

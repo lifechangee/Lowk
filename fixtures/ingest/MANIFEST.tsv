@@ -1,6 +1,6 @@
 # Corpus manifest for `cargo test -p lowk-ingest --features corpus` (tests/corpus.rs).
 # file <TAB> expect (ok | ErrorCode name) <TAB> pages (number or -) <TAB> key phrases separated by ;; <TAB> flags (ocr = needs a platform OCR engine)
-# Add the real RU/EN corpus files next to this file and list them here (M2 exit criterion 2).
+# Add the real RU/EN corpus files next to this file and list them here.
 text.pdf	ok	3	Договор поставки;;Supply agreement section 1;;квазар-3;;1 250 000 рублей, оплата
 scanned.pdf	ok	2	Scanned invoice total 4200 EUR;;Оплата до 1 декабря	ocr
 encrypted.pdf	DocEncrypted	-

@@ -1,4 +1,4 @@
-# Out-of-process STT worker (docs/ARCHITECTURE.md 1.3, docs/DECISIONS-M1.md).
+# Out-of-process STT worker (see docs/architecture.md).
 # NOT a workspace member on purpose: it compiles the ggml/Metal/Vulkan/CUDA C++ runtime
 # (needs CMake) which the default `cargo build` / CI must never require.
 # Build: `cargo build --release --manifest-path workers/lowk-stt-worker/Cargo.toml`

@@ -1,5 +1,5 @@
 // View-model types for the main window. DTOs that already exist in the generated
-// bindings are reused as-is; the rest are the shapes WP6 will need to provide.
+// bindings are reused as-is; the rest are the shapes the backend provides.
 import type {
   AppError,
   BindReport,
@@ -140,7 +140,7 @@ export interface Backend {
   trashEmpty(): Promise<void>;
   exportMarkdown(id: string): Promise<string>;
 
-  // ---- M2: documents ----
+  // ---- documents ----
   docList(folder: FolderKey): Promise<Document[]>;
   docGet(id: string): Promise<Document | null>;
   /** The file dialog. `null` = cancelled. Rejects with `not_implemented` where the shell has no dialog yet. */
@@ -162,7 +162,7 @@ export interface Backend {
   /** `doc://progress` */
   onDocProgress(cb: (p: IngestProgress) => void): () => void;
 
-  // ---- M2: search and embedder ----
+  // ---- search and embedder ----
   searchQuery(q: SearchQuery): Promise<SearchResults>;
   indexStatus(): Promise<IndexStatus>;
   indexRebuild(scope: ReindexScope): Promise<void>;
@@ -173,7 +173,7 @@ export interface Backend {
   embedderInstall(): Promise<void>;
   embedderInstallCancel(): Promise<void>;
 
-  // ---- M2: summary, tags, provider ----
+  // ---- summary, tags, provider ----
   /** Starts the stream; the events arrive through `onSummaryEvent`. */
   llmSummarize(call: string): Promise<void>;
   llmSummarizeCancel(call: string): Promise<void>;
@@ -198,7 +198,7 @@ export interface Backend {
   /** `retx://event` */
   onRetxEvent(cb: (e: RetxEvent) => void): () => void;
 
-  // ---- M2: export / import ----
+  // ---- export / import ----
   pickSavePath(defaultName: string): Promise<string | null>;
   pickOpenPath(extension: string): Promise<string | null>;
   folderExport(folder: string, dest: string): Promise<number>;

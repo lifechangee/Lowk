@@ -1,4 +1,4 @@
-//! Lowk document ingest (M2 WP-B): a pure function of one file to Markdown with
+//! Lowk document ingest: a pure function of one file to Markdown with
 //! `<!-- p:N -->` markers (page / slide / sheet). Implements [`lowk_types::DocIngestor`].
 //!
 //! Rules this crate keeps:

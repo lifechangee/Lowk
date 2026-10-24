@@ -29,7 +29,7 @@ export const commands = {
 	updateCheck: () => typedError<UpdateStatus, AppError>(__TAURI_INVOKE("update_check")),
 	/**  Shows a vault / document path in the file manager (Explorer on Windows, Finder on macOS). */
 	pathReveal: (path: string) => typedError<null, AppError>(__TAURI_INVOKE("path_reveal", { path })),
-	/**  Opens the folder with `lowk.log` (and `lowk.prev.log`): what the owner sends us when something breaks. */
+	/**  Opens the folder with `lowk.log` (and `lowk.prev.log`): what a user sends us when something breaks. */
 	logsReveal: () => typedError<null, AppError>(__TAURI_INVOKE("logs_reveal")),
 	vaultOpen: (path: string | null) => typedError<VaultInfo, AppError>(__TAURI_INVOKE("vault_open", { path })),
 	vaultInfo: () => __TAURI_INVOKE<{
@@ -1714,7 +1714,7 @@ export type UpdateSettings = {
 };
 
 export type UpdateStatus = {
-	/**  False until the release signing keys exist (docs/DECISIONS-M0.md). */
+	/**  False until the release signing keys exist. */
 	enabled: boolean,
 	current: string,
 	available: string | null,

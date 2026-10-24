@@ -1,4 +1,4 @@
-//! Owner bug: «Добавить документ» showed «неизвестная ошибка» because `doc_find_duplicates` was
+//! Regression: «Добавить документ» showed «неизвестная ошибка» because `doc_find_duplicates` was
 //! registered but not allowed in the main window's capability, so Tauri rejected the call with a
 //! plain string. Every command must be allowed somewhere, and every command the main UI calls must
 //! be allowed for the main window.

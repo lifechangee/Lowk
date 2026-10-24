@@ -1,4 +1,4 @@
-//! Lowk search index (WP-C): SQLite FTS5 over stemmed RU+EN text, flat int8 vectors from the
+//! Lowk search index: SQLite FTS5 over stemmed RU+EN text, flat int8 vectors from the
 //! embedder, RRF hybrid ranking, filters, and the `Retriever` for Ask. The index is a
 //! rebuildable projection of the vault: it never reads the vault, the app feeds it `IndexItem`s.
 pub mod chunker;

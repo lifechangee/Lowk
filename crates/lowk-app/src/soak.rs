@@ -1,6 +1,6 @@
 //! Long-session soak, headless and silent: `lowk --selfcheck-soak` (run by `just soak`, never by `just ci`).
 //!
-//! A looped, concatenated set of the Russian bench recordings (`spikes/stt-bench/audio`, our own
+//! A looped, concatenated set of the Russian bench recordings (`fixtures/stt`, our own
 //! recordings and synthesized clips, nothing downloaded) is fed as the System stream through the
 //! real capture ring -> session -> local STT sidecar (+ Whisper correction) -> transcript ->
 //! vault `.md` -> search index, for `--hours` of audio, in real time (`--speed 1`) or faster.
@@ -814,7 +814,7 @@ fn run_in(o: &Opts, tmp: &Path) -> Result<bool, String> {
             a.rss_app, b.rss_app, a.rss_children, b.rss_children
         );
     }
-    r += &format!("\n## Word-to-screen latency (estimator of docs/DECISIONS-M1.md section 4, +-0.3 s)\n\n- first {edge:.0} s window (from 1 min): n={} p50 {:.0} ms p95 {:.0} ms\n- last {edge:.0} s window: n={} p50 {:.0} ms p95 {:.0} ms\n- p50 trend: {lag_slope:.0} ms/h\n- whole run: n={} p50 {:.0} ms p95 {:.0} ms\n\n| window (audio min) | words | p50 ms | p95 ms | words fed (ref) | words recognised | ratio | load avg (mean) |\n|---|---|---|---|---|---|---|---|\n",
+    r += &format!("\n## Word-to-screen latency (estimator, +-0.3 s)\n\n- first {edge:.0} s window (from 1 min): n={} p50 {:.0} ms p95 {:.0} ms\n- last {edge:.0} s window: n={} p50 {:.0} ms p95 {:.0} ms\n- p50 trend: {lag_slope:.0} ms/h\n- whole run: n={} p50 {:.0} ms p95 {:.0} ms\n\n| window (audio min) | words | p50 ms | p95 ms | words fed (ref) | words recognised | ratio | load avg (mean) |\n|---|---|---|---|---|---|---|---|\n",
         first.0, first.1, first.2, last.0, last.1, last.2,
         st.lags.len(), pct(&st.lags.iter().map(|l| l.1).collect::<Vec<_>>(), 0.5), pct(&st.lags.iter().map(|l| l.1).collect::<Vec<_>>(), 0.95));
     for i in 0..n_win {
@@ -899,7 +899,7 @@ fn run_in(o: &Opts, tmp: &Path) -> Result<bool, String> {
     Ok(checks.iter().all(|c| c.1))
 }
 
-/// `lowk --selfcheck-soak --audio <spikes/stt-bench/audio> --models <dir> [--hours 2] [--speed 1]
+/// `lowk --selfcheck-soak --audio <fixtures/stt> --models <dir> [--hours 2] [--speed 1]
 /// [--no-correct] [--sample-secs 60] [--probe-mins 20] [--report f.md] [--csv f.csv] [--keep]`.
 pub fn main(args: &[String]) -> i32 {
     let arg = |k: &str| {

@@ -94,7 +94,7 @@ fn check_dir(dir: &Path) {
                         r * 100.0
                     ));
                     if flags.contains("ocr") {
-                        // M2-S3: structure, not just words. Same number of paragraphs/clauses as the source
+                        // structure, not just words. Same number of paragraphs/clauses as the source
                         // (no sentence broken across lines), and the clause numbers 1., 2., 3. ... in order.
                         let body: Vec<&str> =
                             d.md.lines()

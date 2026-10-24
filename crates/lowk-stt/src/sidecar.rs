@@ -1,4 +1,4 @@
-//! Host side of the sidecar protocol (docs/ARCHITECTURE.md 1.3): a worker process that
+//! Host side of the sidecar protocol: a worker process that
 //! owns the model; PCM goes in as length-prefixed binary frames, events come back as JSON
 //! lines. A crashed or hung worker is restarted without touching the session.
 use crate::diag::StreamStats;

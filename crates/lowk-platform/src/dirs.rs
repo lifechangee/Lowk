@@ -1,4 +1,4 @@
-//! Application directories. Layout follows ARCHITECTURE 4.6:
+//! Application directories. Layout follows docs/architecture.md:
 //! macOS `~/Library/Application Support/Lowk`, Windows `%APPDATA%\Lowk`.
 use directories::BaseDirs;
 use std::path::PathBuf;

@@ -5,7 +5,7 @@
 #
 # Builds the UI and the app (embedded assets), launches it in probe mode
 # (LOWK_PROBE=1: overlay = solid magenta page, main = solid green page; LOWK_PROBE_CTL: scenario
-# control file), drives the scenarios of docs/ARCHITECTURE.md M0 exit criterion 1 and captures the
+# control file), drives the capture-exclusion scenarios and captures the
 # screen four ways per scenario. Needs Screen Recording for the terminal / host app.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -29,7 +29,7 @@ ctl() { echo "$1" >> "$CTL"; sleep "${2:-0.8}"; case "$1" in main-show) front;; 
 FAILS=0
 check() { # label expectation
   [ "${2#*main=visible}" != "$2" ] && front   # the real app must be frontmost, or other windows cover the green page
-  if "$OUT/probe" "$OUT" "$1" --owner lowk --expect "$2" > "$OUT/$1.txt" 2>&1; then
+  if "$OUT/probe" "$OUT" "$1" --app lowk --expect "$2" > "$OUT/$1.txt" 2>&1; then
     echo "PASS  $1  ($2)"
   else
     echo "FAIL  $1  ($2)"; grep -E "FAIL" "$OUT/$1.txt" | sed 's/^/        /'; FAILS=$((FAILS + 1))

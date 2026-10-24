@@ -1,5 +1,5 @@
 // THROWAWAY SPIKE probe: captures the screen 4 ways and reports marker presence.
-// usage: probe <outdir> <label> [--owner NAME] [--expect overlay=hidden|visible,main=hidden|visible|any]  |  probe fsdummy
+// usage: probe <outdir> <label> [--app NAME] [--expect overlay=hidden|visible,main=hidden|visible|any]  |  probe fsdummy
 // Exit code: 0 all expectations met, 1 an expectation failed or a capture method errored, 2 usage.
 import Foundation
 import AppKit
@@ -35,7 +35,7 @@ func count(_ img: CGImage) -> (Int, Int) {
     return (o, m)
 }
 
-var ownerFilter = "fixture"
+var appFilter = "fixture"
 struct Row { let method: String; let ok: Bool; let overlay: Int; let main: Int; let note: String }
 var rows: [Row] = []
 func record(_ method: String, _ img: CGImage?, _ outdir: String, _ label: String, note: String = "") {
@@ -64,9 +64,9 @@ func runProbe(outdir: String, label: String, expect: [String: String]) async -> 
     if let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] {
         for w in list {
             let name = (w[kCGWindowName as String] as? String) ?? ""
-            let owner = (w[kCGWindowOwnerName as String] as? String) ?? ""
-            if owner.contains(ownerFilter) {
-                print("  CGWindow owner=\(owner) name='\(name)' sharing=\(w[kCGWindowSharingState as String] ?? "?") layer=\(w[kCGWindowLayer as String] ?? "?") onscreen=\(w[kCGWindowIsOnscreen as String] ?? "?") bounds=\(w[kCGWindowBounds as String] ?? "?")")
+            let appName = (w[kCGWindowOwnerName as String] as? String) ?? ""
+            if appName.contains(appFilter) {
+                print("  CGWindow app=\(appName) name='\(name)' sharing=\(w[kCGWindowSharingState as String] ?? "?") layer=\(w[kCGWindowLayer as String] ?? "?") onscreen=\(w[kCGWindowIsOnscreen as String] ?? "?") bounds=\(w[kCGWindowBounds as String] ?? "?")")
             }
         }
     }
@@ -74,7 +74,7 @@ func runProbe(outdir: String, label: String, expect: [String: String]) async -> 
     do {
         content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
         display = content?.displays.first
-        for w in content?.windows ?? [] where (w.owningApplication?.applicationName ?? "").contains(ownerFilter) {
+        for w in content?.windows ?? [] where (w.owningApplication?.applicationName ?? "").contains(appFilter) {
             print("  SCWindow id=\(w.windowID) title='\(w.title ?? "")' layer=\(w.windowLayer) onScreen=\(w.isOnScreen) frame=\(w.frame)")
         }
     } catch { print("SCShareableContent error: \(error)") }
@@ -149,7 +149,7 @@ final class AppD: NSObject, NSApplicationDelegate {
 
 var args = CommandLine.arguments
 var expect: [String: String] = [:]
-if let i = args.firstIndex(of: "--owner"), i + 1 < args.count { ownerFilter = args[i + 1]; args.removeSubrange(i...i + 1) }
+if let i = args.firstIndex(of: "--app"), i + 1 < args.count { appFilter = args[i + 1]; args.removeSubrange(i...i + 1) }
 if let i = args.firstIndex(of: "--expect"), i + 1 < args.count {
     for kv in args[i + 1].split(separator: ",") { let p = kv.split(separator: "="); if p.count == 2 { expect[String(p[0])] = String(p[1]) } }
     args.removeSubrange(i...i + 1)
@@ -159,4 +159,4 @@ if args.count >= 2 && args[1] == "fsdummy" {
     let d = AppD(); app.delegate = d; app.run()
 } else if args.count >= 3 {
     exit(await runProbe(outdir: args[1], label: args[2], expect: expect) ? 0 : 1)
-} else { print("usage: probe <outdir> <label> [--owner NAME] [--expect overlay=hidden,main=visible] | probe fsdummy"); exit(2) }
+} else { print("usage: probe <outdir> <label> [--app NAME] [--expect overlay=hidden,main=visible] | probe fsdummy"); exit(2) }

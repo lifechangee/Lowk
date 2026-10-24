@@ -18,9 +18,9 @@ pub const RRF_K: f32 = 60.0;
 pub const TOP_EACH: usize = 50;
 /// A stem is never dropped as "very common" while it occurs in at most this many chunks.
 const COMMON_STEM_FLOOR: i64 = 50;
-/// Vector hits below this cosine are noise (set from the eval, DECISIONS-M2).
+/// Vector hits below this cosine are noise (set from the eval).
 pub const SEMANTIC_MIN_COSINE: f32 = 0.0;
-/// RRF list weights (tuned on the eval, DECISIONS-M2).
+/// RRF list weights (tuned on the eval).
 pub const W_FTS: f32 = 0.7;
 pub const W_VEC: f32 = 1.0;
 const QA_WEIGHT: f32 = 0.6;

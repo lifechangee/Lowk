@@ -122,7 +122,7 @@ pub struct TranscriptLine {
     pub is_final: bool,
 }
 
-// --- summary, tags, provider (M2; ready for the M3 Ask flow) ---------------
+// --- summary, tags, provider (used by the Ask flow) ---------------
 
 /// A task from the call: who does what.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]

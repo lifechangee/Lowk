@@ -1,5 +1,5 @@
 //! macOS `AudioBackend`: one supervisor thread owns the mic session and the tap session and
-//! keeps them healthy (ARCHITECTURE 6.1):
+//! keeps them healthy:
 //!
 //! * mic first, then the tap (own-process exclusion needs our process object);
 //! * rebuild on default-output change / rate change, on target process-set change, and via

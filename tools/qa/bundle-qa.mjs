@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // `just qa-bundle`: checks the PRODUCT, the signed bundle `target/release/bundle/macos/Lowk.app`, not a dev build.
 // Dev builds inherit Microphone / Screen Recording / Input Monitoring / Accessibility from the host app, so every
-// permission, signing and Info.plist bug is invisible there (M1 owner test). Verdicts:
+// permission, signing and Info.plist bug is invisible there (a real-app test found it). Verdicts:
 //   PASS         checked and fine
 //   FAIL         broken (exit 1)
-//   NEEDS-GRANT  cannot be checked until the OWNER grants the permission to the bundle in System Settings;
+//   NEEDS-GRANT  cannot be checked until the tester grants the permission to the bundle in System Settings;
 //                this script never touches TCC and never counts it as a pass.
 //
 //   node tools/qa/bundle-qa.mjs [--no-build] [--no-run] [--silent]
@@ -38,8 +38,8 @@ if (process.platform !== 'darwin') { console.log('bundle QA is macOS only'); pro
 const PRIVACY_KEYS = ['NSMicrophoneUsageDescription', 'NSAudioCaptureUsageDescription', 'NSScreenCaptureUsageDescription'];
 
 // ---- 0. a running Lowk would hand our launch over to itself (single instance) and the rebuild replaces its files
-// Only THIS checkout's bundle is ever touched. A blanket `pkill -x lowk` once killed the owner's live app
-// (system log 2026-10-22: SIGTERM while he was speaking, no crash report; he reported "it closed itself").
+// Only THIS checkout's bundle is ever touched. A blanket `pkill -x lowk` would also kill a running Lowk of the user
+// (SIGTERM, no crash report).
 const EXE_RE = `^${join(APP, 'Contents/MacOS/lowk').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( |$)`;
 const wasRunning = run('pgrep', ['-f', EXE_RE]).status === 0;
 let restoreExe = null;
@@ -90,7 +90,7 @@ check(!bin.includes('X-Lowk-Qa-Token'), 'no QA control channel in the shipped bi
 // S4: the shipped binary contains WebRTC AEC3 (macOS bundles are built with the `aec` feature).
 check(bin.includes('EchoCanceller3') || bin.includes('echo_canceller3'), 'S4: WebRTC AEC3 is linked into the bundle');
 
-// ---- 2b. M2: the embedder sidecar and the document / search / Ask pipeline, run by the BUNDLE'S OWN binary
+// ---- 2b. documents: the embedder sidecar and the document / search / Ask pipeline, run by the BUNDLE'S OWN binary
 // (`lowk --selfcheck-m2`, headless, no window, no sound): ingest PDF + XLSX (+ DOCX, PPTX, CSV, MD, scanned PDF via
 // Apple Vision), search finds them, the index rebuilds from the vault, semantic search with the bundled
 // llama-server sidecar (when the pinned EmbeddingGemma file is on this Mac), local-only folders never reach the
@@ -118,25 +118,25 @@ check(existsSync(embedWorker) && run('/usr/bin/codesign', ['--verify', embedWork
   const lines = [...out.matchAll(/^CHECK (PASS|FAIL|SKIP) (.*?) :: (.*)$/gm)];
   for (const [, v, name, detail] of lines) {
     const d = detail.replace(liveKey ?? '\u0000', '<key>').slice(0, 160);
-    if (v === 'PASS') pass(`M2 ${name}`, d);
-    else if (v === 'FAIL') fail(`M2 ${name}`, d);
-    else rec('SKIP', `M2 ${name}`, d);
+    if (v === 'PASS') pass(`docs ${name}`, d);
+    else if (v === 'FAIL') fail(`docs ${name}`, d);
+    else rec('SKIP', `docs ${name}`, d);
   }
-  check(lines.length >= 25 && /^SELFCHECK \d+ checks, 0 failed/m.test(out) && r.status === 0, 'M2 self-check of the bundle ran to the end', `exit ${r.status}, ${lines.length} checks`);
-  if (!model) grant('M2 semantic search with the bundled sidecar', 'no pinned EmbeddingGemma file on this Mac (set LOWK_EMBED_MODEL or install the model from the app)');
+  check(lines.length >= 25 && /^SELFCHECK \d+ checks, 0 failed/m.test(out) && r.status === 0, 'documents self-check of the bundle ran to the end', `exit ${r.status}, ${lines.length} checks`);
+  if (!model) grant('documents semantic search with the bundled sidecar', 'no pinned EmbeddingGemma file on this Mac (set LOWK_EMBED_MODEL or install the model from the app)');
   rmSync(sh, { recursive: true, force: true });
 }
 
 // ---- 2c. Audio path, silent, by the BUNDLE'S OWN binary (`lowk --selfcheck-audio`): the Me and System streams are
 // fed from FILES as raw 48 kHz device signals (a clipping hot mic with a strong echo of the speakers) through the real
-// ring -> resampler -> WebRTC AEC3 -> session -> BUNDLED STT worker for 60 s (owner bug A: "I spoke, it recognised
+// ring -> resampler -> WebRTC AEC3 -> session -> BUNDLED STT worker for 60 s (regression: "I spoke, it recognised
 // and closed"), then the real tap is built/rebuilt: its aggregate must have no output stream and none may be left
-// behind (owner bug B: capture must never alter playback). Nothing is played.
+// behind (regression: capture must never alter playback). Nothing is played.
 {
   const models = process.env.LOWK_MODELS ?? join(homedir(), 'Library/Application Support/Lowk/models');
-  const benchAudio = [process.env.LOWK_BENCH_AUDIO, join(root, 'spikes/stt-bench/audio')].filter(Boolean).find((d) => existsSync(join(d, '02_them_q.m4a')));
+  const benchAudio = [process.env.LOWK_BENCH_AUDIO, join(root, 'fixtures/stt')].filter(Boolean).find((d) => existsSync(join(d, '02_them_q.m4a')));
   if (!existsSync(join(models, 'nemotron-local')) || !benchAudio) {
-    grant('audio self-check (60 s mic+system+AEC from files)', `no engine models in ${models} or no spikes/stt-bench/audio recordings (reference texts only are tracked) (set LOWK_BENCH_AUDIO)`);
+    grant('audio self-check (60 s mic+system+AEC from files)', `no engine models in ${models} or no fixtures/stt recordings (reference texts only are tracked) (set LOWK_BENCH_AUDIO)`);
   } else {
     const sh = mkdtempSync(join(tmpdir(), 'lowk-audio-selfcheck-'));
     const r = spawnSync(exe, ['--selfcheck-audio', '--me', join(benchAudio, '01_me_q.m4a'), '--system', join(benchAudio, '02_them_q.m4a'), '--models', models, '--seconds', '60', '--hot', '--require-aec'], { encoding: 'utf8', timeout: 900000, env: { ...process.env, HOME: sh, LOWK_DATA_DIR: join(sh, 'data'), LOWK_STT_WORKER: worker } });
@@ -186,7 +186,7 @@ const permLine = /startup: permissions.*perms="?([^\n]*)/.exec(log)?.[1] ?? '';
 for (const m of permLine.matchAll(/(\w+)=(\w+)/g)) {
   const [, kind, state] = m;
   if (state === 'Granted') pass(`permission ${kind} granted to the bundle`);
-  else grant(`permission ${kind} is ${state}`, 'owner must grant it to Lowk in System Settings > Privacy & Security, then relaunch');
+  else grant(`permission ${kind} is ${state}`, 'grant it to Lowk in System Settings > Privacy & Security, then relaunch');
 }
 
 const applied = /binds applied.*total=(\d+).*active=(\d+)/s.exec(log);
@@ -236,7 +236,7 @@ if (has('--silent')) {
     const a = await press(0);
     check(a.length === 1 && a[0] === 'ScreenshotArea', 'S2: real ⌘⇧A fires exactly ScreenshotArea', `fired: ${a.join(',') || 'nothing'}`);
 
-    // B: binds are PHYSICAL keys. Repeat under every keyboard layout this Mac has enabled (the owner types in
+    // B: binds are PHYSICAL keys. Repeat under every keyboard layout this Mac has enabled (users type in
     // «Ру»: kVK 1 prints «ы», not "s"). The layout is switched through TIS for this test only and restored.
     const kbd = join(work, 'kbd');
     const built = run('swiftc', ['-O', '-o', kbd, join(root, 'tools/qa/kbd.swift')]);
@@ -267,7 +267,7 @@ if (has('--silent')) {
   }
 }
 
-// Call languages (BRIEF: per-call language selection) against the BUNDLED worker, from files (silent): the
+// Call languages (per-call language selection) against the BUNDLED worker, from files (silent): the
 // language set of a call limits the decoder and the allowed letters. Needs the engine models of this Mac
 // (read only); without them the check is reported, not passed.
 {
@@ -280,7 +280,7 @@ if (has('--silent')) {
     const sets = [...out.matchAll(/^SET (\S+)\s+mean CER ([\d.]+).*letters outside the set: (\d+)/gm)].map((m) => ({ set: m[1], cer: Number(m[2]), bad: Number(m[3]) }));
     check(py.status === 0 && sets.length === 2, 'call languages: bundled worker, ru+en and pl+en, no letter outside the selected set', sets.map((x) => `${x.set} cer=${x.cer} foreign=${x.bad}`).join('; ') || out.slice(-200));
     const ruen = sets.find((x) => x.set === 'ru+en');
-    check(!!ruen && ruen.cer < 0.5, 'call languages: ru+en recognises the owner recordings (CER < 0.5)', ruen ? `cer=${ruen.cer}` : '');
+    check(!!ruen && ruen.cer < 0.5, 'call languages: ru+en recognises the reference recordings (CER < 0.5)', ruen ? `cer=${ruen.cer}` : '');
   }
 }
 
@@ -304,7 +304,7 @@ process.exit(results.some((r) => r.verdict === 'FAIL') ? 1 : 0);
 
 function summary() {
   const n = (v) => results.filter((r) => r.verdict === v).length;
-  console.log(`\nbundle QA: ${n('PASS')} pass, ${n('FAIL')} fail, ${n('NEEDS-GRANT')} need an owner grant (not counted as passes)`);
+  console.log(`\nbundle QA: ${n('PASS')} pass, ${n('FAIL')} fail, ${n('NEEDS-GRANT')} need a grant (not counted as passes)`);
   const g = results.filter((r) => r.verdict === 'NEEDS-GRANT');
-  if (g.length) console.log('needs owner grant:\n' + g.map((r) => `  - ${r.name}`).join('\n'));
+  if (g.length) console.log('needs grant:\n' + g.map((r) => `  - ${r.name}`).join('\n'));
 }

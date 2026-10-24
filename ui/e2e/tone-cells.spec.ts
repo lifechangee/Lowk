@@ -1,4 +1,4 @@
-// Cell -> element mapping of the adaptive overlay (owner photo: a subtitle row was light across its full width although
+// Cell -> element mapping of the adaptive overlay (regression: a subtitle row was light across its full width although
 // only the right part of the backdrop was light). A synthetic 12x8 tone grid with ONLY the left column dark is injected
 // through the mock; only the left parts of the scrim / text may darken, whole rows must never take one colour.
 import { expect, test } from '@playwright/test';

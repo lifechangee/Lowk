@@ -89,7 +89,7 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<SourceInfo>();
     types.register_mut::<SourceKind>();
     types.register_mut::<DeviceInfo>();
-    // M2 contracts (docs/DECISIONS-M2.md)
+    // document, search and ingest contracts
     types.register_mut::<Document>();
     types.register_mut::<DocKind>();
     types.register_mut::<IngestStatus>();

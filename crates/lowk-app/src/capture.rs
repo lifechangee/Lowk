@@ -1,6 +1,6 @@
 //! Screen sampling for the adaptive tone and the stealth self-test.
 //! macOS: ScreenCaptureKit one-shots (gated on Screen Recording so the sampler
-//! never triggers the system prompt). Windows: stub for M0 (GDI sampler later).
+//! never triggers the system prompt). Windows: stub (GDI sampler later).
 use lowk_types::{PermKind, PermState, Rect, RegionSampler, Result, ScreenGrab};
 use std::sync::Arc;
 

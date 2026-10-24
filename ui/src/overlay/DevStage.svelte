@@ -18,7 +18,7 @@
   const source = new MockSource({ autoplay: q.get('still') !== '1', duplicate: q.get('dup') === '1' });
 
   // bg=swatch: the colour-base spec (e2e/overlay-colors.spec.ts) injects `window.__swatch = { tone, color }`:
-  // a real `overlay://tone` payload (with grid) from docs/design/overlay-color-swatches.json over a flat backdrop.
+  // a real `overlay://tone` payload (with grid) from crates/lowk-stealth/tests/fixtures/swatches.json over a flat backdrop.
   const sw = (window as unknown as { __swatch?: { tone: ToneEvent; color: string } }).__swatch;
   let bg = $state<'dark' | 'light' | 'color' | 'live' | 'split' | 'swatch'>((q.get('bg') as 'dark') ?? 'dark');
   store.transparency = Number(q.get('t') ?? 60);

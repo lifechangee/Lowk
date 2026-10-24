@@ -1,4 +1,4 @@
-// M2: search palette and results page. Keys: `search.*`.
+// search palette and results page. Keys: `search.*`.
 export const search = {
   'search.placeholder': 'Искать по созвонам, документам и скриншотам',
   'search.hint': 'Начните вводить: ищем по транскриптам, документам и подписям к скриншотам.',

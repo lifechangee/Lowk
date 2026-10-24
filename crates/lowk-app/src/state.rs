@@ -71,7 +71,7 @@ pub struct AppState {
     pub install_cancel: Mutex<Option<Arc<AtomicBool>>>,
     /// G7: screenshots waiting for the next Ask (in memory only).
     pub shots: Arc<crate::commands::capture::ShotQueue>,
-    /// M2 environment (settings, event sink, keys, model store) and the per-vault services.
+    /// Documents environment (settings, event sink, keys, model store) and the per-vault services.
     pub env: crate::m2::Env,
     pub m2: RwLock<Option<Arc<crate::m2::Services>>>,
     /// The open vault's index, shared with the session's retriever.

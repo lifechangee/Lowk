@@ -1,4 +1,4 @@
-// Owner bug (live check): the live bar cut its labels («Идёт запись. Оверлей показывает субти…», «А…», «Микрофон вы…», «Останов…»)
+// Regression (live check): the live bar cut its labels («Идёт запись. Оверлей показывает субти…», «А…», «Микрофон вы…», «Останов…»)
 // and «Остановить» jumped under the cursor because the mic control changed width between its states.
 import { expect, test, type Page } from '@playwright/test';
 

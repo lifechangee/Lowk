@@ -1,4 +1,4 @@
-// M2: call summary, tag suggestions and the sources under AI answers. Keys: `summary.*`, `source.*`.
+// call summary, tag suggestions and the sources under AI answers. Keys: `summary.*`, `source.*`.
 export const summary = {
   'summary.create': 'Create summary',
   'summary.empty.title': 'No summary yet',

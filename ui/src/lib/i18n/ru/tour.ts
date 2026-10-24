@@ -1,4 +1,4 @@
-// M2: the first-run tour (6 steps). Keys: `tour.*`. Key names in the texts come from the user's real binds.
+// the first-run tour (6 steps). Keys: `tour.*`. Key names in the texts come from the user's real binds.
 export const tour = {
   'tour.title': 'Тур по Lowk',
   'tour.progress': '{n} / {total}',

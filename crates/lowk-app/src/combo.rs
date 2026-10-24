@@ -112,8 +112,8 @@ impl ComboRegistrar for TauriCombo {
 mod tests {
     use super::*;
 
-    /// Owner bug: ⌘⇧S arrived as `ScreenshotArea`. Whatever the OS reports for a registered shortcut id must
-    /// resolve to the action that owns that exact combo (owner's binds, a private hub).
+    /// Regression: ⌘⇧S arrived as `ScreenshotArea`. Whatever the OS reports for a registered shortcut id must
+    /// resolve to the action that owns that exact combo (custom binds, a private hub).
     #[test]
     fn shortcut_ids_route_cmd_shift_s_to_screenshot_and_cmd_shift_a_to_area() {
         let hub = ComboHub::default();

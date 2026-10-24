@@ -1,4 +1,4 @@
-//! M2 contract: search, retrieval, sources, embedder. Owner: `lowk-index`.
+//! Contract: search, retrieval, sources, embedder. Implemented by `lowk-index`.
 use crate::{AppError, ChunkKind, FolderRef, Result, Ulid};
 use serde::{Deserialize, Serialize};
 use specta::Type;

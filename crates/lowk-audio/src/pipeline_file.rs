@@ -4,8 +4,8 @@
 //!
 //! [`crate::FileAudioSource`] hands finished 16 kHz frames to the sink and therefore never
 //! touches the ring, the resampler or the echo canceller; this one does, which makes it the
-//! silent stand-in for "I spoke into the built-in mic while the speakers play the call" (owner
-//! bug A). No sound is produced; no permissions are needed.
+//! silent stand-in for "I spoke into the built-in mic while the speakers play the call"
+//! (regression A). No sound is produced; no permissions are needed.
 use crate::aec::AecLink;
 use crate::file::{decode_mono, FileDone};
 use crate::pipeline::{spawn_worker, Meter, RingIn, WorkerHandle};
@@ -270,7 +270,7 @@ mod tests {
         d
     }
 
-    /// Owner bug A, silent: 60 s of Me + System through ring/resampler/AEC with a hot (clipping)
+    /// Regression A, silent: 60 s of Me + System through ring/resampler/AEC with a hot (clipping)
     /// mic and a strong echo must deliver every frame, finite, in order, without panics.
     /// (The AEC build runs the real AEC3; without the feature the same path runs with AEC inert.)
     #[test]

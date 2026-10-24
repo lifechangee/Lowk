@@ -1,4 +1,4 @@
-// M2: documents, folder instructions, embedder / documents settings, export and import. Keys: `docs.*`, `knowledge.*`, `transfer.*`.
+// documents, folder instructions, embedder / documents settings, export and import. Keys: `docs.*`, `knowledge.*`, `transfer.*`.
 export const docs = {
   'docs.add': 'Add document',
   'docs.actions': 'Document actions',

@@ -4,7 +4,7 @@
 //! and CER against the reference text. No audio is ever played: file sources only.
 //!
 //! cargo run --release -p lowk-session --example stt_replay -- \
-//!     --audio spikes/stt-bench/audio --models <dir with the engine's model folders> \
+//!     --audio fixtures/stt --models <dir with the engine's model folders> \
 //!     [--engine nemotron-local|soniox|deepgram] [--scenarios 01,02] [--noise q,n] [--no-correct]
 //!     [--right 6] [--chunk-ms 160] [--hang-ms 480] [--langs ru,en] [--out report.md]
 use lowk_audio::{AudioBackend, AudioEventSink, CaptureConfig, CaptureHandle, FileAudioSource, FrameSink};
@@ -383,7 +383,7 @@ fn run_pair(
 }
 
 fn main() {
-    let audio = PathBuf::from(arg("--audio").unwrap_or_else(|| "spikes/stt-bench/audio".into()));
+    let audio = PathBuf::from(arg("--audio").unwrap_or_else(|| "fixtures/stt".into()));
     let models = PathBuf::from(arg("--models").expect("--models <dir>"));
     let engine = arg("--engine").unwrap_or_else(|| local::NEMOTRON_ID.into());
     let scen: Vec<String> = arg("--scenarios")

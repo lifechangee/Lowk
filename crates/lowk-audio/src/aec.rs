@@ -1,4 +1,4 @@
-//! Echo cancellation glue (ARCHITECTURE 6.3). WebRTC AEC3 runs on the Me stream at 16 kHz
+//! Echo cancellation glue. WebRTC AEC3 runs on the Me stream at 16 kHz
 //! in 10 ms frames with the System stream as the far-end reference. The processor exists
 //! only with the `aec` cargo feature; without it the link is inert and `enabled` is false.
 use lowk_types::AecMode;
@@ -206,7 +206,7 @@ mod tests {
         assert!(l.0.reference.lock().unwrap().is_empty());
     }
 
-    /// Crash hunt (owner bug A): the processor must survive any mic/reference content a real
+    /// Crash hunt (regression A): the processor must survive any mic/reference content a real
     /// call can produce: digital silence, full-scale clipping, DC, white noise, NaN/Inf from a
     /// misbehaving device, reference bursts larger than the backlog cap, reference starvation.
     #[cfg(feature = "aec")]

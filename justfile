@@ -80,11 +80,11 @@ qa-report:
 
 # Builds the signed bundle (`just build`) and checks THE BUNDLE, not a dev build: Info.plist privacy keys,
 # codesign Identifier == bundle id, clean-profile launch, no demo, bind/permission status. Permissions the
-# bundle lacks are reported as NEEDS-GRANT (owner action), never as a pass. `--no-build`, `--no-run` supported.
+# bundle lacks are reported as NEEDS-GRANT (needs a local grant), never as a pass. `--no-build`, `--no-run` supported.
 qa-bundle *args:
     node tools/qa/bundle-qa.mjs {{args}}
 
-# OWNER-RUN LIVE CHECK ONLY (agents never run this). The qa-feature bundle (debug profile, qa control channel) at
+# Manual live check: needs a local macOS GUI session and grants. The qa-feature bundle (debug profile, qa control channel) at
 # target/debug/bundle/macos/Lowk.app, signed with the SAME identity ("Lowk Dev" by default) and bundle id as `just build`,
 # so the existing Screen Recording / Input grants apply and no new prompt appears. Never hand this build to anyone.
 build-qa: setup worker
@@ -106,8 +106,8 @@ build-qa: setup worker
     cd ../..
     tools/sign-bundle.sh target/debug/bundle/macos/Lowk.app
 
-# OWNER-RUN: tone e2e inside the qa bundle (just build-qa first): Lowk draws known backdrops in its own window, the overlay
-# is captured over them at 5 positions -> docs/qa/tone-e2e/. See docs/qa/tone-e2e/README.md for what appears on screen.
+# Manual (local macOS GUI session, Screen Recording granted): tone e2e inside the qa bundle (just build-qa first): Lowk draws known backdrops in its own window, the overlay
+# is captured over them at 5 positions -> docs/qa/tone-e2e/. See docs/testing.md.
 qa-tone *args:
     node tools/qa/tone-e2e.mjs {{args}}
 
@@ -115,7 +115,7 @@ qa-tone *args:
 qa-guard:
     tools/qa/check-no-qa-release.sh
 
-# Everything available on this machine + the gallery report. See docs/QA.md.
+# Everything available on this machine + the gallery report. See docs/testing.md.
 qa:
     tools/qa/run-all.sh
 
@@ -141,9 +141,9 @@ ci: lint ci-cross
 # Long-session soak (NOT part of `just ci`; silent, headless, nothing is played): loops the Russian bench clips as the
 # System stream through the real ring -> session -> local STT worker (+ Whisper correction) -> vault .md -> search index
 # and records RSS, word-to-screen latency over time, drops, worker restarts, transcript completeness, .md size, index
-# update time -> docs/qa/soak-2h.md. Needs the engine models (default: the app's data dir) and a built lowk-stt-worker
+# update time -> target/soak-report.md. Needs the engine models (default: the app's data dir) and a built lowk-stt-worker
 # (`just worker`, or LOWK_STT_WORKER=...). `just soak 0.25 8` = 15 min of audio at 8x (smoke); default 2 h in real time
-# (takes 2 h; run it in the background). Details: docs/qa/soak-2h.md.
+# (takes 2 h; run it in the background). Details: docs/testing.md.
 soak hours="2" speed="1" *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -156,10 +156,10 @@ soak hours="2" speed="1" *args:
     fi
     [ -n "${LOWK_STT_WORKER:-}" ] || { echo "no lowk-stt-worker: run 'just worker' or set LOWK_STT_WORKER"; exit 2; }
     [ -d "$models/nemotron-local" ] || { echo "engine model missing in $models (install it from the app's Settings; not downloaded here)"; exit 2; }
-    cargo run --release -p lowk-app -- --selfcheck-soak --audio "${LOWK_BENCH_AUDIO:-spikes/stt-bench/audio}" --models "$models" \
+    cargo run --release -p lowk-app -- --selfcheck-soak --audio "${LOWK_BENCH_AUDIO:-fixtures/stt}" --models "$models" \
       --hours {{hours}} --speed {{speed}} --report "${LOWK_SOAK_REPORT:-target/soak-report.md}" --csv "${LOWK_SOAK_CSV:-target/soak-series.csv}" {{args}}
 
-# Compile-check the Windows target from any host (see docs/DECISIONS-M0.md).
+# Compile-check the Windows target from any host.
 check-windows:
     cargo check --workspace --target x86_64-pc-windows-msvc
 

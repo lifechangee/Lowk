@@ -1,5 +1,5 @@
 // O4: the colour base of the adaptive overlay. (1) The swatch sheet generated from the real AdaptiveTone
-// (docs/design/overlay-color-swatches.html) lists every backdrop as verified. (2) The REAL overlay component, fed
+// (crates/lowk-stealth/tests/fixtures/swatches.html) lists every backdrop as verified. (2) The REAL overlay component, fed
 // the tone the Rust mapping produced for a backdrop, renders legible text over it (pixel-based contrast).
 // SWATCH_PNG=1 also renders the sheet to test-results/overlay-color-swatches.png.
 import { expect, test } from '@playwright/test';
@@ -8,17 +8,17 @@ import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { measureContrast } from './lib/contrast';
 
-const docs = fileURLToPath(new URL('../../docs/design/', import.meta.url));
+const docs = fileURLToPath(new URL('../../crates/lowk-stealth/tests/fixtures/', import.meta.url));
 interface Block { scrim: string; fg: string; int: string; mv: string; body_wcag: number; body_lc: number; muted_wcag: number }
 interface Swatch { name: string; mean: string; kind: string; ok: boolean; min_body_wcag: number; min_body_lc: number; min_muted_wcag: number; min_accent_wcag: number; blocks: Block[] }
-const data: Swatch[] = JSON.parse(readFileSync(resolve(docs, 'overlay-color-swatches.json'), 'utf8'));
+const data: Swatch[] = JSON.parse(readFileSync(resolve(docs, 'swatches.json'), 'utf8'));
 
 const rgbOf = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
 
 test.describe('swatch sheet', () => {
   test.use({ viewport: { width: 1400, height: 900 } });
   test('lists ~40 backdrops, every one verified, and matches the JSON', async ({ page }, info) => {
-    await page.goto(pathToFileURL(resolve(docs, 'overlay-color-swatches.html')).href);
+    await page.goto(pathToFileURL(resolve(docs, 'swatches.html')).href);
     const cards = page.locator('.card');
     expect(await cards.count()).toBeGreaterThanOrEqual(40);
     expect(await cards.count()).toBe(data.length);

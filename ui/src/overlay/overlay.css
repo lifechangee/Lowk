@@ -49,7 +49,7 @@
    Eight horizontal gradient strips, each flat inside a cell and ramping to its neighbour over 2 * --band (8 px) at the
    cell edge; each strip fades in over the one above across the same 2 * --band, so the paint follows the backdrop borders
    instead of blending whole cells. The whole layer then gets ONE opacity = max(slider, backend scrim_min, legibility
-   floor): the text never loses its backing whatever the transparency slider says (WCAG AA body text, see docs/QA.md). */
+   floor): the text never loses its backing whatever the transparency slider says (WCAG AA body text, see docs/testing.md). */
 .ov .scrim {
   --band: 4px;
   position: absolute; inset: -1px; border-radius: inherit; overflow: hidden; pointer-events: none;

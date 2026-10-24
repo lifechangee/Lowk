@@ -2,7 +2,7 @@
 //! UI thread. Compiles on any host (`cargo check --target x86_64-pc-windows-msvc`);
 //! runtime-unverified until a real Windows session is available.
 //!
-//! Recipe (docs/ARCHITECTURE.md 7.2): `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`
+//! Recipe: `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`
 //! with the return value checked and read back; `WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE`
 //! (+ `WS_EX_LAYERED | WS_EX_TRANSPARENT` while passive), `WS_EX_APPWINDOW`
 //! cleared before first show; `HWND_TOPMOST` re-asserted on foreground changes.

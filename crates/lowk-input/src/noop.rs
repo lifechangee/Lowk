@@ -1,5 +1,5 @@
 //! Bind model backends: combo (plugin adapter), low-level kb/mouse, cursor
-//! source, conflict detection. M0 stub (WP3 owns it).
+//! source, conflict detection. Stub.
 use lowk_types::*;
 use std::sync::mpsc::{channel, Receiver, Sender};
 

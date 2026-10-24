@@ -1,5 +1,5 @@
 //! Colour base of the adaptive overlay (O4). Pure functions, no OS code; the mapping table is documented in
-//! `docs/design/overlay-color-base.md` (Russian) and every constant below appears there.
+//! the mapping table below; every constant appears in it.
 //!
 //! The pipeline per region of the screen under the overlay:
 //!
@@ -174,7 +174,7 @@ pub fn fmt(c: Rgb) -> String {
     format!("{},{},{}", c[0], c[1], c[2])
 }
 
-// ---- the mapping constants (docs/design/overlay-color-base.md, section «Таблица») ----
+// ---- the mapping constants ----
 
 /// Fixed presets for near-neutral backdrops (the original look of the overlay).
 pub const DARK_SCRIM: Rgb = [12, 12, 15];

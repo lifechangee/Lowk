@@ -80,7 +80,7 @@ pub fn present(provider: &str) -> bool {
 
 /// Rust-only: the value never reaches the WebView. Call from the main app process only.
 pub fn get(provider: &str) -> Result<String> {
-    // Debug/QA builds only: automated runs must never touch (or prompt for) the owner's keychain.
+    // Debug/QA builds only: automated runs must never touch (or prompt for) the user's keychain.
     #[cfg(debug_assertions)]
     if std::env::var_os("LOWK_NO_KEYCHAIN").is_some() {
         return Err(AppError::new(ErrorCode::ApiKeyMissing));

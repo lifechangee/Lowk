@@ -1,5 +1,5 @@
 // Real backend: every method that has a command in the generated bindings calls it. No silent fallbacks:
-// M2 commands that the backend has not implemented yet fail with their `not_implemented` AppError, which the UI shows.
+// Commands that the backend has not implemented yet fail with their `not_implemented` AppError, which the UI shows.
 // File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
 import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
@@ -123,7 +123,7 @@ export class TauriBackend extends MockBackend {
     return () => { dead = true; off?.(); };
   }
 
-  // ---- M2 ----
+  // ---- documents, search, summary ----
   static #listen<T>(name: string, cb: (p: T) => void): () => void {
     let off: (() => void) | undefined;
     let dead = false;

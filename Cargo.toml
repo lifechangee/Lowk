@@ -55,7 +55,7 @@ panic = "abort"
 # ---------------------------------------------------------------------------
 # Shared dependencies. Crates add `dep.workspace = true` in their own manifest.
 # Versions verified against crates.io on 2026-10-20. Pre-declared for every
-# dependency named in docs/ARCHITECTURE.md; unused entries cost nothing.
+# dependency named in docs/architecture.md; unused entries cost nothing.
 # ---------------------------------------------------------------------------
 [workspace.dependencies]
 # internal
@@ -112,7 +112,7 @@ tauri = { version = "2.12", features = ["macos-private-api"] }
 tauri-build = "2.7"
 tauri-plugin-global-shortcut = "2.4"
 tauri-plugin-single-instance = "2.5"
-# M2 WP-E: native file dialogs («Добавить документ», export / import zip)
+# native file dialogs («Добавить документ», export / import zip)
 tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2.14"
 raw-window-handle = "0.6"
@@ -129,7 +129,7 @@ objc2-app-kit = "0.3"
 objc2-foundation = "0.3"
 block2 = "0.6"
 core-graphics = "0.25"
-# tauri-nspanel is a git dependency pinned by rev; added by WP2 (lowk-stealth)
+# tauri-nspanel is a git dependency pinned by rev (lowk-stealth)
 
 # audio
 cidre = "0.29"
@@ -153,7 +153,7 @@ pdfium-render = "0.9"
 anydoc = "0.2"
 screencapturekit = "11.0"
 
-# M2 WP-B (ingest + document storage)
+# ingest + document storage
 zip = { version = "9", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
 quick-xml = "0.42"

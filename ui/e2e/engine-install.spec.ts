@@ -1,4 +1,4 @@
-// M1 QA: the speech-model download card (Settings > Providers). Before this the install commands had
+// The speech-model download card (Settings > Providers). Before this the install commands had
 // no UI at all and the record bind silently played the scripted demo.
 import { expect, test } from '@playwright/test';
 

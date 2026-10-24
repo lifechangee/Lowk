@@ -29,7 +29,7 @@ sleep 2
 ctl() { echo "$1" > "$CTL"; sleep "${2:-0.7}"; }
 FAILS=0
 check() { # label expectation
-  if "$OUT/probe" "$OUT" "$1" --owner fixture --expect "$2" > "$OUT/$1.txt" 2>&1; then
+  if "$OUT/probe" "$OUT" "$1" --app fixture --expect "$2" > "$OUT/$1.txt" 2>&1; then
     echo "PASS  $1  ($2)"
   else
     echo "FAIL  $1  ($2)"; grep -E "FAIL" "$OUT/$1.txt" | sed 's/^/        /'; FAILS=$((FAILS + 1))

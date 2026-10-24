@@ -1,4 +1,4 @@
-//! Q&A link DTOs («Вопрос -> подсказка ИИ -> Мой ответ», ARCHITECTURE 5.5).
+//! Q&A link DTOs («Вопрос -> подсказка ИИ -> Мой ответ», docs/architecture.md).
 use crate::{MonoNs, QaId};
 use serde::{Deserialize, Serialize};
 use specta::Type;

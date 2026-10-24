@@ -75,7 +75,7 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     let vault = Arc::new(RwLock::new(None));
     migrate_settings(&settings);
 
-    // M2: documents, index, embedder, LLM routing. The retriever and the hint generator are the
+    // Documents, index, embedder, LLM routing. The retriever and the hint generator are the
     // real ones; there is no stub path (no key means a clear error in the overlay).
     let index_slot: Arc<RwLock<Option<lowk_index::Index>>> = Arc::new(RwLock::new(None));
     let m2_env = crate::m2::Env {

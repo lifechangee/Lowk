@@ -1,6 +1,6 @@
 //! The O4 swatch sheet: ~40 representative backdrops run through the REAL [`AdaptiveTone`], with the contrast of
 //! every text block verified per pixel. Used by the unit test below (every swatch must pass, and the committed
-//! `docs/design/overlay-color-swatches.json` must equal the current output) and by the `overlay_swatches`
+//! `crates/lowk-stealth/tests/fixtures/swatches.json` must equal the current output) and by the `overlay_swatches`
 //! example that writes the JSON and the HTML sheet (the PNG is rendered from the HTML by the Playwright spec).
 
 use crate::palette::{self, Rgb};
@@ -99,7 +99,7 @@ pub fn all() -> Vec<Backdrop> {
     add("Тёмно-красный", flat([110, 10, 20]));
     add("Малиновый", flat([170, 20, 60]));
     add("Розовый", flat([255, 120, 190]));
-    // bright saturated colours: light tinted scrim, dark text (owner decision)
+    // bright saturated colours: light tinted scrim, dark text (design decision)
     add("Жёлтый (замер вживую)", flat([240, 220, 40]));
     add("Чистый жёлтый", flat([255, 255, 0]));
     add("Золотой", flat([255, 215, 0]));
@@ -342,7 +342,7 @@ fn json_str(s: &str) -> String {
     format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// Machine-readable results (the committed `overlay-color-swatches.json`; also feeds the Playwright overlay spec).
+/// Machine-readable results (the committed `swatches.json`; also feeds the Playwright overlay spec).
 pub fn to_json(rs: &[SwatchResult]) -> String {
     let mut s = String::from("[\n");
     for (i, r) in rs.iter().enumerate() {
@@ -509,12 +509,12 @@ mod tests {
         assert_eq!(get("Светло-голубой").kind, ToneKind::Light);
     }
 
-    /// `docs/design/overlay-color-swatches.json` must be the current output (regenerate with the example).
+    /// `crates/lowk-stealth/tests/fixtures/swatches.json` must be the current output (regenerate with the example).
     #[test]
     fn committed_json_matches_the_mapping() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../docs/design/overlay-color-swatches.json"
+            "/../../crates/lowk-stealth/tests/fixtures/swatches.json"
         );
         let want = to_json(&run_all());
         if std::env::var_os("UPDATE_SWATCHES").is_some() {

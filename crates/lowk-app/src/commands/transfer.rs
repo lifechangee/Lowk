@@ -1,4 +1,4 @@
-//! Export / import of one folder as a zip (M2). Whole-vault export/import (directory or zip) is in `vault.rs`.
+//! Export / import of one folder as a zip. Whole-vault export/import (directory or zip) is in `vault.rs`.
 use crate::commands::vault::ImportSummary;
 use crate::state::Shared;
 use lowk_types::*;

@@ -1,8 +1,8 @@
-//! Q&A link tracking (ARCHITECTURE 5.5).
+//! Q&A link tracking.
 //!
 //! question -> AI hint -> «Мой ответ». When a hint finishes, a [`QaTracker`]
 //! arms one link. It collects the `Final` segments of the Me stream until the
-//! user's next Ask or the session end (F14: owner decision, no timers, no
+//! user's next Ask or the session end (design decision: no timers, no
 //! interviewer-speech heuristics: only the user closes «Мой ответ»).
 //! All times are event time (`MonoNs` carried by the events), so behaviour is
 //! deterministic and replayable.

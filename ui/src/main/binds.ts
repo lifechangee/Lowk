@@ -8,7 +8,7 @@ export const ALL_ACTIONS: ActionId[] = [...ACTIONS_PRIMARY, ...ACTIONS_EXTRA];
 
 const combo = (key: string, mods: Mods): Trigger => ({ kind: 'combo', mods, key });
 
-/** Defaults mirror `Settings::defaults_for(Os)` in `lowk-types` (round 3 decisions). */
+/** Defaults mirror `Settings::defaults_for(Os)` in `lowk-types`. */
 export function defaultBinds(os: Os): BindSpec[] {
   const m: Mods = os === 'macos' ? { meta: true } : { ctrl: true };
   const ms: Mods = { ...m, shift: true };

@@ -1,4 +1,4 @@
-//! Ask-flow prompt layout (ARCHITECTURE 5.2): a static system prompt, then append-only user
+//! Ask-flow prompt layout: a static system prompt, then append-only user
 //! turns. Template text, folder context, retrieved chunks, transcript delta, typed text and
 //! «Мой ответ» all live in the *user* turn, so switching templates never rewrites the prefix.
 use crate::ledger::ChatLedger;
@@ -35,7 +35,7 @@ pub struct BuildInput<'a> {
     /// Everything the user said into the mic since the last answer («Мой ответ»); only for
     /// templates with `needs_my_answer`.
     pub my_answer: Option<&'a str>,
-    /// Retrieval result with folder instructions and pinned documents (M2 retriever).
+    /// Retrieval result with folder instructions and pinned documents.
     pub pack: Option<&'a ContextPack>,
     /// First turn of the call: send instructions and pinned documents (they then stay in the
     /// prefix, later turns carry only new chunks).
@@ -341,7 +341,7 @@ mod tests {
         assert!(l.messages()[1].contains("[00:01:05] Other: Что такое EBITDA?"));
     }
 
-    /// Owner feedback: ⌘↵ sometimes answered with «уточните…». Golden: the policy is in the static system
+    /// Regression: ⌘↵ sometimes answered with «уточните…». Golden: the policy is in the static system
     /// prompt AND right after the template of every turn, whatever the template says.
     #[test]
     fn never_asks_clarifying_questions_for_any_template() {

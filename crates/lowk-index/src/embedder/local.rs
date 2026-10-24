@@ -21,7 +21,7 @@ pub const GEMMA_FILE: &str = "embeddinggemma-2-Q8_0.gguf";
 /// Pinned to a commit of the repository, not `main`.
 const GEMMA_REV: &str = "58faf90940886df2d62be555c8765d00dac362c5";
 pub const GEMMA_LICENSE_URL: &str = "https://ai.google.dev/gemma/apache_2";
-/// Vector size stored in the index (MRL 768 -> 512; DECISIONS-M2).
+/// Vector size stored in the index (MRL 768 -> 512).
 pub const INDEX_DIM: usize = 512;
 
 pub fn gemma_assets() -> Vec<DownloadSpec> {

@@ -1,4 +1,4 @@
-//! The `Session` orchestrator and its state machine
+//! The `Session` coordinator and its state machine
 //! (Idle -> Starting -> Recording <-> Paused -> Stopping -> Idle).
 use crate::bus::EventBus;
 use crate::deps::{CallRecorder, HintRequest, SessionDeps};
@@ -1310,7 +1310,7 @@ impl Inner {
         let mut out = Out::default();
         {
             let mut c = self.core();
-            // The link opens at Ask time, not when the hint finishes: the owner starts answering
+            // The link opens at Ask time, not when the hint finishes: the user starts answering
             // while the hint streams, and that speech belongs to «Мой ответ».
             let o = c.qa.arm(qa_id, question.to_owned(), String::new(), armed_at);
             c.absorb_qa(o, &mut out);

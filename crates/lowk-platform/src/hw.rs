@@ -1,4 +1,4 @@
-//! Hardware probe and the static local-vs-cloud recommendation (ARCHITECTURE 6.4).
+//! Hardware probe and the static local-vs-cloud recommendation.
 //! The recommendation is a pre-filter; the 5-10 s benchmark has the last word.
 use lowk_types::{GpuInfo, HwInfo, HwReport, Os, RecReason, Recommendation, SttTier};
 use sysinfo::{Disks, System};

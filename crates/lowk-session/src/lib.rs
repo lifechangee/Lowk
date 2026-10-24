@@ -1,4 +1,4 @@
-//! Session orchestrator (WP7): state machine, event bus, transcript buffer,
+//! Session coordinator: state machine, event bus, transcript buffer,
 //! Q&A links («Мой ответ»), replay/demo feed. Wires feature crates only
 //! through traits, so the whole call flow runs without Tauri.
 mod bus;

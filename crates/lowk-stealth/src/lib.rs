@@ -1,7 +1,7 @@
 //! Stealth: WindowPolicy, StealthGuard, ModeMachine, magnet, panic hide,
 //! adaptive tone, self-test, per-OS native code.
 //!
-//! Rules (docs/ARCHITECTURE.md 7): Rust owns every stealth call; every native
+//! Rules: Rust owns every stealth call; every native
 //! window call runs on the main thread (injected [`MainThread`]); fail closed
 //! (apply -> verify -> show); focus (mode machine) is orthogonal to stealth.
 //! This crate takes `raw-window-handle` handles, never `tauri::Window`.

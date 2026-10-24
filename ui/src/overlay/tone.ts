@@ -1,4 +1,4 @@
-// Adaptive tone -> CSS variable inputs. See docs/ARCHITECTURE.md 7.4.
+// Adaptive tone -> CSS variable inputs. See docs/architecture.md
 // The overlay root receives only these inputs; every other token is calc() over them in overlay.css.
 import type { Tone, ToneKind } from '../lib/ipc/bindings';
 
@@ -177,7 +177,7 @@ export function cellsToStyle(cells: ToneVars[]): string {
   return cells.map((c, i) => `--c${i}:rgb(${c.rgb})`).join(';');
 }
 
-/** Fade (s) of every adaptive colour change; the whole backdrop-to-paint budget is documented in docs/ARCHITECTURE.md 7.4. */
+/** Fade (s) of every adaptive colour change; the whole backdrop-to-paint budget is documented in docs/architecture.md */
 export const FADE_S = 0.07;
 
 /** `transition` value fading all cell colours (registered as `<color>` properties by [`registerCellProps`]) and the scrim opacity. */

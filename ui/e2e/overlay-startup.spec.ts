@@ -1,6 +1,6 @@
 // Overlay start-up budget: time from navigation start to the first rendered content, against the PRODUCTION
 // bundle (dist/, served locally) with a Tauri bridge whose every command answers only after 3 s. First paint
-// must not wait for the backend (owner report: frame visible, content very late).
+// must not wait for the backend (regression: frame visible, content very late).
 import { expect, test } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import { createServer, type Server } from 'node:http';

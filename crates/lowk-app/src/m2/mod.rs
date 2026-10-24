@@ -1,4 +1,4 @@
-//! M2 integration: documents, ingest queue, index feed, embedder, search, summary/tags and the
+//! Documents integration: documents, ingest queue, index feed, embedder, search, summary/tags and the
 //! Ask flow's LLM side. Thin glue over `lowk-store`, `lowk-ingest`, `lowk-index` and `lowk-llm`;
 //! the logic stays in those crates. Nothing here knows Tauri: `Services` talks to the UI through
 //! an [`EventSink`] and to settings through [`SettingsStore`], so the same code runs in the app,

@@ -60,7 +60,7 @@ if __name__=="__main__":
     quick="--quick" in sys.argv  # 02_them_q (ru) + 03_me_q (en?) style subset used by qa-bundle
     sets=[x.split(",") for x in (args or ["ru,en"])]
     tmp=tempfile.mkdtemp(); fails=0; wavs=[]
-    files=sorted(glob.glob(ROOT+"/spikes/stt-bench/audio/0*.m4a"))
+    files=sorted(glob.glob(ROOT+"/fixtures/stt/0*.m4a"))
     if quick: files=[f for f in files if os.path.basename(f)[:-4] in ("02_them_q","04_me_q","01_me_n")]
     for f in files:
         n=os.path.basename(f)[:-4]; wav=tmp+"/"+n+".wav"

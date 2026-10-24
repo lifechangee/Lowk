@@ -1,4 +1,4 @@
-// M2 behaviour (mock IPC): documents, search, summary + tags, tour, embedder, export/import. Both languages for the tour.
+// Documents behaviour (mock IPC): documents, search, summary + tags, tour, embedder, export/import. Both languages for the tour.
 import { expect, test, type Page } from '@playwright/test';
 
 test.use({ viewport: { width: 1280, height: 800 }, locale: 'en-US', timezoneId: 'UTC' });
@@ -121,7 +121,7 @@ test.describe('search', () => {
     await expect(page.locator('.ln.hit')).toBeVisible();
   });
 
-  test('M2-S1: date filters are empty and inactive by default, and filter only once set', async ({ page }) => {
+  test('date filters are empty and inactive by default, and filter only once set', async ({ page }) => {
     await page.goto('/main.html?lang=en#/search?q=EBITDA');
     await expect(page.getByTestId('date-from')).toHaveText('Any date');
     await expect(page.getByTestId('date-to')).toHaveText('Any date');
@@ -133,12 +133,12 @@ test.describe('search', () => {
     await expect(page.getByTestId('search-none')).toBeVisible();
   });
 
-  test('M2-S2: opening a call at a chunk start highlights the line that matches', async ({ page }) => {
+  test('opening a call at a chunk start highlights the line that matches', async ({ page }) => {
     await page.goto(`/main.html?lang=en#/call/${CALL1}?t=0&m=${encodeURIComponent('ebitda')}`);
     await expect(page.locator('.ln.hit')).toContainText('EBITDA margin');
   });
 
-  test('M2-S4: model missing -> one-click enable with progress on search and home; hidden once installed', async ({ page }) => {
+  test('model missing -> one-click enable with progress on search and home; hidden once installed', async ({ page }) => {
     await page.goto('/main.html?lang=ru&embedder=missing#/search?q=EBITDA');
     const btn = page.getByRole('button', { name: /Включить поиск по смыслу \(≈310 МБ\)/ });
     await expect(btn).toBeVisible();

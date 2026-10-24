@@ -17,7 +17,7 @@ fn main() -> Result<()> {
         "bindings" => bindings(),
         "check-deps" => check_deps(),
         "license-report" | "fixtures" | "audio-isolation" => {
-            bail!("`{task}` is not implemented yet (M0 skeleton)")
+            bail!("`{task}` is not implemented yet")
         }
         _ => {
             eprintln!("usage: cargo xtask <bindings|check-deps|license-report|fixtures|audio-isolation>");

@@ -91,7 +91,7 @@ jobs:
       - run: pnpm --dir ui test
       - run: pnpm --dir ui build
       - run: pnpm --dir ui size
-      # TODO(WP10): Playwright overflow/screenshot tests in RU and EN.
+      # Playwright overflow/screenshot tests in RU and EN run in the ui job.
       - name: licenses (frontend)
         run: pnpm --dir ui licenses list --prod --json > /dev/null
 
@@ -167,10 +167,10 @@ jobs:
         shell: bash
         run: cargo build --release --manifest-path workers/lowk-stt-worker/Cargo.toml --no-default-features
 
-  # Disabled until the owner has Windows PC access (docs/ARCHITECTURE.md 11).
+  # Disabled: no Windows runtime test hardware is wired into CI yet (see docs/testing.md).
   probe-win:
     if: false
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-      - run: echo "stealth capture-probe lands with WP2 (tools/stealth-probe)"
+      - run: echo "stealth capture-probe: see tools/stealth-probe"

@@ -7,12 +7,12 @@ use tauri::State;
 
 /// The scripted demo exists only in dev/QA builds: the `qa` feature (which also falls back to it
 /// while no engine is installed, so the harness needs no model) or a debug build with
-/// `LOWK_DEMO=1`. A shipped build never fakes a call (M1 fix report, C).
+/// `LOWK_DEMO=1`. A shipped build never fakes a call.
 pub(crate) fn demo_allowed() -> bool {
     cfg!(feature = "qa") || (cfg!(debug_assertions) && std::env::var_os("LOWK_DEMO").is_some())
 }
 
-/// What the owner needs to see when a real call cannot start: the engine a call would use,
+/// What the user needs to see when a real call cannot start: the engine a call would use,
 /// whether it is a download (size) or a cloud key. Sent as `engine://needed` to the main window.
 #[derive(serde::Serialize)]
 struct EngineNeeded {

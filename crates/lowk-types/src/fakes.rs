@@ -1,5 +1,5 @@
 //! Tiny `Fake*` / `Noop*` implementations of the contract traits so dependents
-//! can build and test before the real owners land.
+//! can build and test before the real implementations land.
 use crate::*;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -139,7 +139,7 @@ pub fn arc_sink() -> Arc<CollectSttSink> {
     Arc::new(CollectSttSink::default())
 }
 
-// --- M2 fakes (UI dev, WP integration tests) --------------------------------
+// --- document, search and LLM fakes (UI dev, integration tests) --------------------------------
 
 /// In-memory `DocumentStore`: `add_doc` stores the file name only (the original is not read).
 #[derive(Default)]

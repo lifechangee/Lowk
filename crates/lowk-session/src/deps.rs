@@ -277,7 +277,7 @@ impl Default for MicAutoCfg {
 }
 
 impl SessionDeps {
-    /// The three M0 dependencies plus inert defaults for the rest (null store,
+    /// The three required dependencies plus inert defaults for the rest (null store,
     /// no-op audio, fake STT engine, stub hints, real-time demo).
     pub fn new(
         main_thread: Arc<dyn MainThread>,

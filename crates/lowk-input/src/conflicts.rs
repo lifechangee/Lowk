@@ -191,7 +191,7 @@ mod tests {
     }
 
     #[test]
-    fn soft_warnings_for_owner_defaults() {
+    fn soft_warnings_for_default_binds() {
         assert!(soft_warning(Os::Macos, &combo(M, "Enter")).is_some());
         assert!(soft_warning(Os::Windows, &combo(C, "Enter")).is_some());
         assert!(soft_warning(Os::Macos, &combo(MS, "KeyS")).is_some());

@@ -1,5 +1,5 @@
-//! M2 contract: documents, ingest, pinned docs. Owners: `lowk-ingest` (conversion),
-//! `lowk-store` (files on disk), `lowk-app` (wiring). See docs/DECISIONS-M2.md.
+//! Contract: documents, ingest, pinned docs. Implemented by `lowk-ingest` (conversion),
+//! `lowk-store` (files on disk), `lowk-app` (wiring).
 use crate::{AppError, DocId, FolderRef, LangTag, Result};
 use serde::{Deserialize, Serialize};
 use specta::Type;

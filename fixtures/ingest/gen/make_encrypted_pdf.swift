@@ -8,7 +8,7 @@ let out = URL(fileURLWithPath: CommandLine.arguments[1]).appendingPathComponent(
 var box = CGRect(x: 0, y: 0, width: 595, height: 842)
 let aux: [CFString: Any] = [
     kCGPDFContextUserPassword: "secret",
-    kCGPDFContextOwnerPassword: "owner-secret",
+    kCGPDFContextOwnerPassword: "admin-secret",
 ]
 let ctx = CGContext(out as CFURL, mediaBox: &box, aux as CFDictionary)!
 ctx.beginPDFPage(nil)

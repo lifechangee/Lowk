@@ -23,7 +23,7 @@ pub const LEGACY_LLM_MODEL: &str = "deepseek/deepseek-v4.1-flash";
 /// (OpenRouter slug; also the reliable fallback model of `lowk-llm`).
 pub const DEFAULT_VISION_MODEL: &str = "anthropic/claude-haiku-5.5";
 pub const DEFAULT_OPENROUTER_URL: &str = "https://openrouter.ai/api/v1";
-/// Version- and provider-pinned default for M2/M3 cloud calls (summary, tags, Ask).
+/// Version- and provider-pinned default for cloud calls (summary, tags, Ask).
 pub const DEFAULT_LLM_MODEL_PINNED: &str = "deepseek/deepseek-v4.1-flash-1017";
 /// EmbeddingGemma GGUF used for local semantic search (about 310 MB).
 pub const DEFAULT_EMBEDDER_ID: &str = "embeddinggemma-2-q8_0";
@@ -421,7 +421,7 @@ impl Default for LlmSettings {
     }
 }
 
-// --- embedder and documents (M2) -------------------------------------------
+// --- embedder and documents -------------------------------------------
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
@@ -728,7 +728,7 @@ pub fn summary_template() -> Template {
 
 // --- binds ---------------------------------------------------------------
 
-/// Product-owner defaults (BRIEF round 3). macOS: Cmd/Option; Windows: Ctrl/Alt.
+/// Default binds. macOS: Cmd/Option; Windows: Ctrl/Alt.
 pub fn default_binds(os: Os) -> Vec<BindSpec> {
     let mac = os == Os::Macos;
     let primary = if mac { Mods::META } else { Mods::CTRL };

@@ -5,7 +5,7 @@ use image::imageops::FilterType;
 use image::{DynamicImage, ImageEncoder, ImageFormat, RgbImage};
 use lowk_types::{AppError, ErrorCode, Result};
 
-/// Long edge of the first attempt (BRIEF / ARCHITECTURE: <= 1568 px).
+/// Long edge of the first attempt (<= 1568 px).
 pub const SEND_EDGE: u32 = 1568;
 /// Long edges of the retries after a "too large" refusal (413).
 pub const RETRY_EDGES: [u32; 2] = [1024, 640];

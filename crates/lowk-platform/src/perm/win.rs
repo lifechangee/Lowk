@@ -1,5 +1,5 @@
 //! Windows permission backends. Only the microphone privacy toggle exists.
-//! Compiles, unverified on real hardware (see ARCHITECTURE 11).
+//! Compiles, unverified on real hardware.
 use lowk_types::{PermKind, PermState, Result};
 use std::os::windows::process::CommandExt;
 use windows::core::w;

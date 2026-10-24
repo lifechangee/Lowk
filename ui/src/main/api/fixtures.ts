@@ -135,7 +135,7 @@ function dedupeSources(list: SourceRef[]): SourceRef[] {
   });
 }
 
-// ---- documents (M2) ----
+// ---- documents ----
 export function kindOfFile(name: string): DocKind | null {
   const ext = (name.split('.').pop() ?? '').toLowerCase();
   if (ext === 'key') return 'keynote';

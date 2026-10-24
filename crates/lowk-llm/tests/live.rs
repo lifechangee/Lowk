@@ -13,7 +13,7 @@ fn live_summary_and_tags() {
         return;
     }
     let key = std::env::var("OPENROUTER_API_KEY").ok().or_else(|| {
-        // Fallback: the owner's local key file (KEY=value lines). Never printed.
+        // Fallback: a local key file (~/.lowk-test-keys) (KEY=value lines). Never printed.
         let home = std::env::var("HOME").ok()?;
         let text = std::fs::read_to_string(format!("{home}/.lowk-test-keys")).ok()?;
         text.lines()

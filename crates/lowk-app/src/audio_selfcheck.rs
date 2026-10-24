@@ -1,12 +1,12 @@
 //! Headless, silent check of the whole audio path, run by `lowk --selfcheck-audio` (the bundle's
 //! own binary, so `just qa-bundle` exercises the bundled AEC3 and the bundled STT worker):
 //!
-//! * owner bug A ("I said something, the app started recognising it and closed"): the Me and
+//! * regression A ("I said something, the app started recognising it and closed"): the Me and
 //!   System streams are fed from FILES as raw 48 kHz device signals (hot, clipping mic plus a
 //!   strong echo of the System speech) through the real ring -> resampler -> AEC3 -> session ->
 //!   STT worker path for `--seconds` (60 in qa-bundle). The process must stay alive, the worker
 //!   must not die, both streams must produce text, the call must save.
-//! * owner bug B (capture altered playback): a real tap + mic is started and rebuilt several
+//! * regression B (capture altered playback): a real tap + mic is started and rebuilt several
 //!   times; the capture aggregate must have no output stream (it cannot play) and no Lowk
 //!   aggregate may be left behind (needs the System Audio permission, else the check is skipped).
 //!

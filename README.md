@@ -24,7 +24,7 @@ Lowk is an open-source (AGPL-3.0-or-later) desktop copilot for calls and intervi
 |---|---|
 | macOS (Apple Silicon, macOS 14+) | Primary target. Live transcription, overlay, hotkeys, vault and AI hints work and have been tested by hand on a MacBook Air M4. Rough edges are expected. |
 | Windows 10/11 | Release builds exist but are **experimental**: see [docs/release.md](docs/release.md). Not verified on real hardware. |
-| Documents, search, summary, Ask with context, new main window | Milestone M2, merged. Documents (PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, images with OCR), hybrid search, summary and tags, folder instructions, pinned documents, and AI answers that use folder context with source chips under the answer. Caveats: the GitHub Actions run of the final M2 commit and the owner's smoke test of the bundle were still pending at merge; a few extras (embedding-model comparison, timing on the Windows test PC) are unfinished. |
+| Documents, search, summary, Ask with context | Implemented. Documents (PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, images with OCR), hybrid search, summary and tags, folder instructions, pinned documents, and AI answers that use folder context with source chips under the answer. Known limits: the embedding-model comparison and timing on Windows are unfinished. |
 | Builds | Unsigned or self-signed, not notarized; test builds come from GitHub Actions ([docs/release.md](docs/release.md)) or build from source. No auto-update channel yet. |
 
 Not implemented yet (see the [roadmap](docs/ROADMAP.md)): speaker diarization, slide capture, virtual camera, vault encryption, sync, process disguise.
@@ -63,11 +63,11 @@ just bindings   # regenerate ui/src/lib/ipc/bindings.ts from Rust types
 just ci         # fmt, clippy, dependency rules, licenses, tests, UI checks, cross-target lint
 ```
 
-Layout: `crates/` (Rust crates, `lowk-types` at the bottom), `ui/` (Svelte 5 + Vite), `workers/` (speech worker), `tools/`, `docs/`. Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Layout: `crates/` (Rust crates, `lowk-types` at the bottom), `ui/` (Svelte 5 + Vite), `workers/` (speech worker), `tools/`, `docs/`. Architecture: [docs/architecture.md](docs/architecture.md); testing: [docs/testing.md](docs/testing.md).
 
 ## Roadmap
 
-Done: M0 skeleton, M1 live transcription and overlay, M2 documents, search, summary, retrieval in answers, new main window. Later: diarization, slide capture, virtual camera, encryption, sync, per-app audio capture on Windows 10. Details: [docs/ROADMAP.md](docs/ROADMAP.md); product decisions: [docs/BRIEF.md](docs/BRIEF.md) (Russian).
+Available now: live transcription and overlay, documents, search, summary, retrieval in answers. Later: diarization, slide capture, virtual camera, encryption, sync, per-app audio capture on Windows 10. Details: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## License and contributing
 

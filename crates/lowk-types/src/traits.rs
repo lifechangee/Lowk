@@ -37,7 +37,7 @@ pub trait Retriever: Send + Sync {
     fn retrieve(&self, q: &RetrievalQuery) -> Result<Vec<ContextChunk>>;
 
     /// Full context for one Ask: folder instructions, pinned documents, relevant chunks of
-    /// documents and previous calls (M2). The default wraps `retrieve` (no folder context).
+    /// documents and previous calls. The default wraps `retrieve` (no folder context).
     fn retrieve_pack(&self, q: &RetrievalQuery) -> Result<ContextPack> {
         Ok(ContextPack {
             relevant: self.retrieve(q)?,

@@ -1,10 +1,9 @@
-/* Design tokens (single source). Seeded from docs/ARCHITECTURE.md section 2.2
-   and docs/design/lowk-mockups-v3.html.
+/* Design tokens (single source). Seeded from docs/design/lowk-mockups-v3.html.
 
    Main window: dark is the default (alpha). Light is opt-in via
    <html data-theme="light">; there is no automatic light mode yet.
    Overlay: uses only adaptive tokens derived from --rgb/--fg/--inv/--int/--mv/--k
-   (set by the overlay://tone event, WP9; presets below via data-tone).
+   (set by the overlay://tone event; presets below via data-tone).
    No overlay component may use a fixed colour.
 
    Spacing is a 4px grid. Colours: monochrome grey, one muted-blue accent,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Adaptive-tone end-to-end on the REAL qa bundle (`just build-qa`: same "Lowk Dev" signature and bundle id as the
-// normal build, so the existing Screen Recording grant applies and no new prompt appears). OWNER-RUN, never by agents.
+// normal build, so the existing Screen Recording grant applies and no new prompt appears). Manual: needs a local macOS GUI session.
 // Everything happens inside Lowk: it draws a KNOWN backdrop in its own borderless window (qa command `backdrop-set`),
 // moves the overlay to 5 positions, and captures the screen region through the window server (the overlay composited
 // over the backdrop, as a person sees it; capture exclusion is lifted only for these captures). No helper process

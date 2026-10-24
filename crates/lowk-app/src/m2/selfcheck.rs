@@ -1,4 +1,4 @@
-//! Headless end-to-end check of the M2 pipeline, run by `lowk --selfcheck-m2` (the bundle's own
+//! Headless end-to-end check of the documents pipeline, run by `lowk --selfcheck-m2` (the bundle's own
 //! binary, so `just qa-bundle` exercises the bundled sidecar, OCR and index) and by `cargo test`.
 //! It builds a throw-away vault in a temp dir, and uses the same `Services` the app uses:
 //!
@@ -1032,7 +1032,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
-    /// Owner bug: a PDF with an UPPERCASE extension, a Cyrillic name and a space failed with «unknown
+    /// Regression: a PDF with an UPPERCASE extension, a Cyrillic name and a space failed with «unknown
     /// error». Kind comes from the extension case-insensitively and the whole path is UTF-8 safe;
     /// every failure reaches the UI as a specific code. `LOWK_PROBE_FILE` runs the same path on a real file.
     #[test]

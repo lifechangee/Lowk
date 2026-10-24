@@ -182,7 +182,7 @@ describe('S5 audio notice', () => {
   });
 });
 
-describe('sources and refusals (M2)', () => {
+describe('sources and refusals', () => {
   it('keeps the sources of the current answer and clears them on the next ask', () => {
     const s = new OverlayStore();
     const src = { kind: 'doc', id: 'd1', folder: { kind: 'unsorted' }, title: 'Spec.pdf', at_s: null, page: 12, heading_path: [], chunk_id: null, pinned: false } as never;

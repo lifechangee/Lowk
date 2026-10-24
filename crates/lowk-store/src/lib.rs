@@ -1,4 +1,4 @@
-//! Lowk store (WP4): vault of Markdown files, call/folder codecs, live journal
+//! Lowk store: vault of Markdown files, call/folder codecs, live journal
 //! with crash recovery, trash, watcher, `settings.toml`, prompt templates, documents (`Docs/`).
 //! No OS-specific code; builds on Linux.
 pub mod audio;

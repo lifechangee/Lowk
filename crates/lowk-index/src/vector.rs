@@ -1,6 +1,6 @@
 //! Vector half of the index behind a trait. The shipped implementation is a flat in-memory
 //! scan over int8-quantised vectors (one scale per vector): 100k x 512 is 51 MB and a query
-//! is a few milliseconds, so no ANN structure is needed at this scale (docs/DECISIONS-M2.md).
+//! is a few milliseconds, so no ANN structure is needed at this scale.
 //! `sqlite-vec` can be slotted in behind the same trait if the scale ever demands it.
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};

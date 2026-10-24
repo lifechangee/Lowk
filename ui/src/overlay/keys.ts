@@ -1,4 +1,4 @@
-// Default bind labels (docs/BRIEF.md round 3). Display only; the real binds come from settings later.
+// Default bind labels. Display only; the real binds come from settings.
 export interface KeyLabels {
   interactive: string;
   ask: string;

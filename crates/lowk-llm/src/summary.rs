@@ -627,7 +627,7 @@ mod tests {
         let p = user_prompt(&i, "transcript", "x");
         assert!(p.contains("(no answer recorded)") && p.contains("<qa>"));
         assert!(lang_rules(Lang::Ru).contains("Вопросы ко мне"));
-        // M2-S5: the internal speaker id must not leak into the summary text
+        // the internal speaker id must not leak into the summary text
         assert!(lang_rules(Lang::Ru).contains("never write \"Me\""));
         assert!(lang_rules(Lang::Ru).contains("«я»"));
         assert!(lang_rules(Lang::En).contains("\"I\" (first person)"));

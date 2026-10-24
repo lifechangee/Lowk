@@ -149,7 +149,7 @@ pub fn path_reveal(path: String) -> Result<()> {
     reveal(&crate::state::resolve_vault_path(&path)?)
 }
 
-/// Opens the folder with `lowk.log` (and `lowk.prev.log`): what the owner sends us when something breaks.
+/// Opens the folder with `lowk.log` (and `lowk.prev.log`): what a user sends us when something breaks.
 #[tauri::command(async)]
 #[specta::specta]
 pub fn logs_reveal() -> Result<()> {
@@ -168,7 +168,7 @@ pub fn main_open(st: State<'_, Shared>) {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, specta::Type)]
 pub struct UpdateStatus {
-    /// False until the release signing keys exist (docs/DECISIONS-M0.md).
+    /// False until the release signing keys exist.
     pub enabled: bool,
     pub current: String,
     pub available: Option<String>,

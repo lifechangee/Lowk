@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// M1 end-to-end QA in the REAL app (macOS, `qa` build). NO sound is ever played: the System and Me
+// Session end-to-end QA in the REAL app (macOS, `qa` build). NO sound is ever played: the System and Me
 // streams are fed from files (LOWK_QA_SYSTEM_FILE / LOWK_QA_ME_FILE, qa builds only).
 //
-//   node tools/qa/m1-e2e.mjs [--no-build] [--stage live|noengine|install|loading|bundle|warmup]
+//   node tools/qa/session-e2e.mjs [--no-build] [--stage live|noengine|install|loading|bundle|warmup]
 //   Audible, opt-in (real capture, real speakers, display must be awake): --stage audible-app,audible-system
 //
-// live      : record from files with the owner's local model; live subtitles in the overlay, finals in the
+// live      : record from files with the local model; live subtitles in the overlay, finals in the
 //             call .md, background correction, Ask on a partial, "Мой ответ" closes only on the next Ask,
 //             stop -> main window home.
 // noengine  : HOME points at an empty dir (no model, no worker): the record bind must say why it plays the demo.
@@ -15,7 +15,7 @@
 //             the model is up, and the audio captured meanwhile is transcribed (journal timestamps from second 0).
 // bundle    : the built Lowk.app carries the worker (Contents/MacOS, runs); a qa binary laid out like a bundle
 //             (worker only next to the executable, no env, dev fallback off) starts a REAL session and gets subtitles.
-// Output: docs/qa/m1/results.json + PNG + copies of the call .md.
+// Output: docs/qa/session/results.json + PNG + copies of the call .md.
 import { spawn, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -45,7 +45,7 @@ if (!existsSync(bin)) { console.error('missing', bin); process.exit(2); }
 spawnSync('swiftc', ['-O', '-o', cap, join(root, 'tools/qa/qa-cap.swift')], { stdio: 'ignore' });
 
 const worker = join(root, 'workers/lowk-stt-worker/target/release/lowk-stt-worker');
-const audio = join(root, 'spikes/stt-bench/audio');
+const audio = join(root, 'fixtures/stt');
 
 /** Starts one QA instance. `home` overrides $HOME (app data, models, keychain lookups). */
 async function launch({ home, env = {}, settings = '', exe = bin }) {
@@ -390,7 +390,7 @@ async function stageWarmup() {
 // ---------------------------------------------------------------------------------------------
 // AUDIBLE stages (real capture, real sound through the speakers; opt-in: --stage audible-app,audible-system).
 // The system volume is never touched. The display must be awake (a sleeping display gives AudioQueueStart -66681).
-//   audible-app    : the "call" is an afplay process playing the them recordings; a second afplay (the owner's own voice,
+//   audible-app    : the "call" is an afplay process playing the them recordings; a second afplay (the user's own voice,
 //                    02_me) plays through the speakers and reaches the real microphone. Source = that one process (per-app tap).
 //   audible-system : whole-system tap; the app itself plays a DIFFERENT clip in its own webview (must be excluded).
 const wavOf = (src, dst) => spawnSync('afconvert', ['-f', 'WAVE', '-d', 'LEI16@16000', '-c', '1', src, dst]).status === 0;
@@ -474,7 +474,7 @@ async function stageAudibleApp() {
         const patch = JSON.stringify({ audio: { default_source: { kind: 'app', id: String(callProc.pid) } } });
         const sr = await a.ev('main', `JSON.stringify(await window.__TAURI_INTERNALS__.invoke('settings_patch',{patch:${patch}}).then(s=>s.audio.default_source))`);
         add({ name: 'audible-app: source = the afplay "call" process only', ok: /app/.test(sr), detail: sr });
-        play(mine.file); // the owner's voice: reaches the real mic through the speakers
+        play(mine.file); // the user's voice: reaches the real mic through the speakers
         playAt = Date.now() - 600;
       },
     });
@@ -543,8 +543,8 @@ try {
   if (stages.includes('audible-app')) await stageAudibleApp();
   if (stages.includes('audible-system')) await stageAudibleSystem();
 } catch (e) {
-  add({ name: 'm1-e2e harness error', ok: false, detail: String(e?.stack ?? e).slice(0, 400) });
+  add({ name: 'session-e2e harness error', ok: false, detail: String(e?.stack ?? e).slice(0, 400) });
 }
 writeFileSync(join(out, arg('--stage') ? `results-${stages.join('+')}.json` : 'results.json'), JSON.stringify(checks, null, 1));
-console.log(`m1-e2e: ${checks.filter((c) => c.ok).length}/${checks.length} passed`);
+console.log(`session-e2e: ${checks.filter((c) => c.ok).length}/${checks.length} passed`);
 process.exit(checks.every((c) => c.ok) ? 0 : 1);

@@ -53,7 +53,7 @@ fn cer(hyp: &str, reference: &str) -> f64 {
 }
 
 fn main() {
-    let audio = PathBuf::from(arg("--audio").unwrap_or_else(|| "spikes/stt-bench/audio".into()));
+    let audio = PathBuf::from(arg("--audio").unwrap_or_else(|| "fixtures/stt".into()));
     let models = PathBuf::from(arg("--models").expect("--models <dir>"));
     let langs: Vec<String> = arg("--langs")
         .unwrap_or_else(|| "ru,en".into())

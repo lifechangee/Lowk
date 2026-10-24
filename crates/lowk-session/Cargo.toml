@@ -1,6 +1,6 @@
 [package]
 name = "lowk-session"
-description = "Lowk session orchestrator: state machine, event bus, transcript buffer, Q&A links, demo feed"
+description = "Lowk session coordinator: state machine, event bus, transcript buffer, Q&A links, demo feed"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

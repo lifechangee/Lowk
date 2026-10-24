@@ -1,4 +1,4 @@
-// Unit tests for the M2 UI helpers: errors, documents, search, Markdown, source labels, routes.
+// Unit tests for the documents/search UI helpers: errors, documents, search, Markdown, source labels, routes.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Document, SearchHit, SourceRef } from '../lib/ipc';
@@ -106,7 +106,7 @@ describe('markdown reader', () => {
   });
 });
 
-describe('M2-S3: numbered clauses keep their own numbers', () => {
+describe('numbered clauses keep their own numbers', () => {
   it('a list that starts at 3 or is split by a page marker is not renumbered from 1', () => {
     const b = blocks('3. Price\n4. Warranty\n\n<!-- p:2 -->\n5. Secrecy');
     const ol = b.filter((x) => x.k === 'ol') as { nums: number[] }[];
@@ -114,7 +114,7 @@ describe('M2-S3: numbered clauses keep their own numbers', () => {
   });
 });
 
-describe('mock backend: M2 contracts', () => {
+describe('mock backend: document contracts', () => {
   it('imports a document, converts it and keeps the pinned budget meter honest', async () => {
     const api = new MockBackend();
     const F = '01JC8Z3K6Q9X2M4N7R5T0V0003';
@@ -149,7 +149,7 @@ describe('mock backend: M2 contracts', () => {
   });
 });
 
-describe('M2-S2: a call hit opens at the matching line, not the chunk start', () => {
+describe('a call hit opens at the matching line, not the chunk start', () => {
   const lines = [
     { at_s: 0, text: 'Здравствуйте, начнём встречу' },
     { at_s: 5, text: 'Петрович просит перенести срок' },

@@ -1,5 +1,5 @@
-//! «Перераспознать запись»: the offline re-transcription of a call's saved audio (docs/ARCHITECTURE.md,
-//! «Re-transcription»). Glue over `lowk_stt::retx` (the pass) and `lowk_store` (audio files, transcript
+//! «Перераспознать запись»: the offline re-transcription of a call's saved audio.
+//! Glue over `lowk_stt::retx` (the pass) and `lowk_store` (audio files, transcript
 //! revisions). One pass at a time, in a background thread; it waits while a recording runs, can be
 //! cancelled, and writes a NEW transcript revision (the live one is kept on disk, restorable).
 //!

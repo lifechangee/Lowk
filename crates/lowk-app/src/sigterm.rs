@@ -1,5 +1,5 @@
-//! Graceful end on SIGTERM / SIGINT / SIGHUP (owner bug A, 2026-10-22: the app "crashed" while the
-//! owner was speaking; the system log showed no crash at all, only `SIGTERM` from a tool that
+//! Graceful end on SIGTERM / SIGINT / SIGHUP (regression: the app "crashed" while the
+//! user was speaking; the system log showed no crash at all, only `SIGTERM` from a tool that
 //! pkill'ed the running app). A signal is not a crash: log it loudly (so the next report says
 //! "stopped by signal 15", not "closed by itself"), finish the running call so the transcript is
 //! saved, tear the capture down (taps and aggregates are destroyed by the session drop) and exit.

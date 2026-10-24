@@ -1,7 +1,7 @@
 //! Windows screenshots: GDI `BitBlt` per monitor. Our own windows are excluded by flipping
 //! their display affinity to `WDA_EXCLUDEFROMCAPTURE` for the duration of the grab (the
 //! overlay and pill already carry it permanently). Compile-checked from other hosts; the
-//! runtime is verified on a Windows machine later (docs/DECISIONS-M0.md).
+//! runtime is verified on a Windows machine later.
 use crate::DisplayShot;
 use lowk_types::{AppError, CaptureMonitors, ErrorCode, Rect, Result};
 use windows::core::BOOL;
