@@ -1023,3 +1023,37 @@ fn system_frames_stay_continuous_across_mic_toggles_and_me_is_flushed() {
         "the Me utterance was flushed at toggle-off"
     );
 }
+
+#[test]
+fn keep_audio_taps_exactly_the_frames_the_engines_get() {
+    for keep in [false, true] {
+        let r = rig(|d| {
+            let mut s = Settings::default();
+            s.audio.keep_audio = keep;
+            d.settings = Arc::new(MemSettingsStore::new(s));
+        });
+        r.session.start(opts(false)).unwrap();
+        r.audio.push_frame(frame(Stream::Me, 1_000));
+        r.audio.push_frame(frame(Stream::System, 2_000));
+        // a muted microphone and a pause leave holes (silence in the saved file), not audio
+        r.session.set_mic_enabled(false).unwrap();
+        r.audio.push_frame(frame(Stream::Me, 3_000));
+        r.audio.push_frame(frame(Stream::System, 4_000));
+        r.session.pause().unwrap();
+        r.audio.push_frame(frame(Stream::System, 5_000));
+        r.session.stop().unwrap();
+        let kept = r.store.kept_frames.lock().unwrap().clone();
+        if keep {
+            assert_eq!(
+                kept,
+                [
+                    (Stream::Me, 1_000),
+                    (Stream::System, 2_000),
+                    (Stream::System, 4_000)
+                ]
+            );
+        } else {
+            assert!(kept.is_empty(), "audio is only kept when the setting is on");
+        }
+    }
+}

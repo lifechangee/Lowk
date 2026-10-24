@@ -18,21 +18,37 @@ type BoxErr = Box<dyn std::error::Error>;
 
 /// Session bus -> visibility. Dispatched to the driver thread so the session
 /// thread never waits for the main thread.
-struct PhaseWatcher(Weak<AppState>, parking_lot::Mutex<SessionPhase>);
+struct PhaseWatcher(Weak<AppState>, parking_lot::Mutex<(SessionPhase, Option<CallId>)>);
 impl PhaseWatcher {
     fn new(st: Weak<AppState>) -> Self {
-        Self(st, parking_lot::Mutex::new(SessionPhase::Idle))
+        Self(st, parking_lot::Mutex::new((SessionPhase::Idle, None)))
     }
 }
 impl EventSink for PhaseWatcher {
     fn emit(&self, ev: AppEvent) {
         let AppEvent::Session(s) = ev else { return };
-        let prev = std::mem::replace(&mut *self.1.lock(), s.phase);
+        let (prev, call) = {
+            let mut g = self.1.lock();
+            let prev = g.0;
+            g.0 = s.phase;
+            if s.call.is_some() {
+                g.1 = s.call;
+            }
+            (prev, g.1)
+        };
         if let Some(st) = self.0.upgrade() {
             let st2 = st.clone();
             // Indexing yields to live transcription: background embedding pauses while a call runs.
             if let Some(svc) = st.m2.read().clone() {
                 svc.index.pause_embedding(!matches!(s.phase, SessionPhase::Idle));
+                // a running re-transcription waits while a recording runs
+                svc.retx_set_recording(!matches!(s.phase, SessionPhase::Idle));
+                // «Перераспознавать после записи»: the call that just ended (audio kept, setting / folder preset on)
+                if s.phase == SessionPhase::Idle && prev != SessionPhase::Idle && !s.demo {
+                    if let Some(c) = call {
+                        svc.retx_after_recording(c);
+                    }
+                }
             }
             // F8: a recording that just ended (stop button, bind or end of call) brings the
             // main window to the front on the library home.

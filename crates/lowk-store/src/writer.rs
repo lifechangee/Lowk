@@ -23,7 +23,7 @@ const MAX_TURN_S: u32 = 15;
 
 /// Splits one final that spans more than `MAX_TURN_S` into sentence groups of about equal length,
 /// each stamped by its character share of the audio span. Always returns at least one segment.
-fn segment(text: &str, at: u32, end: u32) -> Vec<(String, u32)> {
+pub(crate) fn segment(text: &str, at: u32, end: u32) -> Vec<(String, u32)> {
     let span = end.saturating_sub(at);
     if span <= MAX_TURN_S {
         return vec![(text.to_string(), at)];

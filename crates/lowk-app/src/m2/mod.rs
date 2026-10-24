@@ -7,6 +7,7 @@ pub mod embed;
 pub mod feed;
 pub mod hints;
 pub mod ingest;
+pub mod retx;
 pub mod route;
 pub mod selfcheck;
 pub mod summary;
@@ -91,6 +92,7 @@ pub struct Services {
     pub(crate) ingest: ingest::Queue,
     pub(crate) embed: embed::EmbedState,
     pub(crate) summaries: Mutex<HashMap<CallId, Arc<AtomicBool>>>,
+    pub(crate) retx: retx::RetxState,
 }
 
 /// The index file of a vault.
@@ -133,6 +135,7 @@ impl Services {
                 ingest: ingest_q,
                 embed: embed::EmbedState::default(),
                 summaries: Mutex::new(HashMap::new()),
+                retx: retx::RetxState::default(),
             }
         });
         svc.index.start_background();

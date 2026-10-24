@@ -24,6 +24,9 @@ import type {
   PermState,
   PinnedUsage,
   ReindexScope,
+  RetxEvent,
+  RetxPreset,
+  RetxStatus,
   SearchQuery,
   SearchResults,
   SessionState,
@@ -37,6 +40,7 @@ import type {
   TagSuggestion,
 } from '../../lib/ipc';
 
+export type { RetxEvent, RetxPreset, RetxStatus, RetxRevision } from '../../lib/ipc';
 export type { SearchResults, SearchHit, Document, IngestProgress, PinnedUsage, IndexStatus, EmbedderInfo, TagSuggestion, SummaryEvent, ImportSummary, SourceRef, LlmProviderStatus } from '../../lib/ipc';
 
 export const SYS_UNSORTED = 'sys:unsorted';
@@ -126,7 +130,7 @@ export interface Backend {
   folderGet(key: FolderKey): Promise<FolderDetail | null>;
   callGet(id: string): Promise<CallDetail | null>;
   folderCreate(input: NewFolder): Promise<FolderMeta>;
-  folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset }): Promise<void>;
+  folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void>;
   callTrash(id: string): Promise<void>;
   callRestore(id: string): Promise<void>;
   callMove(id: string, folder: FolderKey): Promise<void>;
@@ -178,6 +182,17 @@ export interface Backend {
   llmProviderStatus(): Promise<LlmProviderStatus>;
   /** Rejects with the backend error (`api_key_missing`, `network`, `llm_provider`, ...). */
   llmKeyTest(): Promise<void>;
+
+  // ---- M3: re-transcription of a saved recording ----
+  /** Saved audio present?, a pass running / paused, progress, transcript revisions. */
+  retxStatus(call: string): Promise<RetxStatus>;
+  /** Starts the background pass; progress arrives through `onRetxEvent`. Rejects with `not_found` (no audio), `local_only_blocked`, `engine_not_ready`, `api_key_missing`, `session_busy`. */
+  retxStart(call: string): Promise<void>;
+  retxCancel(call: string): Promise<void>;
+  /** Sets an older revision (the live transcript) back as the call text. */
+  retxRestore(call: string, rev: number): Promise<void>;
+  /** `retx://event` */
+  onRetxEvent(cb: (e: RetxEvent) => void): () => void;
 
   // ---- M2: export / import ----
   pickSavePath(defaultName: string): Promise<string | null>;

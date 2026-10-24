@@ -13,6 +13,9 @@ pub struct VaultCallStore {
 struct Recorder {
     w: CallWriter,
     emitter: Arc<crate::emitter::UiEmitter>,
+    vault: Vault,
+    /// `audio.keep_audio`: the call's frames go to `<vault>/.lowk/audio/<id>/`.
+    keeper: Option<Arc<lowk_store::audio::AudioKeeper>>,
 }
 
 impl CallRecorder for Recorder {
@@ -22,9 +25,30 @@ impl CallRecorder for Recorder {
     fn materialize(&mut self) -> Result<()> {
         self.w.materialize()
     }
+    fn keep_audio(&mut self, clock: SessionClock) -> Option<lowk_session::AudioTap> {
+        match self.vault.audio_keeper(&self.w.id(), clock.t0_mono) {
+            Ok(k) => {
+                let k = Arc::new(k);
+                self.keeper = Some(k.clone());
+                Some(Arc::new(move |f: &Frame16k| k.write(f)))
+            }
+            Err(e) => {
+                tracing::warn!(?e, "cannot keep the call audio");
+                None
+            }
+        }
+    }
     fn finish(self: Box<Self>) -> Result<Option<CallMeta>> {
         let id = self.w.id();
-        let meta = self.w.finish()?;
+        let kept = self.keeper.as_ref().is_some_and(|k| k.finish());
+        let mut meta = self.w.finish()?;
+        if kept {
+            // the frontmatter records that audio exists (`audio: wav`); the files are the source of truth
+            match self.vault.update_call(&id, |d| d.fm.audio = "wav".into()) {
+                Ok(m) => meta = m,
+                Err(e) => tracing::warn!(?e, "cannot mark the call as having audio"),
+            }
+        }
         use lowk_types::EventSink;
         self.emitter.emit(AppEvent::Store(StoreChange {
             kind: StoreChangeKind::Updated,
@@ -55,6 +79,8 @@ impl CallStore for VaultCallStore {
             Box::new(Recorder {
                 w,
                 emitter: self.emitter.clone(),
+                vault,
+                keeper: None,
             }),
         ))
     }

@@ -1,7 +1,7 @@
 //! `_folder.md` codec (architecture section 4.3): frontmatter (id, title, tags,
 //! cloud policy, default template), `## Instructions`, `## Documents` list.
 use crate::fm::{self, Frontmatter};
-use lowk_types::MicPreset;
+use lowk_types::{MicPreset, RetxPreset};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FPart {
@@ -20,13 +20,15 @@ pub struct FolderDoc {
     pub default_template: Option<String>,
     /// `record_mic: on|off` in the frontmatter; absent = inherit the global setting.
     pub mic: MicPreset,
+    /// `retranscribe: on|off` in the frontmatter; absent = inherit `stt.retranscribe_after`.
+    pub retx: RetxPreset,
     pub raw: Frontmatter,
     /// Free text before the first section.
     pub intro: String,
     pub parts: Vec<FPart>,
 }
 
-const ORDER: [&str; 8] = [
+const ORDER: [&str; 9] = [
     "lowk",
     "type",
     "id",
@@ -35,6 +37,7 @@ const ORDER: [&str; 8] = [
     "allow_cloud",
     "default_template",
     "record_mic",
+    "retranscribe",
 ];
 
 impl FolderDoc {
@@ -46,6 +49,7 @@ impl FolderDoc {
             allow_cloud: true,
             default_template: None,
             mic: MicPreset::Inherit,
+            retx: RetxPreset::Inherit,
             raw: Frontmatter::default(),
             intro: String::new(),
             parts: vec![
@@ -136,6 +140,11 @@ pub fn parse(md: &str) -> FolderDoc {
         Some("off" | "false") => MicPreset::Off,
         _ => MicPreset::Inherit,
     };
+    doc.retx = match get("retranscribe").as_deref() {
+        Some("on" | "true") => RetxPreset::On,
+        Some("off" | "false") => RetxPreset::Off,
+        _ => RetxPreset::Inherit,
+    };
     doc.raw = front;
 
     let mut intro: Vec<&str> = vec![];
@@ -193,6 +202,11 @@ pub fn render(doc: &FolderDoc) -> String {
         MicPreset::On => f.set_ordered("record_mic", "on".into(), &ORDER),
         MicPreset::Off => f.set_ordered("record_mic", "off".into(), &ORDER),
         MicPreset::Inherit => f.remove("record_mic"),
+    }
+    match doc.retx {
+        RetxPreset::On => f.set_ordered("retranscribe", "on".into(), &ORDER),
+        RetxPreset::Off => f.set_ordered("retranscribe", "off".into(), &ORDER),
+        RetxPreset::Inherit => f.remove("retranscribe"),
     }
     let mut chunks = vec![f.render().trim_end().to_string()];
     if !doc.intro.is_empty() {

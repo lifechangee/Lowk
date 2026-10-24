@@ -45,6 +45,7 @@ fn payload(ev: &AppEvent) -> Value {
         AppEvent::Ingest(e) => v(serde_json::to_value(e)),
         AppEvent::Index(e) => v(serde_json::to_value(e)),
         AppEvent::Summary(e) => v(serde_json::to_value(e)),
+        AppEvent::Retx(e) => v(serde_json::to_value(e)),
     }
 }
 
@@ -55,7 +56,7 @@ fn targets(ev: &AppEvent) -> &'static [&'static str] {
         AppEvent::Overlay(_) => &[OVERLAY],
         AppEvent::Session(_) | AppEvent::Stealth(_) => &[OVERLAY, MAIN, PILL],
         AppEvent::Bind(_) | AppEvent::Store(_) => &[MAIN],
-        AppEvent::Ingest(_) | AppEvent::Index(_) | AppEvent::Summary(_) => &[MAIN],
+        AppEvent::Ingest(_) | AppEvent::Index(_) | AppEvent::Summary(_) | AppEvent::Retx(_) => &[MAIN],
         _ => &[OVERLAY, MAIN],
     }
 }

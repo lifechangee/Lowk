@@ -205,6 +205,17 @@ export const commands = {
 	llmProviderStatus: () => typedError<LlmProviderStatus, AppError>(__TAURI_INVOKE("llm_provider_status")),
 	/**  Cheap authenticated request to verify the OpenRouter key (`ApiKeyMissing`, `Network`, `LlmProvider`). */
 	llmKeyTest: () => typedError<null, AppError>(__TAURI_INVOKE("llm_key_test")),
+	/**  Saved audio present?, running / paused, progress, current transcript revision and the older ones. */
+	retxStatus: (call: Ulid) => typedError<RetxStatus, AppError>(__TAURI_INVOKE("retx_status", { call })),
+	/**
+	 *  Starts the pass in the background (progress arrives as `retx://event`). The live transcript is kept
+	 *  as a revision; the call text is replaced only when the pass completes.
+	 */
+	retxStart: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("retx_start", { call })),
+	/**  Cancels a running pass; the call stays exactly as it was. */
+	retxCancel: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("retx_cancel", { call })),
+	/**  Brings an older transcript revision (the live one) back as the current text. */
+	retxRestore: (call: Ulid, rev: number) => typedError<null, AppError>(__TAURI_INVOKE("retx_restore", { call, rev })),
 	/**  Writes a zip of the folder (calls, documents, instructions; no `.lowk/`). Returns files written. */
 	folderExport: (id: Ulid, dest: string) => typedError<number, AppError>(__TAURI_INVOKE("folder_export", { id, dest })),
 	/**  Imports a folder/vault zip (ids reassigned on collision, never overwrites). */
@@ -257,7 +268,9 @@ export type AppEvent_Deserialize = { type: "stt"; data: SttEvent } | { type: "se
 /**  Index counters / semantic state changed (`index://status`). */
 { type: "index"; data: IndexStatus } | 
 /**  Post-call summary streaming (`summary://event`). */
-{ type: "summary"; data: SummaryEvent };
+{ type: "summary"; data: SummaryEvent } | 
+/**  Re-transcription of a saved recording (`retx://event`). */
+{ type: "retx"; data: RetxEvent };
 
 export type AppEvent_Serialize = { type: "stt"; data: SttEvent } | { type: "session"; data: SessionState } | { type: "llm"; data: LlmEvent } | { type: "overlay"; data: OverlayEvent } | { type: "stealth"; data: StealthStatus } | { type: "bind"; data: BindEvent_Serialize } | { type: "perm"; data: {
 	kind: PermKind,
@@ -281,7 +294,9 @@ export type AppEvent_Serialize = { type: "stt"; data: SttEvent } | { type: "sess
 /**  Index counters / semantic state changed (`index://status`). */
 { type: "index"; data: IndexStatus } | 
 /**  Post-call summary streaming (`summary://event`). */
-{ type: "summary"; data: SummaryEvent };
+{ type: "summary"; data: SummaryEvent } | 
+/**  Re-transcription of a saved recording (`retx://event`). */
+{ type: "retx"; data: RetxEvent };
 
 export type AskRequest = {
 	template_id: string,
@@ -684,6 +699,8 @@ export type FolderMeta = {
 	default_template: string | null,
 	/**  «Record microphone» preset for new calls in this folder. */
 	mic?: MicPreset,
+	/**  «Re-transcribe after recording» preset for calls in this folder. */
+	retx?: RetxPreset,
 	/**  Path relative to the vault root. */
 	path: string,
 	call_count: number,
@@ -704,6 +721,8 @@ export type FolderUpdate = {
 	default_template?: string | null,
 	/**  «Record microphone» preset of the folder. */
 	mic?: MicPreset | null,
+	/**  «Re-transcribe after recording» preset of the folder. */
+	retx?: RetxPreset | null,
 	instructions?: string | null,
 };
 
@@ -1126,6 +1145,48 @@ export type RetrievalScope = {
 	all_folders: boolean,
 };
 
+/**  Which engine a pass uses. */
+export type RetxBackend = 
+/**  Whisper large-v3-turbo in the local worker (the default). */
+"local" | 
+/**  Deepgram's pre-recorded API (explicit opt-in, never for local-only folders). */
+"cloud";
+
+/**  `retx://event` payload. */
+export type RetxEvent = { type: "start"; call: Ulid; total_s: number; backend: RetxBackend } | { type: "progress"; call: Ulid; done_s: number; total_s: number } | 
+/**  A recording started: the pass waits and resumes when it ends. */
+{ type: "paused"; call: Ulid } | { type: "resumed"; call: Ulid } | 
+/**  The new revision is written (`rev` = its number, `replaced` = utterances changed). */
+{ type: "done"; call: Ulid; rev: number; chunks: number } | { type: "cancelled"; call: Ulid } | { type: "error"; call: Ulid; error: AppError };
+
+/**  Per-folder «re-transcribe after recording» preset (recommended on for lecture folders). */
+export type RetxPreset = 
+/**  Follow the global setting (`stt.retranscribe_after`). */
+"inherit" | "on" | "off";
+
+export type RetxRevision = {
+	rev: number,
+	/**  `live` (the real-time transcript) or `retx` (a previous re-transcription). */
+	kind: string,
+	/**  RFC 3339 time the revision was set aside. */
+	at: string,
+};
+
+/**  `retx_status`: what a freshly opened call page needs to know. */
+export type RetxStatus = {
+	/**  Saved audio exists for the call (the action is offered). */
+	has_audio: boolean,
+	/**  A pass is running / waiting for this call. */
+	running: boolean,
+	paused: boolean,
+	done_s: number,
+	total_s: number,
+	/**  Number of the transcript revision in the `.md` (1 = the live transcript, never re-transcribed). */
+	rev: number,
+	/**  Older revisions kept on disk (restorable). */
+	revisions: RetxRevision[],
+};
+
 export type SearchFilters = {
 	folders?: FolderRef[],
 	/**  All listed tags must match. */
@@ -1423,6 +1484,16 @@ export type SttSettings = {
 	cloud_vendor?: string,
 	/**  Re-transcribe finished utterances with Whisper in the background (local engines only). */
 	background_correction?: boolean,
+	/**
+	 *  Re-transcribe a call with Whisper large-v3-turbo as soon as the recording stops (needs
+	 *  `audio.keep_audio`). Folders may override: `FolderMeta.retx`. Default off.
+	 */
+	retranscribe_after?: boolean,
+	/**
+	 *  Re-transcribe through Deepgram's pre-recorded API instead of the local Whisper. Sends the
+	 *  call's audio to Deepgram (BYOK key in the keychain); never used for local-only folders.
+	 */
+	retranscribe_cloud?: boolean,
 	/**  Cached hardware benchmark: (engine id, RTF). */
 	benchmark?: SttBenchmark | null,
 };

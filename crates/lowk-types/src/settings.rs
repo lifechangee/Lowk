@@ -268,6 +268,12 @@ pub struct SttSettings {
     pub cloud_vendor: String,
     /// Re-transcribe finished utterances with Whisper in the background (local engines only).
     pub background_correction: bool,
+    /// Re-transcribe a call with Whisper large-v3-turbo as soon as the recording stops (needs
+    /// `audio.keep_audio`). Folders may override: `FolderMeta.retx`. Default off.
+    pub retranscribe_after: bool,
+    /// Re-transcribe through Deepgram's pre-recorded API instead of the local Whisper. Sends the
+    /// call's audio to Deepgram (BYOK key in the keychain); never used for local-only folders.
+    pub retranscribe_cloud: bool,
     /// Cached hardware benchmark: (engine id, RTF).
     pub benchmark: Option<SttBenchmark>,
 }
@@ -281,6 +287,8 @@ impl Default for SttSettings {
             hallucination_phrases: vec![],
             cloud_vendor: "soniox".into(),
             background_correction: true,
+            retranscribe_after: false,
+            retranscribe_cloud: false,
             benchmark: None,
         }
     }

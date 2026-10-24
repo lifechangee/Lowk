@@ -4,8 +4,8 @@ use crate::replay::DemoPace;
 use lowk_audio::{AudioBackend, NoopAudioBackend};
 use lowk_stt::{Corrector, EngineRegistry, FakeEngineFactory};
 use lowk_types::{
-    CallEntry, CallId, CallMeta, ContextPack, FolderRef, LlmUsage, MainThread, MicPreset, NewCall, QaId,
-    Result, Retriever, SettingsStore, SourceRef, TranscriptLine, Ulid,
+    CallEntry, CallId, CallMeta, ContextPack, FolderRef, Frame16k, LlmUsage, MainThread, MicPreset, NewCall,
+    QaId, Result, Retriever, SessionClock, SettingsStore, SourceRef, TranscriptLine, Ulid,
 };
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -16,7 +16,17 @@ pub trait CallRecorder: Send {
     /// Cheap, called every ~20 s of call time: flush the journal to `.md`.
     fn materialize(&mut self) -> Result<()>;
     fn finish(self: Box<Self>) -> Result<Option<CallMeta>>;
+    /// Called once at call start when `audio.keep_audio` is on: where the call's 16 kHz frames should
+    /// be saved. The tap is called from the capture thread for every frame that reaches the engines
+    /// (so paused time and a muted microphone leave silence); it must be cheap. The recorder closes
+    /// the files in `finish`. Default: audio is not kept.
+    fn keep_audio(&mut self, _clock: SessionClock) -> Option<AudioTap> {
+        None
+    }
 }
+
+/// Receives the frames of a call that keeps its audio.
+pub type AudioTap = Arc<dyn Fn(&Frame16k) + Send + Sync>;
 
 /// Opens calls (implemented over `lowk_store::Vault::begin_call`).
 pub trait CallStore: Send + Sync {
@@ -51,11 +61,14 @@ pub struct MemCallStore {
     pub entries: Arc<Mutex<Vec<CallEntry>>>,
     pub materializations: Arc<Mutex<u32>>,
     pub finished: Arc<Mutex<u32>>,
+    /// Frames handed to the recorder's audio tap (`keep_audio`), as `(stream, capture time)`.
+    pub kept_frames: Arc<Mutex<Vec<(lowk_types::Stream, u64)>>>,
 }
 struct MemRecorder {
     entries: Arc<Mutex<Vec<CallEntry>>>,
     mats: Arc<Mutex<u32>>,
     finished: Arc<Mutex<u32>>,
+    kept: Arc<Mutex<Vec<(lowk_types::Stream, u64)>>>,
 }
 impl CallRecorder for MemRecorder {
     fn push(&mut self, e: CallEntry) -> Result<()> {
@@ -70,6 +83,12 @@ impl CallRecorder for MemRecorder {
         *self.finished.lock().unwrap() += 1;
         Ok(None)
     }
+    fn keep_audio(&mut self, _clock: SessionClock) -> Option<AudioTap> {
+        let kept = self.kept.clone();
+        Some(Arc::new(move |f: &Frame16k| {
+            kept.lock().unwrap().push((f.stream, f.t_mono_ns))
+        }))
+    }
 }
 impl CallStore for MemCallStore {
     fn begin_call(&self, new: NewCall) -> Result<(CallId, Box<dyn CallRecorder>)> {
@@ -80,6 +99,7 @@ impl CallStore for MemCallStore {
                 entries: self.entries.clone(),
                 mats: self.materializations.clone(),
                 finished: self.finished.clone(),
+                kept: self.kept_frames.clone(),
             }),
         ))
     }

@@ -545,6 +545,21 @@ fn mic_preset_resolution_incl_inherit() {
 }
 
 #[test]
+fn retranscribe_defaults_are_off_and_the_folder_preset_resolves_like_the_mic_one() {
+    let s = Settings::default();
+    assert!(!s.stt.retranscribe_after, "automatic re-transcription is opt-in");
+    assert!(!s.stt.retranscribe_cloud, "the cloud engine is opt-in");
+    for global in [true, false] {
+        assert_eq!(RetxPreset::Inherit.resolve(global), global);
+        assert!(RetxPreset::On.resolve(global));
+        assert!(!RetxPreset::Off.resolve(global));
+    }
+    // an old settings file without the keys loads with the defaults
+    let old: Settings = serde_json::from_value(serde_json::json!({ "stt": { "engine": "x" } })).unwrap();
+    assert!(!old.stt.retranscribe_after && !old.stt.retranscribe_cloud);
+}
+
+#[test]
 fn mic_and_adaptive_scrim_defaults() {
     let s = Settings::defaults_for(Os::Macos);
     assert!(s.audio.record_mic, "global default: microphone on");

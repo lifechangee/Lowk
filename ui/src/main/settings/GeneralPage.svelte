@@ -34,6 +34,12 @@
 <SettingRow label={tm('settings.keepAudio')} hint={tm('m.keepAudioHint')}>
   <Toggle checked={s.audio?.keep_audio ?? false} label={tm('settings.keepAudio')} onchange={(v) => prefs.patch({ audio: { keep_audio: v } })} />
 </SettingRow>
+<SettingRow label={tm('m.retx.after')} hint={tm('m.retx.afterHint')}>
+  <Toggle checked={s.stt?.retranscribe_after ?? false} label={tm('m.retx.after')} onchange={(v) => prefs.patch({ stt: { retranscribe_after: v } })} />
+</SettingRow>
+<SettingRow label={tm('m.retx.cloud')} hint={tm('m.retx.cloudHint')}>
+  <Toggle checked={s.stt?.retranscribe_cloud ?? false} label={tm('m.retx.cloud')} onchange={(v) => prefs.patch({ stt: { retranscribe_cloud: v } })} />
+</SettingRow>
 <SettingRow label={tm('m.captureMonitors')} hint={tm('m.captureMonitorsHint')}>
   <Select label={tm('m.captureMonitors')} value={s.capture?.monitors ?? 'all'} options={[{ value: 'all', label: tm('m.mon.all') }, { value: 'primary', label: tm('m.mon.primary') }, { value: 'active', label: tm('m.mon.active') }]} onchange={(v) => prefs.patch({ capture: { monitors: v as CaptureMonitors } })} />
 </SettingRow>

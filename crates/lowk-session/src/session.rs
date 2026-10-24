@@ -757,6 +757,12 @@ impl Inner {
 
         let (id, rec) = self.deps.store.begin_call(new_call)?;
         self.core().recorder = Some(rec);
+        // `audio.keep_audio`: the call's frames are saved next to the transcript (re-transcription input).
+        let keep: Option<crate::deps::AudioTap> = if settings.audio.keep_audio {
+            self.core().recorder.as_mut().and_then(|r| r.keep_audio(clock))
+        } else {
+            None
+        };
 
         let mut engines = HashMap::new();
         for stream in [Stream::Me, Stream::System] {
@@ -815,6 +821,9 @@ impl Inner {
             // Microphone off: the Me stream goes nowhere (no STT, no correction ring); System is untouched.
             if f.stream == Stream::Me && !mic_on.load(Ordering::Relaxed) {
                 return;
+            }
+            if let Some(k) = &keep {
+                k(&f);
             }
             if let Some(r) = rings.as_ref().and_then(|r| r.get(&f.stream)) {
                 r.lock().unwrap().push(&f);

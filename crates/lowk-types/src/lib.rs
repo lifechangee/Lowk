@@ -20,6 +20,7 @@ pub mod overlay;
 pub mod paths;
 pub mod perm;
 pub mod qa;
+pub mod retx;
 pub mod search;
 pub mod session;
 pub mod settings;
@@ -39,6 +40,7 @@ pub use llm::*;
 pub use overlay::*;
 pub use perm::*;
 pub use qa::*;
+pub use retx::*;
 pub use search::*;
 pub use session::*;
 pub use settings::*;
@@ -143,6 +145,8 @@ pub mod events {
     pub const INDEX_STATUS: &str = "index://status";
     /// `SummaryEvent`, main window only.
     pub const SUMMARY_EVENT: &str = "summary://event";
+    /// `RetxEvent`, main window only.
+    pub const RETX_EVENT: &str = "retx://event";
     pub const OVERLAY_MODE: &str = "overlay://mode";
     pub const OVERLAY_TONE: &str = "overlay://tone";
     pub const STEALTH_STATUS: &str = "stealth://status";

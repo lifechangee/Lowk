@@ -104,7 +104,7 @@ pub(crate) fn fmt_rfc3339(t: OffsetDateTime) -> String {
 }
 
 /// Current wall time expressed in the UTC offset of `like` (an RFC 3339 string).
-pub(crate) fn now_in_offset_of(like: &str) -> String {
+pub fn now_in_offset_of(like: &str) -> String {
     let off = parse_rfc3339(like).map(|t| t.offset()).unwrap_or(UtcOffset::UTC);
     fmt_rfc3339(OffsetDateTime::now_utc().to_offset(off))
 }

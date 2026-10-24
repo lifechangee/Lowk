@@ -6,6 +6,7 @@ pub mod capture;
 pub mod docs;
 pub mod input;
 pub mod platform;
+pub mod retx;
 pub mod search;
 pub mod session;
 pub mod settings;
@@ -116,6 +117,10 @@ macro_rules! all_commands {
             crate::commands::ai::llm_suggest_tags,
             crate::commands::ai::llm_provider_status,
             crate::commands::ai::llm_key_test,
+            crate::commands::retx::retx_status,
+            crate::commands::retx::retx_start,
+            crate::commands::retx::retx_cancel,
+            crate::commands::retx::retx_restore,
             crate::commands::transfer::folder_export,
             crate::commands::transfer::folder_import,
         ]

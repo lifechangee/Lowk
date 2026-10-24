@@ -174,3 +174,24 @@ The memory-pressure skip of the warm-up is still macOS only.
 template binds, vitest (`langs.test.ts`, template binds), Playwright `e2e/m1-langs.spec.ts` (RU/EN, card, popover,
 settings, onboarding, install total, template binds), `just qa-bundle` replays the BUNDLED worker for ru+en and
 pl+en. `qa-bundle --silent` launches in the background and synthesizes no key presses (the lecture-safe mode).
+
+## 10. Re-transcription of a saved recording («Перераспознать запись»)
+
+Design in docs/ARCHITECTURE.md §6.5. Choices that need a reason:
+
+* **Same worker, no new runtime.** The pass reuses `lowk-stt-worker correct` (Whisper large-v3-turbo Q5_K_M) as a second, separate process at nice 19 / background QoS, one chunk at a time; it is released while a recording runs (no idle model RAM) and loaded again on resume. Deepgram's pre-recorded API is the opt-in cloud variant (same chunking, so progress / pause / cancel are identical).
+* **Energy VAD instead of Silero** for chunking: the worker's Silero is wired into the streaming path only; a batch VAD would be a new worker mode for little gain, because Whisper tolerates sloppy boundaries (300 ms padding, packed up to ~22 s, hard cap 28 s, cut at the quietest frame). The whole stream is never held in memory (WAV read in blocks).
+* **No per-chunk text context.** The worker protocol takes the language per request but the Whisper prompt only per process, so "context" is the audio padding plus the user's vocabulary hints as the process-wide prompt; previous-chunk text conditioning would need a protocol change.
+* **Revisions on disk, not in the `.md`:** the live transcript stays out of the document (search, summary and export would otherwise see two transcripts) in `.lowk/revisions/<call>/`. Cost: the live version is not visible to someone who only has the Markdown file.
+
+**Measured (20 owner clips = 10 scenarios x Me+System, ru+en call, nemotron R=6; machine busy with other agents, so CER only, not speed).** `stt_replay` for the live numbers, `retx_bench` (new example: offline pass over each clip, whisper via the same worker) for the new one:
+
+| | mean CER |
+|---|---|
+| live (Nemotron streaming, before correction) | 0.241 |
+| live + per-utterance Whisper correction (as shipped) | 0.169 |
+| **after re-transcription (offline pass)** | **0.134** |
+
+Re-transcription is better than live on 17 of 20 clips and better than the shipped live+correction on 15 of 20. Whisper writes digits where the references spell numbers out, so all Whisper-based numbers are slightly pessimistic. Offline speed on the loaded machine: about 0.2-0.35 s of wall time per second of audio (4 threads, background priority); a 90-minute lecture is therefore a 20-30 minute background job.
+
+**Not done / known.** Windows is compile-checked only (same worker, WASAPI path untested); the energy VAD can miss very quiet speech, in which case the live text of that stretch is kept; no forced aligner, so line timestamps are chunk starts (seconds); the `.lowk/audio` of a folder moved to the trash is not purged until the call itself is emptied from the trash.

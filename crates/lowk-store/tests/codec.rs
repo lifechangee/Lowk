@@ -253,3 +253,37 @@ fn folder_mic_preset_roundtrips_and_inherit_writes_nothing() {
         assert_eq!(folder_codec::parse(&md).mic, preset);
     }
 }
+
+#[test]
+fn folder_retranscribe_preset_roundtrips_and_inherit_writes_nothing() {
+    use lowk_types::RetxPreset;
+    let mut doc = folder_codec::parse(&fixture("folder_full.md"));
+    assert_eq!(doc.retx, RetxPreset::Inherit, "no key = inherit");
+    assert!(!folder_codec::render(&doc).contains("retranscribe"));
+    for (preset, text) in [
+        (RetxPreset::On, "retranscribe: on"),
+        (RetxPreset::Off, "retranscribe: off"),
+    ] {
+        doc.retx = preset;
+        let md = folder_codec::render(&doc);
+        assert!(md.contains(text), "{md}");
+        assert_eq!(folder_codec::parse(&md).retx, preset);
+    }
+}
+
+#[test]
+fn transcript_revision_keys_survive_a_codec_round_trip() {
+    let md = "---\nlowk: 1\ntype: call\nid: 01JC8Z3K6Q9X2M4N7R5T0V0101\ntitle: T\nstarted: 2026-10-24T10:00:00+03:00\naudio: wav\ntranscript_rev: 2\nretranscribed: \"2026-10-24T12:00:00+03:00\"\nretranscribed_by: \"whisper-large-v3-turbo\"\n---\n\n# T\n\n## Transcript\n\n[00:00:01] **Система:** Привет.\n";
+    let doc = call_codec::parse(md);
+    assert_eq!(lowk_store::retx::transcript_rev(&doc), 2);
+    let out = call_codec::render(&doc);
+    assert!(
+        out.contains("transcript_rev: 2") && out.contains("retranscribed_by: \"whisper-large-v3-turbo\""),
+        "{out}"
+    );
+    assert_eq!(
+        call_codec::render(&call_codec::parse(&out)),
+        out,
+        "stable on a second round trip"
+    );
+}

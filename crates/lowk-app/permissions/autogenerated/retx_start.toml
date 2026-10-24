@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-retx-start"
+description = "Enables the retx_start command without any pre-configured scope."
+commands.allow = ["retx_start"]
+
+[[permission]]
+identifier = "deny-retx-start"
+description = "Denies the retx_start command without any pre-configured scope."
+commands.deny = ["retx_start"]

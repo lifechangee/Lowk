@@ -243,6 +243,8 @@ Lowk/
 │  ├─ index.db                     # SQLite (rebuildable)
 │  ├─ trash/                       # app-level Trash (UI «Корзина»): moved items + <id>.trash.json {orig_path, deleted_at}
 │  ├─ state/live/<call-id>.jsonl   # append-only call journal (crash recovery)
+│  ├─ audio/<call-id>/me.wav, system.wav       # kept audio (setting audio.keep_audio): 16 kHz mono 16-bit, sample index = call time (§6.5)
+│  ├─ revisions/<call-id>/r<N>.md + r<N>.json  # earlier transcript revisions (live transcript before a re-transcription), never deleted by Lowk
 │  ├─ state/live/<call-id>.chat.jsonl   # exact serialized LLM messages (prompt-cache prefix)
 │  └─ state/cursors.json           # sent-to-LLM cursors, sent chunk ids per call
 ├─ Клиент Альфа/                   # Folder = project/client
@@ -470,6 +472,17 @@ Auto mode: detect headphones from output device transport/form factor; if speake
 
 ### 6.4 Hardware check → local vs cloud
 `lowk-platform::hw::probe()` → `HwInfo{os, arch, chip, ram_gb, gpus[{vendor,vram}], cpu_features, free_disk_gb, on_battery}`. Flow (onboarding step 5 and Settings → Speech): (1) `factory.fitness(hw)` static filter, order by preference; (2) download model if needed; (3) 5–10 s `bench()` with a bundled RU+EN clip, two concurrent streams; pass = RTF ≤ 0.5, p95 final delay < 800 ms, stable on a second 5 s pass; (4) first pass wins → "Local: OK (engine, ~0.4 s)" else "This device is too slow for local; use cloud" with one click. Result cached by (device, driver, app version). Runtime guard re-offers cloud when backlog persists.
+
+### 6.5 Re-transcription («Перераспознать запись»)
+
+For lectures the final text matters more than live subtitles. A call whose audio was kept (`audio.keep_audio`) can be passed through the best local model once more, offline.
+
+* **Audio kept.** The session hands every frame that reaches the engines to the recorder's `AudioTap` (`CallRecorder::keep_audio`); the app writes `.lowk/audio/<call>/{me,system}.wav` (`lowk_store::audio`). The sample index IS the call time: paused stretches and a muted microphone are holes (a seek, sparse where the filesystem allows) that read back as silence, so a re-transcription lines up with the live transcript and the mic-off markers. Me and System are separate files, so the speaker split needs no diarization. A crash leaves a readable file (readers use the file length, not the header). Frontmatter gets `audio: wav`; the files are the source of truth for "audio exists" (`retx_status.has_audio`). Emptying the trash removes a call's audio and revisions. About 115 MB per stream-hour.
+* **The pass** (`lowk_stt::retx`, glue in `lowk-app::m2::retx`). Per stream: RMS per 20 ms -> energy VAD (adaptive threshold, speech bridged over pauses < 0.7 s, regions packed up to ~22 s, cut at the quietest frame when speech runs past 28 s, 300 ms of context padding each side) -> one chunk at a time to a `Transcriber`: `WhisperBatch` = Whisper large-v3-turbo in the same `lowk-stt-worker correct` sidecar the live correction uses (nice 19 + background QoS on macOS, 4 threads, the user's vocab hints as the Whisper prompt, call language when single else auto) or `DeepgramBatch`. A chunk's text is dropped (live text stays) on an engine error, «�», a letter outside the call's languages, a repetition loop or an impossible speech rate. Four failed chunks in a row abort the pass.
+* **Control.** One pass at a time, in a background thread. It waits between chunks while a recording runs (the session phase is mirrored into `Services::retx_set_recording`; the worker is released while waiting, so no model RAM is held) and resumes after. Cancel works at any chunk boundary and changes nothing. Events: `retx://event` (`start`, `progress`, `paused`, `resumed`, `done`, `cancelled`, `error`); commands `retx_status`, `retx_start`, `retx_cancel`, `retx_restore`.
+* **Result = a transcript revision.** `Vault::apply_retranscript` sets the previous file aside as `.lowk/revisions/<call>/r<N>.md` (+ `.json` with kind `live`/`retx` and the time), then rewrites the `.md`: Me/System turns inside successfully re-transcribed stretches are replaced, everything else (Q&A, images, mic-off markers, unreadable stretches, live text where the VAD found no speech) stays; blocks stay ordered by time and timestamps are the chunk starts. Frontmatter: `transcript_rev: N`, `retranscribed`, `retranscribed_by`. `restore_revision` brings an old one back under a NEW number (nothing is overwritten). The codec had no revisions before; this is the minimal one. A finished pass emits `store://changed`, which re-indexes the call; a summary re-run reads the current text.
+* **Automatic.** Setting `stt.retranscribe_after` (default off) and the folder preset `retranscribe: on|off` in `_folder.md` (absent = inherit; same shape as the mic preset): when a recording ends and audio exists, a pass starts.
+* **Cloud.** Setting `stt.retranscribe_cloud` (default off) uses Deepgram's pre-recorded API (`nova-3`, `language=<one>|multi`, one request per chunk, key from the existing store `lowk_stt::cloud::resolve_key`, sent only in the `Authorization` header, never logged). `pick_backend`: a local-only folder (`allow_cloud = false`) is refused (`LocalOnlyBlocked`) for a manual run and quietly stays local for the automatic one.
 
 ---
 
@@ -716,7 +729,7 @@ Merge-conflict avoidance: each WP owns disjoint directories; shared files are `C
 - Full onboarding on both OS, permissions page, recording-law notice, stealth self-test badge, update flow, unsigned installers (dmg, NSIS), README with Gatekeeper/SmartScreen steps, docs for contributors, `THIRD_PARTY.md`, full manual stealth matrix (Zoom/Meet/Teams/Discord/OBS/QuickTime on mac 14/15/26/27, Win10/11), resource-target check.
 - Exit: tagged `v0.1.0` release published by CI; clean-machine install walkthrough on both OS.
 
-Post-alpha (ROADMAP "Позже") fits the architecture without restructuring: diarization (more speaker keys + engine capability), auto-detect call start (`AudioEvent` + process lists), slides/Jev (`lowk-capture` frame diff + `lowk-llm` vision call), virtual camera (new crate + signing), encryption (vault codec layer), sync (plain files), re-transcription (Whisper pass writing a new transcript revision).
+Post-alpha (ROADMAP "Позже") fits the architecture without restructuring: diarization (more speaker keys + engine capability), auto-detect call start (`AudioEvent` + process lists), slides/Jev (`lowk-capture` frame diff + `lowk-llm` vision call), virtual camera (new crate + signing), encryption (vault codec layer), sync (plain files). Re-transcription (Whisper pass writing a new transcript revision) is built: §6.5.
 
 ---
 

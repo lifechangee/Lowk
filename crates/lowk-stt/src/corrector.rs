@@ -190,10 +190,10 @@ impl Corrector for WhisperCorrector {
     }
 }
 
-struct Reply {
-    id: u64,
-    text: String,
-    lang: Option<String>,
+pub(crate) struct Reply {
+    pub id: u64,
+    pub text: String,
+    pub lang: Option<String>,
 }
 
 fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
@@ -286,7 +286,9 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
     }
 }
 
-fn connect(spec: &SidecarSpec) -> Option<(std::process::Child, std::process::ChildStdin, Receiver<Reply>)> {
+pub(crate) type Conn = (std::process::Child, std::process::ChildStdin, Receiver<Reply>);
+
+pub(crate) fn connect(spec: &SidecarSpec) -> Option<Conn> {
     let mut child = spawn_worker(spec).ok()?;
     drain_stderr(&mut child, "correct");
     let stdin = child.stdin.take()?;

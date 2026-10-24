@@ -10,6 +10,7 @@ pub mod corrector;
 pub mod diag;
 pub mod local;
 pub mod models;
+pub mod retx;
 pub mod ring;
 pub mod sidecar;
 

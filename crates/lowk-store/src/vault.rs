@@ -50,6 +50,7 @@ pub struct FolderPatch {
     /// `Some(None)` clears the default template.
     pub default_template: Option<Option<String>>,
     pub mic: Option<MicPreset>,
+    pub retx: Option<RetxPreset>,
     pub instructions: Option<String>,
 }
 
@@ -522,15 +523,23 @@ impl VaultInner {
         };
         let mut out = vec![];
         for f in &sc.folders {
-            let (title, tags, allow_cloud, default_template, mic) = match &f.doc {
+            let (title, tags, allow_cloud, default_template, mic, retx) = match &f.doc {
                 Some(d) => (
                     d.title.clone(),
                     d.tags.clone(),
                     d.allow_cloud,
                     d.default_template.clone(),
                     d.mic,
+                    d.retx,
                 ),
-                None => ("Unsorted".into(), vec![], true, None, MicPreset::Inherit),
+                None => (
+                    "Unsorted".into(),
+                    vec![],
+                    true,
+                    None,
+                    MicPreset::Inherit,
+                    RetxPreset::Inherit,
+                ),
             };
             out.push(FolderMeta {
                 id: f.fref.clone(),
@@ -539,6 +548,7 @@ impl VaultInner {
                 allow_cloud,
                 default_template,
                 mic,
+                retx,
                 path: f.dir.clone(),
                 call_count: count(&f.fref),
             });
@@ -550,6 +560,7 @@ impl VaultInner {
             allow_cloud: false,
             default_template: None,
             mic: MicPreset::Inherit,
+            retx: RetxPreset::Inherit,
             path: TRASH_DIR.into(),
             call_count: count(&FolderRef::Trash),
         });
@@ -610,6 +621,9 @@ impl VaultInner {
         }
         if let Some(m) = p.mic {
             doc.mic = m;
+        }
+        if let Some(m) = p.retx {
+            doc.retx = m;
         }
         if let Some(i) = p.instructions {
             doc.set_instructions(&i);
@@ -923,7 +937,15 @@ impl VaultInner {
     /// The only hard delete: "Empty trash". Removes everything under `.lowk/trash`.
     pub fn empty_trash(&self) -> Result<usize> {
         let _g = self.op.lock();
-        let n = self.trash_items()?.len();
+        let items = self.trash_items()?;
+        let n = items.len();
+        // saved audio and transcript revisions go with their call
+        for it in &items {
+            let svc = self.service();
+            for d in ["audio", "revisions"] {
+                let _ = fs::remove_dir_all(svc.join(d).join(it.id.to_string()));
+            }
+        }
         let t = self.trash_root();
         if t.exists() {
             fs::remove_dir_all(&t)?;

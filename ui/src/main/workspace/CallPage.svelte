@@ -1,7 +1,7 @@
 <script lang="ts">
   // A finished call: tabs Transcript / Summary / Questions to AI / Screenshots / Sources; page actions in the ⋯ menu.
   import { onMount, tick } from 'svelte';
-  import type { AppError, SourceRef, TagSuggestion, LlmProviderStatus } from '../../lib/ipc';
+  import type { AppError, SourceRef, TagSuggestion, LlmProviderStatus, RetxStatus } from '../../lib/ipc';
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';
   import Menu from '../../lib/components/Menu.svelte';
@@ -10,7 +10,7 @@
   import TagEditor from '../../lib/components/TagEditor.svelte';
   import Tag from '../../lib/components/Tag.svelte';
   import { tPlural } from '../../lib/i18n/locale.svelte';
-  import { api, folderKey, type CallDetail } from '../api';
+  import { api, CommandError, folderKey, type CallDetail } from '../api';
   import { appErrorText, errText } from '../errors';
   import { clock, download, duration, fullDate, langTag } from '../fmt';
   import { tm } from '../i18n';
@@ -30,6 +30,8 @@
 
   // ---- summary ----
   let sum = $state<{ phase: 'idle' | 'streaming' | 'error'; text: string; error: AppError | null; step?: number; total?: number }>({ phase: 'idle', text: '', error: null });
+  // ---- re-transcription of the saved audio ----
+  let retx = $state<RetxStatus | null>(null);
   // ---- tag suggestions ----
   let sug = $state<{ phase: 'idle' | 'loading' | 'ready' | 'error'; list: TagSuggestion[]; error: string }>({ phase: 'idle', list: [], error: '' });
 
@@ -38,6 +40,8 @@
     detail = null;
     sum = { phase: 'idle', text: '', error: null };
     sug = { phase: 'idle', list: [], error: '' };
+    retx = null;
+    api.retxStatus(cid).then((s) => { if (cid === id) retx = s; }).catch(() => (retx = null));
     api.callGet(cid).then((d) => { if (cid === id) detail = d; });
     api.llmProviderStatus().then((p) => (provider = p)).catch(() => (provider = null));
   });
@@ -72,6 +76,57 @@
       else sum = { phase: 'error', text: '', error: e.error };
     }),
   );
+
+  onMount(() =>
+    api.onRetxEvent((e) => {
+      if (e.call !== id || !retx) return;
+      if (e.type === 'start') retx = { ...retx, running: true, paused: false, done_s: 0, total_s: e.total_s };
+      else if (e.type === 'progress') retx = { ...retx, running: true, done_s: e.done_s, total_s: e.total_s };
+      else if (e.type === 'paused') retx = { ...retx, paused: true };
+      else if (e.type === 'resumed') retx = { ...retx, paused: false };
+      else if (e.type === 'cancelled') { retx = { ...retx, running: false, paused: false }; ui.notify(tm('m.retx.cancelled')); }
+      else if (e.type === 'error') { retx = { ...retx, running: false, paused: false }; ui.notify(retxErrText(e.error)); }
+      else if (e.type === 'done') {
+        retx = { ...retx, running: false, paused: false };
+        ui.notify(tm('m.retx.done'));
+        const cid = id;
+        void api.callGet(cid).then((d) => { if (cid === id) detail = d; });
+        void api.retxStatus(cid).then((s) => { if (cid === id) retx = s; });
+        void library.reload();
+      }
+    }),
+  );
+  /** Specific wording for the errors a re-transcription can end with; anything else uses the common text. */
+  function retxErrText(e: AppError): string {
+    if (e.code === 'not_found') return tm('m.retx.noAudio');
+    if (e.code === 'local_only_blocked') return tm('m.retx.localOnly');
+    if (e.code === 'api_key_missing') return tm('m.retx.noKey');
+    if (e.code === 'session_busy') return tm('m.retx.busy');
+    return appErrorText(e);
+  }
+  async function retxStart() {
+    if (!detail || !retx || retx.running) return;
+    retx = { ...retx, running: true, paused: false, done_s: 0, total_s: 0 };
+    try { await api.retxStart(detail.meta.id); } catch (e) {
+      retx = { ...retx, running: false };
+      ui.notify(e instanceof CommandError ? retxErrText(e.app) : tm('error.unknown'));
+    }
+  }
+  const retxCancel = () => detail && void api.retxCancel(detail.meta.id);
+  async function retxRestore() {
+    if (!detail || !retx) return;
+    const live = retx.revisions.find((r) => r.kind === 'live');
+    if (!live) return;
+    const cid = detail.meta.id;
+    try {
+      await api.retxRestore(cid, live.rev);
+      ui.notify(tm('m.retx.restored'));
+      detail = await api.callGet(cid);
+      retx = await api.retxStatus(cid);
+      await library.reload();
+    } catch (e) { ui.notify(errText(e)); }
+  }
+  const retxPct = $derived(retx && retx.total_s > 0 ? Math.min(100, Math.round((retx.done_s / retx.total_s) * 100)) : 0);
 
   async function summarize() {
     if (!detail || sum.phase === 'streaming') return;
@@ -177,11 +232,31 @@
           { id: 'props', label: showProps ? tm('main.hideProps') : tm('main.showProps'), icon: 'info', onselect: () => (showProps = !showProps) },
           { id: 'md', label: tm('main.exportMd'), icon: 'doc', onselect: () => (ui.callTab = 'md') },
           { id: 'export', label: tm('main.export'), icon: 'download', onselect: doExport },
+          ...(retx?.has_audio && !retx.running ? [{ id: 'retx', label: tm('m.retx.title'), icon: 'refresh' as const, onselect: retxStart }] : []),
           { sep: true },
           { id: 'move', label: tm('m.moveTo'), icon: 'folder', onselect: moveCall },
           { id: 'trash', label: tm('m.moveToTrash'), icon: 'trash', danger: true, onselect: trashCall },
         ]} />
       </div>
+      {#if retx?.has_audio}
+        <div class="retx" data-testid="retx-bar">
+          {#if retx.running}
+            <div class="rp" role="status">
+              <span class="lbl rt" data-testid="retx-state">{retx.paused ? tm('m.retx.paused') : retx.total_s > 0 ? tm('m.retx.progress', { done: clock(retx.done_s), total: clock(retx.total_s), pct: retxPct }) : tm('m.retx.starting')}</span>
+              <span class="bar" role="progressbar" aria-label={tm('m.retx.title')} aria-valuemin="0" aria-valuemax="100" aria-valuenow={retxPct} data-testid="retx-progress"><i style:width="{retxPct}%"></i></span>
+            </div>
+            <Button size="sm" onclick={retxCancel}>{tm('common.cancel')}</Button>
+          {:else}
+            <Button size="sm" icon="refresh" onclick={retxStart}>{tm('m.retx.title')}</Button>
+            {#if retx.rev > 1}
+              <span class="lbl rt" data-testid="retx-rev">{tm('m.retx.revision', { rev: retx.rev })}</span>
+              {#if retx.revisions.some((r) => r.kind === 'live')}<button class="lk rb" type="button" data-testid="retx-restore" onclick={retxRestore}>{tm('m.retx.restore')}</button>{/if}
+            {:else}
+              <span class="lbl rt">{tm('m.retx.hint')}</span>
+            {/if}
+          {/if}
+        </div>
+      {/if}
       {#if showProps}
         <dl class="props" data-testid="call-props">
           <div><dt>{tm('settings.source')}</dt><dd class="lbl">{detail.meta.sources.system ?? '—'}</dd></div>
@@ -312,6 +387,13 @@
   .meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); align-items: center; color: var(--tx2); font-size: 12px; line-height: 20px; margin-top: var(--s1); }
   .mx { max-width: 200px; }
   .d { width: 3px; height: 3px; border-radius: 50%; background: var(--tx3); }
+  .retx { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); min-width: 0; }
+  .retx .rt { font-size: 12px; color: var(--tx2); min-width: 0; }
+  .retx .rb { all: unset; cursor: pointer; font-size: 12px; color: var(--ac); }
+  .retx .rb:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; border-radius: 2px; }
+  .rp { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }
+  .bar { display: block; height: 4px; border-radius: 2px; background: var(--hv); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--ac); transition: width 0.3s; }
   .props { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--s3) var(--s6); margin: var(--s4) 0 0; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); }
   .props div { min-width: 0; }
   .props dt { font: 600 var(--fs-xs) var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx3); }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-retx-cancel"
+description = "Enables the retx_cancel command without any pre-configured scope."
+commands.allow = ["retx_cancel"]
+
+[[permission]]
+identifier = "deny-retx-cancel"
+description = "Denies the retx_cancel command without any pre-configured scope."
+commands.deny = ["retx_cancel"]

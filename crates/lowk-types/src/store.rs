@@ -25,6 +25,28 @@ impl MicPreset {
     }
 }
 
+/// Per-folder «re-transcribe after recording» preset (recommended on for lecture folders).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum RetxPreset {
+    /// Follow the global setting (`stt.retranscribe_after`).
+    #[default]
+    Inherit,
+    On,
+    Off,
+}
+
+impl RetxPreset {
+    /// Whether a call that just ended in a folder with this preset is re-transcribed automatically.
+    pub fn resolve(self, global: bool) -> bool {
+        match self {
+            RetxPreset::Inherit => global,
+            RetxPreset::On => true,
+            RetxPreset::Off => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct FolderMeta {
     pub id: FolderRef,
@@ -35,6 +57,9 @@ pub struct FolderMeta {
     /// «Record microphone» preset for new calls in this folder.
     #[serde(default)]
     pub mic: MicPreset,
+    /// «Re-transcribe after recording» preset for calls in this folder.
+    #[serde(default)]
+    pub retx: RetxPreset,
     /// Path relative to the vault root.
     pub path: String,
     pub call_count: u32,

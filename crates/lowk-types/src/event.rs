@@ -37,6 +37,8 @@ pub enum AppEvent {
     Index(IndexStatus),
     /// Post-call summary streaming (`summary://event`).
     Summary(SummaryEvent),
+    /// Re-transcription of a saved recording (`retx://event`).
+    Retx(RetxEvent),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -74,6 +76,7 @@ impl AppEvent {
             AppEvent::Ingest(_) => DOC_PROGRESS,
             AppEvent::Index(_) => INDEX_STATUS,
             AppEvent::Summary(_) => SUMMARY_EVENT,
+            AppEvent::Retx(_) => RETX_EVENT,
         }
     }
 }

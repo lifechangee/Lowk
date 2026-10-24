@@ -17,7 +17,7 @@
   import { hrefs, router, type FolderTab } from '../router.svelte';
   import { callRow } from '../dnd.svelte';
   import Select from '../../lib/components/Select.svelte';
-  import type { MicPreset } from '../../lib/ipc';
+  import type { MicPreset, RetxPreset } from '../../lib/ipc';
   import { library, ui } from '../state.svelte';
 
   let { folder, tab }: { folder: string; tab: FolderTab } = $props();
@@ -51,6 +51,14 @@
   async function setMic(mic: MicPreset) {
     try { await api.folderUpdate(folder, { mic }); await library.reload(); } catch (e) { ui.notify(errText(e)); }
   }
+  const retxOptions: Array<{ value: RetxPreset; label: string }> = $derived([
+    { value: 'inherit', label: tm('m.folderMic.inherit') },
+    { value: 'on', label: tm('m.folderRetx.on') },
+    { value: 'off', label: tm('m.folderRetx.off') },
+  ]);
+  async function setRetx(retx: RetxPreset) {
+    try { await api.folderUpdate(folder, { retx }); await library.reload(); } catch (e) { ui.notify(errText(e)); }
+  }
   async function exportFolder() {
     try {
       const dest = await api.pickSavePath(`${title}.zip`);
@@ -74,6 +82,7 @@
         <div class="meta">
           <span>{tPlural('main.calls', calls.length)}</span>
           {#if meta}<span class="micsel" data-testid="folder-mic"><span class="micl">{tm('m.folderMic')}</span><Select label={tm('m.folderMic')} value={meta.mic ?? 'inherit'} options={micOptions} onchange={setMic} /></span>{/if}
+          {#if meta && !system}<span class="micsel" data-testid="folder-retx"><span class="micl">{tm('m.folderRetx')}</span><Select label={tm('m.folderRetx')} value={meta.retx ?? 'inherit'} options={retxOptions} onchange={setRetx} /></span>{/if}
           {#if meta}<TagEditor tags={meta.tags} addLabel={tm('main.addTag')} newLabel={tm('main.newTag')} removeLabel={(t) => tm('main.removeTag', { tag: t })} onchange={setTags} />{/if}
         </div>
       </div>

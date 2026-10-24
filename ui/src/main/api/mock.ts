@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command WP6 has not wired yet. Mutations are real within the page's life.
-import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -56,6 +56,10 @@ export class MockBackend implements Backend {
   #summaryText = new Map<string, string>();
   #sumSubs = new Set<(e: SummaryEvent) => void>();
   #sumTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  #retxSubs = new Set<(e: RetxEvent) => void>();
+  #retxJob: { call: string; done: number; total: number; paused: boolean; timer: ReturnType<typeof setTimeout> | undefined } | null = null;
+  #retxRev = new Map<string, number>();
+  #retxLive = new Map<string, string[]>();
   #docSeq = 900;
 
   constructor() {
@@ -119,18 +123,19 @@ export class MockBackend implements Backend {
   }
   async folderCreate(input: NewFolder): Promise<FolderMeta> {
     const id = '01JC8Z3K6Q9X2M4N7R5T0V' + String(900 + this.#folders.length).padStart(4, '0');
-    const meta: FolderMeta = { id: { kind: 'user', id }, title: input.title, tags: input.tags, allow_cloud: input.allow_cloud, default_template: null, mic: 'inherit', path: input.title, call_count: 0 };
+    const meta: FolderMeta = { id: { kind: 'user', id }, title: input.title, tags: input.tags, allow_cloud: input.allow_cloud, default_template: null, mic: 'inherit', retx: 'inherit', path: input.title, call_count: 0 };
     this.#folders.push(meta);
     this.#instructions.set(id, input.instructions);
     return meta;
   }
-  async folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset }): Promise<void> {
+  async folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
     const f = this.#folders.find((x) => folderKey(x.id) === id);
     if (!f) return;
     if (patch.instructions !== undefined) this.#instructions.set(id, patch.instructions);
     if (patch.tags) f.tags = patch.tags;
     if (patch.allow_cloud !== undefined) f.allow_cloud = patch.allow_cloud;
     if (patch.mic !== undefined) f.mic = patch.mic;
+    if (patch.retx !== undefined) f.retx = patch.retx;
   }
   #call(id: string): CallMeta | undefined { return this.#calls.find((c) => c.id === id); }
   async callTrash(id: string): Promise<void> { const c = this.#call(id); if (c) c.deleted = true; }
@@ -516,6 +521,65 @@ export class MockBackend implements Backend {
     setTimeout(() => { this.#building = false; this.#emitIndex(); }, 1500);
   }
   async embedderInstallCancel(): Promise<void> { this.#embCancel = true; }
+
+  // ================= M3: re-transcription =================
+  // QA switches: `?retx=none` (no saved audio), `?retx=hold` (progress never finishes), `?retx=pause` (a recording interrupts it),
+  // `?retx=localonly` (the cloud engine is refused), `?retx=nomodel`.
+  #retxEmit(e: RetxEvent): void { for (const f of this.#retxSubs) f(e); }
+  onRetxEvent(cb: (e: RetxEvent) => void): () => void { this.#retxSubs.add(cb); return () => this.#retxSubs.delete(cb); }
+  async retxStatus(call: string): Promise<RetxStatus> {
+    const has = qp('retx') !== 'none' && this.#calls.some((c) => c.id === call && !c.deleted && c.id.endsWith('0101'));
+    const rev = this.#retxRev.get(call) ?? 1;
+    const j = this.#retxJob?.call === call ? this.#retxJob : null;
+    return { has_audio: has, running: !!j, paused: !!j?.paused, done_s: j?.done ?? 0, total_s: j?.total ?? 0, rev, revisions: rev > 1 ? [{ rev: 1, kind: 'live', at: new Date().toISOString() }] : [] };
+  }
+  async retxStart(call: string): Promise<void> {
+    if (!(await this.retxStatus(call)).has_audio) throw appErr('not_found');
+    if (qp('retx') === 'localonly') throw appErr('local_only_blocked');
+    if (qp('retx') === 'nomodel') throw appErr('engine_not_ready');
+    if (this.#retxJob) throw appErr('session_busy');
+    const total = 90 * 60;
+    const job = { call, done: 0, total, paused: false, timer: undefined as ReturnType<typeof setTimeout> | undefined };
+    this.#retxJob = job;
+    this.#retxEmit({ type: 'start', call, total_s: total, backend: 'local' });
+    let ticks = 0;
+    const tick = () => {
+      if (this.#retxJob !== job) return;
+      ticks++;
+      if (qp('retx') === 'pause' && ticks === 3) { job.paused = true; this.#retxEmit({ type: 'paused', call }); job.timer = setTimeout(() => { job.paused = false; this.#retxEmit({ type: 'resumed', call }); tick(); }, 1500); return; }
+      if (job.paused) return;
+      job.done = Math.min(total, job.done + 900);
+      this.#retxEmit({ type: 'progress', call, done_s: job.done, total_s: total });
+      if (job.done >= total) {
+        if (qp('retx') === 'hold') return;
+        this.#retxJob = null;
+        const d = this.#details.get(call);
+        if (d) {
+          this.#retxLive.set(call, d.transcript.map((u) => u.text));
+          d.transcript = d.transcript.map((u, i) => (i === 0 ? { ...u, text: u.text.replace(/\.?$/, '.') + ' (re-transcribed)' } : u));
+        }
+        this.#retxRev.set(call, (this.#retxRev.get(call) ?? 1) + 1);
+        this.#retxEmit({ type: 'done', call, rev: this.#retxRev.get(call)!, chunks: 42 });
+        return;
+      }
+      job.timer = setTimeout(tick, 120);
+    };
+    job.timer = setTimeout(tick, 150);
+  }
+  async retxCancel(call: string): Promise<void> {
+    const j = this.#retxJob;
+    if (!j || j.call !== call) return;
+    clearTimeout(j.timer);
+    this.#retxJob = null;
+    this.#retxEmit({ type: 'cancelled', call });
+  }
+  async retxRestore(call: string, rev: number): Promise<void> {
+    const live = this.#retxLive.get(call);
+    const d = this.#details.get(call);
+    if (!live || !d || rev !== 1) throw appErr('not_found');
+    d.transcript = d.transcript.map((u, i) => ({ ...u, text: live[i] ?? u.text }));
+    this.#retxRev.set(call, (this.#retxRev.get(call) ?? 1) + 1);
+  }
 
   // ================= M2: summary, tags, provider =================
   #summaryFor(meta: CallMeta): string { return meta.languages[0] === 'en' ? SUMMARY_MD_EN : SUMMARY_MD; }

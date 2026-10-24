@@ -82,6 +82,8 @@ pub struct FolderUpdate {
     pub default_template: Option<String>,
     /// «Record microphone» preset of the folder.
     pub mic: Option<MicPreset>,
+    /// «Re-transcribe after recording» preset of the folder.
+    pub retx: Option<RetxPreset>,
     pub instructions: Option<String>,
 }
 
@@ -98,6 +100,7 @@ pub fn folder_update(st: State<'_, Shared>, id: Ulid, patch: FolderUpdate) -> Re
                 .default_template
                 .map(|t| if t.is_empty() { None } else { Some(t) }),
             mic: patch.mic,
+            retx: patch.retx,
             instructions: patch.instructions,
         },
     )?;
