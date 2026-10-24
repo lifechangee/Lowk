@@ -42,7 +42,7 @@
   font: var(--ov-fs, 13px) / 1.4 var(--font);
   cursor: default;
   user-select: none;
-  transition: background-color 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s, text-shadow 0.12s;
+  transition: background-color 0.07s, border-color 0.07s, color 0.07s, box-shadow 0.07s, text-shadow 0.07s;
 }
 /* ---- adaptive scrim (F5 + F11) ----
    One opaque colour per grid cell (12x8), set as --c0..--c95 (registered as <color> properties in tone.ts so they fade).
@@ -67,7 +67,7 @@
 
 .ov *, .ov *::before, .ov *::after {
   box-sizing: border-box;
-  transition: color 0.12s, background-color 0.12s, border-color 0.12s, box-shadow 0.12s, opacity 0.12s;
+  transition: color 0.07s, background-color 0.07s, border-color 0.07s, box-shadow 0.07s, opacity 0.07s;
 }
 .ov svg { color: inherit; flex: none; }
 .ov.interactive {
@@ -252,7 +252,7 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
   all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; height: 100%; border-radius: 999px; background: var(--bgc); border: 1px solid var(--bd); box-shadow: var(--shd);
   color: var(--tx2); font: 600 10px/12px var(--font); letter-spacing: 0.04em; overflow: hidden;
-  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+  transition: background-color 0.07s, border-color 0.07s, color 0.07s;
 }
 .pill:hover, .pill:focus-visible { background: var(--hov); color: var(--tx); }
 .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--recc); flex: none; }

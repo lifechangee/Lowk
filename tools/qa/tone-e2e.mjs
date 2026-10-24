@@ -12,7 +12,7 @@
 //   5. (strict) BORDER BANDS: the painted scrim in bands 8-20 pt on both sides of every backdrop border inside the overlay follows
 //      the side it is on: dark side dark with NO light haze (98th-percentile luminance below a threshold), light side light, hue kept;
 //      the off-grid backdrop (borders in the middle of cells) is checked half a cell further out
-//   6. (strict) LATENCY: time from the layout ack to the painted scrim matching the new backdrop (<= 500 ms); p50/max in results.json
+//   6. (strict) LATENCY: time from the layout ack to the painted scrim matching the new backdrop (<= 250 ms); p50/max in results.json
 // The backdrop is a web page (tools/qa/tone-backdrop.html) in the DEFAULT BROWSER, opened with `open` and driven over a local
 // 127.0.0.1 server: another process behind the overlay, as in real use. `--backdrop=app` uses Lowk's own window instead
 // (fallback; also used automatically when the browser page does not come up). results.json is written after every capture.
@@ -179,6 +179,8 @@ const POSITIONS = [
   { name: 'right-edge', x: Math.round(D.w - OW), y: 120 },
   { name: 'bottom-edge', x: Math.round(D.w * 0.3), y: Math.round(D.h - OH) },
   { name: 'odd-offset', x: 173, y: 97 },
+  // hangs over the left and bottom display edges (if the app lets it): clipped cells must follow the on-screen backdrop
+  { name: 'off-screen-corner', x: -180, y: Math.round(D.h - OH + 110) },
 ];
 const BDS = has('--quick') ? BACKDROPS.slice(0, 2) : BACKDROPS;
 const latencies = []; // ms from layout ack to the painted scrim matching, one per backdrop change
@@ -243,7 +245,7 @@ try {
       }
       if (latency?.ms != null) latencies.push(latency.ms);
       const tag = `${bd.name} @ ${pos.name}`;
-      add(!latency || (latency.ms != null && latency.ms <= 500), `${tag}: backdrop change reaches the painted scrim within 500 ms of the layout ack`, latency ? JSON.stringify(latency) : 'no cell changed polarity: not measured');
+      add(!latency || (latency.ms != null && latency.ms <= 250), `${tag}: backdrop change reaches the painted scrim within 250 ms of the layout ack`, latency ? JSON.stringify(latency) : 'no cell changed polarity: not measured');
       const ofr = JSON.parse(await cmd('overlay-frame'));
       const s = ofr.sampled, f2 = ofr.frame;
       // Expected colour per cell from the REAL overlay frame vs the backdrop geometry: a cell is asserted only when it
@@ -253,12 +255,22 @@ try {
       const cw = f2.w / GC, ch = f2.h / GR;
       const cv = browserCover();
       const regs = bd.regions.map((r) => ({ c: r.c, x0: fr.x + r.x0 * fr.w, x1: fr.x + r.x1 * fr.w, y0: fr.y + r.y0 * fr.h, y1: fr.y + r.y1 * fr.h }));
+      // Cells hanging over the display edge are clipped to the display (and the cover): only their on-screen part is asserted,
+      // the sampler builds them from on-screen pixels only; cells fully off-screen are not asserted.
+      const clipTo = { x0: Math.max(0, cv.x), y0: Math.max(0, cv.y), x1: Math.min(D.w, cv.x + cv.w), y1: Math.min(D.h, cv.y + cv.h) };
+      const spot = []; // asserted rectangle per cell (global points) or null
       const expect = Array.from({ length: GC * GR }, (_, i) => {
-        const cx0 = f2.x + (i % GC) * cw + INSET, cx1 = f2.x + (i % GC + 1) * cw - INSET;
-        const cy0 = f2.y + Math.floor(i / GC) * ch + INSET, cy1 = f2.y + (Math.floor(i / GC) + 1) * ch - INSET;
-        const inCover = cx0 >= cv.x && cx1 <= cv.x + cv.w && cy0 >= cv.y && cy1 <= cv.y + cv.h;
+        const gx0 = f2.x + (i % GC) * cw, gx1 = gx0 + cw, gy0 = f2.y + Math.floor(i / GC) * ch, gy1 = gy0 + ch;
+        const clipped = gx0 < clipTo.x0 || gx1 > clipTo.x1 || gy0 < clipTo.y0 || gy1 > clipTo.y1;
+        const ins = (edgeOut) => (edgeOut ? 2 : INSET);
+        const cx0 = Math.max(gx0, clipTo.x0) + ins(gx0 < clipTo.x0), cx1 = Math.min(gx1, clipTo.x1) - ins(gx1 > clipTo.x1);
+        const cy0 = Math.max(gy0, clipTo.y0) + ins(gy0 < clipTo.y0), cy1 = Math.min(gy1, clipTo.y1) - ins(gy1 > clipTo.y1);
+        spot[i] = null;
+        if (cx1 - cx0 < 3 || cy1 - cy0 < 3 || (clipped && (cx1 - cx0 < 6 || cy1 - cy0 < 6))) return null;
         const rr = regs.filter((r) => cx0 >= r.x0 && cx1 <= r.x1 && cy0 >= r.y0 && cy1 <= r.y1);
-        return inCover && rr.length === 1 ? rr[0].c : null;
+        if (rr.length !== 1) return null;
+        spot[i] = { cx: (cx0 + cx1) / 2, cy: (cy0 + cy1) / 2, clipped };
+        return rr[0].c;
       });
       // Readiness: the first capture per backdrop used to be stale (the browser had not repainted yet). Poll the sampler's
       // own cell_means until every pure cell shows its expected backdrop colour (or time out and fail loudly), then let the
@@ -269,11 +281,11 @@ try {
       // wait for it to advance by 2 before comparing (tone-diag.sampler.frames; a frame in flight at the ack may be stale).
       const frameNow = async () => { try { return JSON.parse(await cmd('tone-diag')).sampler?.frames ?? 0; } catch { return 0; } };
       const f0 = await frameNow();
-      let ready = pureIdx.length === 0, lastMeans = null, frames = f0, mism = [];
+      let sdiag = null, ready = pureIdx.length === 0, lastMeans = null, frames = f0, mism = [];
       for (let t = 0; t < 120 && !ready; t++) { // 30 s
-        try { const d = JSON.parse(await cmd('tone-diag')); lastMeans = d.sampler?.cell_means ?? []; frames = d.sampler?.frames ?? frames; } catch { lastMeans = []; }
+        try { const d = JSON.parse(await cmd('tone-diag')); lastMeans = d.sampler?.cell_means ?? []; frames = d.sampler?.frames ?? frames; sdiag = d.sampler; } catch { lastMeans = []; }
         mism = pureIdx.filter((i) => !near(lastMeans[i], RGB[expect[i]]));
-        ready = frames >= f0 + 2 && mism.length === 0;
+        ready = (frames >= f0 + 2 || (sdiag?.mode === 'stream' && frames >= f0 + 1)) && mism.length === 0;
         if (!ready) await sleep(250);
       }
       add(ready, `${tag}: backdrop on screen (sampler cell_means match the pattern)`, ready ? '' : JSON.stringify({ frames_at_ack: f0, frames_now: frames, mismatched_cells: mism.map((i) => ({ cell: i, row: Math.floor(i / GC), expected: RGB[expect[i]], got: lastMeans?.[i] })) }));
@@ -281,7 +293,7 @@ try {
       // 1. the sampler looks where the overlay is
       add(!!s && Math.abs(s.x - f2.x) < 1.5 && Math.abs(s.y - f2.y) < 1.5 && Math.abs(s.w - f2.w) < 1.5 && Math.abs(s.h - f2.h) < 1.5, `${tag}: sampler region == overlay frame`, JSON.stringify({ sampled: s, frame: f2 }));
       const nPure = pureIdx.length;
-      // edge positions legitimately leave few pure cells (the overlay straddles region borders or the cover): need at least one
+      // edge positions (incl. clipped cells) legitimately leave few pure cells (the overlay straddles region borders or the cover): need at least one
       add(nPure >= 1, `${tag}: at least one pure cell to assert`, `${nPure}/${GC * GR} pure (others not asserted)`);
       // 2. backend grid
       const diagRaw = JSON.parse(await cmd('tone-diag'));
@@ -311,7 +323,8 @@ try {
       const pa = [];
       const cellsOut = [];
       expect.forEach((c, i) => {
-        const cx = ox + ((i % GC) + 0.5) * cw * k, cy = oy + (Math.floor(i / GC) + 0.5) * ch * k;
+        const sp = spot[i];
+        const cx = sp ? (sp.cx - reg.x) * k : ox + ((i % GC) + 0.5) * cw * k, cy = sp ? (sp.cy - reg.y) * k : oy + (Math.floor(i / GC) + 0.5) * ch * k;
         const S = avg(bare, cx, cy, 5), L = lum(S);
         cellsOut.push({ i, backdrop: c, painted: S.map(Math.round) });
         if (!c) return;
@@ -402,9 +415,9 @@ try {
   for (const bd of BDS) sheet(tiles.filter((t) => t.bd === bd.name), join(out, `gallery-${bd.name}.png`), 3);
   sheet(tiles, join(out, 'gallery.png'), POSITIONS.length);
   const sorted = [...latencies].sort((a, b) => a - b);
-  const latencySummary = { n: sorted.length, p50: sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : null, max: sorted.length ? sorted[sorted.length - 1] : null, samples_ms: latencies, limit_ms: 500 };
-  console.log(`latency (layout ack -> painted scrim): n=${latencySummary.n} p50=${latencySummary.p50} ms max=${latencySummary.max} ms (limit 500)`);
-  add(latencySummary.n > 0 && latencySummary.max <= 500, 'latency: every measured backdrop change painted within 500 ms', JSON.stringify(latencySummary));
+  const latencySummary = { n: sorted.length, p50: sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : null, max: sorted.length ? sorted[sorted.length - 1] : null, samples_ms: latencies, limit_ms: 250, p50_limit_ms: 150 };
+  console.log(`latency (layout ack -> painted scrim): n=${latencySummary.n} p50=${latencySummary.p50} ms max=${latencySummary.max} ms (limit p50 150 / max 250)`);
+  add(latencySummary.n > 0 && latencySummary.max <= 250 && latencySummary.p50 <= 150, 'latency: p50 <= 150 ms, every measured backdrop change painted within 250 ms', JSON.stringify(latencySummary));
   const failed = checks.filter((c) => !c.ok);
   writeFileSync(join(out, 'results.json'), JSON.stringify({ display: D, latency: latencySummary, order: 'gallery.png: one row per backdrop (' + BDS.map((b) => b.name).join(', ') + '), columns = positions (' + POSITIONS.map((p) => p.name).join(', ') + ')', checks, results }, null, 1));
   console.log(`\n${checks.length - failed.length}/${checks.length} checks passed; ${tiles.length} captures (${BDS.length} backdrops x ${POSITIONS.length} positions) -> ${out}`);

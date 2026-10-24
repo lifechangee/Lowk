@@ -1,7 +1,8 @@
-//! macOS capture over ScreenCaptureKit (`SCScreenshotManager`, one-shot; never a
-//! persistent `SCStream`, so no recording indicator stays alive).
+//! macOS capture over ScreenCaptureKit. One-shot `SCScreenshotManager` grabs for screenshots and the polled
+//! fallback of the tone sampler; for the adaptive scrim also a continuous `SCStream` of the region under the overlay
+//! ([`SckStream`], alive only while the scrim is on and the overlay visible; dropping it stops it).
 //! Needs Screen Recording; callers gate on `lowk-platform::perm` first.
-use lowk_types::{AppError, ErrorCode, Rect, RegionSampler, Result, ScreenGrab};
+use lowk_types::{AppError, ErrorCode, Rect, RegionSampler, RegionStream, Result, ScreenGrab};
 use screencapturekit::prelude::*;
 use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 
@@ -183,6 +184,12 @@ fn grab_inner(
     diag.out_px = (plan.out_w, plan.out_h);
     diag.mean_rgb = crate::geometry::mean_rgb(&px);
     match out {
+        // The tone sampler (cached) builds partly / fully off-screen cells from on-screen pixels only.
+        Some(_) if cached => Ok((
+            crate::geometry::compose_cells(&plan, &px, crate::frames::TONE_COLS, crate::frames::TONE_ROWS),
+            plan.out_w,
+            plan.out_h,
+        )),
         Some(_) => Ok((crate::geometry::compose(&plan, &px), plan.out_w, plan.out_h)),
         None => Ok((px, cw, ch)),
     }
@@ -196,6 +203,260 @@ pub struct SckSampler;
 impl RegionSampler for SckSampler {
     fn grab_region(&self, rect: Rect, w: u32, h: u32) -> Result<Vec<u8>> {
         grab_with(rect, Some((w, h)), true, true).map(|(px, ..)| px)
+    }
+
+    fn open_stream(&self, rect: Rect, w: u32, h: u32) -> Option<Box<dyn RegionStream>> {
+        match SckStream::start(rect, w, h) {
+            Ok(s) => Some(Box::new(s)),
+            Err(e) => {
+                tracing::warn!("tone: SCStream did not start ({e:?}); polling instead");
+                None
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Continuous capture (thin glue: all pixel work is `frames::FrameProcessor`, unit-tested without an OS)
+// ---------------------------------------------------------------------------------------------------------------
+
+use crate::frames::{FrameProcessor, StreamGeometry};
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt, SCFrameStatus};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::{Duration, Instant};
+
+struct StreamShared {
+    geo: Mutex<StreamGeometry>,
+    proc: Mutex<FrameProcessor>,
+    slot: Mutex<Option<Vec<u8>>>,
+    cv: Condvar,
+    delivered: AtomicU64,
+    processed: AtomicU64,
+    err: Mutex<Option<String>>,
+}
+
+impl StreamShared {
+    /// Called on an SCK dispatch queue for every sample buffer.
+    fn on_sample(&self, sb: &CMSampleBuffer) {
+        // Idle / blank / suspended frames carry no new pixels.
+        if matches!(
+            sb.frame_status(),
+            Some(
+                SCFrameStatus::Idle
+                    | SCFrameStatus::Blank
+                    | SCFrameStatus::Suspended
+                    | SCFrameStatus::Stopped
+            )
+        ) {
+            return;
+        }
+        let Some(pb) = sb.pixel_buffer() else { return };
+        let Ok(guard) = pb.lock_read_only() else { return };
+        let (iw, ih, stride) = (guard.width(), guard.height(), guard.bytes_per_row());
+        let base = guard.base_address();
+        if base.is_null() || iw == 0 || ih == 0 || stride < iw * 4 {
+            return;
+        }
+        self.delivered.fetch_add(1, Ordering::Relaxed);
+        // SAFETY: the buffer is locked for reading for the lifetime of `guard`; it holds `ih` rows of `stride` bytes.
+        let bytes = unsafe { std::slice::from_raw_parts(base, stride * ih) };
+        let geo = self.geo.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let bmp = self.proc.lock().unwrap_or_else(|e| e.into_inner()).process(
+            &geo,
+            bytes,
+            stride,
+            iw as u32,
+            ih as u32,
+            crate::frames::TONE_COLS,
+            crate::frames::TONE_ROWS,
+        );
+        drop(guard);
+        if let Some(b) = bmp {
+            self.processed.fetch_add(1, Ordering::Relaxed);
+            *self.slot.lock().unwrap_or_else(|e| e.into_inner()) = Some(b);
+            self.cv.notify_one();
+        }
+    }
+}
+
+/// One `SCStream` over the region under the overlay: own app excluded, small output at the source aspect,
+/// `minimumFrameInterval` 40 ms, only changed frames reach the sampler. Follows the overlay with
+/// `updateConfiguration` (sourceRect / size) and `updateContentFilter` (other display); never recreated.
+pub struct SckStream {
+    stream: SCStream,
+    shared: Arc<StreamShared>,
+    geo: StreamGeometry,
+    out: (u32, u32),
+    content: SCShareableContent,
+    content_at: Instant,
+    filter_at: Instant,
+}
+
+const CONTENT_REFRESH: Duration = Duration::from_secs(5);
+/// QA only (a kept own window can appear later): the filter is rebuilt this often while `KEEP_TITLE` is set.
+const FILTER_REFRESH: Duration = Duration::from_millis(1500);
+
+fn display_frames(c: &SCShareableContent) -> Vec<Rect> {
+    c.displays()
+        .iter()
+        .map(|d| {
+            let f = d.frame();
+            Rect {
+                x: f.origin.x,
+                y: f.origin.y,
+                w: f.size.width,
+                h: f.size.height,
+            }
+        })
+        .collect()
+}
+
+/// Display `display` without any window of this app (windows created later are excluded too). QA: the window
+/// titled `KEEP_TITLE` stays visible.
+fn stream_filter(c: &SCShareableContent, display: usize) -> Result<SCContentFilter> {
+    let displays = c.displays();
+    let d = displays
+        .get(display)
+        .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("no display"))?;
+    let own = std::process::id() as i32;
+    let apps = c.applications();
+    let own_apps: Vec<&SCRunningApplication> = apps.iter().filter(|a| a.process_id() == own).collect();
+    let keep = KEEP_TITLE.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let windows = c.windows();
+    let kept: Vec<&SCWindow> = match keep.as_deref() {
+        Some(k) => windows
+            .iter()
+            .filter(|w| w.owning_application().is_some_and(|a| a.process_id() == own))
+            .filter(|w| w.title().as_deref() == Some(k))
+            .collect(),
+        None => vec![],
+    };
+    SCContentFilter::create()
+        .with_display(d)
+        .with_excluding_applications(&own_apps, &kept)
+        .build()
+        .map_err(|e| fail("stream filter", e))
+}
+
+fn stream_config(g: &StreamGeometry) -> SCStreamConfiguration {
+    let s = g.plan.src;
+    SCStreamConfiguration::new()
+        .with_width(g.req.0)
+        .with_height(g.req.1)
+        .with_source_rect(CGRect::new(s.x, s.y, s.w, s.h))
+        .with_shows_cursor(false)
+        .with_queue_depth(3)
+        .with_minimum_frame_interval(&CMTime::new(crate::frames::MIN_FRAME_INTERVAL_MS, 1000))
+}
+
+impl SckStream {
+    /// Creates and starts the stream for `rect` (global top-left points), output bitmap `w` x `h`.
+    pub fn start(rect: Rect, w: u32, h: u32) -> Result<Self> {
+        let content = SCShareableContent::get().map_err(|e| fail("shareable content", e))?;
+        let geo = StreamGeometry::new(&rect, &display_frames(&content), w, h)
+            .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("no display"))?;
+        let shared = Arc::new(StreamShared {
+            geo: Mutex::new(geo.clone()),
+            proc: Mutex::new(FrameProcessor::default()),
+            slot: Mutex::new(None),
+            cv: Condvar::new(),
+            delivered: AtomicU64::new(0),
+            processed: AtomicU64::new(0),
+            err: Mutex::new(None),
+        });
+        let filter = stream_filter(&content, geo.plan.display)?;
+        let sh_err = shared.clone();
+        let delegate = ErrorHandler::new(move |e: SCError| {
+            *sh_err.err.lock().unwrap_or_else(|x| x.into_inner()) = Some(format!("{e}"));
+        });
+        let mut stream = SCStream::new_with_delegate(&filter, &stream_config(&geo), delegate)
+            .map_err(|e| fail("stream", e))?;
+        let sh = shared.clone();
+        stream
+            .add_output_handler(
+                move |sb: CMSampleBuffer, ty: SCStreamOutputType| {
+                    if matches!(ty, SCStreamOutputType::Screen) {
+                        sh.on_sample(&sb);
+                    }
+                },
+                SCStreamOutputType::Screen,
+            )
+            .map_err(|e| fail("stream output", e))?;
+        stream.start_capture().map_err(|e| fail("stream start", e))?;
+        Ok(Self {
+            stream,
+            shared,
+            geo,
+            out: (w, h),
+            content,
+            content_at: Instant::now(),
+            filter_at: Instant::now(),
+        })
+    }
+}
+
+impl RegionStream for SckStream {
+    fn retarget(&mut self, rect: Rect) -> Result<()> {
+        if self.content_at.elapsed() > CONTENT_REFRESH {
+            self.content = SCShareableContent::get().map_err(|e| fail("shareable content", e))?;
+            self.content_at = Instant::now();
+        }
+        let new = StreamGeometry::new(&rect, &display_frames(&self.content), self.out.0, self.out.1)
+            .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("no display"))?;
+        let qa_keep = KEEP_TITLE.lock().unwrap_or_else(|e| e.into_inner()).is_some();
+        let refresh_filter = qa_keep && self.filter_at.elapsed() > FILTER_REFRESH;
+        if new == self.geo && !refresh_filter {
+            return Ok(());
+        }
+        // The pixels in flight were rendered for the old geometry: publish the new one first, forget old content.
+        *self.shared.geo.lock().unwrap_or_else(|e| e.into_inner()) = new.clone();
+        self.shared.proc.lock().unwrap_or_else(|e| e.into_inner()).reset();
+        if new.plan.display != self.geo.plan.display || refresh_filter {
+            let f = stream_filter(&self.content, new.plan.display)?;
+            self.stream
+                .update_content_filter(&f)
+                .map_err(|e| fail("stream filter update", e))?;
+            self.filter_at = Instant::now();
+        }
+        if !new.same_config(&self.geo) {
+            self.stream
+                .update_configuration(&stream_config(&new))
+                .map_err(|e| fail("stream config update", e))?;
+        }
+        self.geo = new;
+        Ok(())
+    }
+
+    fn next_frame(&mut self, timeout: Duration) -> Option<Vec<u8>> {
+        let mut g = self.shared.slot.lock().unwrap_or_else(|e| e.into_inner());
+        if g.is_none() {
+            g = self
+                .shared
+                .cv
+                .wait_timeout(g, timeout)
+                .unwrap_or_else(|e| e.into_inner())
+                .0;
+        }
+        g.take()
+    }
+
+    fn counters(&self) -> (u64, u64) {
+        (
+            self.shared.delivered.load(Ordering::Relaxed),
+            self.shared.processed.load(Ordering::Relaxed),
+        )
+    }
+
+    fn error(&self) -> Option<String> {
+        self.shared.err.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+}
+
+impl Drop for SckStream {
+    fn drop(&mut self) {
+        // Completely stopped: no frames, no recording indicator.
+        let _ = self.stream.stop_capture();
     }
 }
 

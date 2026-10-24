@@ -178,7 +178,7 @@ export function cellsToStyle(cells: ToneVars[]): string {
 }
 
 /** Fade (s) of every adaptive colour change; the whole backdrop-to-paint budget is documented in docs/ARCHITECTURE.md 7.4. */
-export const FADE_S = 0.12;
+export const FADE_S = 0.07;
 
 /** `transition` value fading all cell colours (registered as `<color>` properties by [`registerCellProps`]) and the scrim opacity. */
 export const SCRIM_TRANSITION = `${Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => `--c${i} ${FADE_S}s`).join(',')},opacity ${FADE_S}s`;

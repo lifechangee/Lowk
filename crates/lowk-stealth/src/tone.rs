@@ -245,15 +245,16 @@ const FOLLOW_DIST: f32 = 0.04;
 const CONFIRM_DIST: f32 = 0.06;
 
 impl Chan {
-    /// Latency-first smoothing: first sample and small changes pass at once; a large change is adopted on the
-    /// second consecutive sample that agrees with it (a one-frame flash never gets that second sample).
-    fn smooth(&mut self, v: [f32; 4]) -> [f32; 4] {
+    /// Latency-first smoothing: first sample and small changes pass at once; a large change is adopted at once when
+    /// `coherent` (a block of adjacent cells agrees, see [`coherent_cells`]), else on the second consecutive sample
+    /// that agrees with it (a one-frame flash of a single cell never gets that second sample).
+    fn smooth(&mut self, v: [f32; 4], coherent: bool) -> [f32; 4] {
         let Some(cur) = self.cur else {
             self.cur = Some(v);
             return v;
         };
         let confirmed = matches!(self.pend, Some(p) if vdist(&p, &v) < CONFIRM_DIST);
-        if vdist(&v, &cur) < FOLLOW_DIST || confirmed {
+        if vdist(&v, &cur) < FOLLOW_DIST || confirmed || coherent {
             self.pend = None;
             self.cur = Some(v);
         } else {
@@ -263,8 +264,8 @@ impl Chan {
     }
 
     /// Feed one analysed sample; returns the tone (grid unset) built from the smoothed state.
-    fn select(&mut self, params: &ToneParams, stats: SampleStats) -> Tone {
-        let sm = self.smooth([stats.median, stats.lab.l, stats.lab.a, stats.lab.b]);
+    fn select(&mut self, params: &ToneParams, stats: SampleStats, coherent: bool) -> Tone {
+        let sm = self.smooth([stats.median, stats.lab.l, stats.lab.a, stats.lab.b], coherent);
         let lab = Oklab {
             l: sm[1],
             a: sm[2],
@@ -300,6 +301,61 @@ fn differs(prev: &Tone, new: &Tone, params: &ToneParams) -> bool {
         || (prev.luma - new.luma).abs() >= params.deadband
         || (prev.scrim_min - new.scrim_min).abs() >= 0.05
         || scrim_dist(&prev.rgb, &new.rgb) >= params.scrim_delta
+}
+
+/// Two large changes whose new colours are this close count as the same new backdrop (spatial agreement).
+const AGREE_DIST: f32 = 0.10;
+/// A block of at least this many adjacent, agreeing, changed cells is a real backdrop change: adopted on the FIRST
+/// frame (the "several adjacent cells agree" rule); a smaller group (one or two cells) waits for a second sample.
+pub const COHERENT_CELLS: usize = 3;
+/// A change touching this many cells is certainly the backdrop (drives the global channel).
+const COHERENT_GLOBAL: usize = 4;
+
+/// Which `changed` cells (row-major `GRID_COLS` x `GRID_ROWS`, with their new colour `v`) belong to a connected
+/// (8-neighbour) group of at least [`COHERENT_CELLS`] cells whose new colours agree. Also returns the size of
+/// the largest group. Pure; unit-tested.
+pub fn coherent_cells(changed: &[bool], v: &[[f32; 4]]) -> (Vec<bool>, usize) {
+    let n = changed.len().min(v.len());
+    let mut group = vec![usize::MAX; n];
+    let mut sizes: Vec<usize> = Vec::new();
+    for start in 0..n {
+        if !changed[start] || group[start] != usize::MAX {
+            continue;
+        }
+        let g = sizes.len();
+        let mut stack = vec![start];
+        group[start] = g;
+        let mut size = 0;
+        while let Some(i) = stack.pop() {
+            size += 1;
+            let (c, r) = ((i % GRID_COLS) as isize, (i / GRID_COLS) as isize);
+            for (dc, dr) in [
+                (-1, -1),
+                (0, -1),
+                (1, -1),
+                (-1, 0),
+                (1, 0),
+                (-1, 1),
+                (0, 1),
+                (1, 1),
+            ] {
+                let (nc, nr) = (c + dc, r + dr);
+                if nc < 0 || nr < 0 || nc >= GRID_COLS as isize || nr >= GRID_ROWS as isize {
+                    continue;
+                }
+                let j = nr as usize * GRID_COLS + nc as usize;
+                if j < n && changed[j] && group[j] == usize::MAX && vdist(&v[i], &v[j]) < AGREE_DIST {
+                    group[j] = g;
+                    stack.push(j);
+                }
+            }
+        }
+        sizes.push(size);
+    }
+    let flags = (0..n)
+        .map(|i| group[i] != usize::MAX && sizes[group[i]] >= COHERENT_CELLS)
+        .collect();
+    (flags, sizes.into_iter().max().unwrap_or(0))
 }
 
 /// RGBA8 sub-bitmap of grid cell (`col`, `row`).
@@ -377,10 +433,15 @@ fn fixed_with_grid(kind: ToneKind, p: &Preset) -> Tone {
     t
 }
 
-/// How often the sampler looks at the screen under the overlay. Latency budget of a backdrop step:
-/// wait for the next poll (0..100 ms, avg 50) + capture/analysis (~30-40 ms) + one more agreeing sample
-/// (100 ms, see [`Chan::smooth`]) + IPC + the 120 ms CSS fade = ~0.3 s typical, <= ~0.4 s worst case.
+/// Fallback polling period (stream start failed, Windows). The stream path (macOS) is event driven: SCK delivers a
+/// frame within one `minimumFrameInterval` (40 ms) of a change and none while the screen is still. Latency budget of
+/// a coherent backdrop step: frame <= 40 ms (avg 20) + convert/analysis ~1 ms + IPC ~5 ms + CSS fade 70 ms
+/// = ~0.1 s typical, <= ~0.15 s worst; a small group waits [`SETTLE_MS`] more. Polling: <= 100 ms (avg 50) + 35 ms
+/// capture + 5 + 70 = ~0.16 s typical.
 pub const POLL_MS: u64 = 100;
+/// A pending (unconfirmed) large change is confirmed by re-feeding the last bitmap after this long without a new
+/// frame: if the screen really moved on, a new frame (cancelling the blip) would have arrived by then.
+pub const SETTLE_MS: u64 = 50;
 /// A bitmap is fed to [`AdaptiveTone`] when it changed, and this many more times after a change even
 /// though it is identical, so the confirming sample of a large change arrives without waiting for
 /// the next change (the old 2 s sampler + skip-unchanged made a step take 4-6 s).
@@ -450,6 +511,12 @@ impl AdaptiveTone {
         }
     }
 
+    /// A large change is waiting for a confirming sample (a stream sends no repeat frame, so the sampler re-feeds the
+    /// last bitmap after [`SETTLE_MS`] when this is set).
+    pub fn has_pending(&self) -> bool {
+        self.global.pend.is_some() || self.cells.iter().any(|c| c.pend.is_some())
+    }
+
     /// Last emitted tone, or the dark default.
     pub fn current(&self) -> Tone {
         match (&self.last, self.mode) {
@@ -480,20 +547,43 @@ impl AdaptiveTone {
             return None;
         }
         let stats = analyze_opts(rgba, w, h, self.params.black_known)?;
-        let mut tone = self.global.select(&self.params, stats);
+
+        // Per-region analysis first (F5), so a large change can be judged for spatial coherence before any
+        // channel decides. Skipped when the bitmap does not tile evenly.
+        let (wu, hu) = (w as usize, h as usize);
+        let tiled = wu % GRID_COLS == 0 && hu % GRID_ROWS == 0;
+        let mut cell_stats: Vec<Option<SampleStats>> = Vec::new();
+        let mut coherent = vec![false; GRID_COLS * GRID_ROWS];
+        let mut biggest = 0;
+        if tiled {
+            for i in 0..GRID_COLS * GRID_ROWS {
+                let (bmp, ..) = cell_bitmap(rgba, wu, hu, i % GRID_COLS, i / GRID_COLS);
+                let bmp = dominant_pixels(bmp);
+                cell_stats.push(analyze_opts(&bmp, (bmp.len() / 4) as u32, 1, true));
+            }
+            let vecs: Vec<[f32; 4]> = cell_stats
+                .iter()
+                .map(|c| c.map_or([0.0; 4], |c| [c.median, c.lab.l, c.lab.a, c.lab.b]))
+                .collect();
+            let changed: Vec<bool> = cell_stats
+                .iter()
+                .zip(&self.cells)
+                .zip(&vecs)
+                .map(|((c, ch), v)| c.is_some() && ch.cur.is_some_and(|cur| vdist(v, &cur) >= FOLLOW_DIST))
+                .collect();
+            (coherent, biggest) = coherent_cells(&changed, &vecs);
+        }
+        let mut tone = self
+            .global
+            .select(&self.params, stats, biggest >= COHERENT_GLOBAL);
         self.last_floor = Some(tone.scrim_min);
 
-        // Per-region tones (F5). Skipped when the bitmap does not tile evenly.
         let mut grid_changed = false;
-        let (wu, hu) = (w as usize, h as usize);
-        if wu % GRID_COLS == 0 && hu % GRID_ROWS == 0 {
+        if tiled {
             let mut cells = Vec::with_capacity(GRID_COLS * GRID_ROWS);
             for i in 0..GRID_COLS * GRID_ROWS {
-                let (col, row) = (i % GRID_COLS, i / GRID_COLS);
-                let (bmp, ..) = cell_bitmap(rgba, wu, hu, col, row);
-                let bmp = dominant_pixels(bmp);
-                let fresh = match analyze_opts(&bmp, (bmp.len() / 4) as u32, 1, true) {
-                    Some(cs) => self.cells[i].select(&self.params, cs),
+                let fresh = match cell_stats[i] {
+                    Some(cs) => self.cells[i].select(&self.params, cs, coherent[i]),
                     // Unknown cell (pure black): keep what we had, else the global tone.
                     None => self.cell_last[i].clone().unwrap_or_else(|| tone.clone()),
                 };
@@ -610,6 +700,101 @@ mod tests {
             up * POLL_MS as usize <= 200 && down * POLL_MS as usize <= 200,
             "{up} {down}"
         );
+        // a coherent step is adopted on the FIRST frame (no confirming sample)
+        assert_eq!((up, down), (1, 1));
+    }
+
+    /// `base` with the cells `(col, row)` painted `rgb`.
+    fn with_cells(base: [u8; 3], cells: &[(usize, usize)], rgb: [u8; 3]) -> Vec<u8> {
+        let mut v = flat(base[0], base[1], base[2]);
+        let (cw, ch) = (SAMPLE_W as usize / GRID_COLS, SAMPLE_H as usize / GRID_ROWS);
+        for &(c, r) in cells {
+            for y in r * ch..(r + 1) * ch {
+                for x in c * cw..(c + 1) * cw {
+                    let i = (y * SAMPLE_W as usize + x) * 4;
+                    v[i..i + 3].copy_from_slice(&rgb);
+                }
+            }
+        }
+        v
+    }
+
+    #[test]
+    fn coherent_block_of_cells_is_adopted_on_the_first_frame() {
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        feed(&mut t, &flat(20, 20, 24)).unwrap();
+        // right half turns white in ONE frame
+        let block: Vec<(usize, usize)> = (6..12).flat_map(|c| (0..8).map(move |r| (c, r))).collect();
+        let g = feed(&mut t, &with_cells([20, 20, 24], &block, [240, 240, 240]))
+            .unwrap()
+            .grid
+            .unwrap();
+        assert_eq!(g.cells[9].tone, ToneKind::Light, "right half light at once");
+        assert_eq!(g.cells[2].tone, ToneKind::Dark, "left half unchanged");
+    }
+
+    #[test]
+    fn a_two_cell_blip_waits_for_confirmation_and_a_single_frame_never_gets_it() {
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        feed(&mut t, &flat(20, 20, 24)).unwrap();
+        let blip = with_cells([20, 20, 24], &[(4, 3), (5, 3)], [240, 240, 240]);
+        let r = feed(&mut t, &blip);
+        assert!(r.is_none_or(|x| x
+            .grid
+            .is_none_or(|g| g.cells[4 + 3 * GRID_COLS].tone == ToneKind::Dark)));
+        assert!(t.has_pending(), "a confirming sample is awaited");
+        // gone again in the next frame: never adopted
+        let back = feed(&mut t, &flat(20, 20, 24));
+        assert!(back.is_none_or(|x| x
+            .grid
+            .is_none_or(|g| g.cells[4 + 3 * GRID_COLS].tone == ToneKind::Dark)));
+        assert!(!t.has_pending());
+    }
+
+    #[test]
+    fn a_small_group_that_stays_is_adopted_on_the_re_fed_sample() {
+        let mut t = AdaptiveTone::new(ToneMode::Auto);
+        feed(&mut t, &flat(20, 20, 24)).unwrap();
+        let blip = with_cells([20, 20, 24], &[(4, 3), (5, 3)], [240, 240, 240]);
+        feed(&mut t, &blip);
+        let g = feed(&mut t, &blip)
+            .expect("same bitmap again = confirmed")
+            .grid
+            .unwrap();
+        assert_eq!(g.cells[4 + 3 * GRID_COLS].tone, ToneKind::Light);
+    }
+
+    #[test]
+    fn coherent_cells_needs_adjacent_agreeing_cells() {
+        let n = GRID_COLS * GRID_ROWS;
+        let v = vec![[0.9, 0.9, 0.0, 0.0]; n];
+        let mut ch = vec![false; n];
+        ch[10] = true;
+        assert_eq!(
+            coherent_cells(&ch, &v).0.iter().filter(|b| **b).count(),
+            0,
+            "single cell"
+        );
+        ch[11] = true;
+        assert_eq!(
+            coherent_cells(&ch, &v).0.iter().filter(|b| **b).count(),
+            0,
+            "pair"
+        );
+        ch[11 + GRID_COLS] = true; // diagonal/adjacent third
+        let (f, big) = coherent_cells(&ch, &v);
+        assert_eq!((f.iter().filter(|b| **b).count(), big), (3, 3));
+        // far apart cells are not a group
+        let mut far = vec![false; n];
+        far[0] = true;
+        far[50] = true;
+        far[95] = true;
+        assert_eq!(coherent_cells(&far, &v).1, 1);
+        // adjacent but disagreeing colours are not a group
+        let mut w = v.clone();
+        w[11][1] = 0.1;
+        w[11 + GRID_COLS][1] = 0.5;
+        assert_eq!(coherent_cells(&ch, &w).1, 1);
     }
 
     #[test]
@@ -776,9 +961,9 @@ mod tests {
             }
         }
         assert!(flips <= 1, "{flips} flips");
-        // a one-frame flash of white does not move the scrim
+        // a one-frame flash of white in one cell does not move the scrim
         let before = t.current();
-        let flash = feed(&mut t, &flat(255, 255, 255));
+        let flash = feed(&mut t, &with_cells([52, 82, 175], &[(3, 3)], [255, 255, 255]));
         assert!(flash.is_none() || flash.unwrap().tone != ToneKind::Light);
         assert_eq!(before.tone, t.current().tone);
     }
@@ -851,10 +1036,18 @@ mod tests {
         let mut t = AdaptiveTone::new(ToneMode::Auto);
         feed(&mut t, &flat(20, 20, 20)).unwrap();
         feed(&mut t, &flat(20, 20, 20));
-        // one white frame must not flip the tone
-        let r = feed(&mut t, &flat(255, 255, 255));
-        assert!(r.is_none() || r.unwrap().tone == ToneKind::Dark);
+        // one frame with a single white cell must not flip it
+        let r = feed(&mut t, &with_cells([20, 20, 20], &[(5, 4)], [255, 255, 255]));
+        assert!(r.is_none_or(|x| x
+            .grid
+            .is_none_or(|g| g.cells[5 + 4 * GRID_COLS].tone == ToneKind::Dark)));
+        let r = feed(&mut t, &flat(20, 20, 20));
+        assert!(r.is_none_or(|x| x.tone == ToneKind::Dark));
         assert_eq!(t.current().tone, ToneKind::Dark);
+        assert!(t
+            .current()
+            .grid
+            .is_none_or(|g| g.cells[5 + 4 * GRID_COLS].tone == ToneKind::Dark));
     }
 
     #[test]

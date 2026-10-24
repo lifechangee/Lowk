@@ -108,6 +108,37 @@ struct SamplerDiag {
     frames: u64,
     /// Raw mean colour of each grid cell of the last bitmap the sampler got.
     cell_means: Vec<[u8; 3]>,
+    /// `"stream"` (continuous capture), `"poll"` (fallback) or `"idle"` (not started / overlay hidden).
+    mode: &'static str,
+    /// Frames the OS delivered / that changed and were analysed, per second over the last >= 1 s window
+    /// (poll mode: successful grabs / admitted bitmaps). CPU cost scales with `processed_per_s`.
+    frames_per_s: f64,
+    processed_per_s: f64,
+    /// Totals behind the rates (stream: `delivered`, `processed`).
+    delivered: u64,
+    processed: u64,
+    rate_at: Option<Instant>,
+    rate_base: (u64, u64),
+}
+
+impl SamplerDiag {
+    /// Refresh the per-second rates from the running totals (called every loop turn, updates once per second).
+    fn update_rates(&mut self, now: Instant) {
+        match self.rate_at {
+            None => {
+                self.rate_at = Some(now);
+                self.rate_base = (self.delivered, self.processed);
+            }
+            Some(t) if now.duration_since(t) >= Duration::from_secs(1) => {
+                let dt = now.duration_since(t).as_secs_f64();
+                self.frames_per_s = (self.delivered.saturating_sub(self.rate_base.0)) as f64 / dt;
+                self.processed_per_s = (self.processed.saturating_sub(self.rate_base.1)) as f64 / dt;
+                self.rate_at = Some(now);
+                self.rate_base = (self.delivered, self.processed);
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Stops the tone sampler thread on drop.
@@ -246,13 +277,18 @@ impl Stealth {
             .map(|c| format!("[{},{},{}]", c[0], c[1], c[2]))
             .collect();
         format!(
-            "{{\"ticks\":{},\"grab_errors\":{},\"last_error\":{},\"admitted\":{},\"emitted\":{},\"frames\":{},\"cell_means\":[{}]}}",
+            "{{\"ticks\":{},\"grab_errors\":{},\"last_error\":{},\"admitted\":{},\"emitted\":{},\"frames\":{},\"mode\":\"{}\",\"frames_per_s\":{:.1},\"processed_per_s\":{:.1},\"delivered\":{},\"processed\":{},\"cell_means\":[{}]}}",
             d.ticks,
             d.grab_errors,
             d.last_error.as_ref().map_or("null".to_string(), |e| format!("{e:?}")),
             d.admitted,
             d.emitted,
             d.frames,
+            if d.mode.is_empty() { "idle" } else { d.mode },
+            d.frames_per_s,
+            d.processed_per_s,
+            d.delivered,
+            d.processed,
             cells.join(",")
         )
     }
@@ -277,8 +313,11 @@ impl Stealth {
         }
     }
 
-    /// Start the sampler task: every `tone::POLL_MS` (100 ms) while the overlay is visible and at once after a
-    /// move/resize/display change. Unchanged bitmaps are skipped once the smoothing settled. Needs the sampler to exclude our own windows.
+    /// Start the sampler task. Preferred path: a continuous capture stream of the region under the overlay
+    /// ([`RegionSampler::open_stream`]); it exists only while the overlay is visible (hidden or sampler dropped =
+    /// stream dropped = fully stopped), follows the overlay when it moves or resizes, and delivers a frame only when
+    /// the pixels changed. Fallback (no stream support, start failure, stream error): every `tone::POLL_MS` (100 ms)
+    /// and at once after a move/resize/display change, unchanged bitmaps skipped. The sampler excludes our own windows.
     pub fn spawn_tone_sampler(&self, sampler: Arc<dyn RegionSampler>) -> ToneSampler {
         let stop = Arc::new(AtomicBool::new(false));
         let (stop2, ctl, tone) = (stop.clone(), self.overlay.clone(), self.tone.clone());
@@ -288,21 +327,116 @@ impl Stealth {
                 let mut gate = tone::ChangeGate::default();
                 let mut last_poll = Instant::now() - Duration::from_secs(10);
                 let mut flagged = false;
+                let mut stream: Option<Box<dyn lowk_types::RegionStream>> = None;
+                let mut stream_rect: Option<Rect> = None;
+                let mut last_bmp: Option<Vec<u8>> = None;
+                let mut last_frame_at = Instant::now();
+                let mut retry_stream_at = Instant::now();
+                let analyse = |bmp: &[u8]| {
+                    {
+                        let mut d = tone.diag.lock();
+                        d.cell_means = tone::cell_means(bmp, tone::SAMPLE_W, tone::SAMPLE_H);
+                    }
+                    let t = tone.state.lock().update(bmp, tone::SAMPLE_W, tone::SAMPLE_H);
+                    if let Some(t) = t {
+                        tone.diag.lock().emitted += 1;
+                        (tone.cb.lock())(t);
+                    }
+                };
                 while !stop2.load(Ordering::SeqCst) {
+                    let visible = ctl.guard.is_visible(OVERLAY);
+                    if !visible {
+                        // Hidden: nothing may run (the stream is stopped, not paused).
+                        if stream.take().is_some() {
+                            stream_rect = None;
+                        }
+                        {
+                            let mut d = tone.diag.lock();
+                            d.mode = "idle";
+                            d.update_rates(Instant::now());
+                        }
+                        std::thread::sleep(Duration::from_millis(25));
+                        flagged |= ctl.resample.swap(false, Ordering::SeqCst);
+                        continue;
+                    }
+                    // -- stream path --
+                    if stream.is_none() && Instant::now() >= retry_stream_at {
+                        let frame = ctl.frame();
+                        stream = sampler.open_stream(frame, tone::SAMPLE_W, tone::SAMPLE_H);
+                        if stream.is_some() {
+                            stream_rect = Some(frame);
+                            last_frame_at = Instant::now();
+                        } else {
+                            retry_stream_at = Instant::now() + Duration::from_secs(10);
+                        }
+                    }
+                    if let Some(st) = stream.as_mut() {
+                        let frame = ctl.frame();
+                        flagged |= ctl.resample.swap(false, Ordering::SeqCst);
+                        let mut broken = None;
+                        if stream_rect != Some(frame) {
+                            if let Err(e) = st.retarget(frame) {
+                                broken = Some(format!("{e:?}"));
+                            }
+                            stream_rect = Some(frame);
+                        }
+                        *tone.last_rect.lock() = Some(frame);
+                        if broken.is_none() {
+                            broken = st.error();
+                        }
+                        if let Some(e) = broken {
+                            let mut d = tone.diag.lock();
+                            d.grab_errors += 1;
+                            d.last_error = Some(e);
+                            drop(d);
+                            stream = None; // stop it; poll for a while, then try the stream again
+                            retry_stream_at = Instant::now() + Duration::from_secs(10);
+                            continue;
+                        }
+                        let got = st.next_frame(Duration::from_millis(25));
+                        let (delivered, processed) = st.counters();
+                        {
+                            let mut d = tone.diag.lock();
+                            d.mode = "stream";
+                            d.ticks += 1;
+                            d.delivered = delivered;
+                            d.processed = processed;
+                            d.frames = processed;
+                            d.admitted = processed;
+                            d.update_rates(Instant::now());
+                        }
+                        if let Some(bmp) = got {
+                            last_frame_at = Instant::now();
+                            analyse(&bmp);
+                            last_bmp = Some(bmp);
+                        } else if last_frame_at.elapsed() >= Duration::from_millis(tone::SETTLE_MS)
+                            && tone.state.lock().has_pending()
+                        {
+                            // A stream sends nothing while the screen is still: confirm a pending change by re-feeding
+                            // the last bitmap (a blip would have been cancelled by a newer frame by now).
+                            last_frame_at = Instant::now();
+                            if let Some(b) = last_bmp.clone() {
+                                analyse(&b);
+                            }
+                        }
+                        continue;
+                    }
+                    // -- polled fallback --
                     std::thread::sleep(Duration::from_millis(25));
                     // a move / resize / display change polls right away (debounced by the 25 ms tick)
                     flagged |= ctl.resample.swap(false, Ordering::SeqCst);
                     if !flagged && last_poll.elapsed() < Duration::from_millis(tone::POLL_MS) {
                         continue;
                     }
-                    if !ctl.guard.is_visible(OVERLAY) {
-                        continue;
-                    }
                     flagged = false;
                     last_poll = Instant::now();
                     let frame = ctl.frame();
                     *tone.last_rect.lock() = Some(frame);
-                    tone.diag.lock().ticks += 1;
+                    {
+                        let mut d = tone.diag.lock();
+                        d.mode = "poll";
+                        d.ticks += 1;
+                    }
                     let bmp = match sampler.grab_region(frame, tone::SAMPLE_W, tone::SAMPLE_H) {
                         Ok(b) => b,
                         Err(e) => {
@@ -314,17 +448,20 @@ impl Stealth {
                     };
                     {
                         let mut d = tone.diag.lock();
-                        d.cell_means = tone::cell_means(&bmp, tone::SAMPLE_W, tone::SAMPLE_H);
                         d.frames += 1;
+                        d.delivered = d.frames;
                     }
-                    if !gate.admit(&bmp) {
-                        continue;
+                    let admitted = gate.admit(&bmp);
+                    {
+                        let mut d = tone.diag.lock();
+                        if admitted {
+                            d.admitted += 1;
+                        }
+                        d.processed = d.admitted;
+                        d.update_rates(Instant::now());
                     }
-                    tone.diag.lock().admitted += 1;
-                    let t = tone.state.lock().update(&bmp, tone::SAMPLE_W, tone::SAMPLE_H);
-                    if let Some(t) = t {
-                        tone.diag.lock().emitted += 1;
-                        (tone.cb.lock())(t);
+                    if admitted {
+                        analyse(&bmp);
                     }
                 }
             })

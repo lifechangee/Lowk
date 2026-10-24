@@ -52,6 +52,10 @@ straddled the navy/yellow border and averaged to light grey (white haze over nav
 The grid is now 12x8 with majority voting in border cells, hard-ish 8 px transitions, 100 ms polling with a 2-sample
 confirmation and a 120 ms fade; the harness gained checks 5 and 6 and the off-grid backdrop above.
 
+## Continuous capture + edge cells (not yet run live)
+
+The sampler now uses one SCStream (`tone-diag.sampler.mode` = `stream`; `frames_per_s`, `processed_per_s` give the CPU load). A sixth position `off-screen-corner` hangs the overlay over the left/bottom display edge when the app allows it; cells are then asserted only on their on-screen part, fully off-screen cells are not asserted.
+
 ## Output (this folder)
 
 - `gallery.png`: one row per backdrop, one column per position (the overlay exactly as a person sees it over the backdrop).
@@ -75,7 +79,7 @@ Strict checks (grid 12x8, sharp transitions, low latency; run live with the owne
    cell (+6 pt) from the border instead of 8 pt (the grid can only be right to half a cell there).
 6. **Latency**: every backdrop change is timed from the layout acknowledgement of the backdrop page to the first capture in
    which every cell that changed polarity is painted with the new one (dark < 0.2, light > 0.5 luminance, text hidden).
-   Each must be <= 500 ms (design budget about 0.3 s, see docs/ARCHITECTURE.md 7.4; the time includes ~50 ms for the
+   Each must be <= 250 ms and p50 <= 150 ms (stream budget about 0.1 s, see docs/ARCHITECTURE.md 7.4; the time includes ~50 ms for the
    probe capture itself). p50 and max are printed and stored in `results.json` (`latency`).
 
 Failures name the border and side (`v@300 left (navy): light haze over a dark region ...`).

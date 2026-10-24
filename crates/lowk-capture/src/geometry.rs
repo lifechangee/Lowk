@@ -106,6 +106,92 @@ pub fn compose(p: &GrabPlan, cap: &[u8]) -> Vec<u8> {
     out
 }
 
+/// Like [`compose`], but built for the tone grid (`cols` x `rows` cells over the output): every cell is built from its
+/// ON-SCREEN pixels only. The captured part (`off_*`, `cap_*`) is the overlay clipped to the display, so
+/// - a cell fully on screen is copied;
+/// - a cell partly on screen is filled by repeating (tiling) its on-screen pixels over the missing part, so neither
+///   black from beyond the display nor one smeared edge column enters its average or its dark/light majority;
+/// - a cell fully off screen is a copy of the nearest on-screen cell (clamped column / row).
+pub fn compose_cells(p: &GrabPlan, cap: &[u8], cols: usize, rows: usize) -> Vec<u8> {
+    let (ow, oh) = (p.out_w as usize, p.out_h as usize);
+    let (cw, ch) = (p.cap_w as usize, p.cap_h as usize);
+    let (ox0, oy0) = (p.off_x as usize, p.off_y as usize);
+    let (ox1, oy1) = (ox0 + cw, oy0 + ch);
+    let mut out = vec![0u8; ow * oh * 4];
+    if cols == 0 || rows == 0 || ow < cols || oh < rows || cap.len() < cw * ch * 4 || cw == 0 || ch == 0 {
+        return compose(p, cap);
+    }
+    // Cell c spans pixels [c*ow/cols, (c+1)*ow/cols); the on-screen part of a span is its overlap with [ox0, ox1).
+    let span = |c: usize, n: usize, size: usize| (c * size / n, (c + 1) * size / n);
+    let clip = |(a, b): (usize, usize), lo: usize, hi: usize| (a.max(lo), b.min(hi));
+    let has = |(a, b): (usize, usize)| b > a;
+    let mut on_cols = (usize::MAX, 0usize);
+    let mut on_rows = (usize::MAX, 0usize);
+    for c in 0..cols {
+        if has(clip(span(c, cols, ow), ox0, ox1)) {
+            on_cols = (on_cols.0.min(c), on_cols.1.max(c));
+        }
+    }
+    for r in 0..rows {
+        if has(clip(span(r, rows, oh), oy0, oy1)) {
+            on_rows = (on_rows.0.min(r), on_rows.1.max(r));
+        }
+    }
+    for r in 0..rows {
+        let ys = span(r, rows, oh);
+        let yv = clip(ys, oy0, oy1);
+        for c in 0..cols {
+            let xs = span(c, cols, ow);
+            let xv = clip(xs, ox0, ox1);
+            if !has(xv) || !has(yv) {
+                continue; // off-screen cell: second pass
+            }
+            let (vw, vh) = (xv.1 - xv.0, yv.1 - yv.0);
+            for y in ys.0..ys.1 {
+                for x in xs.0..xs.1 {
+                    let sx = if x >= xv.0 && x < xv.1 {
+                        x
+                    } else {
+                        // tile the on-screen part over the missing part
+                        xv.0 + (x as isize - xv.0 as isize).rem_euclid(vw as isize) as usize
+                    };
+                    let sy = if y >= yv.0 && y < yv.1 {
+                        y
+                    } else {
+                        yv.0 + (y as isize - yv.0 as isize).rem_euclid(vh as isize) as usize
+                    };
+                    let i = ((sy - oy0) * cw + (sx - ox0)) * 4;
+                    let o = (y * ow + x) * 4;
+                    out[o..o + 4].copy_from_slice(&cap[i..i + 4]);
+                }
+            }
+        }
+    }
+    for r in 0..rows {
+        let (ys, _) = (span(r, rows, oh), ());
+        let rr = r.clamp(on_rows.0, on_rows.1);
+        for c in 0..cols {
+            let xs = span(c, cols, ow);
+            let cc = c.clamp(on_cols.0, on_cols.1);
+            if (cc, rr) == (c, r) {
+                continue;
+            }
+            let (sxs, sys) = (span(cc, cols, ow), span(rr, rows, oh));
+            for y in ys.0..ys.1 {
+                for x in xs.0..xs.1 {
+                    // same offset inside the cell, clamped to the source cell's size
+                    let sx = (sxs.0 + (x - xs.0)).min(sxs.1 - 1);
+                    let sy = (sys.0 + (y - ys.0)).min(sys.1 - 1);
+                    let (o, i) = ((y * ow + x) * 4, (sy * ow + sx) * 4);
+                    let px: [u8; 4] = out[i..i + 4].try_into().unwrap_or([0; 4]);
+                    out[o..o + 4].copy_from_slice(&px);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// Pixels per point of a captured image of `px_w` pixels for a `pt_w`-wide source (Retina = 2).
 pub fn scale_of(px_w: u32, pt_w: f64) -> f64 {
     if pt_w <= 0.0 {
@@ -439,6 +525,112 @@ mod tests {
         let cap = [10, 0, 0, 255, 20, 0, 0, 255];
         let reds: Vec<u8> = compose(&p, &cap).chunks(4).map(|c| c[0]).collect();
         assert_eq!(reds, vec![10, 10, 20, 20]);
+    }
+
+    /// Output 48x32 bitmap, 12x8 cells of 4x4 px; `cap` coloured by column so every cell's source is identifiable.
+    fn cells_plan(off_x: u32, cap_w: u32, off_y: u32, cap_h: u32) -> (GrabPlan, Vec<u8>) {
+        let p = GrabPlan {
+            display: 0,
+            src: r(0.0, 0.0, 1.0, 1.0),
+            cap_w,
+            cap_h,
+            out_w: 48,
+            out_h: 32,
+            off_x,
+            off_y,
+        };
+        let mut cap = Vec::new();
+        for y in 0..cap_h {
+            for x in 0..cap_w {
+                // red = on-screen x (global px), green = on-screen y, blue = 7 (never black)
+                cap.extend_from_slice(&[(off_x + x) as u8 * 5 + 1, (off_y + y) as u8 * 7 + 1, 7, 255]);
+            }
+        }
+        (p, cap)
+    }
+
+    #[test]
+    fn compose_cells_fully_visible_is_a_plain_copy() {
+        let (p, cap) = cells_plan(0, 48, 0, 32);
+        assert_eq!(compose_cells(&p, &cap, 12, 8), cap);
+    }
+
+    #[test]
+    fn partly_off_screen_cell_uses_only_its_on_screen_pixels() {
+        // overlay hangs over the left edge: cell column 1 spans px 4..8, only 6..8 are on screen
+        let (p, cap) = cells_plan(6, 42, 0, 32);
+        let out = compose_cells(&p, &cap, 12, 8);
+        for y in 0..32usize {
+            for x in 4..8usize {
+                let px = &out[(y * 48 + x) * 4..(y * 48 + x) * 4 + 4];
+                assert_ne!(px[2], 0, "no black from beyond the display at {x},{y}");
+                assert!(
+                    px[0] == 6 * 5 + 1 || px[0] == 7 * 5 + 1,
+                    "only on-screen columns 6/7 at x={x}: {}",
+                    px[0]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn fully_off_screen_cells_inherit_the_nearest_on_screen_cell() {
+        // 10 px hang over the left edge: cells 0 and 1 (px 0..8) are off screen, cell 2 (8..12) is partly on screen
+        let (p, cap) = cells_plan(10, 38, 0, 32);
+        let out = compose_cells(&p, &cap, 12, 8);
+        let cell = |c: usize, r: usize| -> Vec<u8> {
+            (0..4)
+                .flat_map(|y| {
+                    out[((r * 4 + y) * 48 + c * 4) * 4..((r * 4 + y) * 48 + c * 4 + 4) * 4].to_vec()
+                })
+                .collect()
+        };
+        for r in 0..8 {
+            assert_eq!(cell(0, r), cell(2, r), "cell 0 inherits cell 2, row {r}");
+            assert_eq!(cell(1, r), cell(2, r), "cell 1 inherits cell 2, row {r}");
+        }
+        assert!(out.chunks_exact(4).all(|px| px[2] == 7), "no black anywhere");
+    }
+
+    #[test]
+    fn off_screen_bottom_and_right_inherit_too() {
+        let (p, cap) = cells_plan(0, 30, 0, 20);
+        let out = compose_cells(&p, &cap, 12, 8);
+        assert!(out.chunks_exact(4).all(|px| px[2] == 7), "no black anywhere");
+        let at = |x: usize, y: usize| out[(y * 48 + x) * 4..(y * 48 + x) * 4 + 3].to_vec();
+        // last visible cell column is 7 (px 28..32, on screen up to 30), last visible row is 4 (px 16..20)
+        assert_eq!(at(44, 17), at(28, 17));
+        assert_eq!(at(45, 29), at(29, 17));
+    }
+
+    #[test]
+    fn border_cell_at_the_edge_keeps_its_majority_side() {
+        // 2 px of a 4 px cell are on screen: left px light, right px dark -> after tiling the cell is half/half,
+        // never grey-averaged with black
+        let p = GrabPlan {
+            display: 0,
+            src: r(0.0, 0.0, 1.0, 1.0),
+            cap_w: 46,
+            cap_h: 32,
+            out_w: 48,
+            out_h: 32,
+            off_x: 2,
+            off_y: 0,
+        };
+        let mut cap = Vec::new();
+        for _ in 0..32 {
+            for x in 0..46 {
+                cap.extend_from_slice(if x == 0 {
+                    &[250, 250, 250, 255]
+                } else {
+                    &[20, 20, 20, 255]
+                });
+            }
+        }
+        let out = compose_cells(&p, &cap, 12, 8);
+        let row0: Vec<u8> = (0..4).map(|x| out[x * 4]).collect();
+        assert!(row0.iter().all(|v| *v == 250 || *v == 20), "{row0:?}");
+        assert!(row0.contains(&250) && row0.contains(&20));
     }
 
     #[test]

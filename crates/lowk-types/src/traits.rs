@@ -84,6 +84,24 @@ pub trait EventSink: Send + Sync {
 pub trait RegionSampler: Send + Sync {
     /// RGBA8 bitmap of `rect` scaled to `w` x `h`, excluding our own windows.
     fn grab_region(&self, rect: Rect, w: u32, h: u32) -> Result<Vec<u8>>;
+
+    /// Optional continuous capture of `rect` (output `w` x `h`). `None` = not supported or it failed to start:
+    /// the caller falls back to polling [`grab_region`](Self::grab_region). Dropping the stream stops it completely.
+    fn open_stream(&self, _rect: Rect, _w: u32, _h: u32) -> Option<Box<dyn RegionStream>> {
+        None
+    }
+}
+
+/// A running continuous capture of the region under the overlay (macOS: one `SCStream`).
+pub trait RegionStream: Send {
+    /// Follow the overlay (moved / resized / other display). Cheap when nothing changed.
+    fn retarget(&mut self, rect: Rect) -> Result<()>;
+    /// Wait up to `timeout` for a frame whose content changed since the last one returned (RGBA8, `w` x `h`).
+    fn next_frame(&mut self, timeout: std::time::Duration) -> Option<Vec<u8>>;
+    /// `(frames delivered by the OS, frames whose content changed and were processed)` since the start.
+    fn counters(&self) -> (u64, u64);
+    /// Last stream error (the stream then stops delivering; the caller falls back to polling).
+    fn error(&self) -> Option<String>;
 }
 
 /// Plain screen grab *without* window exclusion (what a normal capturer sees).

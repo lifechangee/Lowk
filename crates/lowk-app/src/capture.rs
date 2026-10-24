@@ -22,7 +22,18 @@ impl RegionSampler for Gated {
         }
         lowk_capture::SckSampler.grab_region(rect, w, h)
     }
+
+    fn open_stream(&self, rect: Rect, w: u32, h: u32) -> Option<Box<dyn lowk_types::RegionStream>> {
+        if !granted() {
+            return None;
+        }
+        lowk_capture::SckSampler.open_stream(rect, w, h)
+    }
 }
+
+// The capture crate builds the tone bitmap for the same grid the analysis uses.
+const _: () = assert!(lowk_capture::frames::TONE_COLS == lowk_stealth::tone::GRID_COLS);
+const _: () = assert!(lowk_capture::frames::TONE_ROWS == lowk_stealth::tone::GRID_ROWS);
 
 #[cfg(target_os = "macos")]
 impl ScreenGrab for Gated {
