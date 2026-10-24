@@ -344,6 +344,9 @@ pub struct LlmSettings {
     /// Vision model of the local server (`local_base_url` / a local provider) for screenshots in local-only
     /// folders. Empty = the local model itself when its name is a known vision model, else images are refused.
     pub local_vision_model: String,
+    /// Context window assumed for the per-call Ask conversation; the conversation is compacted at ~60% of
+    /// it (summary of the oldest turns). 0 = automatic (128k cloud, 200k Claude, 16k local).
+    pub ask_context_tokens: u32,
 }
 impl Default for LlmSettings {
     fn default() -> Self {
@@ -360,6 +363,7 @@ impl Default for LlmSettings {
             local_model: String::new(),
             vision_model: DEFAULT_VISION_MODEL.into(),
             local_vision_model: String::new(),
+            ask_context_tokens: 0,
         }
     }
 }

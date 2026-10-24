@@ -60,6 +60,7 @@
     "allow-llm-ask",
     "allow-llm-cancel",
     "allow-llm-key-test",
+    "allow-llm-detect-local",
     "allow-llm-provider-status",
     "allow-llm-set-template",
     "allow-llm-suggest-tags",

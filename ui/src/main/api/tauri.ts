@@ -3,7 +3,7 @@
 // File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
 import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicMode, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { MockBackend } from './mock';
 import { CommandError, folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider } from './types';
 
@@ -176,6 +176,7 @@ export class TauriBackend extends MockBackend {
   override async callSetTags(id: string, tags: string[]): Promise<void> { ok(await commands.callSetTags(id, tags)); }
   override async llmProviderStatus(): Promise<LlmProviderStatus> { return ok(await commands.llmProviderStatus()); }
   override async llmKeyTest(): Promise<void> { ok(await commands.llmKeyTest()); }
+  override async llmDetectLocal(): Promise<LocalServer[]> { return ok(await commands.llmDetectLocal()); }
 
   override async retxStatus(call: string): Promise<RetxStatus> { return ok(await commands.retxStatus(call)); }
   override async retxStart(call: string): Promise<void> { ok(await commands.retxStart(call)); }

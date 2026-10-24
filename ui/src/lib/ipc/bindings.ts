@@ -209,6 +209,11 @@ export const commands = {
 	llmProviderStatus: () => typedError<LlmProviderStatus, AppError>(__TAURI_INVOKE("llm_provider_status")),
 	/**  Cheap authenticated request to verify the OpenRouter key (`ApiKeyMissing`, `Network`, `LlmProvider`). */
 	llmKeyTest: () => typedError<null, AppError>(__TAURI_INVOKE("llm_key_test")),
+	/**
+	 *  Probes the usual loopback ports (Ollama 11434, LM Studio 1234, llama-server 8080; <= 300 ms each, in
+	 *  parallel, no prompts) and lists the servers with their models. Fills nothing by itself.
+	 */
+	llmDetectLocal: () => typedError<LocalServer[], AppError>(__TAURI_INVOKE("llm_detect_local")),
 	/**  Saved audio present?, running / paused, progress, current transcript revision and the older ones. */
 	retxStatus: (call: Ulid) => typedError<RetxStatus, AppError>(__TAURI_INVOKE("retx_status", { call })),
 	/**
@@ -921,6 +926,11 @@ export type LlmSettings = {
 	 *  folders. Empty = the local model itself when its name is a known vision model, else images are refused.
 	 */
 	local_vision_model?: string,
+	/**
+	 *  Context window assumed for the per-call Ask conversation; the conversation is compacted at ~60% of
+	 *  it (summary of the oldest turns). 0 = automatic (128k cloud, 200k Claude, 16k local).
+	 */
+	ask_context_tokens?: number,
 };
 
 export type LlmUsage = {
@@ -928,6 +938,23 @@ export type LlmUsage = {
 	completion_tokens: number,
 	cached_tokens: number,
 };
+
+export type LocalModel = {
+	name: string,
+	/**  The name looks vision-capable (`model_has_vision`). */
+	vision: boolean,
+};
+
+/**  A reachable local LLM server with its models. */
+export type LocalServer = {
+	kind: LocalServerKind,
+	/**  OpenAI-compatible base (`http://127.0.0.1:11434/v1`): goes into `llm.local_base_url`. */
+	base_url: string,
+	models: LocalModel[],
+};
+
+/**  A local OpenAI-compatible server family found by `llm_detect_local`. */
+export type LocalServerKind = "ollama" | "lmstudio" | "llama_server";
 
 export type LocalizedName = {
 	ru: string,

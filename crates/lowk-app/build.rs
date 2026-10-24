@@ -105,6 +105,7 @@ const COMMANDS: &[&str] = &[
     "llm_suggest_tags",
     "llm_provider_status",
     "llm_key_test",
+    "llm_detect_local",
     "folder_export",
     "folder_import",
 ];

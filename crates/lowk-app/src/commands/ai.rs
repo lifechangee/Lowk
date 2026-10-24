@@ -39,3 +39,15 @@ pub fn llm_provider_status(st: State<'_, Shared>) -> Result<LlmProviderStatus> {
 pub fn llm_key_test(st: State<'_, Shared>) -> Result<()> {
     st.svc()?.key_test()
 }
+
+/// Probes the usual loopback ports (Ollama 11434, LM Studio 1234, llama-server 8080; <= 300 ms each, in
+/// parallel, no prompts) and lists the servers with their models. Fills nothing by itself.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn llm_detect_local() -> Result<Vec<LocalServer>> {
+    Ok(lowk_llm::detect_local(
+        &lowk_llm::LocalTarget::defaults(),
+        lowk_llm::PROBE_TIMEOUT,
+        &crate::m2::route::model_has_vision,
+    ))
+}

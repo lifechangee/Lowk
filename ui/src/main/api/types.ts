@@ -17,6 +17,7 @@ import type {
   IndexStatus,
   IngestProgress,
   LlmProviderStatus,
+  LocalServer,
   MicMode,
   MicPreset,
   NewFolder,
@@ -42,7 +43,7 @@ import type {
 } from '../../lib/ipc';
 
 export type { RetxEvent, RetxPreset, RetxStatus, RetxRevision } from '../../lib/ipc';
-export type { SearchResults, SearchHit, Document, IngestProgress, PinnedUsage, IndexStatus, EmbedderInfo, TagSuggestion, SummaryEvent, ImportSummary, SourceRef, LlmProviderStatus } from '../../lib/ipc';
+export type { SearchResults, SearchHit, Document, IngestProgress, PinnedUsage, IndexStatus, EmbedderInfo, TagSuggestion, SummaryEvent, ImportSummary, SourceRef, LlmProviderStatus, LocalServer, LocalModel } from '../../lib/ipc';
 
 export const SYS_UNSORTED = 'sys:unsorted';
 export const SYS_TRASH = 'sys:trash';
@@ -181,6 +182,8 @@ export interface Backend {
   llmSuggestTags(call: string): Promise<TagSuggestion[]>;
   callSetTags(id: string, tags: string[]): Promise<void>;
   llmProviderStatus(): Promise<LlmProviderStatus>;
+  /** Probes 127.0.0.1:11434 / :1234 / :8080 (<= 300 ms, no prompts); empty = nothing running. */
+  llmDetectLocal(): Promise<LocalServer[]>;
   /** Rejects with the backend error (`api_key_missing`, `network`, `llm_provider`, ...). */
   llmKeyTest(): Promise<void>;
 

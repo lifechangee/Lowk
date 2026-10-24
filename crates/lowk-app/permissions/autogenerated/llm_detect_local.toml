@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-llm-detect-local"
+description = "Enables the llm_detect_local command without any pre-configured scope."
+commands.allow = ["llm_detect_local"]
+
+[[permission]]
+identifier = "deny-llm-detect-local"
+description = "Denies the llm_detect_local command without any pre-configured scope."
+commands.deny = ["llm_detect_local"]

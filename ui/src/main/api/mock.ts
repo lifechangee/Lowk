@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command WP6 has not wired yet. Mutations are real within the page's life.
-import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -72,7 +72,7 @@ export class MockBackend implements Backend {
       // ?src=system mirrors the real backend's fresh default (no default_source stored yet) for the QA suite.
       audio: { default_source: typeof location !== 'undefined' && /[?&]src=system\b/.test(location.search) ? null : { kind: 'app', id: 'us.zoom.xos' }, aec: 'auto', keep_audio: false },
       stt: { engine: 'whisper-large-v3-turbo', languages: ['ru', 'en'], cloud_vendor: 'soniox' },
-      llm: { provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4.1-flash-1017', reasoning: false, data_collection_deny: true, default_template: 'brief', summary_model: 'deepseek/deepseek-v4.1-flash-1017', pinned_provider: 'DeepInfra', local_base_url: '', local_model: '', vision_model: 'anthropic/claude-haiku-5.5', local_vision_model: '' },
+      llm: { provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4.1-flash-1017', reasoning: false, data_collection_deny: true, default_template: 'brief', summary_model: 'deepseek/deepseek-v4.1-flash-1017', pinned_provider: 'DeepInfra', local_base_url: '', local_model: '', vision_model: 'anthropic/claude-haiku-5.5', local_vision_model: '', ask_context_tokens: 0 },
       embedder: { mode: qp('embedder') === 'off' ? 'off' : 'local', model: 'embeddinggemma-2-q8_0', cloud_model: 'openai/text-embedding-3-small' },
       docs: { pinned_budget_tokens: 6000, warn_slow_mb: Number(qp('warnmb') ?? 50), max_file_mb: 500, ocr: true, retrieved_budget_tokens: 3000 },
       overlay: { opacity: 60, font_px: 14, display: 'primary', visibility: 'recording_only', pill_edge: 'right', tone_mode: 'auto' },
@@ -636,6 +636,14 @@ export class MockBackend implements Backend {
   }
   async llmProviderStatus(): Promise<LlmProviderStatus> {
     return { provider: 'openrouter', model: this.#settings.llm?.summary_model ?? '', pinned_provider: this.#settings.llm?.pinned_provider ?? null, key_present: this.#secrets.has('openrouter') };
+  }
+  async llmDetectLocal(): Promise<LocalServer[]> {
+    await delay(150);
+    const mode = qp('local');
+    if (mode === 'none') return [];
+    const o: LocalServer = { kind: 'ollama', base_url: 'http://127.0.0.1:11434/v1', models: [{ name: 'qwen3:8b', vision: false }, { name: 'gemma3:4b', vision: true }] };
+    if (mode === 'one') return [o];
+    return [o, { kind: 'lmstudio', base_url: 'http://127.0.0.1:1234/v1', models: [{ name: 'llama-3.2-3b', vision: false }] }];
   }
   async llmKeyTest(): Promise<void> {
     await delay(400);

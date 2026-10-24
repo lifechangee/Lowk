@@ -3,8 +3,10 @@
 //! tag suggestions (`LlmService`), latency probe. No OS code, no vault access, no keychain:
 //! the caller passes the API key in.
 mod client;
+mod compact;
 mod config;
 mod ledger;
+mod local;
 pub mod mock;
 mod probe;
 mod prompt;
@@ -13,8 +15,12 @@ mod summary;
 mod tags;
 
 pub use client::{ChatClient, FakeLlm, OpenAiClient, StreamOutcome};
+pub use compact::{compact_ledger, estimate_tokens, CompactNeed, CompactPlan, CompactPolicy};
 pub use config::{ChatOptions, LlmConfig, ProviderKind, FALLBACK_MODEL};
-pub use ledger::ChatLedger;
+pub use ledger::{ChatLedger, CompactionEvent};
+pub use local::{
+    detect_local, parse_ollama_tags, parse_openai_models, LocalTarget, DEFAULT_TARGETS, PROBE_TIMEOUT,
+};
 pub use probe::{list_providers, probe_fastest_provider, ProbeOptions, ProbeResult, ProbeSample};
 pub use prompt::{BuildInput, BuiltTurn, ImagePart, PromptBuilder, SYSTEM_PROMPT};
 pub use sse::{SseEvent, SseParser};

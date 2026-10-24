@@ -2,9 +2,21 @@
 //! never re-rendered, so the prompt-cache prefix of request n+1 is byte-identical to request n.
 use serde_json::json;
 
+/// One compaction of the ledger, kept for debugging (not sent to the model).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompactionEvent {
+    /// Messages replaced by the one summary / notice message.
+    pub replaced: usize,
+    pub tokens_before: usize,
+    pub tokens_after: usize,
+    /// `true` = LLM summary; `false` = plain truncation (fallback or no summary model).
+    pub summarized: bool,
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct ChatLedger {
     messages: Vec<String>,
+    compactions: Vec<CompactionEvent>,
 }
 
 impl ChatLedger {
@@ -32,6 +44,18 @@ impl ChatLedger {
 
     pub fn messages(&self) -> &[String] {
         &self.messages
+    }
+
+    /// Compactions applied to this conversation so far (oldest first).
+    pub fn compactions(&self) -> &[CompactionEvent] {
+        &self.compactions
+    }
+
+    pub(crate) fn from_parts(messages: Vec<String>, compactions: Vec<CompactionEvent>) -> Self {
+        Self {
+            messages,
+            compactions,
+        }
     }
 
     pub fn len(&self) -> usize {

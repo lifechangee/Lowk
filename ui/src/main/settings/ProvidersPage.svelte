@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { EngineDescriptor, LlmProvider } from '../../lib/ipc';
+  import type { EngineDescriptor, LlmProvider, LocalServer } from '../../lib/ipc';
   import SettingRow from '../../lib/components/SettingRow.svelte';
   import Select from '../../lib/components/Select.svelte';
   import TextInput from '../../lib/components/TextInput.svelte';
@@ -13,7 +13,21 @@
 
   let engines = $state<EngineDescriptor[]>([]);
   let recommended = $state('');
+  let found = $state<LocalServer[]>([]);
+  let detecting = $state(false);
+  let detected = $state(false);
+  const detect = async () => {
+    detecting = true;
+    try { found = await api.llmDetectLocal(); } catch { found = []; }
+    detecting = false;
+    detected = true;
+  };
+  const kindName = (k: string) => (k === 'ollama' ? 'Ollama' : k === 'lmstudio' ? 'LM Studio' : 'llama-server');
+  const useModel = (s: LocalServer, name: string, vision: boolean) => {
+    prefs.patch({ llm: { local_base_url: s.base_url, local_model: name, ...(vision ? { local_vision_model: name } : {}) } });
+  };
   onMount(async () => {
+    void detect();
     engines = await api.engines();
     recommended = (await api.engineStatus()).find((i) => i.recommended)?.descriptor.id ?? '';
   });
@@ -65,6 +79,26 @@
 <SettingRow label={tm('summary.settings.pinned')} hint={tm('summary.settings.pinnedHint')}>
   <TextInput bind:value={pinned} mono label={tm('summary.settings.pinned')} placeholder={tm('summary.settings.pinnedAuto')} onenter={() => prefs.patch({ llm: { pinned_provider: pinned.trim() || null } })} oninput={() => {}} />
 </SettingRow>
+<div class="detect" data-testid="local-detect">
+  <div class="detect-head">
+    <strong>{tm('m.detectTitle')}</strong>
+    <button type="button" class="btn" disabled={detecting} onclick={detect}>{detecting ? tm('m.detecting') : tm('m.detectLocal')}</button>
+  </div>
+  {#if detected && found.length === 0}
+    <p class="empty" data-testid="local-empty">{tm('m.detectEmpty')}
+      <a href="https://ollama.com/download" target="_blank" rel="noreferrer">Ollama</a> ·
+      <a href="https://lmstudio.ai" target="_blank" rel="noreferrer">LM Studio</a></p>
+  {/if}
+  {#each found as s (s.base_url)}
+    <div class="server" data-testid="local-server" data-kind={s.kind}>
+      <span class="sname">{kindName(s.kind)} <code>{s.base_url}</code></span>
+      {#if s.models.length === 0}<span class="muted">{tm('m.detectNoModels')}</span>{/if}
+      {#each s.models as m (m.name)}
+        <button type="button" class="btn model" data-testid="local-model" onclick={() => useModel(s, m.name, m.vision)}>{m.name}{m.vision ? ' · ' + tm('m.detectVision') : ''}</button>
+      {/each}
+    </div>
+  {/each}
+</div>
 <SettingRow label={tm('summary.settings.localUrl')} hint={tm('summary.settings.localUrlHint')}>
   <TextInput bind:value={localUrl} mono label={tm('summary.settings.localUrl')} placeholder="http://localhost:11434/v1" onenter={() => prefs.patch({ llm: { local_base_url: localUrl.trim() } })} oninput={() => {}} />
 </SettingRow>
@@ -86,4 +120,8 @@
 <style>
   h2 { font: 600 var(--fs-lg) var(--font); margin: 0 0 var(--s2); }
   .gap { margin-top: var(--s8); }
+  .detect { display: grid; gap: var(--s2); margin: var(--s3) 0; padding: var(--s3); border: 1px solid var(--border, currentColor); border-radius: var(--r2, 8px); }
+  .detect-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); }
+  .server { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+  .empty, .muted { margin: 0; opacity: 0.75; }
 </style>

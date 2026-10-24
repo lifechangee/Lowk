@@ -265,3 +265,26 @@ test.describe('settings', () => {
     await expect(page.getByTestId('pinned-budget').getByRole('radio', { name: '12,000' })).toHaveAttribute('aria-checked', 'true');
   });
 });
+
+test.describe('local model detect', () => {
+  for (const [lang, find, vision] of [['en', 'Detect local models', 'vision'], ['ru', 'Найти локальные модели', 'видит картинки']] as const) {
+    test(`${lang}: lists servers on open and one click fills the local url, model and vision model`, async ({ page }) => {
+      await page.goto(`/main.html?lang=${lang}#/settings/providers`);
+      await expect(page.getByTestId('local-server')).toHaveCount(2);
+      await expect(page.getByRole('button', { name: find })).toBeVisible();
+      await page.getByTestId('local-model').filter({ hasText: 'gemma3:4b' }).click();
+      await expect(page.getByTestId('local-model').filter({ hasText: vision })).toHaveCount(1);
+      await expect(page.getByPlaceholder('http://localhost:11434/v1')).toHaveValue('http://127.0.0.1:11434/v1');
+      const values = () => page.locator('input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
+      await expect.poll(async () => (await values()).filter((v) => v === 'gemma3:4b').length).toBe(2); // local model + local vision model
+    });
+  }
+
+  test('nothing running shows the empty state with install links', async ({ page }) => {
+    await page.goto('/main.html?lang=en&local=none#/settings/providers');
+    const empty = page.getByTestId('local-empty');
+    await expect(empty).toContainText('No local model server found');
+    await expect(empty.getByRole('link', { name: 'Ollama' })).toHaveAttribute('href', /ollama\.com/);
+    await expect(empty.getByRole('link', { name: 'LM Studio' })).toHaveAttribute('href', /lmstudio\.ai/);
+  });
+});

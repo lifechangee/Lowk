@@ -116,6 +116,9 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<SummaryEvent>();
     types.register_mut::<TagSuggestion>();
     types.register_mut::<LlmProviderStatus>();
+    types.register_mut::<LocalServerKind>();
+    types.register_mut::<LocalModel>();
+    types.register_mut::<LocalServer>();
 }
 
 /// Tauri event names (backend -> UI), one per [`AppEvent`] variant plus the

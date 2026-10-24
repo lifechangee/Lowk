@@ -236,6 +236,31 @@ pub struct LlmProviderStatus {
     pub key_present: bool,
 }
 
+/// A local OpenAI-compatible server family found by `llm_detect_local`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalServerKind {
+    Ollama,
+    Lmstudio,
+    LlamaServer,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalModel {
+    pub name: String,
+    /// The name looks vision-capable (`model_has_vision`).
+    pub vision: bool,
+}
+
+/// A reachable local LLM server with its models.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalServer {
+    pub kind: LocalServerKind,
+    /// OpenAI-compatible base (`http://127.0.0.1:11434/v1`): goes into `llm.local_base_url`.
+    pub base_url: String,
+    pub models: Vec<LocalModel>,
+}
+
 /// Implemented by `lowk-llm` (cloud: OpenRouter). Blocking; cancel by `should_continue`
 /// returning `false`. Errors: `ApiKeyMissing`, `Network`, `LlmProvider`, `LlmCancelled`.
 pub trait LlmService: Send + Sync {

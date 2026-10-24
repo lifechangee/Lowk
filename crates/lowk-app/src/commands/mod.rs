@@ -119,6 +119,7 @@ macro_rules! all_commands {
             crate::commands::ai::llm_suggest_tags,
             crate::commands::ai::llm_provider_status,
             crate::commands::ai::llm_key_test,
+            crate::commands::ai::llm_detect_local,
             crate::commands::retx::retx_status,
             crate::commands::retx::retx_start,
             crate::commands::retx::retx_cancel,

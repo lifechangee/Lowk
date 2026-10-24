@@ -8,28 +8,67 @@
 use super::route::{self, Purpose};
 use super::{folder_allows_cloud, Env};
 use lowk_capture::prep;
-use lowk_llm::{BuildInput, ChatLedger, ChatOptions, ImagePart, OpenAiClient, PromptBuilder};
+use lowk_llm::{
+    compact_ledger, BuildInput, ChatClient, ChatLedger, ChatOptions, CompactNeed, CompactPlan, CompactPolicy,
+    ImagePart, OpenAiClient, PromptBuilder,
+};
 use lowk_session::{HintGenerator, HintOutcome, HintRequest};
 use lowk_store::Vault;
 use lowk_types::*;
 use parking_lot::{Mutex, RwLock};
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-/// Past this many bytes the conversation starts over (the next turn re-sends the folder context).
-const LEDGER_MAX_BYTES: usize = 400_000;
+/// Assumed context window (tokens) when `llm.ask_context_tokens` is 0.
+const WINDOW_CLOUD: usize = 128_000;
+const WINDOW_CLAUDE: usize = 200_000;
+const WINDOW_LOCAL: usize = 16_384;
+/// Room kept for the answer on top of the hard budget.
+const ANSWER_RESERVE: usize = 1_024;
 
+/// Compaction budget: soft = 60% of the window (background, after an answer), hard = 85% (inline).
+fn policy_for(s: &LlmSettings, route: &route::Route) -> CompactPolicy {
+    let window = if s.ask_context_tokens > 0 {
+        s.ask_context_tokens as usize
+    } else if !route.cloud {
+        WINDOW_LOCAL
+    } else if route.cfg.model.starts_with("anthropic/") {
+        WINDOW_CLAUDE
+    } else {
+        WINDOW_CLOUD
+    };
+    let mut p = CompactPolicy::for_window(window);
+    p.hard_tokens -= ANSWER_RESERVE.min(window / 10);
+    p
+}
+
+#[derive(Clone)]
 struct CallConv {
     call: Option<CallId>,
     model: String,
     ledger: ChatLedger,
-    bytes: usize,
+}
+
+/// The cheap summary call: the summary model through the same privacy routing (local-only folders
+/// only ever reach the local model). `None` = no summariser available -> plain truncation.
+fn summary_client(env: &Env, settings: &Settings, local_only: bool) -> Option<OpenAiClient> {
+    let r = route::resolve(
+        &settings.llm,
+        local_only,
+        env.keys.openrouter(),
+        &Purpose::Summary,
+    )
+    .ok()?;
+    Some(OpenAiClient::new(r.cfg))
 }
 
 pub struct LlmHints {
     env: Env,
     vault: Arc<RwLock<Option<Vault>>>,
-    conv: Mutex<Option<CallConv>>,
+    conv: Arc<Mutex<Option<CallConv>>>,
+    /// A background compaction is running.
+    compacting: Arc<AtomicBool>,
+    compaction_thread: Mutex<Option<std::thread::JoinHandle<()>>>,
     /// Kept between asks so the TLS connection (keep-alive) is warm: TTFT of the next ask.
     client: Mutex<Option<(String, Arc<OpenAiClient>)>>,
     last_model: Mutex<String>,
@@ -41,7 +80,9 @@ impl LlmHints {
         Self {
             env,
             vault,
-            conv: Mutex::new(None),
+            conv: Arc::new(Mutex::new(None)),
+            compacting: Arc::new(AtomicBool::new(false)),
+            compaction_thread: Mutex::new(None),
             client: Mutex::new(None),
             last_model: Mutex::new(m),
         }
@@ -88,6 +129,57 @@ impl LlmHints {
         let c = Arc::new(OpenAiClient::new(cfg.clone()));
         *g = Some((sig, c.clone()));
         c
+    }
+}
+
+impl LlmHints {
+    /// After an answer: fold the oldest turns into one summary on a worker thread, so the next Ask is
+    /// never delayed. The result is applied only if the conversation still starts with the snapshot;
+    /// a failed summary falls back to truncation (also in this step), never to an error.
+    fn compact_in_background(&self, policy: CompactPolicy, client: Option<OpenAiClient>) {
+        if self.compacting.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let Some(snapshot) = self.conv.lock().clone() else {
+            self.compacting.store(false, Ordering::SeqCst);
+            return;
+        };
+        let (conv, flag) = (self.conv.clone(), self.compacting.clone());
+        let h = std::thread::spawn(move || {
+            if let Some(plan) = CompactPlan::new(&snapshot.ledger, policy.keep_recent_turns) {
+                let summary = client
+                    .as_ref()
+                    .and_then(|c| plan.summarize(&snapshot.ledger, c as &dyn ChatClient, 700).ok());
+                let mut g = conv.lock();
+                if let Some(cur) = g.as_mut() {
+                    if cur.call == snapshot.call
+                        && cur.model == snapshot.model
+                        && plan.still_applies(&snapshot.ledger, &cur.ledger)
+                    {
+                        cur.ledger = plan.apply(&cur.ledger, summary.as_deref());
+                        tracing::info!(summarized = summary.is_some(), "ask conversation compacted");
+                    }
+                }
+            }
+            flag.store(false, Ordering::SeqCst);
+        });
+        *self.compaction_thread.lock() = Some(h);
+    }
+
+    /// Waits for a running background compaction (tests, shutdown).
+    pub fn wait_compaction(&self) {
+        if let Some(h) = self.compaction_thread.lock().take() {
+            let _ = h.join();
+        }
+    }
+
+    /// Compactions applied to the current conversation (debugging).
+    pub fn compactions(&self) -> Vec<lowk_llm::CompactionEvent> {
+        self.conv
+            .lock()
+            .as_ref()
+            .map(|c| c.ledger.compactions().to_vec())
+            .unwrap_or_default()
     }
 }
 
@@ -148,29 +240,18 @@ impl HintGenerator for LlmHints {
         let mut conv = {
             let g = self.conv.lock();
             match g.as_ref() {
-                Some(c)
-                    if !req.first_turn
-                        && c.call == req.call
-                        && c.model == route.cfg.model
-                        && c.bytes < LEDGER_MAX_BYTES =>
-                {
-                    CallConv {
-                        call: c.call,
-                        model: c.model.clone(),
-                        ledger: c.ledger.clone(),
-                        bytes: c.bytes,
-                    }
-                }
+                Some(c) if !req.first_turn && c.call == req.call && c.model == route.cfg.model => c.clone(),
                 _ => CallConv {
                     call: req.call,
                     model: route.cfg.model.clone(),
                     ledger: builder.new_ledger(),
-                    bytes: 0,
                 },
             }
         };
         // Images belong to the new user turn only; a "too large" refusal (413) retries with smaller ones.
         let edges = [prep::SEND_EDGE, prep::RETRY_EDGES[0], prep::RETRY_EDGES[1]];
+        let restarted = std::cell::Cell::new(false);
+        let fresh_ctx = std::cell::Cell::new(req.first_turn || conv.ledger.len() <= 1);
         let build = |edge: u32| -> Result<(lowk_llm::BuiltTurn, Vec<SentImage>)> {
             let mut parts = Vec::new();
             let mut sent = Vec::new();
@@ -197,9 +278,9 @@ impl HintGenerator for LlmHints {
                 typed_text: req.typed_text.as_deref(),
                 my_answer: req.my_answer.as_deref(),
                 pack: Some(&req.pack),
-                include_folder_context: req.first_turn || conv.ledger.len() <= 1,
+                include_folder_context: fresh_ctx.get(),
                 extra_chunks: &[],
-                sent_chunk_ids: &req.sent_chunk_ids,
+                sent_chunk_ids: if restarted.get() { &[] } else { &req.sent_chunk_ids },
                 transcript: &req.delta,
                 images: &parts,
             });
@@ -215,6 +296,27 @@ impl HintGenerator for LlmHints {
             session_id: route.cfg.session_id.clone(),
         };
         let cancelled = req.cancelled.clone();
+        let policy = policy_for(&settings.llm, &route);
+        let local_only = self.local_only(&req.folder);
+        // Hard limit: the request would not fit, so compact inline (summary, else truncation). If even
+        // the kept turns do not fit, the conversation starts over (the next turn re-sends the folder context).
+        if policy.need(&conv.ledger, &built.message) == CompactNeed::Hard {
+            let sc = summary_client(&self.env, &settings, local_only);
+            if let Some(l) = compact_ledger(&conv.ledger, &policy, sc.as_ref().map(|c| c as &dyn ChatClient))
+            {
+                tracing::info!(
+                    summarized = l.compactions().last().is_some_and(|e| e.summarized),
+                    "ask conversation compacted inline"
+                );
+                conv.ledger = l;
+            }
+            if policy.need(&conv.ledger, &built.message) == CompactNeed::Hard && conv.ledger.len() > 2 {
+                conv.ledger = builder.new_ledger();
+                restarted.set(true);
+                fresh_ctx.set(true);
+                (built, sent_images) = build(edges[0])?;
+            }
+        }
         let mut attempt = 0;
         let (out, ledger) = loop {
             let mut ledger = conv.ledger.clone();
@@ -236,9 +338,12 @@ impl HintGenerator for LlmHints {
 
         // the exact streamed text goes into the ledger, so the history stays byte-stable
         ledger.append_assistant(&out.text);
-        conv.bytes += built.message.len() + out.text.len();
+        let soft = policy.need(&ledger, "") != CompactNeed::None;
         conv.ledger = ledger;
         *self.conv.lock() = Some(conv);
+        if soft {
+            self.compact_in_background(policy, summary_client(&self.env, &settings, local_only));
+        }
         if !out.model.is_empty() {
             *self.last_model.lock() = out.model.clone();
         }
@@ -459,5 +564,193 @@ mod tests {
         let e = run(&r, &request(FolderRef::Unsorted, vec![shot(1)])).unwrap_err();
         assert_eq!(e.code, ErrorCode::ImageTooLarge);
         assert_eq!(srv.chat_requests().len(), 3);
+    }
+
+    // --- compaction of the per-call conversation ---
+
+    fn is_summary_call(j: &serde_json::Value) -> bool {
+        j["messages"][0]["content"]
+            .as_str()
+            .is_some_and(|c| c.contains("compress the earlier part"))
+    }
+
+    fn asks(srv: &MockServer) -> Vec<serde_json::Value> {
+        srv.chat_requests()
+            .iter()
+            .map(|r| r.json())
+            .filter(|j| !is_summary_call(j))
+            .collect()
+    }
+
+    fn summaries(srv: &MockServer) -> usize {
+        srv.chat_requests()
+            .iter()
+            .filter(|r| is_summary_call(&r.json()))
+            .count()
+    }
+
+    /// Asks `n` times in one call; the question text is long enough to grow the ledger.
+    fn ask_n(r: &Rig, folder: FolderRef, call: Ulid, from: usize, n: usize) {
+        for i in from..from + n {
+            let mut q = request(folder.clone(), vec![]);
+            q.call = Some(call);
+            q.first_turn = i == 0;
+            q.typed_text = Some(format!("question number {i} {}", "w".repeat(1200)));
+            run(r, &q).unwrap();
+            r.hints.wait_compaction();
+        }
+    }
+
+    fn mock_with_summary(fail_summary: bool) -> MockServer {
+        MockServer::start(move |req, _| {
+            if is_summary_call(&req.json()) {
+                if fail_summary {
+                    Reply::json(400, r#"{"error":{"message":"nope"}}"#)
+                } else {
+                    Reply::answer(&["SUMMARY OF THE EARLY CALL"])
+                }
+            } else {
+                Reply::answer(&["an answer"])
+            }
+        })
+    }
+
+    fn set_window(r: &Rig, tokens: u32) {
+        r.settings
+            .patch(SettingsPatch(
+                serde_json::json!({ "llm": { "ask_context_tokens": tokens } }),
+            ))
+            .unwrap();
+    }
+
+    #[test]
+    fn below_the_budget_the_prefix_only_grows() {
+        let srv = mock_with_summary(false);
+        let r = rig("cmp-none", srv.base_url());
+        ask_n(&r, FolderRef::Unsorted, Ulid::new(), 0, 4);
+        assert_eq!(summaries(&srv), 0);
+        let a = asks(&srv);
+        for w in a.windows(2) {
+            let (p, n) = (
+                w[0]["messages"].as_array().unwrap(),
+                w[1]["messages"].as_array().unwrap(),
+            );
+            assert_eq!(p[..], n[..p.len()], "earlier messages byte-identical");
+            assert_eq!(n[p.len()]["role"], "assistant");
+        }
+        assert!(r.hints.compactions().is_empty());
+    }
+
+    #[test]
+    fn crossing_the_soft_budget_compacts_in_the_background_and_keeps_recent_turns() {
+        let srv = mock_with_summary(false);
+        let r = rig("cmp-soft", srv.base_url());
+        set_window(&r, 5000); // soft 3000, hard 3750 tokens
+        let call = Ulid::new();
+        ask_n(&r, FolderRef::Unsorted, call, 0, 9);
+        assert!(summaries(&srv) >= 1, "the threshold triggered a summary call");
+        let ev = r.hints.compactions();
+        assert!(
+            !ev.is_empty()
+                && ev
+                    .iter()
+                    .all(|e| e.summarized && e.tokens_after < e.tokens_before)
+        );
+        // the next Ask carries: system + first turn verbatim, the summary, then recent turns verbatim
+        ask_n(&r, FolderRef::Unsorted, call, 9, 1);
+        let last = asks(&srv).pop().unwrap();
+        let m = last["messages"].as_array().unwrap();
+        let first = asks(&srv)[0]["messages"].clone();
+        assert_eq!(m[0], first[0], "system prompt unchanged");
+        assert_eq!(m[1], first[1], "first turn (folder context) unchanged");
+        assert!(m[2]["content"]
+            .as_str()
+            .unwrap()
+            .contains("SUMMARY OF THE EARLY CALL"));
+        let text = serde_json::to_string(&m[3..]).unwrap();
+        assert!(text.contains("question number 8 ") && text.contains("question number 9 "));
+        assert!(
+            !text.contains("question number 1 "),
+            "old turns were folded into the summary"
+        );
+        // between two compactions the prefix is stable again
+        ask_n(&r, FolderRef::Unsorted, call, 10, 1);
+        let (a, b) = {
+            let v = asks(&srv);
+            (
+                v[v.len() - 2]["messages"].clone(),
+                v[v.len() - 1]["messages"].clone(),
+            )
+        };
+        let (a, b) = (a.as_array().unwrap(), b.as_array().unwrap());
+        if b[2]["content"] == a[2]["content"] {
+            assert_eq!(a[..], b[..a.len()]);
+        }
+    }
+
+    #[test]
+    fn a_failed_summary_falls_back_to_truncation_and_the_ask_still_works() {
+        let srv = mock_with_summary(true);
+        let r = rig("cmp-fail", srv.base_url());
+        set_window(&r, 5000);
+        let call = Ulid::new();
+        ask_n(&r, FolderRef::Unsorted, call, 0, 10);
+        let ev = r.hints.compactions();
+        assert!(
+            !ev.is_empty() && ev.iter().all(|e| !e.summarized),
+            "truncated, not summarised"
+        );
+        let last = asks(&srv).pop().unwrap();
+        let text = serde_json::to_string(&last["messages"]).unwrap();
+        assert!(text.contains("omitted to fit the context window"));
+        assert!(text.contains("question number 9 "));
+    }
+
+    #[test]
+    fn local_only_compaction_never_reaches_the_cloud() {
+        let cloud = MockServer::start(|_, _| Reply::answer(&["LEAK"]));
+        let local = mock_with_summary(false);
+        let r = rig("cmp-local", cloud.base_url());
+        let f = r
+            .vault
+            .create_folder(NewFolder {
+                title: "secret".into(),
+                tags: vec![],
+                allow_cloud: false,
+                instructions: String::new(),
+            })
+            .unwrap()
+            .id;
+        r.settings
+            .patch(SettingsPatch(serde_json::json!({
+                "llm": { "local_base_url": local.base_url(), "local_model": "qwen3", "ask_context_tokens": 5000 }
+            })))
+            .unwrap();
+        ask_n(&r, f, Ulid::new(), 0, 9);
+        assert!(cloud.requests().is_empty(), "nothing reached the cloud server");
+        assert!(summaries(&local) >= 1, "the local model summarised");
+        assert!(asks(&local).iter().all(|j| j["model"] == "qwen3"));
+        assert!(!r.hints.compactions().is_empty());
+    }
+
+    #[test]
+    fn a_local_only_folder_without_a_local_model_is_refused_not_compacted_in_the_cloud() {
+        let cloud = MockServer::start(|_, _| Reply::answer(&["LEAK"]));
+        let r = rig("cmp-none-local", cloud.base_url());
+        let f = r
+            .vault
+            .create_folder(NewFolder {
+                title: "secret".into(),
+                tags: vec![],
+                allow_cloud: false,
+                instructions: String::new(),
+            })
+            .unwrap()
+            .id;
+        assert_eq!(
+            run(&r, &request(f, vec![])).unwrap_err().code,
+            ErrorCode::LocalOnlyBlocked
+        );
+        assert!(cloud.requests().is_empty());
     }
 }
