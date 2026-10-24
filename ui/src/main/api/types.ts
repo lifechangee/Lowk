@@ -212,6 +212,8 @@ export interface Backend {
   secretCheck(provider: SecretProvider): Promise<{ ok: boolean; balance?: string; error?: AppError }>;
   pickVaultDir(): Promise<string | null>;
   revealPath(path: string): Promise<void>;
+  /** Opens the folder with lowk.log (support). */
+  logsReveal(): Promise<void>;
   bindReport(): Promise<BindReport>;
 
   sessionStart(opts: StartOpts): Promise<SessionState>;

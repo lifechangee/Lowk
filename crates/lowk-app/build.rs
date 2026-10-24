@@ -12,6 +12,8 @@ const COMMANDS: &[&str] = &[
     "app_relaunch",
     "main_open",
     "update_check",
+    "path_reveal",
+    "logs_reveal",
     "vault_open",
     "vault_info",
     "folder_list",

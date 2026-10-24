@@ -27,6 +27,10 @@ export const commands = {
 	mainOpen: () => __TAURI_INVOKE<void>("main_open"),
 	/**  Updater skeleton: the plugin is not wired until the minisign key exists. */
 	updateCheck: () => typedError<UpdateStatus, AppError>(__TAURI_INVOKE("update_check")),
+	/**  Shows a vault / document path in the file manager (Explorer on Windows, Finder on macOS). */
+	pathReveal: (path: string) => typedError<null, AppError>(__TAURI_INVOKE("path_reveal", { path })),
+	/**  Opens the folder with `lowk.log` (and `lowk.prev.log`): what the owner sends us when something breaks. */
+	logsReveal: () => typedError<null, AppError>(__TAURI_INVOKE("logs_reveal")),
 	vaultOpen: (path: string | null) => typedError<VaultInfo, AppError>(__TAURI_INVOKE("vault_open", { path })),
 	vaultInfo: () => __TAURI_INVOKE<{
 	/**  Absolute path of the open vault. */

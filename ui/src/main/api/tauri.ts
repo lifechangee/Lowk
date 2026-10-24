@@ -64,6 +64,8 @@ export class TauriBackend extends MockBackend {
   override async callRename(id: string, title: string): Promise<void> { ok(await commands.callRename(id, title)); }
   override async trashEmpty(): Promise<void> { ok(await commands.trashEmpty()); }
   override async exportMarkdown(id: string): Promise<string> { return ok(await commands.callGetMd(id)); }
+  override async revealPath(path: string): Promise<void> { ok(await commands.pathReveal(path)); }
+  override async logsReveal(): Promise<void> { ok(await commands.logsReveal()); }
   override async sourceList(): Promise<SourceInfo[]> { return ok(await commands.sourceList()); }
   override async sourceListInstalled(): Promise<SourceInfo[]> { return ok(await commands.sourceListInstalled()); }
   override async engines(): Promise<EngineDescriptor[]> { return commands.engineList(); }

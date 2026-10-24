@@ -72,13 +72,12 @@ fn log_file() -> Option<std::fs::File> {
     std::fs::create_dir_all(&dir).ok()?;
     let path = dir.join("lowk.log");
     let big = std::fs::metadata(&path).is_ok_and(|m| m.len() > 2_000_000);
-    let mut o = std::fs::OpenOptions::new();
-    o.create(true).write(true);
     if big {
-        o.truncate(true);
-    } else {
-        o.append(true);
+        // keep the previous run's log next to the new one (the owner sends both)
+        let _ = std::fs::rename(&path, dir.join("lowk.prev.log"));
     }
+    let mut o = std::fs::OpenOptions::new();
+    o.create(true).append(true);
     o.open(path).ok()
 }
 

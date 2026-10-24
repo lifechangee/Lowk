@@ -26,6 +26,8 @@ macro_rules! all_commands {
             crate::commands::settings::app_relaunch,
             crate::commands::settings::main_open,
             crate::commands::settings::update_check,
+            crate::commands::settings::path_reveal,
+            crate::commands::settings::logs_reveal,
             crate::commands::vault::vault_open,
             crate::commands::vault::vault_info,
             crate::commands::vault::folder_list,

@@ -232,6 +232,7 @@ export class MockBackend implements Backend {
   }
   async pickVaultDir(): Promise<string | null> { return this.#os === 'windows' ? 'D:\\Notes\\Lowk' : '~/Obsidian/Lowk'; }
   async revealPath(_path: string): Promise<void> { await delay(); }
+  async logsReveal(): Promise<void> { await delay(); }
   async bindReport(): Promise<BindReport> {
     return {
       entries: (this.#settings.binds ?? []).map((b) => ({

@@ -33,6 +33,11 @@ plist = "1"
 [target.'cfg(windows)'.dependencies]
 wasapi.workspace = true
 sysinfo.workspace = true
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_UI_WindowsAndMessaging",
+] }
 
 [lints]
 workspace = true

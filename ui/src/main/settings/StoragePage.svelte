@@ -22,6 +22,9 @@
 <SettingRow label={tm('main.unsorted')} hint={tm('m.unsortedDirHint')}><code class="dir lbl">{prefs.value.vault?.unsorted_dir ?? 'Unsorted'}</code></SettingRow>
 <SettingRow label={tm('main.trash')} hint={tm('m.trashDirHint')}><code class="dir lbl">.lowk/{prefs.value.vault?.trash_dir ?? 'trash'}</code></SettingRow>
 <p class="note">{tm('m.vaultNote')}</p>
+<SettingRow label={tm('m.logs')} hint={tm('m.logsHint')}>
+  <Button icon="external" onclick={() => api.logsReveal().catch(() => ui.notify(tm('m.logsMissing')))}>{tm('m.logsOpen')}</Button>
+</SettingRow>
 
 <h2 class="gap">{tm('transfer.title')}</h2>
 <TransferCard />

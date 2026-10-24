@@ -99,6 +99,33 @@ pub fn drain_stderr(child: &mut Child, tag: &'static str) {
     }
 }
 
+/// One line per worker start: which compute backend the model landed on. A CPU run on a machine that
+/// should have a GPU (Windows builds ship Vulkan) is called out explicitly: it is the first thing to check
+/// when the live text lags.
+pub fn backend_note(backend: &str) -> (bool, String) {
+    let b = backend.trim().to_lowercase();
+    if b.is_empty() || b == "cpu" || b.starts_with("cpu") {
+        (
+            true,
+            format!(
+                "STT worker runs on the CPU (backend '{backend}'): no GPU backend available (no Vulkan/CUDA driver, \
+                 or a CPU-only worker build). Live text may lag; the Deepgram cloud engine is the fallback."
+            ),
+        )
+    } else {
+        (false, format!("STT worker runs on the GPU backend '{backend}'"))
+    }
+}
+
+fn log_backend(stream: Stream, backend: &str) {
+    let (cpu, msg) = backend_note(backend);
+    if cpu && cfg!(windows) {
+        tracing::warn!(?stream, "{msg}");
+    } else {
+        tracing::info!(?stream, "{msg}");
+    }
+}
+
 enum Out {
     Audio(MonoNs, Vec<f32>),
     Flush,
@@ -309,7 +336,10 @@ fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Rece
                         continue;
                     };
                     match v["ev"].as_str() {
-                        Some("ready") => sh.ready.store(true, Ordering::SeqCst),
+                        Some("ready") => {
+                            log_backend(stream, v["backend"].as_str().unwrap_or(""));
+                            sh.ready.store(true, Ordering::SeqCst)
+                        }
                         Some("ack") => {
                             if let Some(t) = v["t_ns"].as_u64() {
                                 sh.stats.note_acked(t);
@@ -417,6 +447,15 @@ mod tests {
     use super::*;
     #[cfg(unix)]
     use lowk_types::fakes::arc_sink;
+
+    #[test]
+    fn backend_note_flags_cpu() {
+        assert!(backend_note("cpu").0);
+        assert!(backend_note("").0);
+        assert!(backend_note("CPU").1.contains("CPU"));
+        assert!(!backend_note("vulkan").0);
+        assert!(!backend_note("metal").0);
+    }
 
     #[test]
     fn framing_roundtrip() {

@@ -35,16 +35,67 @@ fn err(what: &str, e: impl std::fmt::Debug) -> AppError {
     AppError::new(ErrorCode::AudioDevice).with_detail(format!("{what}: {e:?}"))
 }
 
-/// Walk up while the parent runs the same exe: root of the app's process tree.
+/// Root of the app's process tree (walk parents while the exe name matches).
 fn tree_root(sys: &System, pid: u32) -> u32 {
-    let mut cur = Pid::from_u32(pid);
-    while let Some(p) = sys.process(cur) {
-        match p.parent().and_then(|pp| sys.process(pp)) {
-            Some(parent) if parent.name() == p.name() => cur = parent.pid(),
-            _ => break,
+    crate::proc_tree::tree_root(pid, |p| {
+        sys.process(Pid::from_u32(p)).map(|pr| {
+            (
+                pr.parent().map(|pp| pp.as_u32()),
+                pr.name().to_string_lossy().into_owned(),
+            )
+        })
+    })
+}
+
+/// Human name of an exe: the version-resource FileDescription / ProductName ("Kontur Talk"),
+/// falling back to the file stem. Never fails.
+fn display_name(exe: &str, fallback: &str) -> String {
+    use windows::core::{w, HSTRING, PCWSTR};
+    use windows::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
+    if exe.is_empty() {
+        return fallback.to_string();
+    }
+    let path = HSTRING::from(exe);
+    let mut buf: Vec<u8>;
+    unsafe {
+        let n = GetFileVersionInfoSizeW(&path, None);
+        if n == 0 {
+            return fallback.to_string();
+        }
+        buf = vec![0u8; n as usize];
+        if GetFileVersionInfoW(&path, None, n, buf.as_mut_ptr().cast()).is_err() {
+            return fallback.to_string();
+        }
+        let mut tr: *mut core::ffi::c_void = std::ptr::null_mut();
+        let mut len = 0u32;
+        let lang = if VerQueryValueW(
+            buf.as_ptr().cast(),
+            w!("\\VarFileInfo\\Translation"),
+            &mut tr,
+            &mut len,
+        )
+        .as_bool()
+            && len >= 4
+        {
+            let t = std::slice::from_raw_parts(tr as *const u16, 2);
+            format!("{:04x}{:04x}", t[0], t[1])
+        } else {
+            "040904b0".to_string()
+        };
+        for key in ["FileDescription", "ProductName"] {
+            let q = HSTRING::from(format!("\\StringFileInfo\\{lang}\\{key}"));
+            let mut v: *mut core::ffi::c_void = std::ptr::null_mut();
+            let mut vl = 0u32;
+            if VerQueryValueW(buf.as_ptr().cast(), PCWSTR(q.as_ptr()), &mut v, &mut vl).as_bool() && vl > 1 {
+                let sl = std::slice::from_raw_parts(v as *const u16, vl as usize);
+                let txt = String::from_utf16_lossy(sl).trim_matches('\0').trim().to_string();
+                if !txt.is_empty() {
+                    return txt;
+                }
+            }
         }
     }
-    cur.as_u32()
+    fallback.to_string()
 }
 
 struct AppRow {
@@ -91,9 +142,16 @@ fn sessions() -> Result<Vec<AppRow>> {
                     .and_then(|p| p.exe())
                     .map(|e| e.to_string_lossy().into_owned())
                     .unwrap_or_default(),
-                name: p
-                    .map(|p| p.name().to_string_lossy().trim_end_matches(".exe").to_string())
-                    .unwrap_or_else(|| format!("pid{pid}")),
+                name: {
+                    let stem = p
+                        .map(|p| p.name().to_string_lossy().trim_end_matches(".exe").to_string())
+                        .unwrap_or_else(|| format!("pid{pid}"));
+                    let exe = p
+                        .and_then(|p| p.exe())
+                        .map(|e| e.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    display_name(&exe, &stem)
+                },
                 producing: false,
             });
             // Active is also true for muted calls; a non-zero peak means real sound.
@@ -140,10 +198,72 @@ pub fn list_sources() -> Result<Vec<SourceInfo>> {
     Ok(v)
 }
 
-/// Installed-app enumeration (Start Menu / registry) is not implemented on Windows yet; the
-/// picker shows apps that currently have an audio session.
+/// Picker part 2: apps that own a visible, titled top-level window right now (a call app can be
+/// chosen before it plays anything). Start-Menu enumeration is not implemented; this covers
+/// "app is open, call not started yet". Apps that already have an audio session are left to
+/// `list_sources`, but are included here too (the UI merges by id).
 pub fn list_installed() -> Result<Vec<SourceInfo>> {
-    Ok(vec![])
+    use windows::core::BOOL;
+    use windows::Win32::Foundation::{HWND, LPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetWindowTextLengthW, GetWindowThreadProcessId, IsWindowVisible,
+    };
+    unsafe extern "system" fn cb(h: HWND, l: LPARAM) -> BOOL {
+        // SAFETY: `l` is the address of the Vec passed to EnumWindows below.
+        let pids = unsafe { &mut *(l.0 as *mut Vec<u32>) };
+        if unsafe { IsWindowVisible(h).as_bool() && GetWindowTextLengthW(h) > 0 } {
+            let mut pid = 0u32;
+            unsafe { GetWindowThreadProcessId(h, Some(&mut pid)) };
+            if pid != 0 {
+                pids.push(pid);
+            }
+        }
+        BOOL::from(true)
+    }
+    let mut pids: Vec<u32> = vec![];
+    // SAFETY: callback only touches `pids`, which outlives the call.
+    unsafe {
+        let _ = EnumWindows(Some(cb), LPARAM(&mut pids as *mut Vec<u32> as isize));
+    }
+    let mut sys = System::new();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    let win_dir = std::env::var("SystemRoot")
+        .unwrap_or_else(|_| "C:\\Windows".into())
+        .to_lowercase();
+    let me = std::process::id();
+    let mut out: BTreeMap<u32, SourceInfo> = BTreeMap::new();
+    for pid in pids {
+        let root = tree_root(&sys, pid);
+        if root == me || out.contains_key(&root) {
+            continue;
+        }
+        let Some(p) = sys.process(Pid::from_u32(root)) else {
+            continue;
+        };
+        let exe = p
+            .exe()
+            .map(|e| e.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if exe.is_empty() || exe.to_lowercase().starts_with(&win_dir) {
+            continue; // shell, system UI, inaccessible processes
+        }
+        let stem = p.name().to_string_lossy().trim_end_matches(".exe").to_string();
+        out.insert(
+            root,
+            SourceInfo {
+                id: exe.clone(),
+                name: display_name(&exe, &stem),
+                bundle_id: String::new(),
+                pid: root,
+                icon_png_b64: None,
+                producing_audio: false,
+                kind: SourceKind::App,
+            },
+        );
+    }
+    let mut v: Vec<SourceInfo> = out.into_values().collect();
+    v.sort_by_key(|s| s.name.to_lowercase());
+    Ok(v)
 }
 
 /// Windows backend.
@@ -315,26 +435,31 @@ impl Drop for Handle {
     }
 }
 
-fn open_system(t: &Target) -> Result<AudioClient> {
+/// The client plus (for an app target) the root pid it is attached to, so a restart of the app is noticed.
+fn open_system(t: &Target) -> Result<(AudioClient, Option<u32>)> {
     match t {
         Target::App(id) => {
             let mut sys = System::new();
             sys.refresh_processes(ProcessesToUpdate::All, true);
             let pid = find_pid(&sys, id)
                 .ok_or_else(|| AppError::new(ErrorCode::AudioTargetLost).with_detail(id.clone()))?;
-            AudioClient::new_application_loopback_client(tree_root(&sys, pid), true)
+            let root = tree_root(&sys, pid);
+            AudioClient::new_application_loopback_client(root, true)
+                .map(|c| (c, Some(root)))
                 .map_err(|e| err("app loopback", e))
         }
         Target::WholeSystem => {
             match AudioClient::new_application_loopback_client(std::process::id(), false) {
-                Ok(c) => Ok(c),
+                Ok(c) => Ok((c, None)),
                 Err(e) => {
                     tracing::warn!(?e, "process loopback unavailable, using endpoint loopback");
                     let en = DeviceEnumerator::new().map_err(|e| err("enumerator", e))?;
                     let dev = en
                         .get_default_device(&Direction::Render)
                         .map_err(|e| err("default render", e))?;
-                    dev.get_iaudioclient().map_err(|e| err("render client", e))
+                    dev.get_iaudioclient()
+                        .map(|c| (c, None))
+                        .map_err(|e| err("render client", e))
                 }
             }
         }
@@ -356,7 +481,7 @@ fn find_pid(sys: &System, id: &str) -> Option<u32> {
     })
 }
 
-fn open_mic(id: Option<&str>) -> Result<AudioClient> {
+fn open_mic(id: Option<&str>) -> Result<(AudioClient, Option<u32>)> {
     let en = DeviceEnumerator::new().map_err(|e| err("enumerator", e))?;
     let dev = match id {
         Some(i) => en.get_device(i).map_err(|e| err("input device", e))?,
@@ -364,7 +489,9 @@ fn open_mic(id: Option<&str>) -> Result<AudioClient> {
             .get_default_device(&Direction::Capture)
             .map_err(|e| err("default input", e))?,
     };
-    dev.get_iaudioclient().map_err(|e| err("capture client", e))
+    dev.get_iaudioclient()
+        .map(|c| (c, None))
+        .map_err(|e| err("capture client", e))
 }
 
 fn spawn_capture(
@@ -373,7 +500,7 @@ fn spawn_capture(
     stop: Arc<AtomicBool>,
     gate: Option<Arc<AtomicBool>>,
     ready: std::sync::mpsc::Sender<Result<()>>,
-    open: impl Fn() -> Result<AudioClient> + Send + 'static,
+    open: impl Fn() -> Result<(AudioClient, Option<u32>)> + Send + 'static,
 ) -> JoinHandle<()> {
     let shared = w.shared.clone();
     // The worker hands out a fresh ring per (re)start of the WASAPI client.
@@ -398,14 +525,34 @@ fn spawn_capture(
                     std::thread::sleep(Duration::from_millis(50));
                     continue;
                 }
-                let res = open().and_then(|c| {
+                let res = open().and_then(|(c, watch)| {
                     // `c` (and its capture client) is dropped when the loop returns: the endpoint is released.
-                    capture_loop(c, attach(), &stop, &allowed, || {
+                    // An app target whose root process died (app restarted) ends the loop with an error;
+                    // the retry below then re-resolves the app by its exe and re-attaches.
+                    let checked = std::cell::Cell::new(Instant::now());
+                    let alive = std::cell::Cell::new(true);
+                    let keep = || {
+                        if let Some(pid) = watch {
+                            if alive.get() && checked.get().elapsed() >= Duration::from_secs(1) {
+                                checked.set(Instant::now());
+                                let mut sys = System::new();
+                                sys.refresh_processes(ProcessesToUpdate::Some(&[Pid::from_u32(pid)]), true);
+                                alive.set(sys.process(Pid::from_u32(pid)).is_some());
+                            }
+                        }
+                        allowed() && alive.get()
+                    };
+                    let r = capture_loop(c, attach(), &stop, &keep, || {
                         if first {
                             first = false;
                             let _ = ready.send(Ok(()));
                         }
-                    })
+                    });
+                    if !alive.get() {
+                        tracing::info!(pid = ?watch, "captured app exited, waiting for it to come back");
+                        return r.and(Err(AppError::new(ErrorCode::AudioTargetLost)));
+                    }
+                    r
                 });
                 if let Err(e) = res {
                     if first {

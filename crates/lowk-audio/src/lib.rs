@@ -11,6 +11,7 @@ pub mod aec;
 pub mod file;
 pub mod pipeline;
 pub mod pipeline_file;
+mod proc_tree;
 
 #[cfg(target_os = "macos")]
 pub mod mac;

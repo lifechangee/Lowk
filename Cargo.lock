@@ -2929,6 +2929,7 @@ dependencies = [
  "tracing-subscriber",
  "wasapi",
  "webrtc-audio-processing",
+ "windows",
 ]
 
 [[package]]

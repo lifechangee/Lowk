@@ -93,6 +93,8 @@
     "allow-stealth-status",
     "allow-stt-diagnostics",
     "allow-trash-empty",
+    "allow-logs-reveal",
+    "allow-path-reveal",
     "allow-update-check",
     "allow-vault-info",
     "allow-vault-open"

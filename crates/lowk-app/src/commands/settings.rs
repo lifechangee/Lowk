@@ -97,6 +97,67 @@ pub fn app_relaunch(st: State<'_, Shared>) {
     st.app.restart();
 }
 
+/// `explorer.exe` argument that selects `p` (or opens it when it is a folder). Windows quoting: the
+/// whole `/select,"..."` is passed raw so Cyrillic / spaces survive; `"` cannot occur in a path.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn explorer_arg(p: &std::path::Path) -> String {
+    let s = p.display().to_string().replace('/', "\\").replace('"', "");
+    if p.is_dir() {
+        format!("\"{s}\"")
+    } else {
+        format!("/select,\"{s}\"")
+    }
+}
+
+fn reveal(p: &std::path::Path) -> Result<()> {
+    if !p.exists() {
+        return Err(AppError::new(ErrorCode::NotFound).with_detail(p.display().to_string()));
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // explorer.exe exits with 1 even on success: ignore the status.
+        std::process::Command::new("explorer.exe")
+            .raw_arg(explorer_arg(p))
+            .creation_flags(0x0800_0000)
+            .spawn()
+            .map_err(|e| AppError::new(ErrorCode::Io).with_detail(e.to_string()))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let mut c = std::process::Command::new("/usr/bin/open");
+        if p.is_dir() {
+            c.arg(p);
+        } else {
+            c.arg("-R").arg(p);
+        }
+        c.spawn()
+            .map_err(|e| AppError::new(ErrorCode::Io).with_detail(e.to_string()))?;
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        let dir = if p.is_dir() { p } else { p.parent().unwrap_or(p) };
+        let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
+    }
+    Ok(())
+}
+
+/// Shows a vault / document path in the file manager (Explorer on Windows, Finder on macOS).
+#[tauri::command(async)]
+#[specta::specta]
+pub fn path_reveal(path: String) -> Result<()> {
+    reveal(&crate::state::resolve_vault_path(&path)?)
+}
+
+/// Opens the folder with `lowk.log` (and `lowk.prev.log`): what the owner sends us when something breaks.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn logs_reveal() -> Result<()> {
+    let dir = crate::state::data_dir()?;
+    let log = dir.join("lowk.log");
+    reveal(if log.exists() { &log } else { &dir })
+}
+
 /// Opens (or focuses) the main window; used by the second-instance handler,
 /// the Dock reopen event and the overlay.
 #[tauri::command]
@@ -123,4 +184,28 @@ pub fn update_check(st: State<'_, Shared>) -> Result<UpdateStatus> {
         current: env!("CARGO_PKG_VERSION").into(),
         available: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn explorer_arg_quotes_cyrillic_and_spaces() {
+        let d = std::env::temp_dir();
+        assert_eq!(
+            explorer_arg(&d),
+            format!("\"{}\"", d.display().to_string().replace('/', "\\"))
+        );
+        let f = std::path::Path::new("C:/Users/Иван Петров/AppData/Roaming/Lowk/lowk.log");
+        assert_eq!(
+            explorer_arg(f),
+            "/select,\"C:\\Users\\Иван Петров\\AppData\\Roaming\\Lowk\\lowk.log\""
+        );
+    }
+
+    #[test]
+    fn reveal_of_a_missing_path_is_an_error() {
+        assert!(reveal(std::path::Path::new("/definitely/not/here/lowk")).is_err());
+    }
 }
