@@ -5,6 +5,7 @@
   import Select from '../../lib/components/Select.svelte';
   import TextInput from '../../lib/components/TextInput.svelte';
   import Toggle from '../../lib/components/Toggle.svelte';
+  import Button from '../../lib/components/Button.svelte';
   import { api } from '../api';
   import { tm } from '../i18n';
   import { prefs } from '../state.svelte';
@@ -82,7 +83,7 @@
 <div class="detect" data-testid="local-detect">
   <div class="detect-head">
     <strong>{tm('m.detectTitle')}</strong>
-    <button type="button" class="btn" disabled={detecting} onclick={detect}>{detecting ? tm('m.detecting') : tm('m.detectLocal')}</button>
+    <Button size="sm" icon="refresh" disabled={detecting} onclick={detect}>{detecting ? tm('m.detecting') : tm('m.detectLocal')}</Button>
   </div>
   {#if detected && found.length === 0}
     <p class="empty" data-testid="local-empty">{tm('m.detectEmpty')}
@@ -94,7 +95,7 @@
       <span class="sname">{kindName(s.kind)} <code>{s.base_url}</code></span>
       {#if s.models.length === 0}<span class="muted">{tm('m.detectNoModels')}</span>{/if}
       {#each s.models as m (m.name)}
-        <button type="button" class="btn model" data-testid="local-model" onclick={() => useModel(s, m.name, m.vision)}>{m.name}{m.vision ? ' · ' + tm('m.detectVision') : ''}</button>
+        <span data-testid="local-model"><Button size="sm" onclick={() => useModel(s, m.name, m.vision)}>{m.name}{m.vision ? ' · ' + tm('m.detectVision') : ''}</Button></span>
       {/each}
     </div>
   {/each}
@@ -120,7 +121,7 @@
 <style>
   h2 { font: 600 var(--fs-lg) var(--font); margin: 0 0 var(--s2); }
   .gap { margin-top: var(--s8); }
-  .detect { display: grid; gap: var(--s2); margin: var(--s3) 0; padding: var(--s3); border: 1px solid var(--border, currentColor); border-radius: var(--r2, 8px); }
+  .detect { display: grid; gap: var(--s2); margin: var(--s3) 0; padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r); }
   .detect-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); }
   .server { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
   .empty, .muted { margin: 0; opacity: 0.75; }
