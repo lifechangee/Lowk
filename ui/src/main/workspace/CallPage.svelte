@@ -388,7 +388,8 @@
   .mx { max-width: 200px; }
   .d { width: 3px; height: 3px; border-radius: 50%; background: var(--tx3); }
   .retx { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); min-width: 0; }
-  .retx .rt { font-size: 12px; color: var(--tx2); min-width: 0; }
+  .retx > :global(button) { flex-shrink: 0; }
+  .retx .rt { font-size: 12px; color: var(--tx2); min-width: 0; white-space: normal; overflow: visible; }
   .retx .rb { all: unset; cursor: pointer; font-size: 12px; color: var(--ac); }
   .retx .rb:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; border-radius: 2px; }
   .rp { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }
