@@ -487,3 +487,132 @@ fn empty_trash_purges_calls_inside_a_trashed_folder() {
     v.empty_trash().unwrap();
     assert_eq!(saved(d.path(), &c), (false, false));
 }
+
+/// Owner bug: an image Ask whose question was empty lost its `[!lowk-qa]` callout next to the `[!lowk-image]`.
+#[test]
+fn image_ask_qa_with_empty_question_is_in_the_md_and_reads_back() {
+    let (d, v) = open();
+    let mut w = v
+        .begin_call_with_clock(new_call(FolderRef::Unsorted), clock())
+        .unwrap();
+    w.push(fin(Stream::System, 3, "Привет")).unwrap();
+    let qa = Ulid::new();
+    let rel = w.save_asset("000010-ask-x-1.png", &[1, 2, 3]).unwrap();
+    w.push(CallEntry::Image {
+        at_s: 10,
+        rel_path: rel,
+        source: format!("ask:{qa}"),
+        caption: String::new(),
+    })
+    .unwrap();
+    w.push(CallEntry::Qa {
+        id: qa,
+        at_s: 10,
+        template: "brief".into(),
+        model: "m".into(),
+        range: "00:00:00-00:00:10".into(),
+        question: String::new(),
+        answer: "Ответ по скриншоту".into(),
+    })
+    .unwrap();
+    let meta = w.finish_at("2026-10-19T10:31:12+03:00".into()).unwrap();
+    let doc = v.read_call_doc(&meta.id).unwrap();
+    let qas = doc
+        .blocks()
+        .iter()
+        .filter(|b| matches!(b, lowk_store::call_codec::Block::Qa(_)))
+        .count();
+    assert_eq!(qas, 1, "{:?}", doc.blocks());
+    let md: String = walk(d.path());
+    assert!(md.contains("[!lowk-qa]") && md.contains("[!lowk-image]"), "{md}");
+}
+
+fn walk(p: &std::path::Path) -> String {
+    let mut s = String::new();
+    for e in fs::read_dir(p).unwrap().flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            s += &walk(&p);
+        } else if p.extension().is_some_and(|x| x == "md") {
+            s += &fs::read_to_string(&p).unwrap();
+        }
+    }
+    s
+}
+
+/// Owner bug: a call left in the recording state by a crash stayed «идёт запись» forever.
+#[test]
+fn startup_reconcile_finishes_calls_left_recording() {
+    let d = tempfile::tempdir().unwrap();
+    let id;
+    {
+        let v = Vault::open(d.path()).unwrap();
+        let mut w = v
+            .begin_call_with_clock(new_call(FolderRef::Unsorted), clock())
+            .unwrap();
+        id = w.id();
+        w.push(fin(Stream::Me, 3, "Привет")).unwrap();
+        w.push(fin(Stream::System, 9, "Да")).unwrap();
+        w.materialize().unwrap();
+        std::mem::forget(w); // killed: no End line, journal stays
+    }
+    let v = Vault::open(d.path()).unwrap();
+    assert!(v
+        .calls(None)
+        .unwrap()
+        .iter()
+        .any(|c| c.id == id && c.ended.is_none()));
+    assert_eq!(v.reconcile_stale_recordings().unwrap(), vec![id]);
+    let c = v.calls(None).unwrap().into_iter().find(|c| c.id == id).unwrap();
+    assert!(c.ended.is_some() && c.duration_s.is_some_and(|s| s >= 9), "{c:?}");
+    assert!(v.recoverable_calls().unwrap().is_empty());
+    assert!(v.reconcile_stale_recordings().unwrap().is_empty(), "idempotent");
+}
+
+/// Same, when the journal is gone and only the unfinished `.md` is left.
+#[test]
+fn startup_reconcile_finishes_a_journalless_unfinished_md() {
+    let d = tempfile::tempdir().unwrap();
+    let id;
+    {
+        let v = Vault::open(d.path()).unwrap();
+        let mut w = v
+            .begin_call_with_clock(new_call(FolderRef::Unsorted), clock())
+            .unwrap();
+        id = w.id();
+        w.push(fin(Stream::Me, 3, "Привет")).unwrap();
+        w.materialize().unwrap();
+        std::mem::forget(w);
+        let live = d.path().join(".lowk/state/live");
+        for e in fs::read_dir(live).unwrap().flatten() {
+            fs::remove_file(e.path()).unwrap();
+        }
+    }
+    let v = Vault::open(d.path()).unwrap();
+    assert_eq!(v.reconcile_stale_recordings().unwrap(), vec![id]);
+    let c = v.calls(None).unwrap().into_iter().find(|c| c.id == id).unwrap();
+    assert!(c.ended.is_some());
+}
+
+/// Owner bug: the sidebar «Корзина» counted 6 right after a recording started although the trash was empty.
+/// The library list comes from one scan and only trashed calls are `deleted`, also while a call is being written.
+#[test]
+fn library_list_never_marks_active_or_recording_calls_deleted() {
+    let (_d, v) = open();
+    let m1 = record(&v, FolderRef::Unsorted);
+    let mut w = v
+        .begin_call_with_clock(new_call(FolderRef::Unsorted), clock())
+        .unwrap();
+    w.push(fin(Stream::Me, 3, "идёт запись")).unwrap();
+    w.materialize().unwrap();
+    for _ in 0..5 {
+        let all = v.calls_with_trash().unwrap();
+        assert_eq!(all.len(), 2);
+        assert!(all.iter().all(|c| !c.deleted), "{all:?}");
+    }
+    v.delete(&m1.id).unwrap();
+    let all = v.calls_with_trash().unwrap();
+    assert_eq!(all.iter().filter(|c| c.deleted).count(), 1);
+    assert_eq!(v.calls(None).unwrap().len(), 1);
+    drop(w);
+}

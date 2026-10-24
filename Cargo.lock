@@ -2993,6 +2993,8 @@ name = "lowk-input"
 version = "0.0.1"
 dependencies = [
  "lowk-types",
+ "serde_json",
+ "toml 1.1.8+spec-1.1.0",
  "windows",
 ]
 

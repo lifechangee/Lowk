@@ -149,3 +149,84 @@ pub(crate) mod fake {
         }
     }
 }
+
+/// Owner bug: ⌘⇧S opened the area selection (`ScreenshotArea`). The owner's real `settings.toml` binds
+/// `screenshot` to ⌘⇧S and `screenshot_area` to ⌘⇧A; every layer from the file to the registered shortcut and
+/// the low-level matcher must keep that mapping.
+#[cfg(test)]
+mod owner_binds {
+    use super::fake::FakeRegistrar;
+    use super::*;
+    use crate::matcher::{Matcher, Raw};
+    use lowk_types::Settings;
+
+    fn owner_binds() -> Vec<BindSpec> {
+        let text = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../lowk-store/tests/fixtures/owner-settings.toml"
+        ))
+        .unwrap();
+        let t: toml::Value = toml::from_str(&text).unwrap();
+        let s: Settings = serde_json::from_value(serde_json::to_value(t).unwrap()).unwrap();
+        s.binds
+    }
+
+    #[test]
+    fn owner_toml_registers_cmd_shift_s_for_screenshot_and_cmd_shift_a_for_area() {
+        let binds = owner_binds();
+        let reg = FakeRegistrar::default();
+        let registered = reg.registered.clone();
+        let mut c = ComboBackend::new(Box::new(reg));
+        let rep = c.set_binds(&binds).unwrap();
+        assert!(rep
+            .entries
+            .iter()
+            .filter(|e| matches!(e.action, ActionId::Screenshot | ActionId::ScreenshotArea))
+            .all(|e| e.status == BindStatus::Active));
+        let reg = registered.lock().unwrap();
+        let key_of = |a: ActionId| reg.iter().find(|r| r.0 == a).map(|r| (r.1, r.2.clone()));
+        assert_eq!(
+            key_of(ActionId::Screenshot),
+            Some((Mods::META_SHIFT, "KeyS".into()))
+        );
+        assert_eq!(
+            key_of(ActionId::ScreenshotArea),
+            Some((Mods::META_SHIFT, "KeyA".into()))
+        );
+    }
+
+    #[test]
+    fn owner_toml_binds_dispatch_screenshot_for_cmd_shift_s_and_area_for_cmd_shift_a() {
+        let mut m = Matcher::default();
+        m.set_binds(owner_binds());
+        let key = |code: &'static str, down| Raw::Key {
+            code,
+            down,
+            repeat: false,
+        };
+        m.handle(Raw::Mods(Mods::META_SHIFT));
+        let fired =
+            |o: crate::matcher::Outcome| o.events.iter().map(|e| (e.action, e.phase)).collect::<Vec<_>>();
+        assert_eq!(
+            fired(m.handle(key("KeyS", true))),
+            vec![(ActionId::Screenshot, Phase::Down)]
+        );
+        assert_eq!(
+            fired(m.handle(key("KeyS", false))),
+            vec![(ActionId::Screenshot, Phase::Up)]
+        );
+        assert_eq!(
+            fired(m.handle(key("KeyA", true))),
+            vec![(ActionId::ScreenshotArea, Phase::Down)]
+        );
+        assert_eq!(
+            fired(m.handle(key("KeyA", false))),
+            vec![(ActionId::ScreenshotArea, Phase::Up)]
+        );
+        // the physical key codes behind them (macOS kVK / Windows VK) name the same keys
+        assert_eq!(crate::keys::from_mac_vk(1), "KeyS");
+        assert_eq!(crate::keys::from_mac_vk(0), "KeyA");
+        assert_eq!(crate::keys::from_win_vk(0x53), "KeyS");
+        assert_eq!(crate::keys::from_win_vk(0x41), "KeyA");
+    }
+}

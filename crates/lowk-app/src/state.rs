@@ -177,6 +177,17 @@ impl AppState {
         let want = path.unwrap_or_else(|| self.settings.get().vault.path);
         let dir = resolve_vault_path(&want)?;
         let vault = Vault::open(&dir)?;
+        // A call left in the recording state by a crash / kill must not stay «идёт запись» forever.
+        // Never while a session is running: a re-open of the same vault would finish the live call.
+        if self.session.state().phase == SessionPhase::Idle {
+            match vault.reconcile_stale_recordings() {
+                Ok(ids) if !ids.is_empty() => {
+                    tracing::info!(calls = ids.len(), "finished calls left recording")
+                }
+                Ok(_) => {}
+                Err(e) => tracing::warn!(?e, "stale recordings could not be reconciled"),
+            }
+        }
         let info = VaultInfo {
             path: vault.root().display().to_string(),
         };

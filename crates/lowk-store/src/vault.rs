@@ -646,6 +646,19 @@ impl VaultInner {
         }
     }
 
+    /// Active calls plus the trashed ones from ONE scan (two scans could disagree about a call being written).
+    /// `deleted` is true exactly for the calls in the trash.
+    pub fn calls_with_trash(&self) -> Result<Vec<CallMeta>> {
+        Ok(self
+            .scan_calls()?
+            .into_iter()
+            .map(|mut c| {
+                c.deleted = c.folder == FolderRef::Trash;
+                c
+            })
+            .collect())
+    }
+
     pub fn calls_in(&self, folder: &FolderRef) -> Result<Vec<CallMeta>> {
         Ok(self
             .scan_calls()?

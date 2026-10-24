@@ -204,7 +204,7 @@ export const m = {
   'm.micAutoHeld': 'Auto: the call app is using the microphone, so it is recording.',
   'm.micAutoIdle': 'Auto: the call app is not using the microphone, so it is closed.',
   'm.micAutoLimit': 'The mute button inside Zoom/Tolk is not visible to the system.',
-  'm.micMuted': 'Microphone off',
+  'm.micLabel': 'Microphone',
   'm.act.toggle_mic': 'Microphone on / off',
   'm.act.toggle_mic.hint': 'during a recording, without stopping it',
   'm.toneMode': 'Overlay text colour',

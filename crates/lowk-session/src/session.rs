@@ -618,6 +618,15 @@ impl Session {
                 if images.is_empty() && template.vision {
                     images = me.deps.shots.capture_if_empty();
                 }
+                // Nothing typed and nothing said since the last Ask: the Q&A (and the image caption) still
+                // records what was asked, so the callout is never an empty question.
+                if question.trim().is_empty() && !images.is_empty() {
+                    let label = match settings.ui.language {
+                        UiLanguage::En => "(screenshot)",
+                        _ => "(скриншот)",
+                    };
+                    me.core().pending_q.insert(qa_id, label.to_owned());
+                }
                 let pack = match &folder {
                     FolderRef::User(fid) => me
                         .deps

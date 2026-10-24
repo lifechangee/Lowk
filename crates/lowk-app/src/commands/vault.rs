@@ -128,12 +128,11 @@ pub fn call_list(
     match folder {
         Some(f) => v.calls_in(&f),
         None => {
-            let mut all = v.calls(None)?;
             if include_deleted {
-                all.extend(v.calls_in(&FolderRef::Trash)?);
-                all.sort_by(|a, b| b.started.cmp(&a.started).then(a.id.cmp(&b.id)));
+                v.calls_with_trash()
+            } else {
+                v.calls(None)
             }
-            Ok(all)
         }
     }
 }

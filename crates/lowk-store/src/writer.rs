@@ -596,6 +596,42 @@ impl Vault {
             .ok_or_else(|| err(ErrorCode::NotFound, "recovered call not found"))
     }
 
+    /// Startup reconcile: a call left in the recording state (`ended` unset) that no live writer owns
+    /// (the app crashed or was killed) is finished. A leftover journal is replayed (`recover_call`);
+    /// without one the end is the last timestamp found in the file. Returns the ids that were finished.
+    pub fn reconcile_stale_recordings(&self) -> Result<Vec<Ulid>> {
+        let mut done = vec![];
+        for r in self.recoverable_calls()? {
+            if self.recover_call(&r.id).is_ok() {
+                done.push(r.id);
+            }
+        }
+        for c in self.calls(None)? {
+            if c.ended.is_some() || self.live.lock().contains(&c.id) {
+                continue;
+            }
+            let upd = self.update_call(&c.id, |d| {
+                let last = d
+                    .blocks()
+                    .iter()
+                    .map(|b| match b {
+                        Block::Turn { at_s, .. } | Block::Marker { at_s, .. } => *at_s,
+                        Block::Qa(q) => q.at_s.max(q.my_answer.as_ref().map_or(0, |a| a.0)),
+                        Block::Image(i) => i.at_s,
+                        _ => 0,
+                    })
+                    .max()
+                    .unwrap_or(0);
+                d.fm.ended = Some(add_secs(&d.fm.started, u64::from(last)));
+                d.fm.duration_s = Some(u64::from(last));
+            });
+            if upd.is_ok() {
+                done.push(c.id);
+            }
+        }
+        Ok(done)
+    }
+
     /// Drop a journal without recovering it (user chose "discard").
     pub fn discard_recovery(&self, id: &Ulid) -> Result<()> {
         let jp = self.live_dir().join(format!("{id}.jsonl"));

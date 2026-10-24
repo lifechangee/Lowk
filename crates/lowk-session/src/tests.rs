@@ -1400,3 +1400,27 @@ fn manual_choice_leaves_auto_and_auto_can_be_chosen_mid_call() {
     r.session.stop().unwrap();
     assert_eq!(marker_texts(&r), vec!["Микрофон выключен", "Микрофон включён"]);
 }
+
+/// Owner bug: an image Ask with nothing typed and nothing said since the last Ask still records its Q&A
+/// (question «(скриншот)») next to the linked image.
+#[test]
+fn image_ask_without_question_text_still_writes_the_qa() {
+    let (r, _shots, _h) = shot_rig(false);
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    r.session.ask(brief(None)).unwrap();
+    wait_llm_end(&rx);
+    let entries = r.store.entries.lock().unwrap().clone();
+    let qa = entries
+        .iter()
+        .find_map(|e| match e {
+            CallEntry::Qa { id, question, .. } => Some((id.to_string(), question.clone())),
+            _ => None,
+        })
+        .expect("the Q&A of the image Ask is journalled");
+    assert_eq!(qa.1, "(скриншот)");
+    assert!(entries
+        .iter()
+        .any(|e| matches!(e, CallEntry::Image { source, caption, .. } if *source == format!("ask:{}", qa.0) && caption == "(скриншот)")));
+    r.session.stop().unwrap();
+}

@@ -10,7 +10,11 @@ fn quoted(s: &str) -> BTreeSet<String> {
     s.split('"')
         .skip(1)
         .step_by(2)
-        .filter(|w| !w.is_empty() && w.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_'))
+        .filter(|w| {
+            !w.is_empty()
+                && w.bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+        })
         .map(str::to_string)
         .collect()
 }
@@ -22,7 +26,10 @@ fn every_command_is_declared_and_allowed_for_a_window() {
     let registered: BTreeSet<String> = read("src/commands/mod.rs")
         .split("crate::commands::")
         .skip(1)
-        .filter_map(|s| s.split(|c: char| c == ',' || c.is_whitespace() || c == ']').next())
+        .filter_map(|s| {
+            s.split(|c: char| c == ',' || c.is_whitespace() || c == ']')
+                .next()
+        })
         .filter_map(|s| s.rsplit("::").next().map(str::to_string))
         .collect();
     assert!(registered.len() > 50, "parsed {} commands", registered.len());
@@ -40,5 +47,8 @@ fn every_command_is_declared_and_allowed_for_a_window() {
         .iter()
         .filter(|c| !allowed.contains(*c) && !BACKEND_ONLY.contains(&c.as_str()))
         .collect();
-    assert!(unallowed.is_empty(), "not allowed for any window (capabilities/*.json): {unallowed:?}");
+    assert!(
+        unallowed.is_empty(),
+        "not allowed for any window (capabilities/*.json): {unallowed:?}"
+    );
 }

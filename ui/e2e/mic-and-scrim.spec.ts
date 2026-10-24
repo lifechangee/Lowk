@@ -42,7 +42,7 @@ test('main window: the live bar mic control switches the microphone without stop
   await expect(mic).toHaveAttribute('aria-pressed', 'true');
   await mic.click();
   await expect(mic).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('.livebar')).toContainText('Microphone off');
+  await expect(mic).toHaveAttribute('aria-label', 'Turn microphone on');
   await expect(page.locator('.recpill')).toHaveCount(1); // still recording
   await mic.click();
   await expect(mic).toHaveAttribute('aria-pressed', 'true');

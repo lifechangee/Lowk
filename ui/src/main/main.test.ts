@@ -187,3 +187,17 @@ describe('microphone toggle and adaptive scrim', () => {
     expect(ru['m.adaptiveScrimHint']).toContain('Запись экрана');
   });
 });
+
+describe('library trash counter', () => {
+  const call = (id: string, over: Record<string, unknown> = {}) => ({ id, title: id, folder: { kind: 'unsorted' }, started: '2026-10-20T10:00:00+03:00', ended: null, duration_s: null, languages: [], tags: [], sources: { me: null, system: null }, stt_engine: null, path: '', deleted: false, ...over }) as never;
+  it('counts only trashed calls, once each, also while a recording is in the list', async () => {
+    const { library, dedupe } = await import('./state.svelte');
+    library.calls = dedupe([call('a'), call('b'), call('live'), call('live', { deleted: false }), call('t', { deleted: true }), call('t', { deleted: true })]);
+    expect(library.trashed.length).toBe(1);
+    expect(library.live?.id).toBe('a');
+    library.calls = dedupe([call('a'), call('a', { deleted: true })]);
+    expect(library.trashed.length).toBe(1);
+    expect(library.active.length).toBe(0);
+    library.calls = [];
+  });
+});

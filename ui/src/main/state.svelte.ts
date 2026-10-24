@@ -10,6 +10,16 @@ import { hrefs, router } from './router.svelte';
 import { tm } from './i18n';
 import { ALL_LANGS, resolve as resolveLangs, supportedBy } from './langs';
 
+/** One entry per call id (a list assembled from two scans could carry a call twice); the trashed copy wins. */
+export function dedupe(calls: CallMeta[]): CallMeta[] {
+  const m = new Map<string, CallMeta>();
+  for (const c of calls) {
+    const o = m.get(c.id);
+    if (!o || (c.deleted && !o.deleted)) m.set(c.id, c);
+  }
+  return [...m.values()];
+}
+
 class Library {
   folders = $state<FolderMeta[]>([]);
   calls = $state<CallMeta[]>([]);
@@ -19,13 +29,13 @@ class Library {
   async reload(): Promise<void> {
     const s = await api.libraryList();
     this.folders = s.folders;
-    this.calls = s.calls;
+    this.calls = dedupe(s.calls);
     this.summarized = s.summarized;
     this.loaded = true;
   }
   live = $derived(this.calls.find((c) => c.ended === null && !c.deleted) ?? null);
   active = $derived(this.calls.filter((c) => !c.deleted));
-  trashed = $derived(this.calls.filter((c) => c.deleted));
+  trashed = $derived(this.calls.filter((c) => c.deleted === true));
   recent = $derived([...this.active].sort((a, b) => b.started.localeCompare(a.started)));
   unsorted = $derived(this.active.filter((c) => c.folder.kind === 'unsorted'));
   tags = $derived.by(() => {
