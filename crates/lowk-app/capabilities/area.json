@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "area",
+  "description": "Area-selection window: reports the dragged rectangle or a cancel. No core:window permissions; Rust owns every window operation and the geometry.",
+  "windows": [
+    "area"
+  ],
+  "permissions": [
+    "core:event:default",
+    "allow-area-confirm",
+    "allow-area-cancel"
+  ]
+}

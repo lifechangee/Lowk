@@ -181,11 +181,13 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     // ---- stealth: windows are created hidden, protected before the first show ----
     let overlay = windows::build_overlay(&handle)?;
     let pill = windows::build_pill(&handle)?;
+    let area = windows::build_area(&handle)?;
     let s = settings.get();
     let raws = RawWindows {
         overlay: Some(windows::raw_window(&overlay)?),
         main: None,
         pill: Some(windows::raw_window(&pill)?),
+        area: Some(windows::raw_window(&area)?),
     };
     let tone_emitter = emitter.clone();
     match create_stealth(

@@ -8,6 +8,8 @@ pub enum WindowRole {
     Main,
     /// The unobtrusive edge strip ("pill" visibility option). Stealth like the overlay.
     Pill,
+    /// The area-selection window: stealth, but takes mouse and keys while open (never activates the app).
+    Area,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,6 +36,12 @@ impl WindowPolicy {
         hidden_from_switchers: true,
         activates: false,
     };
+    pub const AREA: WindowPolicy = WindowPolicy {
+        role: WindowRole::Area,
+        capture_excluded: true,
+        hidden_from_switchers: true,
+        activates: false,
+    };
     pub fn main(hide_main: bool) -> WindowPolicy {
         WindowPolicy {
             role: WindowRole::Main,
@@ -55,6 +63,7 @@ mod tests {
     fn overlay_and_pill_are_always_stealth() {
         assert!(WindowPolicy::OVERLAY.is_stealth());
         assert!(WindowPolicy::PILL.is_stealth());
+        assert!(WindowPolicy::AREA.is_stealth());
         const { assert!(!WindowPolicy::OVERLAY.activates) };
     }
     #[test]

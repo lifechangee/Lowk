@@ -171,11 +171,8 @@ pub fn grab_for_ask(st: &Arc<AppState>) -> Result<Vec<CapturedShot>> {
     grab_now(st)
 }
 
-// TODO(area-bind): the crosshair-drag selection overlay (transparent full-screen window excluded from
-// capture, Esc cancels) is not built yet; the backend below (`lowk_capture::capture_area`, mac + win) is ready
-// and the overlay only has to call it with the picked rect. Until then the ScreenshotArea bind grabs like Screenshot.
-#[allow(dead_code)]
-/// A rectangle picked by the area overlay (global top-left points) into the queue.
+/// A rectangle picked in the area selection (global top-left points on macOS, physical pixels on Windows)
+/// into the queue.
 pub fn capture_area_into_queue(st: &Arc<AppState>, rect: Rect) -> Result<u32> {
     #[cfg(target_os = "macos")]
     if lowk_platform::perm::status(PermKind::ScreenRecording) != PermState::Granted {
@@ -200,6 +197,22 @@ pub fn capture_screenshot(st: State<'_, Shared>) -> Result<u32> {
 #[specta::specta]
 pub fn queue_clear(st: State<'_, Shared>) -> Result<()> {
     clear_queue(&st);
+    Ok(())
+}
+
+/// Area selection result: the dragged rectangle in window pixels (the page cannot name a display or a screen
+/// position; Rust knows which display the window covers).
+#[tauri::command(async)]
+#[specta::specta]
+pub fn area_confirm(st: State<'_, Shared>, rect: Rect) -> Result<()> {
+    crate::area::confirm(&st, rect)
+}
+
+/// Esc / right-click / click without a drag.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn area_cancel(st: State<'_, Shared>) -> Result<()> {
+    crate::area::cancel(&st);
     Ok(())
 }
 

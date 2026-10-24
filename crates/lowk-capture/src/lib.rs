@@ -2,6 +2,7 @@
 //! excluded and encodes PNG + a small thumbnail; the region grabs feed the adaptive tone.
 use lowk_types::{AppError, CaptureMonitors, ErrorCode, Rect, RegionSampler, Result};
 
+pub mod area;
 pub mod frames;
 pub mod geometry;
 #[cfg(target_os = "macos")]

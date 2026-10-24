@@ -19,7 +19,7 @@ pub mod swatches;
 pub mod tone;
 
 pub use backend::{Readback, WindowBackend};
-pub use controller::{OverlayCtl, PillCtl, WindowEventKind, MAIN, OVERLAY, PILL};
+pub use controller::{AreaCtl, OverlayCtl, PillCtl, WindowEventKind, AREA, MAIN, OVERLAY, PILL};
 pub use guard::StealthGuard;
 pub use mode::{Interaction, ModeChange, ModeInput, ModeMachine};
 pub use policy::{WindowPolicy, WindowRole};
@@ -60,6 +60,7 @@ pub struct RawWindows {
     pub overlay: Option<RawWindow>,
     pub main: Option<RawWindow>,
     pub pill: Option<RawWindow>,
+    pub area: Option<RawWindow>,
 }
 
 #[derive(Clone, Copy)]
@@ -84,6 +85,8 @@ pub struct Stealth {
     pub overlay: Arc<OverlayCtl>,
     pub guard: StealthGuard,
     pub pill: Option<PillCtl>,
+    /// The area-selection window (macOS and Windows; absent when its window was not supplied).
+    pub area: Option<AreaCtl>,
     tone: Arc<ToneShared>,
     _watchdog: std::thread::JoinHandle<()>,
 }
@@ -195,6 +198,7 @@ pub fn create_stealth(
     let ob = native::make_backend(&overlay_raw)?;
     let mut main_be = None;
     let mut pill = None;
+    let mut area = None;
     // Register the main window first: its failure must never affect the overlay.
     if let Some(m) = win.main {
         let b = native::make_backend(&m)?;
@@ -206,6 +210,11 @@ pub fn create_stealth(
         let b = native::make_backend(&p)?;
         guard.protect_backend(PILL, WindowPolicy::PILL, b.clone())?;
         pill = Some(PillCtl::new(guard.clone(), main_thread.clone(), b));
+    }
+    if let Some(a) = win.area {
+        let b = native::make_backend(&a)?;
+        guard.protect_backend(AREA, WindowPolicy::AREA, b.clone())?;
+        area = Some(AreaCtl::new(guard.clone(), main_thread.clone(), b));
     }
 
     let ctl = OverlayCtl::new(guard.clone(), main_thread.clone(), ob);
@@ -220,6 +229,7 @@ pub fn create_stealth(
         overlay: ctl,
         guard,
         pill,
+        area,
         tone: Arc::new(ToneShared {
             state: Mutex::new(AdaptiveTone::new(ToneMode::Auto)),
             cb: Mutex::new(tone),

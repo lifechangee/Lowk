@@ -76,6 +76,8 @@ const COMMANDS: &[&str] = &[
     "llm_set_template",
     "capture_screenshot",
     "queue_clear",
+    "area_confirm",
+    "area_cancel",
     "doc_list",
     "doc_get",
     "doc_import",

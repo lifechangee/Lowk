@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
-// Two HTML entries (overlay, main) share src/lib. Tauri loads them by URL.
+// Three HTML entries (overlay, main, area) share src/lib. Tauri loads them by URL.
 export default defineConfig({
   plugins: [svelte()],
   clearScreen: false,
@@ -18,6 +18,7 @@ export default defineConfig({
       input: {
         overlay: resolve(root, 'overlay.html'),
         main: resolve(root, 'main.html'),
+        area: resolve(root, 'area.html'),
       },
     },
   },

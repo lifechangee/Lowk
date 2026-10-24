@@ -137,6 +137,7 @@ pub fn main() {
             overlay: Some(raw(&overlay_win)),
             main: Some(raw(&main_win)),
             pill: None,
+            area: None,
         },
         Arc::new(Main),
         StealthConfig::default(),

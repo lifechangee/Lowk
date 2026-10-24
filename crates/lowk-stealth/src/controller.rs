@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 pub const OVERLAY: &str = "overlay";
 pub const MAIN: &str = "main";
 pub const PILL: &str = "pill";
+pub const AREA: &str = "area";
 
 /// Window events the app forwards (Tauri `WindowEvent` equivalents).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -461,6 +462,56 @@ impl PillCtl {
     }
 }
 
+/// The area-selection window (label `area`): created hidden, stealth like the overlay (excluded from
+/// sharing and from our own grabs), shown only while a selection is open. While open it takes the mouse
+/// and, when the OS allows it without activating the app, the keyboard; closing gives focus back.
+pub struct AreaCtl {
+    guard: StealthGuard,
+    main: Arc<dyn MainThread>,
+    backend: Arc<dyn WindowBackend>,
+}
+
+impl AreaCtl {
+    pub(crate) fn new(
+        guard: StealthGuard,
+        main: Arc<dyn MainThread>,
+        backend: Arc<dyn WindowBackend>,
+    ) -> Self {
+        Self { guard, main, backend }
+    }
+    /// apply -> verify -> show, then mouse + keys. `Ok(true)` = keys (Esc / Enter) reach the window;
+    /// `Ok(false)` = mouse only (right-click still cancels). Refused while panic hide is engaged.
+    pub fn open(&self) -> Result<bool> {
+        if self.guard.panic_active() {
+            return Err(AppError::new(ErrorCode::StealthUnavailable).with_detail("panic hide is engaged"));
+        }
+        self.guard.show(AREA)?;
+        let b = self.backend.clone();
+        let r = run_main_sync(&self.main, move || {
+            match b.set_interaction(Interaction::Interactive) {
+                Ok(()) => Ok(true),
+                // No key window: still take the mouse, without the keyboard and without activating the app.
+                Err(_) => b.set_interaction(Interaction::Hover).map(|()| false),
+            }
+        });
+        if r.is_err() {
+            self.close();
+        }
+        r
+    }
+    /// Back to click-through (restores the previously focused window), then hide.
+    pub fn close(&self) {
+        let b = self.backend.clone();
+        run_main_sync(&self.main, move || {
+            let _ = b.set_interaction(Interaction::Passive);
+        });
+        self.guard.hide(AREA);
+    }
+    pub fn is_visible(&self) -> bool {
+        self.guard.is_visible(AREA)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -686,5 +737,34 @@ mod tests {
         assert_eq!(pill_origin(PillEdge::Left, (6.0, 80.0), d), (0.0, 360.0));
         assert_eq!(pill_origin(PillEdge::Top, (80.0, 6.0), d), (460.0, 0.0));
         assert_eq!(pill_origin(PillEdge::Bottom, (80.0, 6.0), d), (460.0, 794.0));
+    }
+
+    #[test]
+    fn area_window_is_stealth_takes_input_while_open_and_gives_it_back() {
+        let main: Arc<dyn MainThread> = Arc::new(InlineMainThread);
+        let guard = StealthGuard::new(main.clone());
+        let fb = FakeBackend::new();
+        guard
+            .protect_backend(AREA, WindowPolicy::AREA, Arc::new(fb.clone()))
+            .unwrap();
+        let a = AreaCtl::new(guard.clone(), main, Arc::new(fb.clone()));
+        assert!(fb.0.lock().excluded, "flag set before the first show");
+        assert!(a.open().unwrap());
+        {
+            let s = fb.0.lock();
+            assert!(s.visible && s.excluded);
+            assert_eq!(s.interaction, Some(Interaction::Interactive));
+            let show = s.calls.iter().position(|c| c == "show").unwrap();
+            let apply = s.calls.iter().position(|c| c == "apply").unwrap();
+            assert!(apply < show, "apply before show");
+        }
+        a.close();
+        let s = fb.0.lock();
+        assert!(!s.visible);
+        assert_eq!(s.interaction, Some(Interaction::Passive));
+        drop(s);
+        guard.panic_hide();
+        assert!(a.open().is_err(), "no selection window under panic hide");
+        assert!(!fb.0.lock().visible);
     }
 }

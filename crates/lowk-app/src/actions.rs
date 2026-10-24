@@ -115,11 +115,10 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
             ActionId::ToggleOverlay => crate::visibility::toggle(st)?,
             ActionId::PanicHide => st.stealth()?.controller.panic_hide(),
             ActionId::ToggleMain => crate::windows::open_main(&st.app),
-            // G7: the active monitor (per `capture.monitors`) into the queue. TODO(area-bind): ScreenshotArea still
-            // grabs like Screenshot until the region-selection overlay exists (backend: `capture_area_into_queue`).
-            ActionId::Screenshot | ActionId::ScreenshotArea => {
-                crate::commands::capture::capture_into_queue(st).map(|_| ())?
-            }
+            // G7: the active monitor (per `capture.monitors`) into the queue.
+            ActionId::Screenshot => crate::commands::capture::capture_into_queue(st).map(|_| ())?,
+            // Crosshair selection over the display under the pointer; the grab joins the same queue.
+            ActionId::ScreenshotArea => crate::area::open(st)?,
             ActionId::NextTemplate | ActionId::PrevTemplate => {
                 cycle_template(st, ev.action == ActionId::NextTemplate)
             }

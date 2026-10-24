@@ -94,6 +94,8 @@ macro_rules! all_commands {
             crate::commands::session::llm_set_template,
             crate::commands::capture::capture_screenshot,
             crate::commands::capture::queue_clear,
+            crate::commands::capture::area_confirm,
+            crate::commands::capture::area_cancel,
             crate::commands::docs::doc_list,
             crate::commands::docs::doc_get,
             crate::commands::docs::doc_import,

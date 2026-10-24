@@ -156,6 +156,13 @@ export const commands = {
 	llmSetTemplate: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("llm_set_template", { id })),
 	captureScreenshot: () => typedError<number, AppError>(__TAURI_INVOKE("capture_screenshot")),
 	queueClear: () => typedError<null, AppError>(__TAURI_INVOKE("queue_clear")),
+	/**
+	 *  Area selection result: the dragged rectangle in window pixels (the page cannot name a display or a screen
+	 *  position; Rust knows which display the window covers).
+	 */
+	areaConfirm: (rect: Rect) => typedError<null, AppError>(__TAURI_INVOKE("area_confirm", { rect })),
+	/**  Esc / right-click / click without a drag. */
+	areaCancel: () => typedError<null, AppError>(__TAURI_INVOKE("area_cancel")),
 	/**  Documents of a folder (not trashed). */
 	docList: (folder: FolderRef) => typedError<Document[], AppError>(__TAURI_INVOKE("doc_list", { folder })),
 	/**  One document. */
@@ -1161,6 +1168,14 @@ export type RecReason = "apple_silicon_capable" | "apple_silicon_limited" | "int
 export type Recommendation = {
 	tier: SttTier,
 	reason: RecReason,
+};
+
+/**  Rectangle in global top-left-origin points. */
+export type Rect = {
+	x: number | null,
+	y: number | null,
+	w: number | null,
+	h: number | null,
 };
 
 /**  What a source label points at. */

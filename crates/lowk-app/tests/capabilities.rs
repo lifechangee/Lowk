@@ -35,6 +35,7 @@ fn allow(c: &str) -> String {
 fn every_command_is_allowed_by_some_capability() {
     let all: BTreeSet<String> = perms("main.json")
         .union(&perms("overlay.json"))
+        .chain(perms("area.json").iter())
         .cloned()
         .collect();
     // driven from Rust only (hotkeys, tray); no webview ever invokes them
@@ -88,4 +89,22 @@ fn every_command_the_main_ui_calls_is_allowed_for_main() {
         missing.is_empty(),
         "main UI calls commands main.json does not allow: {missing:?}"
     );
+}
+
+#[test]
+fn the_area_window_may_only_report_its_selection() {
+    let p = perms("area.json");
+    let want: BTreeSet<String> = ["core:event:default", "allow-area-confirm", "allow-area-cancel"]
+        .map(String::from)
+        .into();
+    assert_eq!(
+        p, want,
+        "the selection page gets events and its two commands, nothing else"
+    );
+    for other in ["main.json", "overlay.json"] {
+        assert!(
+            !perms(other).contains("allow-area-confirm"),
+            "{other} must not confirm a selection"
+        );
+    }
 }

@@ -3,7 +3,7 @@
 //! and never destroyed. The main window is created on demand and destroyed on
 //! close (frees the WebView); the Dock icon exists only while it is open.
 use crate::state::Shared;
-use lowk_stealth::{RawWindow, MAIN, OVERLAY, PILL};
+use lowk_stealth::{RawWindow, AREA, MAIN, OVERLAY, PILL};
 use lowk_types::*;
 use raw_window_handle::HasWindowHandle;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent};
@@ -70,6 +70,28 @@ pub fn build_pill(app: &AppHandle) -> Result<WebviewWindow> {
         .map_err(err)
 }
 
+/// The area-selection window: hidden, transparent, stealth from birth; `area::open` moves it over a display
+/// and shows it, so the selection appears without a page load.
+pub fn build_area(app: &AppHandle) -> Result<WebviewWindow> {
+    WebviewWindowBuilder::new(app, AREA, WebviewUrl::App("area.html".into()))
+        .title("Lowk Area")
+        .inner_size(800.0, 600.0)
+        .position(0.0, 0.0)
+        .visible(false)
+        .decorations(false)
+        .transparent(true)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .shadow(false)
+        .resizable(false)
+        .focused(false)
+        .accept_first_mouse(true)
+        .visible_on_all_workspaces(true)
+        .content_protected(true)
+        .build()
+        .map_err(err)
+}
+
 /// Pill window size for an edge: a strip along the edge.
 pub fn pill_size(edge: PillEdge) -> (f64, f64) {
     match edge {
@@ -130,6 +152,12 @@ pub fn on_window_event(window: &Window, event: &WindowEvent) {
                 if let Ok(s) = st.stealth() {
                     s.controller.hide();
                 }
+            }
+        }
+        WindowEvent::CloseRequested { api, .. } if label == AREA => {
+            api.prevent_close();
+            if let Some(st) = app.try_state::<Shared>() {
+                crate::area::cancel(&st);
             }
         }
         WindowEvent::CloseRequested { .. } if label == MAIN => {
