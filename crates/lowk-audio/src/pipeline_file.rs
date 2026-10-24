@@ -268,6 +268,7 @@ mod tests {
             system: Some(lowk_types::Target::WholeSystem),
             mic: None,
             aec: AecMode::On,
+            mic_on: true,
         };
         let h = src
             .start(

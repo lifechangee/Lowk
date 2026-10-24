@@ -11,9 +11,9 @@
 //!   wall clock to keep downstream time continuous.
 //! * Capture timestamps are approximated by the read time (QPC mapping TODO); latency numbers
 //!   measured on Windows are therefore lower bounds.
-use crate::aec::AecLink;
+use crate::aec::{aec_should_run, AecLink};
 use crate::pipeline::{spawn_worker, Meter, RingIn, WorkerHandle};
-use crate::{AecMode, AudioBackend, AudioEventSink, CaptureConfig, CaptureHandle, FrameSink, MIC_NONE};
+use crate::{AudioBackend, AudioEventSink, CaptureConfig, CaptureHandle, FrameSink, MIC_NONE};
 use lowk_types::{
     now_mono_ns, AppError, AudioApp, DeviceInfo, ErrorCode, Result, SourceInfo, SourceKind, Stream, Target,
 };
@@ -207,7 +207,12 @@ impl AudioBackend for Wasapi {
             .is_some()
             .then(|| spawn_worker(Stream::System, sink.clone(), ev.clone(), Some(aec.clone())));
         // Headphone detection is not implemented on Windows: Auto means "on" when built in.
-        aec.set_enabled(cfg.aec != AecMode::Off && me_w.is_some() && sys_w.is_some());
+        // The mic gate: while off, the WASAPI capture client is not even created (no tray mic icon).
+        let mic_on = Arc::new(AtomicBool::new(cfg.mic_on));
+        let (has_me, has_sys) = (me_w.is_some(), sys_w.is_some());
+        let aec_mode = cfg.aec;
+        let aec_for = move |on: bool| aec_should_run(aec_mode, false, on, has_me, has_sys);
+        aec.set_enabled(aec_for(cfg.mic_on));
 
         let mut joins: Vec<JoinHandle<()>> = vec![];
         let (ready_tx, ready_rx) = channel::<Result<()>>();
@@ -218,6 +223,7 @@ impl AudioBackend for Wasapi {
                 "audio-win-sys",
                 w,
                 stop.clone(),
+                None,
                 ready_tx.clone(),
                 move || open_system(&t),
             ));
@@ -229,6 +235,7 @@ impl AudioBackend for Wasapi {
                 "audio-win-mic",
                 w,
                 stop.clone(),
+                Some(mic_on.clone()),
                 ready_tx.clone(),
                 move || open_mic(dev.as_deref()),
             ));
@@ -267,6 +274,9 @@ impl AudioBackend for Wasapi {
         );
         Ok(Box::new(Handle {
             stop,
+            mic_on,
+            aec,
+            aec_for: Box::new(aec_for),
             joins,
             _workers: (me_w, sys_w),
         }))
@@ -275,11 +285,27 @@ impl AudioBackend for Wasapi {
 
 struct Handle {
     stop: Arc<AtomicBool>,
+    /// Gate read by the mic capture thread: false = release the WASAPI client, true = open a new one.
+    mic_on: Arc<AtomicBool>,
+    aec: AecLink,
+    aec_for: Box<dyn Fn(bool) -> bool + Send>,
     joins: Vec<JoinHandle<()>>,
     // dropped after the capture threads have been joined
     _workers: (Option<WorkerHandle>, Option<WorkerHandle>),
 }
-impl CaptureHandle for Handle {}
+impl CaptureHandle for Handle {
+    fn set_mic(&self, on: bool) -> Result<()> {
+        if self.mic_on.swap(on, Ordering::SeqCst) == on {
+            return Ok(());
+        }
+        // fresh AEC state for the reopened device; bypassed (and reference dropped) while off
+        self.aec.set_enabled((self.aec_for)(on));
+        if on {
+            self.aec.restart();
+        }
+        Ok(())
+    }
+}
 impl Drop for Handle {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
@@ -345,6 +371,7 @@ fn spawn_capture(
     name: &str,
     w: &WorkerHandle,
     stop: Arc<AtomicBool>,
+    gate: Option<Arc<AtomicBool>>,
     ready: std::sync::mpsc::Sender<Result<()>>,
     open: impl Fn() -> Result<AudioClient> + Send + 'static,
 ) -> JoinHandle<()> {
@@ -360,9 +387,20 @@ fn spawn_capture(
             let _ = initialize_mta();
             let _ = &shared;
             let mut first = true;
+            let allowed = || gate.as_ref().is_none_or(|g| g.load(Ordering::SeqCst));
             while !stop.load(Ordering::Relaxed) {
+                if !allowed() {
+                    // Mic switched off: nothing is open. Report ready so `start` does not wait for us.
+                    if first {
+                        first = false;
+                        let _ = ready.send(Ok(()));
+                    }
+                    std::thread::sleep(Duration::from_millis(50));
+                    continue;
+                }
                 let res = open().and_then(|c| {
-                    capture_loop(c, attach(), &stop, || {
+                    // `c` (and its capture client) is dropped when the loop returns: the endpoint is released.
+                    capture_loop(c, attach(), &stop, &allowed, || {
                         if first {
                             first = false;
                             let _ = ready.send(Ok(()));
@@ -411,6 +449,7 @@ fn capture_loop(
     mut client: AudioClient,
     mut ring: RingIn,
     stop: &AtomicBool,
+    keep: &dyn Fn() -> bool,
     on_ready: impl FnOnce(),
 ) -> Result<()> {
     let fmt = WaveFormat::new(32, 32, &SampleType::Float, RATE as usize, 2, None);
@@ -432,7 +471,7 @@ fn capture_loop(
     let mut mono: Vec<f32> = Vec::with_capacity(4800);
     let mut last_push = Instant::now();
     let mut result = Ok(());
-    while !stop.load(Ordering::Relaxed) {
+    while !stop.load(Ordering::Relaxed) && keep() {
         let n = match cap.get_next_packet_size() {
             Ok(n) => n.unwrap_or(0),
             Err(e) => {

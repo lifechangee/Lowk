@@ -263,6 +263,7 @@ mod tests {
             system: None,
             mic: None,
             aec: AecMode::Off,
+            mic_on: true,
         }
     }
 

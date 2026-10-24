@@ -10,11 +10,9 @@
 use super::devices::{self, OutInfo};
 use super::procs::{self, Group};
 use super::tap::{self, MicSession, TapSession, TapTarget};
-use crate::aec::AecLink;
+use crate::aec::{aec_should_run, mic_action, AecLink, MicAction};
 use crate::pipeline::{spawn_worker, Meter, WorkerHandle};
-use crate::{
-    AecMode, AudioBackend, AudioEvent, AudioEventSink, CaptureConfig, CaptureHandle, FrameSink, MIC_NONE,
-};
+use crate::{AudioBackend, AudioEvent, AudioEventSink, CaptureConfig, CaptureHandle, FrameSink, MIC_NONE};
 use lowk_platform::perm;
 use lowk_types::{AppError, AudioApp, DeviceInfo, ErrorCode, PermKind, PermState, Result, Stream, Target};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -55,14 +53,16 @@ impl AudioBackend for CoreAudio {
         ev: AudioEventSink,
     ) -> Result<Box<dyn CaptureHandle>> {
         let stop = Arc::new(AtomicBool::new(false));
+        let mic_on = Arc::new(AtomicBool::new(cfg.mic_on));
         let (ready_tx, ready_rx) = channel::<Result<()>>();
-        let (cfg2, stop2) = (cfg.clone(), stop.clone());
+        let (cfg2, stop2, mic2) = (cfg.clone(), stop.clone(), mic_on.clone());
         let join = std::thread::Builder::new()
             .name("audio-sup".into())
-            .spawn(move || Supervisor::run(cfg2, sink, ev, stop2, ready_tx))
+            .spawn(move || Supervisor::run(cfg2, sink, ev, stop2, mic2, ready_tx))
             .map_err(|e| AppError::new(ErrorCode::AudioDevice).with_detail(e.to_string()))?;
         let handle = Handle {
             stop,
+            mic_on,
             join: Some(join),
         };
         // First attempt includes any TCC prompt the user has to answer.
@@ -76,9 +76,16 @@ impl AudioBackend for CoreAudio {
 
 struct Handle {
     stop: Arc<AtomicBool>,
+    /// Wanted microphone state; the supervisor thread opens / releases the HAL input within one tick.
+    mic_on: Arc<AtomicBool>,
     join: Option<JoinHandle<()>>,
 }
-impl CaptureHandle for Handle {}
+impl CaptureHandle for Handle {
+    fn set_mic(&self, on: bool) -> Result<()> {
+        self.mic_on.store(on, Ordering::SeqCst);
+        Ok(())
+    }
+}
 impl Drop for Handle {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
@@ -95,6 +102,8 @@ const REBUILD_COOLDOWN: Duration = Duration::from_secs(5);
 struct Supervisor {
     cfg: CaptureConfig,
     ev: AudioEventSink,
+    /// Microphone switched on (shared with the handle). Off: the input device is not held at all.
+    mic_on: Arc<AtomicBool>,
     me_w: Option<WorkerHandle>,
     sys_w: Option<WorkerHandle>,
     aec: AecLink,
@@ -117,12 +126,19 @@ struct Supervisor {
     identity: Option<procs::Identity>,
     out: Option<OutInfo>,
     mic_zero_checked: bool,
+    /// The mic was released by a switch-off (so the next switch-on opens it without the 3 s throttle).
+    mic_was_off: bool,
     sys_perm_reported: bool,
 }
 
 impl Supervisor {
+    /// A Me stream exists in this capture (mic not configured as "none").
     fn want_mic(&self) -> bool {
         self.cfg.mic.as_deref() != Some(MIC_NONE)
+    }
+
+    fn mic_switched_on(&self) -> bool {
+        self.mic_on.load(Ordering::SeqCst)
     }
 
     fn run(
@@ -130,6 +146,7 @@ impl Supervisor {
         sink: FrameSink,
         ev: AudioEventSink,
         stop: Arc<AtomicBool>,
+        mic_on: Arc<AtomicBool>,
         ready: std::sync::mpsc::Sender<Result<()>>,
     ) {
         let aec = AecLink::new(false);
@@ -139,9 +156,11 @@ impl Supervisor {
             .system
             .is_some()
             .then(|| spawn_worker(Stream::System, sink.clone(), ev.clone(), Some(aec.clone())));
+        let mic_was_off = !mic_on.load(Ordering::SeqCst);
         let mut s = Supervisor {
             cfg,
             ev: ev.clone(),
+            mic_on,
             me_w,
             sys_w,
             aec,
@@ -160,11 +179,17 @@ impl Supervisor {
             identity: None,
             out: devices::default_output(),
             mic_zero_checked: false,
+            mic_was_off,
             sys_perm_reported: false,
         };
 
         // ---- first attempt: mic, settle, tap
-        let mic_res = if s.want_mic() { Some(s.start_mic()) } else { None };
+        // (mic off at call start: the input device is never opened)
+        let mic_res = if s.want_mic() && s.mic_switched_on() {
+            Some(s.start_mic())
+        } else {
+            None
+        };
         std::thread::sleep(Duration::from_millis(150));
         let tap_res = if s.cfg.system.is_some() {
             Some(s.start_tap())
@@ -334,12 +359,14 @@ impl Supervisor {
     }
 
     fn update_aec(&mut self) {
-        let on = match self.cfg.aec {
-            AecMode::On => true,
-            AecMode::Off => false,
-            AecMode::Auto => !self.out.as_ref().map(|o| o.headphones).unwrap_or(false),
-        };
-        let active = on && self.me_w.is_some() && self.sys_w.is_some();
+        let headphones = self.out.as_ref().map(|o| o.headphones).unwrap_or(false);
+        let active = aec_should_run(
+            self.cfg.aec,
+            headphones,
+            self.mic.is_some() && self.mic_switched_on(),
+            self.me_w.is_some(),
+            self.sys_w.is_some(),
+        );
         if active != self.aec.enabled() {
             tracing::info!(active, available = AecLink::available(), "echo cancellation");
         }
@@ -349,46 +376,70 @@ impl Supervisor {
     /// Runs every 300 ms.
     fn check(&mut self) {
         // ---- mic: lost device / default input changed / retry
-        if self.want_mic() {
-            match &self.mic {
-                Some(m) => {
-                    let dev = devices::device_by_uid(&m.uid);
-                    let alive = dev.as_ref().and_then(|d| d.is_alive().ok()).unwrap_or(false);
-                    // A Bluetooth headset switches profile (A2DP -> HFP 16/24 kHz) when its mic opens,
-                    // sometimes after the IOProc started: the session's rate is then wrong (AirPods bug).
-                    let rate_moved = dev
-                        .as_ref()
-                        .and_then(|d| d.actual_sample_rate().ok())
-                        .is_some_and(|r| r > 0.0 && (r - m.rate).abs() > 1.0);
-                    if rate_moved && alive {
-                        tracing::info!(from = m.rate, "mic sample rate changed, restarting mic");
-                        self.mic = None;
-                        let _ = self.start_mic();
-                        return;
+        // The mic is only watched while it is open; switched off, nothing here runs (no retry, no
+        // permission / silence checks) and the device is released.
+        match mic_action(self.want_mic(), self.mic_switched_on(), self.mic.is_some()) {
+            MicAction::Idle => {}
+            MicAction::Close => {
+                tracing::info!("mic switched off: releasing the input device");
+                self.mic = None; // stops the IOProc and destroys it: the OS mic indicator goes out
+                if let Some(w) = &self.me_w {
+                    w.shared.zero_ms.store(0, Ordering::Relaxed);
+                }
+                self.mic_zero_checked = false;
+                self.mic_was_off = true;
+                self.update_aec();
+            }
+            MicAction::Open => {
+                // right away after a switch-on, else every 3 s (a failed open must not spin)
+                if self.mic_was_off || self.last_mic_try.elapsed() > Duration::from_secs(3) {
+                    self.mic_was_off = false;
+                    tracing::info!("mic switched on: opening the input device");
+                    if self.start_mic().is_ok() {
+                        self.aec.restart();
+                        self.update_aec();
                     }
-                    let moved =
-                        self.mic_uid().is_none() && devices::default_input_uid() != self.mic_default_at_start;
-                    if !alive || moved {
-                        self.mic = None;
-                        self.emit(AudioEvent::DeviceChanged);
-                        let _ = self.start_mic();
-                    } else if !self.mic_zero_checked {
-                        if let Some(w) = &self.me_w {
-                            if w.shared.zero_ms.load(Ordering::Relaxed) >= 3_000 {
-                                self.mic_zero_checked = true;
-                                if perm::status(PermKind::Microphone) == PermState::Denied {
-                                    self.emit(AudioEvent::Permission(PermKind::Microphone));
+                }
+            }
+            MicAction::Watch => {
+                #[allow(clippy::single_match)]
+                match &self.mic {
+                    Some(m) => {
+                        let dev = devices::device_by_uid(&m.uid);
+                        let alive = dev.as_ref().and_then(|d| d.is_alive().ok()).unwrap_or(false);
+                        // A Bluetooth headset switches profile (A2DP -> HFP 16/24 kHz) when its mic opens,
+                        // sometimes after the IOProc started: the session's rate is then wrong (AirPods bug).
+                        let rate_moved = dev
+                            .as_ref()
+                            .and_then(|d| d.actual_sample_rate().ok())
+                            .is_some_and(|r| r > 0.0 && (r - m.rate).abs() > 1.0);
+                        if rate_moved && alive {
+                            tracing::info!(from = m.rate, "mic sample rate changed, restarting mic");
+                            self.mic = None;
+                            let _ = self.start_mic();
+                            return;
+                        }
+                        let moved = self.mic_uid().is_none()
+                            && devices::default_input_uid() != self.mic_default_at_start;
+                        if !alive || moved {
+                            self.mic = None;
+                            self.emit(AudioEvent::DeviceChanged);
+                            let _ = self.start_mic();
+                        } else if !self.mic_zero_checked {
+                            if let Some(w) = &self.me_w {
+                                if w.shared.zero_ms.load(Ordering::Relaxed) >= 3_000 {
+                                    self.mic_zero_checked = true;
+                                    if perm::status(PermKind::Microphone) == PermState::Denied {
+                                        self.emit(AudioEvent::Permission(PermKind::Microphone));
+                                    }
+                                } else if w.shared.loud_frames.load(Ordering::Relaxed) > 0 {
+                                    self.mic_zero_checked = true;
                                 }
-                            } else if w.shared.loud_frames.load(Ordering::Relaxed) > 0 {
-                                self.mic_zero_checked = true;
                             }
                         }
                     }
+                    None => {}
                 }
-                None if self.last_mic_try.elapsed() > Duration::from_secs(3) => {
-                    let _ = self.start_mic();
-                }
-                None => {}
             }
         }
 

@@ -34,6 +34,9 @@ pub struct CaptureConfig {
     pub system: Option<Target>,
     pub mic: Option<String>,
     pub aec: AecMode,
+    /// Whether the microphone is switched on right now. While false the Me device is NOT opened
+    /// (no OS mic-in-use indicator); [`CaptureHandle::set_mic`] opens/closes it later.
+    pub mic_on: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -61,7 +64,13 @@ pub type FrameSink = Arc<dyn Fn(Frame16k) + Send + Sync>;
 pub type AudioEventSink = Arc<dyn Fn(AudioEvent) + Send + Sync>;
 
 /// Stops capture when dropped.
-pub trait CaptureHandle: Send {}
+pub trait CaptureHandle: Send {
+    /// Opens (`true`) or fully releases (`false`) the microphone device while the system stream keeps
+    /// running. Backends without a real microphone keep the default no-op.
+    fn set_mic(&self, _on: bool) -> Result<()> {
+        Ok(())
+    }
+}
 
 /// Implemented by `mac::CoreAudio`, `win::Wasapi`, [`FileAudioSource`] and the fakes.
 /// `CaptureConfig::mic`: `None` = default input, `Some(MIC_NONE)` = no Me stream, else a
@@ -152,6 +161,10 @@ struct FakeShared {
     sinks: Option<(FrameSink, AudioEventSink)>,
     starts: u32,
     stops: u32,
+    /// Fake microphone source: currently open, and how many times it was opened / closed.
+    mic_open: bool,
+    mic_opens: u32,
+    mic_closes: u32,
 }
 
 /// Cloneable remote control for a [`FakeAudioBackend`].
@@ -178,15 +191,45 @@ impl FakeAudioRemote {
     pub fn stops(&self) -> u32 {
         self.0.lock().unwrap().stops
     }
+    /// True while the fake microphone source is open (the device a real backend would hold).
+    pub fn mic_open(&self) -> bool {
+        self.0.lock().unwrap().mic_open
+    }
+    pub fn mic_opens(&self) -> u32 {
+        self.0.lock().unwrap().mic_opens
+    }
+    pub fn mic_closes(&self) -> u32 {
+        self.0.lock().unwrap().mic_closes
+    }
 }
 
 struct FakeHandle(Arc<Mutex<FakeShared>>);
-impl CaptureHandle for FakeHandle {}
+impl CaptureHandle for FakeHandle {
+    fn set_mic(&self, on: bool) -> Result<()> {
+        let mut g = self.0.lock().unwrap();
+        match (on, g.mic_open) {
+            (true, false) => {
+                g.mic_open = true;
+                g.mic_opens += 1;
+            }
+            (false, true) => {
+                g.mic_open = false;
+                g.mic_closes += 1;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
 impl Drop for FakeHandle {
     fn drop(&mut self) {
         let mut g = self.0.lock().unwrap();
         g.sinks = None;
         g.stops += 1;
+        if g.mic_open {
+            g.mic_open = false;
+            g.mic_closes += 1;
+        }
     }
 }
 
@@ -224,7 +267,7 @@ impl AudioBackend for FakeAudioBackend {
     }
     fn start(
         &mut self,
-        _c: &CaptureConfig,
+        c: &CaptureConfig,
         s: FrameSink,
         e: AudioEventSink,
     ) -> Result<Box<dyn CaptureHandle>> {
@@ -234,6 +277,10 @@ impl AudioBackend for FakeAudioBackend {
         }
         g.sinks = Some((s, e));
         g.starts += 1;
+        if c.mic_on && c.mic.as_deref() != Some(MIC_NONE) {
+            g.mic_open = true;
+            g.mic_opens += 1;
+        }
         Ok(Box::new(FakeHandle(self.remote.0.clone())))
     }
 }
@@ -253,6 +300,7 @@ mod tests {
             system: None,
             mic: None,
             aec: AecMode::Off,
+            mic_on: true,
         };
         let h = b
             .start(

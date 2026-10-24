@@ -110,7 +110,12 @@ fn capture(a: &[String]) {
         other => eprintln!("[event] {other:?}"),
     });
     let mut be = default_backend();
-    let cfg = CaptureConfig { system, mic, aec };
+    let cfg = CaptureConfig {
+        system,
+        mic,
+        aec,
+        mic_on: true,
+    };
     let t0 = Instant::now();
     let h = match be.start(&cfg, sink, ev) {
         Ok(h) => h,

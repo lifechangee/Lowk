@@ -384,8 +384,9 @@ impl Session {
         Ok(call_id)
     }
 
-    /// Turns the microphone on/off during a recording without stopping it: Me frames are dropped before STT
-    /// (system-audio capture and AEC keep running), the open Me utterance is closed, and a marker line
+    /// Turns the microphone on/off during a recording without stopping it: the capture backend releases (or
+    /// reopens) the input device, Me frames are dropped before STT meanwhile, the system stream keeps running,
+    /// AEC is bypassed while off, the open Me utterance is flushed, and a marker line
     /// («Микрофон выключен/включён») lands in the call at the current call time. A no-op when already in that state.
     // TODO(roadmap): «auto» mode (mic only while the call app holds the microphone open) — see docs/ROADMAP.md.
     pub fn set_mic_enabled(&self, on: bool) -> Result<()> {
@@ -401,6 +402,11 @@ impl Session {
             }
             if c.state.mic_on == on {
                 return Ok(());
+            }
+            // Open / release the input device itself (OS mic indicator) before the state flips; a failed
+            // open leaves everything as it was. Demo / replay calls have no capture handle.
+            if let Some(cap) = c.capture.as_ref() {
+                cap.set_mic(on)?;
             }
             c.state.mic_on = on;
             inner.mic_on.store(on, Ordering::SeqCst);
@@ -845,6 +851,8 @@ impl Inner {
                 system,
                 mic,
                 aec: settings.audio.aec,
+                // mic off at call start: the backend never opens the input device
+                mic_on: self.mic_on.load(Ordering::SeqCst),
             },
             frame_sink,
             ev_sink,

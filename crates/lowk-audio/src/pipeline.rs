@@ -221,6 +221,7 @@ fn worker_loop(
     let mut t_next: Option<u64> = None;
     let mut last_t: Option<u64> = None;
     let mut proc = aec.as_ref().and_then(|l| l.processor());
+    let mut aec_gen = aec.as_ref().map_or(0, |l| l.generation());
     let mut conv_failed = false;
 
     while !stop.load(Ordering::Relaxed) {
@@ -308,6 +309,11 @@ fn worker_loop(
                 shared.loud_frames.fetch_add(1, Ordering::Relaxed);
             }
             if let Some(l) = aec.as_ref() {
+                if stream == Stream::Me && l.generation() != aec_gen {
+                    // mic reopened: fresh AEC3 state
+                    aec_gen = l.generation();
+                    proc = l.processor();
+                }
                 match stream {
                     Stream::System => l.feed_reference(&out),
                     Stream::Me => {

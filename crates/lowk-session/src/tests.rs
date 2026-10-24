@@ -916,3 +916,110 @@ fn new_call_mic_follows_folder_preset_and_global_default() {
         );
     }
 }
+
+#[test]
+fn call_starting_with_mic_off_never_opens_the_mic_source() {
+    let r = rig(|d| {
+        d.folder_mic = Arc::new(|_| MicPreset::Off);
+    });
+    r.session.start(opts(false)).unwrap();
+    assert!(r.audio.is_capturing(), "the system stream is started");
+    assert_eq!(r.audio.mic_opens(), 0, "mic source never opened");
+    assert!(!r.audio.mic_open());
+    // global setting off behaves the same
+    r.session.stop().unwrap();
+    assert_eq!((r.audio.mic_opens(), r.audio.mic_closes()), (0, 0));
+}
+
+#[test]
+fn global_mic_off_never_opens_the_mic_source() {
+    let r = rig(|d| {
+        let mut s = Settings::default();
+        s.audio.record_mic = false;
+        d.settings = Arc::new(MemSettingsStore::new(s));
+    });
+    r.session.start(opts(false)).unwrap();
+    assert_eq!(r.audio.mic_opens(), 0);
+    r.session.stop().unwrap();
+    assert_eq!(r.audio.mic_opens(), 0);
+}
+
+#[test]
+fn toggle_off_closes_the_source_and_toggle_on_reopens_it() {
+    let r = rig(|_| {});
+    r.session.start(opts(false)).unwrap();
+    assert_eq!(
+        (r.audio.mic_open(), r.audio.mic_opens(), r.audio.mic_closes()),
+        (true, 1, 0)
+    );
+    r.session.set_mic_enabled(false).unwrap();
+    assert_eq!(
+        (r.audio.mic_open(), r.audio.mic_opens(), r.audio.mic_closes()),
+        (false, 1, 1)
+    );
+    // repeated off does nothing
+    r.session.set_mic_enabled(false).unwrap();
+    assert_eq!(r.audio.mic_closes(), 1);
+    r.session.set_mic_enabled(true).unwrap();
+    assert_eq!(
+        (r.audio.mic_open(), r.audio.mic_opens(), r.audio.mic_closes()),
+        (true, 2, 1)
+    );
+    // Me speech after the reopen is transcribed again
+    for i in 0..25 {
+        r.audio.push_frame(frame(Stream::Me, 5_000 + i));
+    }
+    r.session.stop().unwrap();
+    assert_eq!(finals_of(&r, Stream::Me), 1);
+    assert!(!r.audio.mic_open(), "stop releases the source");
+    assert_eq!(r.audio.mic_closes(), 2);
+}
+
+#[test]
+fn mic_started_off_can_be_switched_on_later() {
+    let r = rig(|d| {
+        d.folder_mic = Arc::new(|_| MicPreset::Off);
+    });
+    r.session.start(opts(false)).unwrap();
+    r.session.set_mic_enabled(true).unwrap();
+    assert_eq!((r.audio.mic_open(), r.audio.mic_opens()), (true, 1));
+    r.session.stop().unwrap();
+    assert!(!r.audio.mic_open());
+}
+
+#[test]
+fn system_frames_stay_continuous_across_mic_toggles_and_me_is_flushed() {
+    let r = rig(|_| {});
+    r.session.start(opts(false)).unwrap();
+    // half-spoken Me utterance, then mic off: it ends with a clean final instead of hanging
+    for i in 0..10 {
+        r.audio.push_frame(frame(Stream::Me, 1_000 + i));
+    }
+    let mut sys_pushed = 0;
+    for round in 0..3u64 {
+        for i in 0..5 {
+            assert!(r
+                .audio
+                .push_frame(frame(Stream::System, 10_000 + round * 100 + i)));
+            sys_pushed += 1;
+        }
+        r.session.set_mic_enabled(round % 2 == 1).unwrap();
+        for i in 0..5 {
+            assert!(r
+                .audio
+                .push_frame(frame(Stream::System, 10_050 + round * 100 + i)));
+            sys_pushed += 1;
+        }
+    }
+    assert!(
+        r.audio.is_capturing(),
+        "no capture restart: one start, system stream uninterrupted"
+    );
+    assert_eq!(r.audio.starts(), 1);
+    assert_eq!(sys_pushed, 30);
+    r.session.stop().unwrap();
+    assert!(
+        finals_of(&r, Stream::Me) >= 1,
+        "the Me utterance was flushed at toggle-off"
+    );
+}
