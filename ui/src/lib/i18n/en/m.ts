@@ -143,6 +143,8 @@ export const m = {
   'm.engine.install': 'Download ({size} GB)',
   'm.engine.retry': 'Try again (resumes)',
   'm.engine.license': 'License {license}',
+  'm.engine.cpuNotice': 'Speech recognition is running on the processor, not the graphics card: subtitles may lag. Details are in the logs. Tip: switch to a cloud engine below.',
+  'm.engine.cpuToast': 'Speech recognition is running on the processor, not the graphics card: subtitles may lag. Details are in the logs. You can switch to a cloud engine in Settings.',
   'm.engine.ready': 'Ready: calls are transcribed on this computer.',
   'm.engine.runtimeMissing': 'The model is installed, but the speech component (lowk-stt-worker) is missing. Reinstall the app; recording cannot start without it.',
   'm.engine.errChecksum': 'The file failed its integrity check and was removed. Try again.',

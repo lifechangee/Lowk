@@ -72,11 +72,9 @@ fn bitmap_from_stream(stream: &windows::Storage::Streams::IRandomAccessStream) -
 }
 
 fn storage_file(path: &Path) -> Result<StorageFile> {
-    let abs = std::fs::canonicalize(path)?;
     // canonicalize yields a `\\?\` path, which StorageFile rejects
-    let s = abs.to_string_lossy();
-    let s = s.strip_prefix(r"\\?\").unwrap_or(&s);
-    StorageFile::GetFileFromPathAsync(&HSTRING::from(s))
+    let abs = lowk_types::paths::canonicalize_plain(path)?;
+    StorageFile::GetFileFromPathAsync(&HSTRING::from(abs.to_string_lossy().as_ref()))
         .map_err(werr)?
         .join()
         .map_err(werr)

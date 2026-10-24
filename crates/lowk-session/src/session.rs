@@ -936,10 +936,20 @@ impl Inner {
     fn snapshot_diag(&self, engines: &Engines) {
         let mut streams = vec![];
         let (mut id, mut look) = (String::new(), 0);
+        let mut backend: Option<String> = None;
         for (s, e) in engines.iter() {
             let e = e.lock().unwrap();
             id = e.descriptor().id.clone();
             look = look.max(e.lookahead_ms());
+            // A CPU stream wins: it is the one that explains lag.
+            if let Some(b) = e.backend() {
+                if backend
+                    .as_deref()
+                    .is_none_or(|o| !lowk_types::stt::backend_is_cpu(o))
+                {
+                    backend = Some(b);
+                }
+            }
             if let Some(d) = e.stats() {
                 streams.push(StreamDiag { stream: *s, ..d });
             }
@@ -957,6 +967,8 @@ impl Inner {
             corrected,
             correction_skipped: skipped,
             correction_lag: lag,
+            cpu_fallback: backend.as_deref().is_some_and(lowk_types::stt::backend_is_cpu),
+            backend,
         });
     }
 

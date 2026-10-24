@@ -108,6 +108,13 @@ const COMMANDS: &[&str] = &[
 fn main() {
     // The Swift runtime rpath (screencapturekit, cidre) comes from .cargo/config.toml.
     let manifest = tauri_build::AppManifest::new().commands(COMMANDS);
-    tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest))
-        .expect("tauri build failed");
+    // Windows: the default Tauri manifest (common controls v6) plus `longPathAware` (vault/model paths > 260 chars).
+    let windows =
+        tauri_build::WindowsAttributes::new().app_manifest(include_str!("windows-app-manifest.xml"));
+    tauri_build::try_build(
+        tauri_build::Attributes::new()
+            .app_manifest(manifest)
+            .windows_attributes(windows),
+    )
+    .expect("tauri build failed");
 }

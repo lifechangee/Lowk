@@ -232,4 +232,28 @@ pub struct SttDiagnostics {
     pub corrected: u32,
     pub correction_skipped: u32,
     pub correction_lag: Percentiles,
+    /// Compute backend of the local worker (`cpu`, `vulkan`, `metal`, ...); `None` for cloud engines.
+    pub backend: Option<String>,
+    /// The local worker runs on the CPU (no GPU backend): live text may lag.
+    pub cpu_fallback: bool,
+}
+
+/// True when a worker-reported backend name means CPU-only inference.
+pub fn backend_is_cpu(backend: &str) -> bool {
+    let b = backend.trim().to_lowercase();
+    b.is_empty() || b.starts_with("cpu")
+}
+
+#[cfg(test)]
+mod backend_tests {
+    use super::backend_is_cpu;
+
+    #[test]
+    fn cpu_backend_detection() {
+        assert!(backend_is_cpu("cpu"));
+        assert!(backend_is_cpu("CPU"));
+        assert!(backend_is_cpu(" "));
+        assert!(!backend_is_cpu("vulkan"));
+        assert!(!backend_is_cpu("metal"));
+    }
 }

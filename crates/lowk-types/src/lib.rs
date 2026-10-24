@@ -17,6 +17,7 @@ pub mod ids;
 pub mod langpolicy;
 pub mod llm;
 pub mod overlay;
+pub mod paths;
 pub mod perm;
 pub mod qa;
 pub mod search;

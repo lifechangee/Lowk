@@ -13,8 +13,12 @@
   let prog = $state<EngineProgress | null>(null);
   let error = $state<string | null>(null);
   let cancelled = false;
+  let cpu = $state(false);
 
-  const refresh = async () => { info = (await api.engineStatus()).find((i) => i.descriptor.id === engine) ?? null; };
+  const refresh = async () => {
+    info = (await api.engineStatus()).find((i) => i.descriptor.id === engine) ?? null;
+    cpu = !!(await api.sttDiagnostics().catch(() => null))?.cpu_fallback;
+  };
   onMount(() => {
     void refresh();
     return api.onEngineProgress((p) => {
@@ -71,6 +75,7 @@
       <p class="note msg err" role="alert" data-testid="engine-runtime-missing">{tm('m.engine.runtimeMissing')}</p>
     {:else}
       <p class="note">{tm('m.engine.ready')}</p>
+      {#if cpu}<p class="note msg" role="status" data-testid="engine-cpu-notice">{tm('m.engine.cpuNotice')}</p>{/if}
     {/if}
   </div>
 {/if}

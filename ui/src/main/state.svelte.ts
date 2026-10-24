@@ -150,12 +150,24 @@ class Session {
     this.now = this.startedAt;
     this.lines = [];
     this.#tick = setInterval(() => (this.now = Date.now()), 1000);
+    void this.#checkBackend();
     this.#off = api.onLiveLine((l) => {
       // A background correction re-emits an already shown utterance: replace it in place.
       const i = l.utt === undefined ? -1 : this.lines.findIndex((x) => x.utt === l.utt && x.speaker === l.speaker);
       if (i >= 0) this.lines[i] = { ...this.lines[i]!, text: l.text };
       else this.lines.push({ ...l, at_s: this.elapsed });
     });
+  }
+  /** Once per app run: tell the user when the local worker landed on the CPU (the worker reports its backend a few seconds after start). */
+  async #checkBackend(): Promise<void> {
+    for (const wait of [2500, 4000, 8000, 15000]) {
+      await new Promise((r) => setTimeout(r, wait));
+      if (this.phase !== 'recording') return;
+      const d = await api.sttDiagnostics().catch(() => null);
+      if (!d?.backend) continue;
+      if (d.cpu_fallback && !cpuToastShown) { cpuToastShown = true; ui.notify(tm('m.engine.cpuToast'), null, 9000); }
+      return;
+    }
   }
   /** Follow a session started or stopped elsewhere (record bind, overlay, demo end). */
   sync(s: SessionState): void {
@@ -218,14 +230,15 @@ class Ui {
   /** An action shown inside the toast (e.g. «Отменить» after moving a document to the trash). */
   toastAction = $state<{ label: string; run: () => void } | null>(null);
   #timer: ReturnType<typeof setTimeout> | null = null;
-  notify(msg: string, action: { label: string; run: () => void } | null = null): void {
+  notify(msg: string, action: { label: string; run: () => void } | null = null, ms?: number): void {
     this.toast = msg;
     this.toastAction = action;
     if (this.#timer) clearTimeout(this.#timer);
-    this.#timer = setTimeout(() => { this.toast = null; this.toastAction = null; }, action ? 6000 : 3200);
+    this.#timer = setTimeout(() => { this.toast = null; this.toastAction = null; }, ms ?? (action ? 6000 : 3200));
   }
 }
 export const ui = new Ui();
+let cpuToastShown = false;
 
 /** Search index status (`index://status`): drives the «keyword only» notice and the embedder card. */
 class Index {

@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command WP6 has not wired yet. Mutations are real within the page's life.
-import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -170,6 +170,12 @@ export class MockBackend implements Backend {
   #engineInstalled = new Set<string>();
   #engineSubs = new Set<(p: EngineProgress) => void>();
   #installCancel = false;
+  /** QA hook: `?cpu=1` makes the mock worker report the CPU backend (GPU expected). */
+  async sttDiagnostics(): Promise<SttDiagnostics | null> {
+    const cpu = typeof location !== 'undefined' && /[?&]cpu=1\b/.test(location.search);
+    const p = { samples: 0, p50_ms: 0, p95_ms: 0, max_ms: 0 };
+    return { engine: 'whisper-large-v3-turbo', lookahead_ms: 0, streams: [], corrected: 0, correction_skipped: 0, correction_lag: p, backend: cpu ? 'cpu' : 'vulkan', cpu_fallback: cpu };
+  }
   async engineStatus(): Promise<EngineInfo[]> {
     return (await this.engines()).map((d) => ({
       descriptor: d,

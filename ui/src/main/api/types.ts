@@ -27,6 +27,7 @@ import type {
   SearchQuery,
   SearchResults,
   SessionState,
+  SttDiagnostics,
   Settings,
   SourceInfo,
   SourceRef,
@@ -193,6 +194,8 @@ export interface Backend {
   engines(): Promise<EngineDescriptor[]>;
   /** Fitness / installed / licence per engine (model download card). */
   engineStatus(): Promise<EngineInfo[]>;
+  /** STT health incl. the compute backend of the local worker (`cpu_fallback` = running on the CPU). */
+  sttDiagnostics(): Promise<SttDiagnostics | null>;
   /** Downloads the engine's models (resumable, SHA-256 checked); resolves when ready, rejects when failed or cancelled. */
   engineInstall(id: string): Promise<void>;
   engineInstallCancel(): Promise<void>;

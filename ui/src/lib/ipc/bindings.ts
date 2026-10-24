@@ -140,6 +140,10 @@ export const commands = {
 	corrected: number,
 	correction_skipped: number,
 	correction_lag: Percentiles,
+	/**  Compute backend of the local worker (`cpu`, `vulkan`, `metal`, ...); `None` for cloud engines. */
+	backend: string | null,
+	/**  The local worker runs on the CPU (no GPU backend): live text may lag. */
+	cpu_fallback: boolean,
 } | null>("stt_diagnostics"),
 	/**  The scripted RU/EN demo call (dev/QA builds only). */
 	demoStart: () => typedError<SessionState, AppError>(__TAURI_INVOKE("demo_start")),
@@ -1372,6 +1376,10 @@ export type SttDiagnostics = {
 	corrected: number,
 	correction_skipped: number,
 	correction_lag: Percentiles,
+	/**  Compute backend of the local worker (`cpu`, `vulkan`, `metal`, ...); `None` for cloud engines. */
+	backend: string | null,
+	/**  The local worker runs on the CPU (no GPU backend): live text may lag. */
+	cpu_fallback: boolean,
 };
 
 /**  Engine failure surfaced through the sink (isolated per stream). */

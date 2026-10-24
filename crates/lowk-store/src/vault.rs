@@ -177,7 +177,8 @@ impl Vault {
     /// Open (creating when needed) a vault rooted at `p`.
     pub fn open(p: &Path) -> Result<Self> {
         fs::create_dir_all(p)?;
-        let root = p.canonicalize().unwrap_or_else(|_| p.to_path_buf());
+        // no `\\?\` prefix on Windows: the root is shown, revealed in Explorer and compared with plain paths
+        let root = lowk_types::paths::canonicalize_plain(p).unwrap_or_else(|_| p.to_path_buf());
         for d in [
             root.join(SERVICE_DIR).join("trash"),
             root.join(SERVICE_DIR).join("state").join("live"),

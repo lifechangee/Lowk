@@ -17,6 +17,7 @@ ignore = [
     { id = "RUSTSEC-2026-0370", reason = "zvariant: unmaintained, Linux-only transitive of keyring secret-service; no safe upgrade" },
     { id = "RUSTSEC-2026-0371", reason = "zbus_names: unmaintained, Linux-only transitive of keyring secret-service; no safe upgrade" },
     { id = "RUSTSEC-2026-0192", reason = "ttf-parser: unmaintained (no CVE), transitive of pdf_oxide font subsetting used by lowk-ingest; no safe upgrade" },
+    { id = "RUSTSEC-2024-0429", reason = "glib <0.20 (GHSA-wrw7-89jp-8q8g, VariantStrIter unsound): pinned at 0.18.5 by gtk3-rs 0.18 <- tao/wry/muda <- tauri, Linux (GTK) targets only; the fix needs glib 0.20+ which gtk 0.18 cannot take. Lowk ships macOS and Windows only, so it is not linked into any shipped binary; revisit when tauri moves to gtk4/webkit2gtk-6" },
     { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: unmaintained, Linux-only transitive of keyring secret-service; no safe upgrade" },
 ]
 

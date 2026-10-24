@@ -53,6 +53,11 @@ pub trait SttEngine: Send {
     fn is_ready(&self) -> bool {
         true
     }
+    /// Compute backend a local worker reported (`cpu`, `vulkan`, `metal`, ...); `None` for cloud engines
+    /// or before the worker is ready.
+    fn backend(&self) -> Option<String> {
+        None
+    }
 }
 
 pub trait SttEngineFactory: Send + Sync {

@@ -45,3 +45,28 @@ test('engine card: model installed but the speech component missing says so (no 
   await expect(card.getByTestId('engine-runtime-missing')).toContainText('speech component');
   await expect(card).not.toContainText('transcribed on this computer');
 });
+
+test('engine card: a worker on the CPU shows a non-blocking notice with the cloud hint (mock IPC)', async ({ page }) => {
+  const card = await openCard(page, '&cpu=1');
+  await card.getByRole('button', { name: /Download/ }).click();
+  await expect(card).toContainText('Installed', { timeout: 5000 });
+  const n = card.getByTestId('engine-cpu-notice');
+  await expect(n).toContainText('running on the processor, not the graphics card');
+  await expect(n).toContainText('cloud engine');
+});
+
+test('engine card: no CPU notice when the worker runs on a GPU backend', async ({ page }) => {
+  const card = await openCard(page);
+  await card.getByRole('button', { name: /Download/ }).click();
+  await expect(card).toContainText('Installed', { timeout: 5000 });
+  await expect(card.getByTestId('engine-cpu-notice')).toHaveCount(0);
+});
+
+test('CPU fallback: a toast appears once the recording started and the worker reported the CPU backend', async ({ page }) => {
+  await page.goto('/main.html?lang=ru&cpu=1#/');
+  await page.locator('.side .nc button.btn.primary').click();
+  await page.locator('.np button.btn.primary').click();
+  await page.waitForSelector('.recpill');
+  await expect(page.locator('.toast')).toContainText('на процессоре, а не на видеокарте', { timeout: 8000 });
+  await expect(page.locator('.toast')).toContainText('облачный движок');
+});

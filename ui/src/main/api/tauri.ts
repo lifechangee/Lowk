@@ -3,7 +3,7 @@
 // File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
 import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { MockBackend } from './mock';
 import { CommandError, folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider } from './types';
 
@@ -70,6 +70,7 @@ export class TauriBackend extends MockBackend {
   override async sourceListInstalled(): Promise<SourceInfo[]> { return ok(await commands.sourceListInstalled()); }
   override async engines(): Promise<EngineDescriptor[]> { return commands.engineList(); }
   override async engineStatus(): Promise<EngineInfo[]> { return commands.engineStatus(); }
+  override async sttDiagnostics(): Promise<SttDiagnostics | null> { return commands.sttDiagnostics(); }
   override async engineInstall(id: string): Promise<void> { ok(await commands.engineInstall(id)); }
   override async engineInstallCancel(): Promise<void> { await commands.engineInstallCancel(); }
   override onEngineProgress(cb: (p: EngineProgress) => void): () => void {

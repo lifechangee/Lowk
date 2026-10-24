@@ -103,8 +103,7 @@ pub fn drain_stderr(child: &mut Child, tag: &'static str) {
 /// should have a GPU (Windows builds ship Vulkan) is called out explicitly: it is the first thing to check
 /// when the live text lags.
 pub fn backend_note(backend: &str) -> (bool, String) {
-    let b = backend.trim().to_lowercase();
-    if b.is_empty() || b == "cpu" || b.starts_with("cpu") {
+    if backend_is_cpu(backend) {
         (
             true,
             format!(
@@ -137,6 +136,8 @@ struct Shared {
     utt_base: AtomicU64,
     ready: AtomicBool,
     alive: AtomicBool,
+    /// Compute backend the worker reported in its `ready` event (empty until then).
+    backend: Mutex<Option<String>>,
 }
 
 pub struct SidecarEngine {
@@ -165,6 +166,7 @@ impl SidecarEngine {
                 utt_base: AtomicU64::new(0),
                 ready: AtomicBool::new(false),
                 alive: AtomicBool::new(false),
+                backend: Mutex::new(None),
             }),
             tx: None,
             sup: None,
@@ -274,6 +276,10 @@ impl SttEngine for SidecarEngine {
     fn is_ready(&self) -> bool {
         self.shared.ready.load(Ordering::Relaxed)
     }
+
+    fn backend(&self) -> Option<String> {
+        self.shared.backend.lock().unwrap().clone()
+    }
 }
 
 impl Drop for SidecarEngine {
@@ -337,7 +343,9 @@ fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Rece
                     };
                     match v["ev"].as_str() {
                         Some("ready") => {
-                            log_backend(stream, v["backend"].as_str().unwrap_or(""));
+                            let backend = v["backend"].as_str().unwrap_or("");
+                            log_backend(stream, backend);
+                            *sh.backend.lock().unwrap() = Some(backend.to_owned());
                             sh.ready.store(true, Ordering::SeqCst)
                         }
                         Some("ack") => {
