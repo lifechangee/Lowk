@@ -7,7 +7,7 @@
 //!   `LocalOnlyBlocked` before anything is retrieved or sent.
 //! * Everything else uses the configured provider; OpenRouter needs the BYOK key (`ApiKeyMissing`).
 use lowk_llm::{LlmConfig, ProviderKind};
-use lowk_types::{AppError, ErrorCode, LlmProvider, LlmSettings, Result};
+use lowk_types::{AppError, ErrorCode, LlmProvider, LlmSettings, Result, Template};
 
 #[derive(Clone, Debug)]
 pub enum Purpose {
@@ -56,6 +56,14 @@ pub fn provider_is_local(s: &LlmSettings) -> bool {
         LlmProvider::Openrouter => false,
         LlmProvider::Ollama | LlmProvider::Lmstudio | LlmProvider::LlamaServer => true,
         LlmProvider::Custom => is_local_url(&s.base_url),
+    }
+}
+
+/// Per-template reasoning: `Some(x)` on the template overrides the global `llm.reasoning` for this Ask,
+/// `None` keeps the global choice. (Local-only routes already run with reasoning off and a profile that never sends it.)
+pub fn apply_template_reasoning(cfg: &mut LlmConfig, t: &Template) {
+    if let Some(r) = t.reasoning {
+        cfg.reasoning = r;
     }
 }
 
@@ -339,6 +347,28 @@ mod tests {
         assert_eq!(r.cfg.model, lowk_types::DEFAULT_LLM_MODEL_PINNED);
         assert_eq!(r.cfg.session_id.as_deref(), Some("c"));
         assert!(!r.cfg.reasoning);
+    }
+
+    #[test]
+    fn template_reasoning_overrides_the_global_setting_for_that_ask() {
+        let tpl = |r: Option<bool>| Template {
+            reasoning: r,
+            ..lowk_types::default_templates().remove(0)
+        };
+        for (global, own, want) in [
+            (false, None, false),
+            (true, None, true),
+            (false, Some(true), true),
+            (true, Some(false), false),
+            (true, Some(true), true),
+        ] {
+            let mut s = cloud();
+            s.reasoning = global;
+            let mut r = resolve(&s, false, Some("k".into()), &Purpose::Ask { session_id: None }).unwrap();
+            assert_eq!(r.cfg.reasoning, global);
+            apply_template_reasoning(&mut r.cfg, &tpl(own));
+            assert_eq!(r.cfg.reasoning, want, "global {global} template {own:?}");
+        }
     }
 
     #[test]

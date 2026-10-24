@@ -217,7 +217,7 @@ impl HintGenerator for LlmHints {
         let has_images = !req.images.is_empty();
         // Screenshots: local-only folders only reach a local vision model, a text-only cloud model hands
         // the Ask to the vision model. A refusal happens here, before anything is sent; the queue stays.
-        let route = if has_images {
+        let mut route = if has_images {
             route::resolve_vision(
                 &settings.llm,
                 self.local_only(&req.folder),
@@ -232,6 +232,7 @@ impl HintGenerator for LlmHints {
             .iter()
             .find(|t| t.id == req.template_id)
             .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("template"))?;
+        route::apply_template_reasoning(&mut route.cfg, template);
         *self.last_model.lock() = route.cfg.model.clone();
 
         let builder = PromptBuilder::new(&route.cfg.model);

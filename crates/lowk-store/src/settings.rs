@@ -72,6 +72,7 @@ impl FileSettingsStore {
         };
         let mut settings = settings;
         let migrated = !fresh && settings.migrate_binds(Os::current());
+        let migrated = (!fresh && settings.migrate_templates()) || migrated;
         if fresh {
             settings.templates = TemplateSet::defaults().into_vec();
         }
@@ -171,6 +172,9 @@ impl SettingsStore for FileSettingsStore {
             let next = cur.apply_patch(&p)?;
             if next == *cur {
                 return Ok(next);
+            }
+            if next.templates != cur.templates {
+                next.validate_templates()?;
             }
             let old = std::mem::replace(&mut *cur, next.clone());
             drop(cur);

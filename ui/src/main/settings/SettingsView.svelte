@@ -9,6 +9,7 @@
   import KnowledgePage from './KnowledgePage.svelte';
   import PermissionsPage from './PermissionsPage.svelte';
   import ProvidersPage from './ProvidersPage.svelte';
+  import TemplatesPage from './TemplatesPage.svelte';
   import StoragePage from './StoragePage.svelte';
 
   let { page }: { page: SettingsPage } = $props();
@@ -22,6 +23,7 @@
     <div class="in">
       {#if page === 'general'}<GeneralPage />
       {:else if page === 'hotkeys'}<HotkeysPage />
+      {:else if page === 'templates'}<TemplatesPage />
       {:else if page === 'appearance'}<AppearancePage />
       {:else if page === 'providers'}<ProvidersPage />
       {:else if page === 'knowledge'}<KnowledgePage />

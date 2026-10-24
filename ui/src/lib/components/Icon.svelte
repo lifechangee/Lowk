@@ -5,6 +5,7 @@
     folder: '<path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/>',
     plus: '<path d="M8 3v10M3 8h10"/>',
     'chevron-right': '<path d="m6 3.5 4.5 4.5L6 12.5"/>',
+    'chevron-up': '<path d="m3.5 10 4.5-4.5L12.5 10"/>',
     'chevron-down': '<path d="m3.5 6 4.5 4.5L12.5 6"/>',
     home: '<path d="M2.5 7.5 8 3l5.5 4.5V13a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5z"/>',
     settings: '<path d="M3 5h6M12 5h1M3 11h1M7 11h6"/><circle cx="10.5" cy="5" r="1.5"/><circle cx="5.5" cy="11" r="1.5"/>',

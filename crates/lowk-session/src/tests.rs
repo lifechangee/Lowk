@@ -1247,7 +1247,7 @@ fn vision_template_with_an_empty_queue_grabs_the_screen() {
         instruction: "Look".into(),
         needs_my_answer: false,
         vision: true,
-        reasoning: false,
+        reasoning: None,
     });
     let (s2, h2) = (shots.clone(), hints.clone());
     let r = rig(move |d| {

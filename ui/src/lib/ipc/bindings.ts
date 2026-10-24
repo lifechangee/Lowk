@@ -1640,7 +1640,11 @@ export type Template = {
 	instruction: string,
 	needs_my_answer?: boolean,
 	vision?: boolean,
-	reasoning?: boolean,
+	/**
+	 *  Per-template override of `llm.reasoning` for this Ask: `Some(true/false)` forces it on/off,
+	 *  `None` follows the global setting.
+	 */
+	reasoning?: boolean | null,
 };
 
 /**  `overlay://tone` payload: inputs of the adaptive CSS tokens. */

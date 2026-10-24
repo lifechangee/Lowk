@@ -3,23 +3,26 @@
   import { locale } from '../../lib/i18n/locale.svelte';
   import { ACTIONS_EXTRA, ACTIONS_PRIMARY, HIDDEN_TEMPLATES, orphanTemplateBinds, templateSlot, type Slot } from '../binds';
   import { tm, type MKey } from '../i18n';
+  import { bindSlot, defaultId } from '../templates';
   import { prefs } from '../state.svelte';
   import BindEditor from './BindEditor.svelte';
   let more = $state(false);
 
   // «Brief» and «Complement my answer» sit in the main list; every other template (built-in or created
   // by the user) gets its own row here, bound through `ask_template` + the template id.
-  const MAIN = new Set(['brief', 'complement']);
   /** Built-in templates the overlay offers even when settings.toml does not list them. */
   const BUILTIN_EXTRA = ['say', 'factcheck', 'followup', 'recap'];
   const templates = $derived<Template[]>(prefs.value.templates ?? []);
   const rows = $derived.by(() => {
     const out: { slot: Slot; label: string }[] = [];
     const ids = new Set<string>();
+    const def = defaultId(templates, prefs.value.llm?.default_template);
     for (const t of templates) {
-      if (HIDDEN_TEMPLATES.has(t.id) || MAIN.has(t.id) || ids.has(t.id)) continue;
+      if (HIDDEN_TEMPLATES.has(t.id) || ids.has(t.id)) continue;
       ids.add(t.id);
-      const slot = templateSlot(t.id);
+      // the default template owns «Ask: brief answer», complement its own main-list row; a non-default «brief» gets a row here
+      const slot = bindSlot(t.id, def);
+      if (slot.action === 'ask_brief' || slot.action === 'ask_complement') continue;
       const name = locale.lang === 'ru' ? t.names.ru : t.names.en;
       out.push({ slot, label: slot.action === 'ask_template' ? tm('m.act.askTemplate', { name }) : tm(`m.act.${slot.action}` as MKey) });
     }

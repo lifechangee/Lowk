@@ -129,7 +129,7 @@ fn templates() {
         instruction: "Do it".into(),
         needs_my_answer: false,
         vision: false,
-        reasoning: false,
+        reasoning: None,
     };
     t.upsert(custom).unwrap();
     t.remove("mine").unwrap();
@@ -146,7 +146,7 @@ fn templates() {
         instruction: "y".into(),
         needs_my_answer: true,
         vision: false,
-        reasoning: false,
+        reasoning: None,
     })
     .unwrap();
     let out = s.set_templates(&t).unwrap();
@@ -244,4 +244,130 @@ fn old_settings_file_loads_with_gradient_off_and_mic_on() {
     let again = FileSettingsStore::open(d.path()).unwrap().get();
     assert!(again.overlay.adaptive_scrim);
     assert_eq!(again.audio.record_mic, lowk_types::MicMode::Off);
+}
+
+fn mine(id: &str, ru: &str, en: &str) -> Template {
+    Template {
+        id: id.into(),
+        names: LocalizedName {
+            ru: ru.into(),
+            en: en.into(),
+        },
+        instruction: "Do it".into(),
+        needs_my_answer: false,
+        vision: false,
+        reasoning: None,
+    }
+}
+
+/// Schema 1 -> 2: the old plain-bool `reasoning = false` of a template means "follow the global setting".
+#[test]
+fn templates_reasoning_migrates_from_bool_to_tristate() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("settings.toml");
+    fs::copy(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/owner-settings.toml"),
+        &p,
+    )
+    .unwrap();
+    let raw = fs::read_to_string(&p).unwrap();
+    assert!(raw.contains("schema_version = 1") && raw.contains("reasoning = false"));
+    let s = FileSettingsStore::open(d.path()).unwrap().get();
+    assert_eq!(s.schema_version, 2);
+    assert!(s.templates.iter().all(|t| t.reasoning.is_none()));
+    // a forced-on template survives the migration, and so does a forced-off one chosen after it
+    let st = FileSettingsStore::open(d.path()).unwrap();
+    let mut t = TemplateSet::from_settings(&st.get());
+    let mut on = mine("on", "Вкл", "On");
+    on.reasoning = Some(true);
+    let mut off = mine("off", "Выкл", "Off");
+    off.reasoning = Some(false);
+    t.upsert(on).unwrap();
+    t.upsert(off).unwrap();
+    st.set_templates(&t).unwrap();
+    let again = FileSettingsStore::open(d.path()).unwrap().get();
+    assert_eq!(
+        again.templates.iter().find(|t| t.id == "on").unwrap().reasoning,
+        Some(true)
+    );
+    assert_eq!(
+        again.templates.iter().find(|t| t.id == "off").unwrap().reasoning,
+        Some(false)
+    );
+    assert!(again
+        .templates
+        .iter()
+        .find(|t| t.id == "brief")
+        .unwrap()
+        .reasoning
+        .is_none());
+}
+
+/// Create / edit / duplicate / reorder / delete / restore through the store; everything persists.
+#[test]
+fn template_crud_persists_and_keeps_order() {
+    let d = tempfile::tempdir().unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    let ids = |s: &FileSettingsStore| s.get().templates.iter().map(|t| t.id.clone()).collect::<Vec<_>>();
+    let mut t = TemplateSet::from_settings(&s.get());
+    t.upsert(mine("a", "Первый", "First")).unwrap();
+    t.duplicate("a", "a2").unwrap();
+    s.set_templates(&t).unwrap();
+    assert_eq!(ids(&s), ["brief", "complement", "summary", "a", "a2"]);
+    let copy = s.get().templates.into_iter().find(|t| t.id == "a2").unwrap();
+    assert_eq!(copy.names.en, "First (copy)");
+    assert_eq!(copy.instruction, "Do it");
+
+    t.move_to("a2", 0).unwrap();
+    s.set_templates(&t).unwrap();
+    assert_eq!(
+        ids(&FileSettingsStore::open(d.path()).unwrap()),
+        ["a2", "brief", "complement", "summary", "a"]
+    );
+
+    // edit a built-in, then restore: the shipped text returns, user templates stay
+    let mut b = t.get("brief").unwrap().clone();
+    b.instruction = "Другое".into();
+    t.upsert(b).unwrap();
+    t.remove("a").unwrap();
+    t.restore_builtins();
+    assert_eq!(
+        t.get("brief").unwrap().instruction,
+        TemplateSet::defaults().get("brief").unwrap().instruction
+    );
+    s.set_templates(&t).unwrap();
+    assert_eq!(ids(&s), ["a2", "brief", "complement", "summary"]);
+    assert!(t.remove("complement").is_err());
+}
+
+/// The store refuses a template list the UI could never have produced.
+#[test]
+fn template_patch_validation() {
+    let d = tempfile::tempdir().unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    let with = |extra: Template| {
+        let mut t = TemplateSet::from_settings(&s.get());
+        t.upsert(extra).unwrap();
+        s.set_templates(&t)
+    };
+    assert!(
+        with(mine("n", "Кратко", "Other")).is_err(),
+        "ru name taken (case-insensitive)"
+    );
+    assert!(with(mine("n", "Новый", "brief")).is_err(), "en name taken");
+    assert!(with(mine("n", " ", "New")).is_err(), "empty name");
+    let mut e = mine("n", "Новый", "New");
+    e.instruction = "  ".into();
+    assert!(
+        s.patch(SettingsPatch(serde_json::json!({ "templates": [e] })))
+            .is_err(),
+        "empty instruction"
+    );
+    let only_custom = serde_json::json!({ "templates": [mine("n", "Новый", "New")] });
+    assert!(
+        s.patch(SettingsPatch(only_custom)).is_err(),
+        "built-ins cannot be deleted"
+    );
+    assert_eq!(s.get().templates.len(), 3, "nothing was written");
+    with(mine("n", "Новый", "New")).unwrap();
 }

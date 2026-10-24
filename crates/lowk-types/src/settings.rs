@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::collections::BTreeMap;
 
-pub const SETTINGS_SCHEMA_VERSION: u32 = 1;
+/// 2: `Template.reasoning` became tri-state (`None` = follow the global setting).
+pub const SETTINGS_SCHEMA_VERSION: u32 = 2;
 /// Symbolic default; `lowk-platform` resolves `~/Documents` (Windows: known folder).
 pub const DEFAULT_VAULT_PATH: &str = "~/Documents/Lowk";
 /// Live answers use the version-pinned snapshot too (BRIEF, bench 2026-10-21: 1.2 s TTFT p50). The plain
@@ -76,6 +77,58 @@ impl Settings {
             updates: UpdateSettings::default(),
             templates: default_templates(),
         }
+    }
+
+    /// Schema 1 -> 2: `Template.reasoning` was a plain bool whose `false` meant "off by default", not "force off".
+    /// A pre-2 `false` becomes `None` (follow the global setting); `true` stays a forced on.
+    /// Returns true when something changed.
+    pub fn migrate_templates(&mut self) -> bool {
+        if self.schema_version >= 2 {
+            return false;
+        }
+        let mut changed = false;
+        for t in &mut self.templates {
+            if t.reasoning == Some(false) {
+                t.reasoning = None;
+                changed = true;
+            }
+        }
+        changed
+    }
+
+    /// The prompt-template list must stay usable: every template has an id, non-empty names and instruction;
+    /// ids and names are unique; the built-ins (brief, complement, summary) cannot be deleted.
+    pub fn validate_templates(&self) -> crate::Result<()> {
+        let bad = |d: String| crate::AppError::new(crate::ErrorCode::InvalidArgument).with_detail(d);
+        let mut ids = std::collections::BTreeSet::new();
+        let (mut ru, mut en) = (
+            std::collections::BTreeSet::new(),
+            std::collections::BTreeSet::new(),
+        );
+        for t in &self.templates {
+            if t.id.trim().is_empty() || t.instruction.trim().is_empty() {
+                return Err(bad(format!("template {:?} needs an id and an instruction", t.id)));
+            }
+            if t.names.ru.trim().is_empty() || t.names.en.trim().is_empty() {
+                return Err(bad(format!("template {:?} needs a name", t.id)));
+            }
+            if !ids.insert(t.id.clone()) {
+                return Err(bad(format!("duplicate template id {:?}", t.id)));
+            }
+            // summary stays out of the overlay list and the editor
+            if t.id != TEMPLATE_SUMMARY
+                && (!ru.insert(t.names.ru.trim().to_lowercase())
+                    || !en.insert(t.names.en.trim().to_lowercase()))
+            {
+                return Err(bad(format!("duplicate template name of {:?}", t.id)));
+            }
+        }
+        for id in [TEMPLATE_BRIEF, TEMPLATE_COMPLEMENT, TEMPLATE_SUMMARY] {
+            if !ids.contains(id) {
+                return Err(bad(format!("built-in template {id:?} cannot be deleted")));
+            }
+        }
+        Ok(())
     }
 
     /// Repairs binds written by older builds: BRIEF fixes ⌘⇧S = screenshot of all monitors and
@@ -624,8 +677,10 @@ pub struct Template {
     pub needs_my_answer: bool,
     #[serde(default)]
     pub vision: bool,
+    /// Per-template override of `llm.reasoning` for this Ask: `Some(true/false)` forces it on/off,
+    /// `None` follows the global setting.
     #[serde(default)]
-    pub reasoning: bool,
+    pub reasoning: Option<bool>,
 }
 
 pub fn default_templates() -> Vec<Template> {
@@ -639,7 +694,7 @@ pub fn default_templates() -> Vec<Template> {
             instruction: "Кратко ответь на вопрос, заданный в системе/приложении.".into(),
             needs_my_answer: false,
             vision: false,
-            reasoning: false,
+            reasoning: None,
         },
         Template {
             id: TEMPLATE_COMPLEMENT.into(),
@@ -650,7 +705,7 @@ pub fn default_templates() -> Vec<Template> {
             instruction: "Я уже ответил. Добавь недостающие детали, не повторяя сказанное.".into(),
             needs_my_answer: true,
             vision: false,
-            reasoning: false,
+            reasoning: None,
         },
         summary_template(),
     ]
@@ -667,7 +722,7 @@ pub fn summary_template() -> Template {
         instruction: "Сделай краткое резюме созвона: ключевые темы, решения, договорённости и следующие шаги. Отвечай на языке разговора.".into(),
         needs_my_answer: false,
         vision: false,
-        reasoning: false,
+        reasoning: None,
     }
 }
 

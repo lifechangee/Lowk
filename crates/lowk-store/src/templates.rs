@@ -74,6 +74,56 @@ impl TemplateSet {
         }
     }
 
+    /// Copy of a template under a new id with a name suffix (« (копия)» / « (copy)»), inserted right after it.
+    pub fn duplicate(&mut self, id: &str, new_id: &str) -> Result<()> {
+        let i = self
+            .0
+            .iter()
+            .position(|t| t.id == id)
+            .ok_or_else(|| AppError::new(ErrorCode::NotFound))?;
+        if self.get(new_id).is_some() {
+            return Err(AppError::new(ErrorCode::InvalidArgument).with_detail("id taken"));
+        }
+        let mut c = self.0[i].clone();
+        c.id = new_id.into();
+        let mut ru = format!("{} (копия)", c.names.ru);
+        let mut en = format!("{} (copy)", c.names.en);
+        while self
+            .0
+            .iter()
+            .any(|t| t.names.ru.eq_ignore_ascii_case(&ru) || t.names.en.eq_ignore_ascii_case(&en))
+        {
+            ru.push('+');
+            en.push('+');
+        }
+        c.names = LocalizedName { ru, en };
+        self.0.insert(i + 1, c);
+        Ok(())
+    }
+
+    /// Move a template to position `to` (the order is the overlay's cycle order).
+    pub fn move_to(&mut self, id: &str, to: usize) -> Result<()> {
+        let i = self
+            .0
+            .iter()
+            .position(|t| t.id == id)
+            .ok_or_else(|| AppError::new(ErrorCode::NotFound))?;
+        let t = self.0.remove(i);
+        self.0.insert(to.min(self.0.len()), t);
+        Ok(())
+    }
+
+    /// «Сбросить к стандартным»: built-ins get their shipped text back (missing ones return, order kept),
+    /// user templates stay.
+    pub fn restore_builtins(&mut self) {
+        for d in Self::defaults().0 {
+            match self.0.iter_mut().find(|t| t.id == d.id) {
+                Some(t) => *t = d,
+                None => self.0.push(d),
+            }
+        }
+    }
+
     pub fn to_patch(&self) -> SettingsPatch {
         SettingsPatch(serde_json::json!({ "templates": self.0 }))
     }

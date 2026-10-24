@@ -29,6 +29,9 @@ const BIG = { name: 'Годовой отчёт.pdf', mimeType: 'application/pdf'
 async function act(page: Page, a: string | undefined) {
   if (!a) return;
   const newCall = () => page.locator('.side .nc button.btn.primary').click();
+  if (a === 'tpl-edit') { await page.locator('[data-tpl=complement] .main').click(); await page.waitForSelector('[data-testid=tpl-editor]'); }
+  if (a === 'tpl-new') { await page.locator('.foot button.primary').click(); await page.locator('[data-testid=tpl-editor] button.primary').click(); await page.waitForSelector('[data-testid=tpl-editor] [role=alert]'); }
+  if (a === 'tpl-delete') { await page.locator('[data-tpl=objection] .main').click(); await page.locator('[data-testid=tpl-editor] button.danger').click(); await page.waitForSelector('.modal'); }
   if (a === 'tab-summary') await page.getByRole('tab').nth(1).click();
   if (a === 'tab-qa') await page.getByRole('tab').nth(2).click();
   if (a === 'tab-shots') await page.getByRole('tab').nth(3).click();

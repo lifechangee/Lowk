@@ -97,7 +97,16 @@ export class TauriSource implements OverlaySource {
       };
       store.keysOverride = { ask: lab('ask_brief') || lab('ask'), complement: lab('ask_complement'), shot: lab('screenshot'), move: lab('move_hold'), click: lab('click_hold'), interactive: lab('toggle_interactive') };
     }
-    if (s.templates?.length) store.templates = s.templates.filter((t) => t.id !== 'summary');
+    if (s.templates?.length) {
+      store.templates = s.templates.filter((t) => t.id !== 'summary');
+      // the chip's template was deleted in Settings: fall back to the default one (backend keeps the same rule)
+      if (!store.templates.some((t) => t.id === store.templateId)) {
+        const want = s.llm?.default_template;
+        const id = (store.templates.find((t) => t.id === want) ?? store.templates.find((t) => t.id === 'brief') ?? store.templates[0]!).id;
+        store.templateId = id;
+        void this.setTemplate(id);
+      }
+    }
     store.lang = resolveOverlayLang(s.ui?.language ?? 'auto', this.#locale);
   }
 

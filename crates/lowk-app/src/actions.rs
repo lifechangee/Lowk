@@ -70,6 +70,8 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
             ActionId::ToggleMic => crate::commands::session::toggle_mic(st)?,
             ActionId::Ask => {
                 let template_id = st.template.lock().clone();
+                // the chip's template may have been deleted in Settings meanwhile
+                let template_id = existing_or_default(st, template_id);
                 st.session.ask(AskRequest {
                     template_id,
                     typed_text: None,
@@ -82,7 +84,12 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
             | ActionId::AskFollowup
             | ActionId::AskRecap => {
                 // G6: a fixed template per bind, no overlay mode switch needed.
-                let template_id = ev.action.template_id().unwrap_or("brief").to_string();
+                // ⌘↵ (ask_brief) asks the default template (Settings -> Templates); the others are fixed.
+                let template_id = if ev.action == ActionId::AskBrief {
+                    default_template(st)
+                } else {
+                    ev.action.template_id().unwrap_or("brief").to_string()
+                };
                 st.session.ask(AskRequest {
                     template_id,
                     typed_text: None,
@@ -155,6 +162,29 @@ fn pill_up(s: &lowk_stealth::Stealth) -> bool {
     s.pill.as_ref().is_some_and(|p| p.is_visible())
 }
 
+/// `llm.default_template` when it still exists, else `brief`, else the first template.
+fn default_template(st: &AppState) -> String {
+    let s = st.settings.get();
+    resolve_default(&s.templates, &s.llm.default_template)
+}
+
+fn resolve_default(ts: &[Template], want: &str) -> String {
+    [want, TEMPLATE_BRIEF]
+        .into_iter()
+        .find(|id| ts.iter().any(|t| t.id == *id))
+        .map(str::to_string)
+        .or_else(|| ts.first().map(|t| t.id.clone()))
+        .unwrap_or_else(|| TEMPLATE_BRIEF.to_string())
+}
+
+fn existing_or_default(st: &AppState, id: String) -> String {
+    if st.settings.get().templates.iter().any(|t| t.id == id) {
+        id
+    } else {
+        default_template(st)
+    }
+}
+
 fn cycle_template(st: &AppState, forward: bool) {
     let ts = st.settings.get().templates;
     let visible: Vec<&Template> = ts.iter().filter(|t| t.id != TEMPLATE_SUMMARY).collect();
@@ -166,4 +196,19 @@ fn cycle_template(st: &AppState, forward: bool) {
     let n = visible.len();
     let j = if forward { (i + 1) % n } else { (i + n - 1) % n };
     *cur = visible[j].id.clone();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_template_falls_back_when_deleted() {
+        let mut ts = default_templates();
+        assert_eq!(resolve_default(&ts, "complement"), "complement");
+        assert_eq!(resolve_default(&ts, "gone"), "brief");
+        ts.retain(|t| t.id != "brief");
+        assert_eq!(resolve_default(&ts, "gone"), "complement");
+        assert_eq!(resolve_default(&[], "x"), "brief");
+    }
 }

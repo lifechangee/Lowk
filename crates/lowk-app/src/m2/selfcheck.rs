@@ -567,6 +567,8 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
             "llm": { "base_url": srv.base_url(), "pinned_provider": "StubHost" },
             "templates": [
                 { "id": "brief", "names": { "ru": "Кратко", "en": "Brief" }, "instruction": "Ответь кратко." },
+                { "id": "complement", "names": { "ru": "Дополни мой ответ", "en": "Complement my answer" }, "instruction": "Дополни.", "needs_my_answer": true },
+                { "id": "summary", "names": { "ru": "Резюме", "en": "Summary" }, "instruction": "Резюме." },
                 { "id": "pirate", "names": { "ru": "Пират", "en": "Pirate" }, "instruction": "Отвечай как пират, одним предложением." }
             ]
         }),

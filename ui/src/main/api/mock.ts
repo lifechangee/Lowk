@@ -81,10 +81,10 @@ export class MockBackend implements Backend {
       stealth: { hide_main: false, verify_interval_ms: 5000 },
       updates: { check_daily: true, last_checked: new Date(this.#now - 3 * 3600_000).toISOString() },
       templates: [
-        { id: 'brief', names: { ru: 'Кратко', en: 'Brief' }, instruction: 'Briefly answer the question.' },
-        { id: 'complement', names: { ru: 'Дополни мой ответ', en: 'Complement my answer' }, instruction: 'Complement my answer.', needs_my_answer: true },
-        { id: 'summary', names: { ru: 'Резюме', en: 'Summary' }, instruction: 'Summarise the call.' },
-        { id: 'objection', names: { ru: 'Возражение клиента', en: 'Client objection' }, instruction: 'Suggest a reply to the objection.' },
+        { id: 'brief', names: { ru: 'Кратко', en: 'Brief' }, instruction: 'Кратко ответь на вопрос, заданный в системе/приложении.', needs_my_answer: false, vision: false, reasoning: null },
+        { id: 'complement', names: { ru: 'Дополни мой ответ', en: 'Complement my answer' }, instruction: 'Я уже ответил. Добавь недостающие детали, не повторяя сказанное.', needs_my_answer: true, vision: false, reasoning: null },
+        { id: 'summary', names: { ru: 'Резюме', en: 'Summary' }, instruction: 'Сделай краткое резюме созвона: ключевые темы, решения, договорённости и следующие шаги. Отвечай на языке разговора.', needs_my_answer: false, vision: false, reasoning: null },
+        { id: 'objection', names: { ru: 'Возражение клиента', en: 'Client objection' }, instruction: 'Предложи вежливый ответ на возражение клиента: признай сомнение, приведи один аргумент и задай уточняющий вопрос.', needs_my_answer: false, vision: false, reasoning: true },
       ],
     };
     if (qp('empty')) { this.#folders = []; this.#calls = []; this.#documents = []; }
