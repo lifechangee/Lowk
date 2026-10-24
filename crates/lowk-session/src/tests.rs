@@ -1339,7 +1339,19 @@ fn auto_opens_and_closes_the_mic_with_the_call_app_and_writes_markers() {
 #[test]
 fn auto_ignores_blips_shorter_than_the_hysteresis() {
     let probe = FakeMicUseProbe::new(false);
-    let r = auto_rig(&probe);
+    // a wide on delay: a slow CI runner can stretch the 10 ms blip well past the 30 ms of `auto_rig`
+    let r = rig({
+        let probe = probe.clone();
+        move |d| {
+            d.folder_mic = Arc::new(|_| MicPreset::Auto);
+            d.mic_probe = Arc::new(probe);
+            d.mic_auto = crate::deps::MicAutoCfg {
+                poll_ms: 5,
+                on_after_ms: 1_000,
+                off_after_ms: 90,
+            };
+        }
+    });
     r.session.start(auto_opts()).unwrap();
     probe.set(Some(true));
     std::thread::sleep(std::time::Duration::from_millis(10));
