@@ -96,3 +96,56 @@ test('F11 text keeps AA contrast over a black/white checkerboard at opacity 0, 6
   }
   expect(bad).toEqual([]);
 });
+
+// Header layout: nothing in the 600 px header may be truncated or clipped (the mic toggle once pushed the
+// template name, the mode label and the «×2» queue chip into ellipses).
+for (const lang of ['ru', 'en'] as const) {
+  for (const px of [13, 15]) {
+    test(`header: nothing is truncated or clipped (${lang}, ${px}px, all states)`, async ({ page }) => {
+      await page.goto(`/overlay.html?still=1&t=60&lang=${lang}&bare=1&bg=dark&expose=1`);
+      await page.waitForSelector('.head .tpl');
+      await page.evaluate((n) => {
+        (window as unknown as { __ovStore: { fontPx: number } }).__ovStore.fontPx = n;
+      }, px);
+      const states: Array<[string, string]> = [
+        ['passive', `s.setMode('passive'); s.menuOpen = false; s.phase = 'recording'; s.setQueue(2, s.thumbs)`],
+        ['interactive', `s.setMode('interactive'); s.menuOpen = false`],
+        ['menu open', `s.setMode('interactive'); s.menuOpen = true`],
+        ['moving', `s.menuOpen = false; s.setMode('moving')`],
+        ['hover', `s.setMode('hover')`],
+        ['no queue', `s.setMode('passive'); s.setQueue(0)`],
+        ['queue 12', `s.setQueue(12, [])`],
+        ['paused', `s.setQueue(2, []); s.phase = 'paused'`],
+        ['idle', `s.phase = 'idle'`],
+        ['mic muted', `s.phase = 'recording'; s.micOn = false`],
+      ];
+      for (const [name, js] of states) {
+        await page.evaluate((code) => {
+          const s = (window as unknown as { __ovStore: unknown }).__ovStore;
+          new Function('s', code)(s);
+        }, js);
+        await page.waitForTimeout(150);
+        const bad = await page.evaluate(() => {
+          const out: string[] = [];
+          const head = document.querySelector<HTMLElement>('.head')!;
+          const hr = head.getBoundingClientRect();
+          const ov = document.querySelector<HTMLElement>('.ov')!.getBoundingClientRect();
+          if (head.scrollWidth > head.clientWidth) out.push(`.head scrollWidth ${head.scrollWidth} > ${head.clientWidth}`);
+          const all = [...head.querySelectorAll<HTMLElement>('*')].filter((e) => !e.closest('.sr') && !e.classList.contains('sr') && !(e instanceof SVGElement));
+          for (const e of all) {
+            const r = e.getBoundingClientRect();
+            if (!r.width && !r.height) continue;
+            const id = `${e.tagName.toLowerCase()}.${e.className && typeof e.className === 'string' ? e.className : ''}«${(e.textContent ?? '').trim().slice(0, 20)}»`;
+            if (!e.querySelector('.menu') && e.scrollWidth > e.clientWidth + 0.5) out.push(`${id} scrollWidth ${e.scrollWidth} > clientWidth ${e.clientWidth}`);
+            if (e.closest('.menu')) {
+              if (r.right > ov.right + 0.5 || r.left < ov.left - 0.5) out.push(`${id} outside overlay`);
+            } else if (r.right > hr.right - 0.5 + 16 || r.left < hr.left - 0.5) out.push(`${id} outside header`);
+            if (getComputedStyle(e).textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth) out.push(`${id} ellipsised`);
+          }
+          return out;
+        });
+        expect(bad, `${lang} ${px}px ${name}`).toEqual([]);
+      }
+    });
+  }
+}

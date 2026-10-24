@@ -125,8 +125,11 @@
   background: var(--chip); border: 1px solid var(--chipbd); font-size: 12px; line-height: 16px;
   color: var(--tx); min-width: 0; flex: 0 1 auto; text-shadow: none;
 }
-.chip .lbl { flex: 0 1 auto; }
-.tpl .lbl, .mode .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip .lbl { flex: none; white-space: nowrap; }
+.chip { flex: 0 0 auto; }
+.chip .shots-wrap { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.tpl .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shots-wrap { display: flex; gap: 4px; align-items: center; flex: none; }
 .thumb {
   width: 28px; height: 20px; border-radius: 4px; border: 1px solid var(--chipbd);
@@ -144,6 +147,7 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 .thumb.t2 { filter: brightness(1.1); }
 
 .tpl-wrap { position: relative; min-width: 0; flex: 0 1 auto; }
+.tpl-wrap .tpl .lbl { flex: 0 1 auto; }
 .tpl {
   all: unset; box-sizing: border-box; cursor: inherit;
   display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 4px 8px 4px 12px; border-radius: 8px;
@@ -172,7 +176,7 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
   border-radius: 99px; padding: 0 8px; color: var(--tx2); flex: none;
 }
 
-.mode { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; line-height: 16px; color: var(--tx2); flex: 0 1 auto; min-width: 0; max-width: 128px; }
+.mode { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; line-height: 16px; color: var(--tx2); flex: none; }
 .mode i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px dashed var(--tx2); flex: none; }
 .ov.interactive .mode, .ov.hover .mode { color: var(--intc); font-weight: 600; }
 .ov.hover .mode i { border: none; background: var(--intc); }

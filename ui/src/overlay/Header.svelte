@@ -38,7 +38,9 @@
   {#if store.phase === 'recording'}
     <div class="rec" data-blk><i></i><span class="lbl">{formatElapsed(store.elapsedMs)}</span></div>
   {:else}
-    <div class="rec off" data-blk><i></i><span class="lbl">{ot(store.phase === 'paused' ? 'overlay.state.paused' : 'overlay.state.idle', lang)}</span></div>
+    {@const recLbl = ot(store.phase === 'paused' ? 'overlay.state.paused' : 'overlay.state.idle', lang)}
+    <!-- idle: a hollow dot with a tooltip (the long «Не записывается» label would crowd the 600 px header) -->
+    <div class="rec off" data-blk title={recLbl}><i></i><span class="lbl" class:sr={store.phase !== 'paused'}>{recLbl}</span></div>
   {/if}
   {#if store.phase === 'recording' || store.phase === 'paused'}
     <!-- F8: one click, no confirmation. Click-through in passive mode; the record bind keeps working. -->
@@ -81,5 +83,5 @@
       </button>
     </span>
   {/if}
-  <span class="mode" data-blk><i></i><span class="lbl">{ot(modeKey, lang)}</span></span>
+  <span class="mode" data-blk title={ot(modeKey, lang)} aria-label={ot(modeKey, lang)} role="img"><i></i><span class="lbl sr">{ot(modeKey, lang)}</span></span>
 </div>
