@@ -17,6 +17,7 @@ mod probe;
 #[cfg(feature = "qa")]
 mod qa;
 mod sigterm;
+pub mod soak;
 mod state;
 mod visibility;
 mod windows;

@@ -81,12 +81,31 @@ fn to_device_rate(x: &[f32], rate: u32) -> Vec<f32> {
         .collect()
 }
 
-fn looped(x: &[f32], secs: f32) -> Vec<f32> {
-    if secs <= 0.0 || x.is_empty() {
-        return x.to_vec();
+/// A device signal: `base` repeated up to `total` samples, produced chunk by chunk, so a
+/// multi-hour soak never holds the whole signal in memory (only the short base clip).
+struct LoopedPcm {
+    base: Vec<f32>,
+    total: usize,
+}
+
+impl LoopedPcm {
+    fn new(base: Vec<f32>, secs: f32) -> Self {
+        let total = if secs <= 0.0 || base.is_empty() {
+            base.len()
+        } else {
+            (secs * DEVICE_RATE as f32) as usize
+        };
+        Self { base, total }
     }
-    let n = (secs * DEVICE_RATE as f32) as usize;
-    (0..n).map(|i| x[i % x.len()]).collect()
+    /// Samples `[at, at + n)` (clipped to `total`).
+    fn chunk(&self, at: usize, n: usize, out: &mut Vec<f32>) {
+        out.clear();
+        let end = (at + n).min(self.total);
+        out.extend((at..end).map(|i| self.base[i % self.base.len()]));
+    }
+    fn materialize(&self) -> Vec<f32> {
+        (0..self.total).map(|i| self.base[i % self.base.len()]).collect()
+    }
 }
 
 struct Handle {
@@ -117,29 +136,36 @@ impl AudioBackend for PipelineFileSource {
         sink: FrameSink,
         ev: AudioEventSink,
     ) -> Result<Box<dyn CaptureHandle>> {
-        let load = |p: &Option<PathBuf>| -> Result<Option<Vec<f32>>> {
+        let load = |p: &Option<PathBuf>| -> Result<Option<LoopedPcm>> {
             match p {
                 Some(p) => {
                     let (m, r) = decode_mono(p)?;
-                    Ok(Some(looped(&to_device_rate(&m, r), self.opts.seconds)))
+                    Ok(Some(LoopedPcm::new(to_device_rate(&m, r), self.opts.seconds)))
                 }
                 None => Ok(None),
             }
         };
-        let (mut me, sys) = (load(&self.me)?, load(&self.system)?);
+        let (me, sys) = (load(&self.me)?, load(&self.system)?);
         if me.is_none() && sys.is_none() {
             return Err(AppError::new(ErrorCode::FormatInvalid).with_detail("no input files"));
         }
-        // the mic hears the room: its own signal plus a share of the speakers
-        if let Some(m) = me.as_mut() {
-            for (i, v) in m.iter_mut().enumerate() {
-                let leak = sys.as_ref().and_then(|s| s.get(i)).copied().unwrap_or(0.0);
-                *v = *v * self.opts.mic_gain + leak * self.opts.echo_gain;
+        // the mic hears the room: its own signal plus a share of the speakers (this one is
+        // materialized; the System signal alone streams lazily)
+        let me = me.map(|m| {
+            let mut v = m.materialize();
+            for (i, x) in v.iter_mut().enumerate() {
+                let leak = sys
+                    .as_ref()
+                    .filter(|s| i < s.total)
+                    .map_or(0.0, |s| s.base[i % s.base.len()]);
+                *x = *x * self.opts.mic_gain + leak * self.opts.echo_gain;
             }
-        }
+            let total = v.len();
+            LoopedPcm { base: v, total }
+        });
         let aec = AecLink::new(cfg.aec != AecMode::Off && me.is_some() && sys.is_some());
         let mut workers = vec![];
-        let mut rings: Vec<(Vec<f32>, RingIn)> = vec![];
+        let mut rings: Vec<(LoopedPcm, RingIn)> = vec![];
         let (mut me_sh, mut sys_sh) = (None, None);
         for (st, pcm) in [(Stream::Me, me), (Stream::System, sys)] {
             let Some(pcm) = pcm else { continue };
@@ -164,10 +190,12 @@ impl AudioBackend for PipelineFileSource {
                         let t0 = Instant::now();
                         const CHUNK: usize = 480; // 10 ms at 48 kHz, like a HAL buffer
                         let mut sent = 0usize;
-                        for (i, ch) in pcm.chunks(CHUNK).enumerate() {
+                        let mut ch: Vec<f32> = Vec::with_capacity(CHUNK);
+                        for i in 0..pcm.total.div_ceil(CHUNK) {
                             if stop.load(Ordering::Relaxed) {
                                 break;
                             }
+                            pcm.chunk(i * CHUNK, CHUNK, &mut ch);
                             if speed > 0.0 {
                                 let due = t0 + Duration::from_secs_f64(i as f64 * 0.01 / speed);
                                 let now = Instant::now();
@@ -180,7 +208,7 @@ impl AudioBackend for PipelineFileSource {
                                     std::thread::sleep(Duration::from_millis(1));
                                 }
                             }
-                            ring.push(ch, DEVICE_RATE, now_mono_ns());
+                            ring.push(&ch, DEVICE_RATE, now_mono_ns());
                             sent += ch.len();
                         }
                         done.finish_one();

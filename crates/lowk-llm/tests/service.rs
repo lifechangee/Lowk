@@ -136,7 +136,7 @@ fn long_transcript_is_map_reduced() {
     assert_eq!(reqs.len(), maps + 1);
     let last = reqs.last().unwrap().json();
     let user = last["messages"][1]["content"].as_str().unwrap();
-    assert!(user.contains("<notes>") && user.contains("--- part 1 ---") && !user.contains("строка номер 1 "));
+    assert!(user.contains("<notes>") && user.contains("--- part 1 (") && !user.contains("строка номер 1 "));
     assert_eq!(streamed, RU_REPLY.concat(), "only the final reduce is streamed");
     assert_eq!(sum.tasks.len(), 1);
 }
@@ -279,4 +279,136 @@ fn probe_picks_fastest_provider() {
             .code,
         ErrorCode::ApiKeyMissing
     );
+}
+
+/// A 2 h Russian lecture (~22k words, RU with English terms), stamped like the vault's call files.
+fn lecture_2h() -> String {
+    let mut s = String::new();
+    let mut words = 0;
+    let mut t = 0u32;
+    let mut i = 0;
+    while t < 2 * 3600 {
+        let line = format!(
+            "[{:02}:{:02}:{:02}] **Собеседник:** тема {i}: {}\n",
+            t / 3600,
+            t / 60 % 60,
+            t % 60,
+            "обсуждаем pipeline, latency и deadline релиза, затем backlog и retention по кварталам и ещё немного про sandbox ".repeat(4)
+        );
+        words += line.split_whitespace().count();
+        s.push_str(&line);
+        t += 25; // ~ 3 words/s of lecture
+        i += 1;
+    }
+    assert!(words > 15_000, "{words}");
+    s
+}
+
+fn long_responder(req: &lowk_llm::mock::RecordedRequest, i: usize) -> Reply {
+    let sys = req.json()["messages"][0]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    if sys.contains("Extract facts") {
+        // a verbose map answer so the notes force an extra merge level
+        Reply::answer(&[&format!(
+            "- факт {i}: {}",
+            "термин pipeline и latency ".repeat(40)
+        )])
+    } else if sys.contains("Merge these consecutive notes") {
+        Reply::answer(&[&format!("- слитые факты {i}: pipeline, latency")])
+    } else {
+        Reply::answer(RU_REPLY)
+    }
+}
+
+#[test]
+fn two_hour_lecture_is_chunked_by_time_with_progress() {
+    let tr = lecture_2h();
+    let s = MockServer::start(long_responder);
+    let mut c = cfg(&s);
+    c.summary_part_secs = 1200; // 20 min slices
+    let svc = CloudLlm::new(c);
+    let (mut progress, mut streamed) = (vec![], String::new());
+    let sum = svc
+        .summarize_with_progress(
+            &input(&tr),
+            &mut |d| streamed.push_str(d),
+            &mut |a, b| progress.push((a, b)),
+            &|| true,
+        )
+        .unwrap();
+    let reqs = s.chat_requests();
+    let maps: Vec<_> = reqs.iter().filter(|r| r.body.contains("Extract facts")).collect();
+    assert_eq!(maps.len(), 6, "2 h / 20 min");
+    // every slice is labelled with its recording range and keeps the language/terms rules
+    let first = maps[0].json()["messages"][0]["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(first.contains("part 1 of 6 (00:00:00-00:20:00)") && first.contains("in Russian"));
+    assert!(first.contains("English terms exactly as spoken"));
+    // no map request exceeds the configured part size
+    assert!(maps.iter().all(|r| r.body.chars().count() < 70_000));
+    let last = reqs.last().unwrap().json();
+    let sys = last["messages"][0]["content"].as_str().unwrap();
+    let user = last["messages"][1]["content"].as_str().unwrap();
+    assert!(sys.contains("entirely in Russian") && sys.contains("ONE long recording"));
+    assert!(
+        user.contains("<notes>") && user.contains("--- part 6 (01:42:"),
+        "{user:.300}"
+    );
+    assert!(
+        !user.contains("<transcript>"),
+        "the raw transcript never reaches the reduce call"
+    );
+    assert_eq!(streamed, RU_REPLY.concat(), "only the final reduce is streamed");
+    assert_eq!(sum.key_points.len(), 2);
+    // progress is monotonic, ends on the final step, and never exceeds its total
+    assert!(progress.windows(2).all(|w| w[1].0 == w[0].0 + 1));
+    let (step, total) = *progress.last().unwrap();
+    assert_eq!(step as usize, reqs.len());
+    assert!(step <= total && progress.iter().all(|p| p.0 <= p.1));
+}
+
+#[test]
+fn huge_notes_are_merged_hierarchically_before_the_final_call() {
+    let tr = lecture_2h();
+    let s = MockServer::start(long_responder);
+    let mut c = cfg(&s);
+    c.summary_part_secs = 600; // 12 slices of verbose notes (~1.1k chars each)
+    c.summary_notes_chars = 4_000;
+    let svc = CloudLlm::new(c);
+    svc.summarize(&input(&tr), &mut |_| {}, &|| true).unwrap();
+    let reqs = s.chat_requests();
+    let merges = reqs
+        .iter()
+        .filter(|r| r.body.contains("Merge these consecutive notes"))
+        .count();
+    assert!(merges >= 2, "{merges} merge calls");
+    let user = reqs.last().unwrap().json()["messages"][1]["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(
+        user.contains("--- group 1.") && !user.contains("факт 0:"),
+        "final call sees merged notes only"
+    );
+    assert!(user.chars().count() < 8_000, "{}", user.chars().count());
+}
+
+#[test]
+fn short_call_is_one_request_with_trivial_progress() {
+    let s = MockServer::scripted(vec![Reply::answer(RU_REPLY)]);
+    let svc = CloudLlm::new(cfg(&s));
+    let mut p = vec![];
+    svc.summarize_with_progress(
+        &input(SAMPLE_RU),
+        &mut |_| {},
+        &mut |a, b| p.push((a, b)),
+        &|| true,
+    )
+    .unwrap();
+    assert_eq!(s.chat_requests().len(), 1);
+    assert_eq!(p, [(1, 1)]);
 }

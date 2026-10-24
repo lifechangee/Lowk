@@ -199,6 +199,12 @@ pub enum SummaryEvent {
     Start {
         call: CallId,
     },
+    /// A long call is summarised in parts: request `step` of an estimated `total` is starting.
+    Progress {
+        call: CallId,
+        step: u32,
+        total: u32,
+    },
     /// Streamed Markdown of the summary body.
     Delta {
         call: CallId,

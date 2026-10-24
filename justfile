@@ -138,6 +138,27 @@ ci: lint ci-cross
     pnpm --dir ui build
     pnpm --dir ui size
 
+# Long-session soak (NOT part of `just ci`; silent, headless, nothing is played): loops the Russian bench clips as the
+# System stream through the real ring -> session -> local STT worker (+ Whisper correction) -> vault .md -> search index
+# and records RSS, word-to-screen latency over time, drops, worker restarts, transcript completeness, .md size, index
+# update time -> docs/qa/soak-2h.md. Needs the engine models (default: the app's data dir) and a built lowk-stt-worker
+# (`just worker`, or LOWK_STT_WORKER=...). `just soak 0.25 8` = 15 min of audio at 8x (smoke); default 2 h in real time
+# (takes 2 h; run it in the background). Details: docs/qa/soak-2h.md.
+soak hours="2" speed="1" *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    models="${LOWK_MODELS:-$HOME/Library/Application Support/Lowk/models}"
+    triple="$(rustc -vV | sed -n 's/^host: //p')"
+    if [ -z "${LOWK_STT_WORKER:-}" ]; then
+      for w in "crates/lowk-app/binaries/lowk-stt-worker-$triple" workers/lowk-stt-worker/target/release/lowk-stt-worker; do
+        [ -x "$w" ] && export LOWK_STT_WORKER="$PWD/$w" && break
+      done
+    fi
+    [ -n "${LOWK_STT_WORKER:-}" ] || { echo "no lowk-stt-worker: run 'just worker' or set LOWK_STT_WORKER"; exit 2; }
+    [ -d "$models/nemotron-local" ] || { echo "engine model missing in $models (install it from the app's Settings; not downloaded here)"; exit 2; }
+    cargo run --release -p lowk-app -- --selfcheck-soak --audio "${LOWK_BENCH_AUDIO:-spikes/stt-bench/audio}" --models "$models" \
+      --hours {{hours}} --speed {{speed}} --report "${LOWK_SOAK_REPORT:-target/soak-report.md}" --csv "${LOWK_SOAK_CSV:-target/soak-series.csv}" {{args}}
+
 # Compile-check the Windows target from any host (see docs/DECISIONS-M0.md).
 check-windows:
     cargo check --workspace --target x86_64-pc-windows-msvc

@@ -92,12 +92,19 @@ impl Services {
             .spawn(move || {
                 svc.env.emit(AppEvent::Summary(SummaryEvent::Start { call: id }));
                 let llm = CloudLlm::new(route.cfg);
-                let r = llm.summarize(
+                let r = llm.summarize_with_progress(
                     &input,
                     &mut |t| {
                         svc.env.emit(AppEvent::Summary(SummaryEvent::Delta {
                             call: id,
                             text: t.to_string(),
+                        }))
+                    },
+                    &mut |step, total| {
+                        svc.env.emit(AppEvent::Summary(SummaryEvent::Progress {
+                            call: id,
+                            step,
+                            total,
                         }))
                     },
                     &|| !cancel.load(Ordering::SeqCst),

@@ -9,6 +9,7 @@ export const summary = {
   'summary.openSettings': 'Open Settings',
   'summary.building': 'Writing the summary…',
   'summary.waiting': 'Waiting for the model…',
+  'summary.progress': 'Long recording: step {step} of {total}…',
   'summary.by': 'Model: {model}',
   'summary.copied': 'Summary copied',
   'summary.copyFailed': 'Could not copy',

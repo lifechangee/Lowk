@@ -18,7 +18,7 @@ pub use ledger::ChatLedger;
 pub use probe::{list_providers, probe_fastest_provider, ProbeOptions, ProbeResult, ProbeSample};
 pub use prompt::{BuildInput, BuiltTurn, ImagePart, PromptBuilder, SYSTEM_PROMPT};
 pub use sse::{SseEvent, SseParser};
-pub use summary::{parse_summary, pick_language, split_parts, Lang};
+pub use summary::{parse_summary, part_range, pick_language, split_parts, split_parts_timed, Lang};
 pub use tags::{normalize_tag, parse_tags};
 
 use lowk_types::{LlmService, Result, SummarizeInput, Summary, TagInput, TagSuggestion};
@@ -51,6 +51,20 @@ impl CloudLlm {
     }
 }
 
+impl CloudLlm {
+    /// Like `summarize`, plus `on_progress(step, total)` before each request of a long (map-reduce)
+    /// summary; `total` is an estimate that may grow when extra merge levels are needed.
+    pub fn summarize_with_progress(
+        &self,
+        input: &SummarizeInput,
+        on_delta: &mut dyn FnMut(&str),
+        on_progress: &mut dyn FnMut(u32, u32),
+        should_continue: &dyn Fn() -> bool,
+    ) -> Result<Summary> {
+        summary::run(&self.client, input, on_delta, on_progress, should_continue)
+    }
+}
+
 impl LlmService for CloudLlm {
     fn summarize(
         &self,
@@ -58,7 +72,7 @@ impl LlmService for CloudLlm {
         on_delta: &mut dyn FnMut(&str),
         should_continue: &dyn Fn() -> bool,
     ) -> Result<Summary> {
-        summary::run(&self.client, input, on_delta, should_continue)
+        summary::run(&self.client, input, on_delta, &mut |_, _| {}, should_continue)
     }
 
     fn suggest_tags(&self, input: &TagInput) -> Result<Vec<TagSuggestion>> {

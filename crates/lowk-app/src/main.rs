@@ -10,5 +10,8 @@ fn main() {
     if args.iter().any(|a| a == "--selfcheck-audio") {
         std::process::exit(lowk_app::audio_selfcheck::main(&args));
     }
+    if args.iter().any(|a| a == "--selfcheck-soak") {
+        std::process::exit(lowk_app::soak::main(&args));
+    }
     lowk_app::run();
 }

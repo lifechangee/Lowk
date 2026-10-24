@@ -58,6 +58,10 @@ pub struct LlmConfig {
     pub retry_backoff: Duration,
     /// Transcript chars per map-reduce part of the summary.
     pub summary_part_chars: usize,
+    /// Recording seconds per map-reduce part (by the transcript's `[hh:mm:ss]` stamps).
+    pub summary_part_secs: u64,
+    /// Joined part notes above this many chars are merged level by level before the final summary.
+    pub summary_notes_chars: usize,
 }
 
 impl std::fmt::Debug for LlmConfig {
@@ -91,6 +95,8 @@ impl LlmConfig {
             max_retries: 2,
             retry_backoff: Duration::from_millis(300),
             summary_part_chars: 60_000,
+            summary_part_secs: 1200,
+            summary_notes_chars: 30_000,
         }
     }
 

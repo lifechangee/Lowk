@@ -1445,6 +1445,8 @@ export type Summary = {
 
 /**  `summary://event` payload (separate from `llm://*`, which belongs to the overlay). */
 export type SummaryEvent = { type: "start"; call: Ulid } | 
+/**  A long call is summarised in parts: request `step` of an estimated `total` is starting. */
+{ type: "progress"; call: Ulid; step: number; total: number } | 
 /**  Streamed Markdown of the summary body. */
 { type: "delta"; call: Ulid; text: string } | { type: "done"; call: Ulid; summary: Summary } | { type: "error"; call: Ulid; error: AppError };
 

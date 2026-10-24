@@ -9,6 +9,7 @@ export const summary = {
   'summary.openSettings': 'Открыть настройки',
   'summary.building': 'Составляю саммари…',
   'summary.waiting': 'Жду ответ модели…',
+  'summary.progress': 'Длинная запись: шаг {step} из {total}…',
   'summary.by': 'Модель: {model}',
   'summary.copied': 'Саммари скопировано',
   'summary.copyFailed': 'Не удалось скопировать',

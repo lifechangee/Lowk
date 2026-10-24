@@ -29,7 +29,7 @@
   let hitIdx = $state<number | null>(null);
 
   // ---- summary ----
-  let sum = $state<{ phase: 'idle' | 'streaming' | 'error'; text: string; error: AppError | null }>({ phase: 'idle', text: '', error: null });
+  let sum = $state<{ phase: 'idle' | 'streaming' | 'error'; text: string; error: AppError | null; step?: number; total?: number }>({ phase: 'idle', text: '', error: null });
   // ---- tag suggestions ----
   let sug = $state<{ phase: 'idle' | 'loading' | 'ready' | 'error'; list: TagSuggestion[]; error: string }>({ phase: 'idle', list: [], error: '' });
 
@@ -61,6 +61,7 @@
     api.onSummaryEvent((e) => {
       if (e.call !== id) return;
       if (e.type === 'start') sum = { phase: 'streaming', text: '', error: null };
+      else if (e.type === 'progress') { sum.step = e.step; sum.total = e.total; }
       else if (e.type === 'delta') sum.text += e.text;
       else if (e.type === 'done') {
         sum = { phase: 'idle', text: '', error: null };
@@ -218,7 +219,7 @@
           <div class="sumbox" data-testid="summary-tab">
             {#if sum.phase === 'streaming'}
               <div class="sh" role="status"><span class="lbl"><i class="spin"></i>{tm('summary.building')}</span><Button size="sm" onclick={cancelSummary}>{tm('common.cancel')}</Button></div>
-              {#if sum.text}<Md md={sum.text} cursor />{:else}<p class="muted">{tm('summary.waiting')}</p>{/if}
+              {#if sum.text}<Md md={sum.text} cursor />{:else}<p class="muted">{sum.total && sum.total > 2 ? tm('summary.progress', { step: sum.step ?? 1, total: sum.total }) : tm('summary.waiting')}</p>{/if}
             {:else}
               {#if sum.phase === 'error' && sum.error}
                 <div class="err" role="alert" data-testid="summary-error"><Icon name="alert" size={16} /><span>{appErrorText(sum.error)}</span>

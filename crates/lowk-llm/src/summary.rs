@@ -151,18 +151,67 @@ fn user_prompt(input: &SummarizeInput, body_tag: &str, body: &str) -> String {
 
 /// Splits a transcript into parts of at most `max_chars`, on line boundaries.
 pub fn split_parts(transcript: &str, max_chars: usize) -> Vec<String> {
+    split_parts_timed(transcript, max_chars, u64::MAX)
+}
+
+/// Offset in seconds of a transcript line that starts with `[hh:mm:ss]` (or `[mm:ss]`).
+fn line_offset_s(line: &str) -> Option<u64> {
+    let rest = line.trim_start().strip_prefix('[')?;
+    let (stamp, _) = rest.split_once(']')?;
+    let mut secs = 0u64;
+    let mut n = 0;
+    for p in stamp.split(':') {
+        secs = secs * 60 + p.trim().parse::<u64>().ok()?;
+        n += 1;
+    }
+    (1..=3).contains(&n).then_some(secs)
+}
+
+fn fmt_hms(s: u64) -> String {
+    format!("{:02}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60)
+}
+
+/// First and last `[hh:mm:ss]` stamp (seconds) of a text, if it has any.
+fn stamp_span(text: &str) -> Option<(u64, u64)> {
+    let mut it = text.lines().filter_map(line_offset_s);
+    let first = it.next()?;
+    Some((first, it.next_back().unwrap_or(first)))
+}
+
+fn fmt_span(sp: Option<(u64, u64)>) -> String {
+    sp.map(|(a, b)| format!(" ({}-{})", fmt_hms(a), fmt_hms(b)))
+        .unwrap_or_default()
+}
+
+/// `hh:mm:ss-hh:mm:ss` of the first and last stamped line of a part, if any.
+pub fn part_range(part: &str) -> Option<String> {
+    stamp_span(part).map(|(a, b)| format!("{}-{}", fmt_hms(a), fmt_hms(b)))
+}
+
+/// Splits a transcript into consecutive parts of at most `max_chars` characters AND at most
+/// `max_secs` seconds of recording (by the `[hh:mm:ss]` line stamps), always on line boundaries.
+pub fn split_parts_timed(transcript: &str, max_chars: usize, max_secs: u64) -> Vec<String> {
     let max_chars = max_chars.max(1000);
-    if transcript.chars().count() <= max_chars {
+    if transcript.chars().count() <= max_chars
+        && stamp_span(transcript).map_or(0, |(a, b)| b.saturating_sub(a)) <= max_secs
+    {
         return vec![transcript.to_string()];
     }
     let mut parts = Vec::new();
     let mut cur = String::new();
     let mut cur_chars = 0usize;
+    let mut part_start: Option<u64> = None;
     for line in transcript.lines() {
         let n = line.chars().count() + 1;
-        if cur_chars + n > max_chars && !cur.is_empty() {
+        let t = line_offset_s(line);
+        let too_long_in_time = match (part_start, t) {
+            (Some(a), Some(b)) => b.saturating_sub(a) > max_secs,
+            _ => false,
+        };
+        if (cur_chars + n > max_chars || too_long_in_time) && !cur.is_empty() {
             parts.push(std::mem::take(&mut cur));
             cur_chars = 0;
+            part_start = None;
         }
         // A single huge line is cut hard.
         if n > max_chars {
@@ -171,6 +220,9 @@ pub fn split_parts(transcript: &str, max_chars: usize) -> Vec<String> {
                 parts.push(piece.iter().collect());
             }
             continue;
+        }
+        if part_start.is_none() {
+            part_start = t;
         }
         cur.push_str(line);
         cur.push('\n');
@@ -182,46 +234,149 @@ pub fn split_parts(transcript: &str, max_chars: usize) -> Vec<String> {
     parts
 }
 
+/// Notes of one part (or merged group): its recording span and the bullets.
+type Note = (Option<(u64, u64)>, String);
+
+/// Progress of a long summary: call `step` of an estimated `total` is starting.
+pub type OnProgress<'a> = &'a mut dyn FnMut(u32, u32);
+
+fn note_call(
+    client: &OpenAiClient,
+    system: &str,
+    user: &str,
+    should_continue: &dyn Fn() -> bool,
+) -> Result<String> {
+    let mut l = ChatLedger::new();
+    l.append_system(system);
+    l.append_user(user);
+    let opts = ChatOptions {
+        max_tokens: Some(1500),
+        temperature: Some(0.1),
+        session_id: None,
+    };
+    Ok(client.complete(&l, &opts, &mut |_| {}, should_continue)?.text)
+}
+
 pub(crate) fn run(
     client: &OpenAiClient,
     input: &SummarizeInput,
     on_delta: &mut dyn FnMut(&str),
+    on_progress: OnProgress,
     should_continue: &dyn Fn() -> bool,
 ) -> Result<Summary> {
     if input.transcript.trim().is_empty() && input.qa.is_empty() {
         return Err(AppError::new(ErrorCode::InvalidArgument).with_detail("empty transcript"));
     }
     let lang = pick_language(input);
-    let parts = split_parts(&input.transcript, client.config().summary_part_chars);
+    let cfg = client.config();
+    let parts = split_parts_timed(&input.transcript, cfg.summary_part_chars, cfg.summary_part_secs);
+    let (mut step, mut total) = (0u32, parts.len() as u32 + 1);
 
-    // Map: terse notes per part (not shown to the user).
-    let (body_tag, body) = if parts.len() > 1 {
-        let mut notes = String::new();
+    // Map: terse notes per time slice (not shown to the user).
+    let (body_tag, body, multi) = if parts.len() > 1 {
+        let mut notes: Vec<Note> = Vec::new();
         for (i, part) in parts.iter().enumerate() {
-            let mut l = ChatLedger::new();
-            l.append_system(&format!(
-                "{SUMMARY_SYSTEM} Extract facts from part {} of {} of a call transcript as terse bullets \
-(main points, decisions, tasks with owners, questions put to Me and how Me answered), in {}. Output only bullets.",
+            step += 1;
+            on_progress(step, total);
+            let span = stamp_span(part);
+            let sys = format!(
+                "{SUMMARY_SYSTEM} Extract facts from part {} of {}{} of one long recording (a call or lecture) as terse bullets \
+(main points and ideas, definitions and terms, decisions, tasks with owners, questions put to Me and how Me answered), in {}. \
+Keep product names and English terms exactly as spoken. Output only bullets.",
                 i + 1,
                 parts.len(),
+                fmt_span(span),
                 lang.name()
+            );
+            let t = note_call(
+                client,
+                &sys,
+                &format!("<transcript_part>\n{part}\n</transcript_part>"),
+                should_continue,
+            )?;
+            notes.push((
+                span,
+                format!("--- part {}{} ---\n{}\n", i + 1, fmt_span(span), t.trim()),
             ));
-            l.append_user(&format!("<transcript_part>\n{part}\n</transcript_part>"));
-            let opts = ChatOptions {
-                max_tokens: Some(1200),
-                temperature: Some(0.1),
-                session_id: None,
-            };
-            let o = client.complete(&l, &opts, &mut |_| {}, should_continue)?;
-            notes.push_str(&format!("--- part {} ---\n{}\n", i + 1, o.text.trim()));
         }
-        ("notes", notes)
+        // Reduce levels: while the notes do not fit one request, merge neighbouring notes.
+        let size = |n: &[Note]| n.iter().map(|x| x.1.chars().count()).sum::<usize>();
+        let mut level = 0;
+        while size(&notes) > cfg.summary_notes_chars && notes.len() > 1 && level < 4 {
+            level += 1;
+            let mut groups: Vec<Vec<Note>> = vec![vec![]];
+            let mut gsize = 0usize;
+            for n in notes.drain(..) {
+                let c = n.1.chars().count();
+                if gsize + c > cfg.summary_notes_chars && !groups.last().unwrap().is_empty() {
+                    groups.push(vec![]);
+                    gsize = 0;
+                }
+                gsize += c;
+                groups.last_mut().unwrap().push(n);
+            }
+            let merges = groups.iter().filter(|g| g.len() > 1).count() as u32;
+            total += merges;
+            let before = groups.iter().map(Vec::len).sum::<usize>();
+            let mut merged = Vec::new();
+            for (gi, g) in groups.into_iter().enumerate() {
+                if g.len() == 1 {
+                    merged.extend(g);
+                    continue;
+                }
+                step += 1;
+                on_progress(step, total);
+                let span = match (g.first().and_then(|x| x.0), g.last().and_then(|x| x.0)) {
+                    (Some((a, _)), Some((_, b))) => Some((a, b)),
+                    _ => None,
+                };
+                let sys = format!(
+                    "{SUMMARY_SYSTEM} Merge these consecutive notes of one long recording into one shorter set of terse bullets in {}, \
+keeping chronology, every distinct decision, task and question, and English terms exactly as spoken. Drop repetition. Output only bullets.",
+                    lang.name()
+                );
+                let joined = g.iter().map(|x| x.1.as_str()).collect::<Vec<_>>().join("\n");
+                let t = note_call(
+                    client,
+                    &sys,
+                    &format!("<notes>\n{joined}\n</notes>"),
+                    should_continue,
+                )?;
+                merged.push((
+                    span,
+                    format!(
+                        "--- group {level}.{}{} ---\n{}\n",
+                        gi + 1,
+                        fmt_span(span),
+                        t.trim()
+                    ),
+                ));
+            }
+            let stuck = merged.len() >= before;
+            notes = merged;
+            if stuck {
+                break; // nothing merged: do not loop forever
+            }
+        }
+        step += 1;
+        on_progress(step, total.max(step));
+        (
+            "notes",
+            notes.iter().map(|x| x.1.as_str()).collect::<Vec<_>>().join("\n"),
+            true,
+        )
     } else {
-        ("transcript", input.transcript.clone())
+        on_progress(1, 1);
+        ("transcript", input.transcript.clone(), false)
     };
 
     let mut l = ChatLedger::new();
-    l.append_system(&format!("{SUMMARY_SYSTEM}\n{}", lang_rules(lang)));
+    let multi_rule = if multi {
+        "\nThe input is condensed notes of consecutive parts of ONE long recording: write one coherent summary of the whole, merge repeats, keep English terms as spoken."
+    } else {
+        ""
+    };
+    l.append_system(&format!("{SUMMARY_SYSTEM}\n{}{multi_rule}", lang_rules(lang)));
     l.append_user(&user_prompt(input, body_tag, &body));
     let opts = ChatOptions {
         max_tokens: Some(1800),
@@ -477,5 +632,26 @@ mod tests {
         assert!(lang_rules(Lang::Ru).contains("«я»"));
         assert!(lang_rules(Lang::En).contains("\"I\" (first person)"));
         assert!(lang_rules(Lang::Ru).contains("Мой ответ"));
+    }
+
+    #[test]
+    fn timed_split_cuts_on_recording_time_and_keeps_every_line() {
+        let t: String = (0..720)
+            .map(|i| {
+                let s = i * 10;
+                format!(
+                    "[{:02}:{:02}:{:02}] **Я:** реплика {i}\n",
+                    s / 3600,
+                    s / 60 % 60,
+                    s % 60
+                )
+            })
+            .collect(); // 2 h, one line per 10 s
+        let parts = split_parts_timed(&t, 1_000_000, 1200);
+        assert_eq!(parts.len(), 6);
+        assert_eq!(parts.concat(), t);
+        assert_eq!(part_range(&parts[1]).as_deref(), Some("00:20:10-00:40:10"));
+        // an unstamped transcript is cut by size only
+        assert_eq!(split_parts_timed("a\nb\n", 1_000_000, 1).len(), 1);
     }
 }
