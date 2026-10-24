@@ -1,11 +1,12 @@
 //! Screenshots and region grabs. `capture_all` (G7) grabs every monitor with our own windows
 //! excluded and encodes PNG + a small thumbnail; the region grabs feed the adaptive tone.
-use lowk_types::{AppError, ErrorCode, Rect, RegionSampler, Result};
+use lowk_types::{AppError, CaptureMonitors, ErrorCode, Rect, RegionSampler, Result};
 
 pub mod frames;
 pub mod geometry;
 #[cfg(target_os = "macos")]
 mod mac;
+pub mod prep;
 #[cfg(target_os = "macos")]
 pub use mac::{grab_scaled, keep_window_titled, last_grab_json, SckGrab, SckSampler};
 #[cfg(windows)]
@@ -22,12 +23,14 @@ pub struct DisplayShot {
 /// One captured monitor, encoded.
 #[derive(Debug, Clone)]
 pub struct CapturedShot {
+    /// Unique per process (assigned by the queue); `0` until queued.
+    pub id: u64,
     pub index: u32,
     pub primary: bool,
     pub width: u32,
     pub height: u32,
     /// PNG bytes (long edge <= [`MAX_EDGE`]).
-    pub png: Vec<u8>,
+    pub png: std::sync::Arc<Vec<u8>>,
     /// `data:image/png;base64,...`, <= [`THUMB_W`] px wide.
     pub thumb: String,
 }
@@ -35,20 +38,62 @@ pub struct CapturedShot {
 pub const MAX_EDGE: u32 = 2048;
 pub const THUMB_W: u32 = 160;
 
-/// All monitors, PrtScr style. `own_windows` are raw native handles of this app's windows
-/// (HWND values) that a Windows grab must exclude; ignored on macOS, where every window of
-/// this process is excluded through ScreenCaptureKit.
-pub fn capture_all(own_windows: &[isize]) -> Result<Vec<CapturedShot>> {
+/// Which displays a grab covers (pure; unit-tested). `displays` are the monitor frames in global
+/// top-left coordinates, `focus` the frame of the focused window (not ours), `mouse` the pointer.
+/// * `All`: every display. * `Primary`: the one at the origin (else the first).
+/// * `Active`: the display holding most of the focused window, else the one under the pointer, else the primary.
+pub fn select_displays(
+    displays: &[Rect],
+    mode: CaptureMonitors,
+    focus: Option<Rect>,
+    mouse: Option<(f64, f64)>,
+) -> Vec<usize> {
+    if displays.is_empty() {
+        return vec![];
+    }
+    let primary = displays
+        .iter()
+        .position(|d| d.x == 0.0 && d.y == 0.0)
+        .unwrap_or(0);
+    match mode {
+        CaptureMonitors::All => (0..displays.len()).collect(),
+        CaptureMonitors::Primary => vec![primary],
+        CaptureMonitors::Active => {
+            if let Some(i) = focus.and_then(|f| geometry::pick_display(&f, displays)) {
+                return vec![i];
+            }
+            if let Some((mx, my)) = mouse {
+                if let Some(i) = displays
+                    .iter()
+                    .position(|d| mx >= d.x && mx < d.x + d.w && my >= d.y && my < d.y + d.h)
+                {
+                    return vec![i];
+                }
+            }
+            vec![primary]
+        }
+    }
+}
+
+/// Screenshots of the displays picked by `mode`, PrtScr style for `All`, with our own windows
+/// excluded. `own_windows` are raw native handles of this app's windows (HWND values) that a
+/// Windows grab must exclude; ignored on macOS, where every window of this process is excluded
+/// through ScreenCaptureKit. `mouse` is the pointer in global top-left coordinates.
+pub fn capture_all(
+    own_windows: &[isize],
+    mode: CaptureMonitors,
+    mouse: Option<(f64, f64)>,
+) -> Result<Vec<CapturedShot>> {
     #[cfg(target_os = "macos")]
     let raw = {
         let _ = own_windows;
-        mac::capture_displays(MAX_EDGE)?
+        mac::capture_displays(MAX_EDGE, mode, mouse)?
     };
     #[cfg(windows)]
-    let raw = win::capture_displays(MAX_EDGE, own_windows)?;
+    let raw = win::capture_displays(MAX_EDGE, own_windows, mode, mouse)?;
     #[cfg(not(any(target_os = "macos", windows)))]
     {
-        let _ = own_windows;
+        let _ = (own_windows, mode, mouse);
         Err(AppError::new(ErrorCode::Unsupported))
     }
     #[cfg(any(target_os = "macos", windows))]
@@ -60,6 +105,29 @@ pub fn capture_all(own_windows: &[isize]) -> Result<Vec<CapturedShot>> {
     }
 }
 
+/// One rectangle of the screen (global top-left points / pixels), e.g. from the area-selection overlay.
+pub fn capture_area(own_windows: &[isize], rect: Rect) -> Result<CapturedShot> {
+    if rect.w < 4.0 || rect.h < 4.0 {
+        return Err(AppError::new(ErrorCode::InvalidArgument).with_detail("area too small"));
+    }
+    #[cfg(target_os = "macos")]
+    let raw = {
+        let _ = own_windows;
+        mac::capture_rect(rect, MAX_EDGE)?
+    };
+    #[cfg(windows)]
+    let raw = win::capture_area(rect, MAX_EDGE, own_windows)?;
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        let _ = own_windows;
+        Err(AppError::new(ErrorCode::Unsupported))
+    }
+    #[cfg(any(target_os = "macos", windows))]
+    {
+        encode_shot(0, raw)
+    }
+}
+
 pub fn encode_shot(index: u32, d: DisplayShot) -> Result<CapturedShot> {
     let png = encode_png(&d.rgba, d.width, d.height)?;
     let tw = THUMB_W.min(d.width).max(1);
@@ -67,11 +135,12 @@ pub fn encode_shot(index: u32, d: DisplayShot) -> Result<CapturedShot> {
     let small = fit(&d.rgba, d.width, d.height, tw, th);
     let thumb = format!("data:image/png;base64,{}", base64(&encode_png(&small, tw, th)?));
     Ok(CapturedShot {
+        id: 0,
         index,
         primary: d.primary,
         width: d.width,
         height: d.height,
-        png,
+        png: std::sync::Arc::new(png),
         thumb,
     })
 }
@@ -159,6 +228,51 @@ impl RegionSampler for NoopCapture {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn r(x: f64, y: f64, w: f64, h: f64) -> Rect {
+        Rect { x, y, w, h }
+    }
+
+    #[test]
+    fn display_selection() {
+        // primary at the origin, a second monitor to the right, a third to the left (negative x)
+        let d = [
+            r(1920.0, 0.0, 1920.0, 1080.0),
+            r(0.0, 0.0, 1920.0, 1080.0),
+            r(-1280.0, 0.0, 1280.0, 1024.0),
+        ];
+        let m = CaptureMonitors::Active;
+        assert_eq!(
+            select_displays(&d, CaptureMonitors::All, None, None),
+            vec![0, 1, 2]
+        );
+        assert_eq!(select_displays(&d, CaptureMonitors::Primary, None, None), vec![1]);
+        // focused window mostly on the left monitor (straddles the border)
+        assert_eq!(
+            select_displays(&d, m, Some(r(-900.0, 100.0, 1000.0, 600.0)), Some((1000.0, 10.0))),
+            vec![2]
+        );
+        // no focused window: the pointer decides
+        assert_eq!(select_displays(&d, m, None, Some((2500.0, 500.0))), vec![0]);
+        // focus off every monitor falls through to the pointer, then to the primary
+        assert_eq!(
+            select_displays(&d, m, Some(r(9000.0, 9000.0, 10.0, 10.0)), Some((5.0, 5.0))),
+            vec![1]
+        );
+        assert_eq!(select_displays(&d, m, None, None), vec![1]);
+        assert_eq!(select_displays(&d, m, None, Some((-5000.0, 0.0))), vec![1]);
+        assert!(select_displays(&[], m, None, None).is_empty());
+        // single monitor not at the origin: primary falls back to the first
+        assert_eq!(
+            select_displays(
+                &[r(100.0, 0.0, 800.0, 600.0)],
+                CaptureMonitors::Primary,
+                None,
+                None
+            ),
+            vec![0]
+        );
+    }
 
     #[test]
     fn base64_rfc_vectors() {

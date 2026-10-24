@@ -18,6 +18,9 @@ pub const DEFAULT_VAULT_PATH: &str = "~/Documents/Lowk";
 pub const DEFAULT_LLM_MODEL: &str = "deepseek/deepseek-v4.1-flash-1017";
 /// The unpinned slug older builds wrote as the default; `lowk-app` migrates it to `DEFAULT_LLM_MODEL`.
 pub const LEGACY_LLM_MODEL: &str = "deepseek/deepseek-v4.1-flash";
+/// Vision-capable model that answers Asks with screenshots when the chosen model cannot read images
+/// (OpenRouter slug; also the reliable fallback model of `lowk-llm`).
+pub const DEFAULT_VISION_MODEL: &str = "anthropic/claude-haiku-5.5";
 pub const DEFAULT_OPENROUTER_URL: &str = "https://openrouter.ai/api/v1";
 /// Version- and provider-pinned default for M2/M3 cloud calls (summary, tags, Ask).
 pub const DEFAULT_LLM_MODEL_PINNED: &str = "deepseek/deepseek-v4.1-flash-1017";
@@ -334,6 +337,12 @@ pub struct LlmSettings {
     /// asking in a local-only folder is then disabled (never sent to the cloud).
     pub local_base_url: String,
     pub local_model: String,
+    /// Model for Asks that carry screenshots when `model` cannot read images (cloud slug). Empty = the
+    /// built-in default (`DEFAULT_VISION_MODEL`).
+    pub vision_model: String,
+    /// Vision model of the local server (`local_base_url` / a local provider) for screenshots in local-only
+    /// folders. Empty = the local model itself when its name is a known vision model, else images are refused.
+    pub local_vision_model: String,
 }
 impl Default for LlmSettings {
     fn default() -> Self {
@@ -348,6 +357,8 @@ impl Default for LlmSettings {
             pinned_provider: None,
             local_base_url: String::new(),
             local_model: String::new(),
+            vision_model: DEFAULT_VISION_MODEL.into(),
+            local_vision_model: String::new(),
         }
     }
 }
@@ -513,9 +524,10 @@ pub struct OverlayPos {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum CaptureMonitors {
-    /// All monitors, PrtScr-style (default).
+    /// All monitors, PrtScr-style.
     All,
     Primary,
+    /// The monitor with the focused window (else the one under the mouse, else the primary): the default.
     Active,
 }
 
@@ -550,7 +562,7 @@ pub struct CaptureSettings {
 impl Default for CaptureSettings {
     fn default() -> Self {
         Self {
-            monitors: CaptureMonitors::All,
+            monitors: CaptureMonitors::Active,
             default_source: CaptureSource::OneApp,
         }
     }

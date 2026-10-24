@@ -452,8 +452,10 @@ export type CallSources = {
 };
 
 export type CaptureMonitors = 
-/**  All monitors, PrtScr-style (default). */
-"all" | "primary" | "active";
+/**  All monitors, PrtScr-style. */
+"all" | "primary" | 
+/**  The monitor with the focused window (else the one under the mouse, else the primary): the default. */
+"active";
 
 export type CaptureSettings = {
 	monitors?: CaptureMonitors,
@@ -676,7 +678,11 @@ export type EngineProgress = {
 
 export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index" | "doc_unsupported" | "doc_encrypted" | "doc_duplicate" | "doc_too_large" | "doc_empty" | "ocr_failed" | "ingest_cancelled" | "embedder_missing" | "embed_failed" | "llm_bad_response" | "archive_invalid" | 
 /**  The folder is local-only (`allow_cloud = false`) and no local LLM is configured. */
-"local_only_blocked";
+"local_only_blocked" | 
+/**  The folder is local-only, so its screenshots never go to the cloud, and no local vision model is set. */
+"image_local_only" | 
+/**  The provider refused the screenshots as too large even after a smaller downscale. */
+"image_too_large";
 
 export type FacetCount = {
 	folder: FolderRef,
@@ -861,7 +867,9 @@ export type LlmEvent = { type: "start"; req_id: Ulid; qa_id: Ulid } | { type: "d
  */
 { type: "sources"; req_id: Ulid; sources: SourceRef[]; 
 /**  Chunks withheld by a folder's `allow_cloud = false`. */
-withheld: number };
+withheld: number } | 
+/**  Sent once before the first delta: which model answers and how many screenshots go with the Ask. */
+{ type: "meta"; req_id: Ulid; model: string; images: number };
 
 export type LlmProvider = "openrouter" | "ollama" | "lmstudio" | "llama_server" | "custom";
 
@@ -896,6 +904,16 @@ export type LlmSettings = {
 	 */
 	local_base_url?: string,
 	local_model?: string,
+	/**
+	 *  Model for Asks that carry screenshots when `model` cannot read images (cloud slug). Empty = the
+	 *  built-in default (`DEFAULT_VISION_MODEL`).
+	 */
+	vision_model?: string,
+	/**
+	 *  Vision model of the local server (`local_base_url` / a local provider) for screenshots in local-only
+	 *  folders. Empty = the local model itself when its name is a known vision model, else images are refused.
+	 */
+	local_vision_model?: string,
 };
 
 export type LlmUsage = {

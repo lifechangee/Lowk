@@ -25,6 +25,9 @@ impl CallRecorder for Recorder {
     fn materialize(&mut self) -> Result<()> {
         self.w.materialize()
     }
+    fn save_image(&mut self, name: &str, bytes: &[u8]) -> Result<String> {
+        self.w.save_asset(name, bytes)
+    }
     fn keep_audio(&mut self, clock: SessionClock) -> Option<lowk_session::AudioTap> {
         match self.vault.audio_keeper(&self.w.id(), clock.t0_mono) {
             Ok(k) => {

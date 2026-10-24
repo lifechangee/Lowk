@@ -92,6 +92,8 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         Arc::new(crate::m2::DynRetriever(index_slot.clone())),
         settings.clone() as Arc<dyn SettingsStore>,
     );
+    let shots = Arc::new(crate::commands::capture::ShotQueue::new(emitter.clone()));
+    deps.shots = shots.clone();
     deps.hints = Arc::new(crate::m2::hints::LlmHints::new(m2_env.clone(), vault.clone()));
     deps.store = Arc::new(VaultCallStore {
         vault: vault.clone(),
@@ -152,7 +154,15 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         engines,
         m2_env,
         index_slot,
+        shots.clone(),
     ));
+    {
+        let weak = Arc::downgrade(&state);
+        shots.set_grab(Box::new(move || match weak.upgrade() {
+            Some(st) => crate::commands::capture::grab_for_ask(&st),
+            None => Err(AppError::new(ErrorCode::Unknown)),
+        }));
+    }
     app.manage(state.clone());
     {
         // every store change (commands, call recorder, vault watcher) also feeds the index

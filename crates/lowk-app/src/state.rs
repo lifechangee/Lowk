@@ -70,7 +70,7 @@ pub struct AppState {
     pub engines: Arc<lowk_stt::EngineRegistry>,
     pub install_cancel: Mutex<Option<Arc<AtomicBool>>>,
     /// G7: screenshots waiting for the next Ask (in memory only).
-    pub shots: Mutex<Vec<lowk_capture::CapturedShot>>,
+    pub shots: Arc<crate::commands::capture::ShotQueue>,
     /// M2 environment (settings, event sink, keys, model store) and the per-vault services.
     pub env: crate::m2::Env,
     pub m2: RwLock<Option<Arc<crate::m2::Services>>>,
@@ -91,6 +91,7 @@ impl AppState {
         engines: Arc<lowk_stt::EngineRegistry>,
         env: crate::m2::Env,
         index_slot: Arc<RwLock<Option<lowk_index::Index>>>,
+        shots: Arc<crate::commands::capture::ShotQueue>,
     ) -> Self {
         let template = settings.get().llm.default_template;
         Self {
@@ -113,7 +114,7 @@ impl AppState {
             overlay_user_hidden: AtomicBool::new(false),
             engines,
             install_cancel: Mutex::new(None),
-            shots: Mutex::new(vec![]),
+            shots,
             env,
             m2: RwLock::new(None),
             index_slot,

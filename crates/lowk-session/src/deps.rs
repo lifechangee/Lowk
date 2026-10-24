@@ -5,7 +5,8 @@ use lowk_audio::{AudioBackend, NoopAudioBackend};
 use lowk_stt::{Corrector, EngineRegistry, FakeEngineFactory};
 use lowk_types::{
     CallEntry, CallId, CallMeta, ContextPack, FolderRef, Frame16k, LlmUsage, MainThread, MicPreset, NewCall,
-    QaId, Result, Retriever, SessionClock, SettingsStore, SourceRef, TranscriptLine, Ulid,
+    QaId, QueuedImage, Result, Retriever, SentImage, SessionClock, SettingsStore, SourceRef, TranscriptLine,
+    Ulid,
 };
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -22,6 +23,11 @@ pub trait CallRecorder: Send {
     /// the files in `finish`. Default: audio is not kept.
     fn keep_audio(&mut self, _clock: SessionClock) -> Option<AudioTap> {
         None
+    }
+    /// Stores a screenshot file next to the call; returns the link used in the call (`![[<rel>]]`).
+    /// Default: not stored.
+    fn save_image(&mut self, _name: &str, _bytes: &[u8]) -> Result<String> {
+        Err(lowk_types::AppError::new(lowk_types::ErrorCode::Unsupported))
     }
 }
 
@@ -63,14 +69,21 @@ pub struct MemCallStore {
     pub finished: Arc<Mutex<u32>>,
     /// Frames handed to the recorder's audio tap (`keep_audio`), as `(stream, capture time)`.
     pub kept_frames: Arc<Mutex<Vec<(lowk_types::Stream, u64)>>>,
+    /// Screenshots stored with the call: `(file name, size)`.
+    pub images: Arc<Mutex<Vec<(String, usize)>>>,
 }
 struct MemRecorder {
     entries: Arc<Mutex<Vec<CallEntry>>>,
     mats: Arc<Mutex<u32>>,
     finished: Arc<Mutex<u32>>,
     kept: Arc<Mutex<Vec<(lowk_types::Stream, u64)>>>,
+    images: Arc<Mutex<Vec<(String, usize)>>>,
 }
 impl CallRecorder for MemRecorder {
+    fn save_image(&mut self, name: &str, bytes: &[u8]) -> Result<String> {
+        self.images.lock().unwrap().push((name.to_string(), bytes.len()));
+        Ok(format!("mem.assets/{name}"))
+    }
     fn push(&mut self, e: CallEntry) -> Result<()> {
         self.entries.lock().unwrap().push(e);
         Ok(())
@@ -100,6 +113,7 @@ impl CallStore for MemCallStore {
                 mats: self.materializations.clone(),
                 finished: self.finished.clone(),
                 kept: self.kept_frames.clone(),
+                images: self.images.clone(),
             }),
         ))
     }
@@ -128,6 +142,10 @@ pub struct HintRequest {
     pub cancelled: Arc<AtomicBool>,
     /// Set for templates with `needs_my_answer`: what the user said so far.
     pub my_answer: Option<String>,
+    /// Screenshots queued for this Ask (oldest first). They belong to the new user turn only.
+    pub images: Vec<QueuedImage>,
+    /// `Template.vision`: the template wants a vision model even when the queue is empty.
+    pub vision_template: bool,
 }
 
 /// What a finished generation tells the session.
@@ -138,6 +156,34 @@ pub struct HintOutcome {
     pub sent_chunk_ids: Vec<String>,
     pub truncated: bool,
     pub usage: Option<LlmUsage>,
+    /// The screenshots that went out with this answer (the session removes them from the queue and
+    /// stores them with the call). Empty when the generator sent none.
+    pub images: Vec<SentImage>,
+}
+
+/// The screenshot queue as the session sees it (implemented by the app over its in-memory queue).
+pub trait ShotSource: Send + Sync {
+    /// The queued screenshots, oldest first; the queue is left as it is.
+    fn peek(&self) -> Vec<QueuedImage>;
+    /// A vision template with an empty queue: grab the active display once (best effort, empty on any failure).
+    fn capture_if_empty(&self) -> Vec<QueuedImage> {
+        vec![]
+    }
+    /// Removes the screenshots with these ids (their Ask succeeded).
+    fn consume(&self, ids: &[u64]);
+    /// Empties the queue (the session stopped).
+    fn clear(&self);
+}
+
+/// No screenshots at all.
+#[derive(Default)]
+pub struct NoShots;
+impl ShotSource for NoShots {
+    fn peek(&self) -> Vec<QueuedImage> {
+        vec![]
+    }
+    fn consume(&self, _ids: &[u64]) {}
+    fn clear(&self) {}
 }
 
 /// Implemented over `lowk_llm::ChatClient` + `PromptBuilder` by the app.
@@ -199,6 +245,8 @@ pub struct SessionDeps {
     /// Engine used when `settings.stt.engine` is empty (the hardware check's pick).
     pub default_engine: Option<String>,
     pub hints: Arc<dyn HintGenerator>,
+    /// Screenshots waiting for the next Ask.
+    pub shots: Arc<dyn ShotSource>,
     pub demo_pace: DemoPace,
     /// Write demo calls to the store too (off by default; tests turn it on).
     pub record_demo: bool,
@@ -226,6 +274,7 @@ impl SessionDeps {
             corrector: None,
             default_engine: None,
             hints: Arc::new(StubHints::default()),
+            shots: Arc::new(NoShots),
             demo_pace: DemoPace::Realtime(1.0),
             record_demo: false,
             folder_mic: Arc::new(|_| MicPreset::Inherit),

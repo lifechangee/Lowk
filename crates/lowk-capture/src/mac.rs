@@ -479,9 +479,32 @@ impl ScreenGrab for SckGrab {
     }
 }
 
-/// G7: every display, our own windows (main, overlay, pill) excluded explicitly by `grab`.
-/// The long edge is capped at `max_edge` pixels (never upscaled).
-pub fn capture_displays(max_edge: u32) -> Result<Vec<crate::DisplayShot>> {
+/// The focused window of another app (frontmost, on screen, normal layer), global top-left points.
+fn focused_window(content: &SCShareableContent) -> Option<Rect> {
+    let own = std::process::id() as i32;
+    content
+        .windows()
+        .iter()
+        .filter(|w| w.is_active() && w.is_on_screen() && w.window_layer() == 0)
+        .find(|w| w.owning_application().is_none_or(|a| a.process_id() != own))
+        .map(|w| {
+            let f = w.frame();
+            Rect {
+                x: f.origin.x,
+                y: f.origin.y,
+                w: f.size.width,
+                h: f.size.height,
+            }
+        })
+}
+
+/// G7: the displays picked by `mode` (`select_displays`), our own windows (main, overlay, pill)
+/// excluded explicitly by `grab`. The long edge is capped at `max_edge` pixels (never upscaled).
+pub fn capture_displays(
+    max_edge: u32,
+    mode: lowk_types::CaptureMonitors,
+    mouse: Option<(f64, f64)>,
+) -> Result<Vec<crate::DisplayShot>> {
     let content = SCShareableContent::get().map_err(|e| fail("shareable content", e))?;
     let frames: Vec<Rect> = content
         .displays()
@@ -496,18 +519,34 @@ pub fn capture_displays(max_edge: u32) -> Result<Vec<crate::DisplayShot>> {
             }
         })
         .collect();
-    let mut out = Vec::with_capacity(frames.len());
-    for r in frames {
-        let long = r.w.max(r.h).max(1.0);
-        let k = (f64::from(max_edge) / long).min(1.0);
-        let (w, h) = (((r.w * k) as u32).max(1), ((r.h * k) as u32).max(1));
-        let (rgba, w, h) = grab(r, Some((w, h)), true)?;
-        out.push(crate::DisplayShot {
-            primary: r.x == 0.0 && r.y == 0.0,
-            rgba,
-            width: w,
-            height: h,
-        });
+    let focus = if mode == lowk_types::CaptureMonitors::Active {
+        focused_window(&content)
+    } else {
+        None
+    };
+    let picked = crate::select_displays(&frames, mode, focus, mouse);
+    let mut out = Vec::with_capacity(picked.len());
+    for i in picked {
+        let r = frames[i];
+        out.push(shot_of(r, max_edge)?);
     }
     Ok(out)
+}
+
+fn shot_of(r: Rect, max_edge: u32) -> Result<crate::DisplayShot> {
+    let long = r.w.max(r.h).max(1.0);
+    let k = (f64::from(max_edge) / long).min(1.0);
+    let (w, h) = (((r.w * k) as u32).max(1), ((r.h * k) as u32).max(1));
+    let (rgba, w, h) = grab(r, Some((w, h)), true)?;
+    Ok(crate::DisplayShot {
+        primary: r.x == 0.0 && r.y == 0.0,
+        rgba,
+        width: w,
+        height: h,
+    })
+}
+
+/// A region of the screen (global top-left points), our windows excluded.
+pub fn capture_rect(r: Rect, max_edge: u32) -> Result<crate::DisplayShot> {
+    shot_of(r, max_edge)
 }

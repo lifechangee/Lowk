@@ -18,7 +18,7 @@ fn settings_defaults_reflect_brief() {
     assert!(s.overlay.opacity <= 90);
     assert_eq!(s.overlay.accent, "#8ba6c4");
     assert!(s.updates.check_daily);
-    assert_eq!(s.capture.monitors, CaptureMonitors::All);
+    assert_eq!(s.capture.monitors, CaptureMonitors::Active);
     assert_eq!(
         s.capture.default_source,
         CaptureSource::OneApp,

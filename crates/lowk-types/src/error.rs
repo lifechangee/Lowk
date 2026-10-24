@@ -102,6 +102,12 @@ pub enum ErrorCode {
     /// The folder is local-only (`allow_cloud = false`) and no local LLM is configured.
     #[error("folder is local-only and no local model is configured")]
     LocalOnlyBlocked,
+    /// The folder is local-only, so its screenshots never go to the cloud, and no local vision model is set.
+    #[error("screenshots in a local-only folder need a local vision model")]
+    ImageLocalOnly,
+    /// The provider refused the screenshots as too large even after a smaller downscale.
+    #[error("screenshots are too large for the model")]
+    ImageTooLarge,
 }
 
 /// Serializable error crossing crate and IPC boundaries.

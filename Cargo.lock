@@ -2936,6 +2936,7 @@ dependencies = [
 name = "lowk-capture"
 version = "0.0.1"
 dependencies = [
+ "image",
  "lowk-types",
  "png 0.18.1",
  "screencapturekit",

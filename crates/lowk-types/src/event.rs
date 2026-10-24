@@ -60,6 +60,7 @@ impl AppEvent {
             AppEvent::Llm(LlmEvent::Done { .. }) => LLM_DONE,
             AppEvent::Llm(LlmEvent::Error { .. }) => LLM_ERROR,
             AppEvent::Llm(LlmEvent::Sources { .. }) => LLM_SOURCES,
+            AppEvent::Llm(LlmEvent::Meta { .. }) => LLM_META,
             AppEvent::Overlay(OverlayEvent::Mode(_)) => OVERLAY_MODE,
             AppEvent::Overlay(OverlayEvent::Tone(_)) => OVERLAY_TONE,
             AppEvent::Stealth(_) => STEALTH_STATUS,

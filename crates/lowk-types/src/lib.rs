@@ -139,6 +139,7 @@ pub mod events {
     pub const LLM_ERROR: &str = "llm://error";
     /// Payload `{ req_id, sources: SourceRef[], withheld }`.
     pub const LLM_SOURCES: &str = "llm://sources";
+    pub const LLM_META: &str = "llm://meta";
     /// Document ingest progress (`IngestProgress`), main window only.
     pub const DOC_PROGRESS: &str = "doc://progress";
     /// `IndexStatus`, main window only.

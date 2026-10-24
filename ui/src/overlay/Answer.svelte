@@ -7,7 +7,14 @@
   import { follow } from './follow';
 
   let { store, source }: { store: OverlayStore; source?: OverlaySource } = $props();
-  const errKey = $derived(store.errorCode === 'api_key_missing' ? 'overlay.answer.noKey' : store.errorCode === 'local_only_blocked' ? 'overlay.answer.localOnly' : 'overlay.answer.error');
+  const ERR_KEYS: Record<string, Parameters<typeof ot>[0]> = {
+    api_key_missing: 'overlay.answer.noKey',
+    local_only_blocked: 'overlay.answer.localOnly',
+    image_local_only: 'overlay.answer.imageLocalOnly',
+    image_too_large: 'overlay.answer.imageTooLarge',
+    no_vision: 'overlay.answer.noVision',
+  };
+  const errKey = $derived(ERR_KEYS[store.errorCode ?? ''] ?? 'overlay.answer.error');
   function label(s: SourceRef): string {
     if (s.kind === 'instructions') return ot('overlay.src.instructions', lang);
     const where = s.page != null ? `, ${ot('overlay.src.page', lang, { n: s.page })}` : s.at_s != null ? `, ${Math.floor(s.at_s / 60)}:${String(s.at_s % 60).padStart(2, '0')}` : '';
@@ -30,7 +37,7 @@
       {#if i}<em data-gt>›</em>{/if}
       <span data-gt class:on={i === idx} class:done={i < idx}>{ot(l, lang)}</span>
     {/each}
-    <b class="mdl lbl" data-gt>{store.model}</b>
+    <b class="mdl lbl" data-gt data-testid="ans-model">{store.model}</b>
   </div>
   <div class="bodywrap">
     <div class="body" bind:this={body} use:follow={opts} data-testid="ans-body"><div class="bt" data-gt>
@@ -45,6 +52,9 @@
     </div></div>
     {#if more}<button class="more" tabindex="-1" data-testid="ans-more" onwheel={(e) => body?.scrollBy(0, e.deltaY)} onclick={() => body?.dispatchEvent(new Event('lowk-jump'))}>{ot('overlay.more.ans', lang)}</button>{/if}
   </div>
+  {#if store.imagesSent > 0 && !store.answerError}
+    <div class="srcs"><span class="chip held" data-testid="ans-images">{ot('overlay.answer.imagesSent', lang, { n: store.imagesSent })}</span></div>
+  {/if}
   {#if store.sources.length || store.withheld}
     <div class="srcs">
       {#each store.sources as s, i (i)}<button class="chip lbl" title={s.title} onclick={() => source?.openSource?.(s)}>{label(s)}</button>{/each}

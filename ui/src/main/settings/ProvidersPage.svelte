@@ -28,8 +28,10 @@
   let pinned = $state('');
   let localUrl = $state('');
   let localModel = $state('');
+  let visionModel = $state('');
+  let localVision = $state('');
   $effect(() => { localUrl = prefs.value.llm?.local_base_url ?? ''; localModel = prefs.value.llm?.local_model ?? ''; });
-  $effect(() => { model = prefs.value.llm?.model ?? ''; });
+  $effect(() => { model = prefs.value.llm?.model ?? ''; visionModel = prefs.value.llm?.vision_model ?? ''; localVision = prefs.value.llm?.local_vision_model ?? ''; });
   $effect(() => { summaryModel = prefs.value.llm?.summary_model ?? ''; pinned = prefs.value.llm?.pinned_provider ?? ''; });
   const pickEngine = (id: string) => {
     const e = engines.find((x) => x.id === id);
@@ -44,6 +46,12 @@
 </SettingRow>
 <SettingRow label={tm('m.llmModel')} hint={tm('m.llmModelHint')}>
   <TextInput bind:value={model} mono label={tm('m.llmModel')} onenter={() => prefs.patch({ llm: { model } })} oninput={() => {}} />
+</SettingRow>
+<SettingRow label={tm('m.visionModel')} hint={tm('m.visionModelHint')}>
+  <TextInput bind:value={visionModel} mono label={tm('m.visionModel')} onenter={() => prefs.patch({ llm: { vision_model: visionModel.trim() } })} oninput={() => {}} />
+</SettingRow>
+<SettingRow label={tm('m.localVisionModel')} hint={tm('m.localVisionModelHint')}>
+  <TextInput bind:value={localVision} mono label={tm('m.localVisionModel')} onenter={() => prefs.patch({ llm: { local_vision_model: localVision.trim() } })} oninput={() => {}} />
 </SettingRow>
 <SettingRow label={tm('m.reasoning')} hint={tm('m.reasoningHint')}>
   <Toggle checked={llm.reasoning ?? false} label={tm('m.reasoning')} onchange={(v) => prefs.patch({ llm: { reasoning: v } })} />

@@ -4,7 +4,7 @@ use serde_json::{json, Map, Value};
 use std::time::Duration;
 
 /// Reliable second choice (BRIEF: single upstream, stable p95).
-pub const FALLBACK_MODEL: &str = "anthropic/claude-haiku-5.5";
+pub const FALLBACK_MODEL: &str = lowk_types::DEFAULT_VISION_MODEL;
 
 /// Which backend dialect to speak. One wire format (OpenAI chat completions), a few quirks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -371,6 +371,32 @@ impl CallWriter {
         Ok(())
     }
 
+    /// Writes `bytes` as `<call stem>.assets/<name>` next to the call file and returns the link used in
+    /// the call (`<stem>.assets/<name>`, relative to the call's folder, as in `![[...]]`). Moving or
+    /// renaming the call moves the folder and rewrites the embeds (`Vault::move_with_assets`).
+    pub fn save_asset(&mut self, name: &str, bytes: &[u8]) -> Result<String> {
+        let clean: String = name
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let stem = self
+            .path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| err(ErrorCode::InvalidArgument, "call path"))?
+            .to_string();
+        let dir = self.path.with_file_name(format!("{stem}.assets"));
+        fs::create_dir_all(&dir)?;
+        fs::write(dir.join(&clean), bytes)?;
+        Ok(format!("{stem}.assets/{clean}"))
+    }
+
     /// Append an entry. Partial STT events are ignored. fsync at most every ~1 s;
     /// the `.md` is re-materialized every ~20 s.
     pub fn push(&mut self, e: CallEntry) -> Result<()> {

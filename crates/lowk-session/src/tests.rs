@@ -723,13 +723,14 @@ fn ask_uses_the_retrieval_pack_and_emits_sources_before_the_first_delta() {
         .map(|e| match e {
             LlmEvent::Start { .. } => "start",
             LlmEvent::Sources { .. } => "sources",
+            LlmEvent::Meta { .. } => "meta",
             LlmEvent::Delta { .. } => "delta",
             LlmEvent::Done { .. } => "done",
             LlmEvent::Error { .. } => "error",
         })
         .collect();
-    assert_eq!(kinds, ["start", "sources", "delta", "done"]);
-    let LlmEvent::Sources { sources, .. } = &evs[1] else {
+    assert_eq!(kinds, ["start", "meta", "sources", "delta", "done"]);
+    let LlmEvent::Sources { sources, .. } = &evs[2] else {
         unreachable!()
     };
     assert_eq!(sources.len(), 3, "instructions, pinned doc, relevant doc");
@@ -1056,4 +1057,212 @@ fn keep_audio_taps_exactly_the_frames_the_engines_get() {
             assert!(kept.is_empty(), "audio is only kept when the setting is on");
         }
     }
+}
+
+// ---- screenshots ----------------------------------------------------------------------------
+
+#[derive(Default)]
+struct FakeShots {
+    q: Mutex<Vec<QueuedImage>>,
+    grab: Mutex<Vec<QueuedImage>>,
+}
+fn img(id: u64) -> QueuedImage {
+    QueuedImage {
+        id,
+        index: 0,
+        primary: true,
+        width: 4,
+        height: 4,
+        png: Arc::new(vec![1, 2, 3]),
+    }
+}
+impl ShotSource for FakeShots {
+    fn peek(&self) -> Vec<QueuedImage> {
+        self.q.lock().unwrap().clone()
+    }
+    fn capture_if_empty(&self) -> Vec<QueuedImage> {
+        self.grab.lock().unwrap().clone()
+    }
+    fn consume(&self, ids: &[u64]) {
+        self.q.lock().unwrap().retain(|i| !ids.contains(&i.id));
+    }
+    fn clear(&self) {
+        self.q.lock().unwrap().clear();
+    }
+}
+
+/// Echoes the images it was given as "sent"; `fail` makes the generator error after seeing them.
+struct ImgHints {
+    seen: Mutex<Vec<(usize, bool)>>,
+    fail: bool,
+}
+impl HintGenerator for ImgHints {
+    fn generate(&self, _r: &HintRequest, _d: &mut dyn FnMut(&str)) -> Result<String> {
+        unreachable!()
+    }
+    fn generate_ex(
+        &self,
+        req: &HintRequest,
+        on_sources: &mut dyn FnMut(Vec<SourceRef>, u32),
+        on_delta: &mut dyn FnMut(&str),
+    ) -> Result<HintOutcome> {
+        self.seen
+            .lock()
+            .unwrap()
+            .push((req.images.len(), req.vision_template));
+        if self.fail {
+            return Err(AppError::new(ErrorCode::ImageTooLarge));
+        }
+        on_sources(vec![], 0);
+        on_delta("ответ");
+        Ok(HintOutcome {
+            answer: "ответ".into(),
+            images: req
+                .images
+                .iter()
+                .map(|i| SentImage {
+                    id: i.id,
+                    ext: "jpg",
+                    bytes: Arc::new(vec![9; 10]),
+                    width: 4,
+                    height: 4,
+                })
+                .collect(),
+            ..HintOutcome::default()
+        })
+    }
+}
+
+fn shot_rig(fail: bool) -> (Rig, Arc<FakeShots>, Arc<ImgHints>) {
+    let shots = Arc::new(FakeShots::default());
+    let hints = Arc::new(ImgHints {
+        seen: Mutex::new(vec![]),
+        fail,
+    });
+    shots.q.lock().unwrap().extend([img(1), img(2)]);
+    let (s2, h2) = (shots.clone(), hints.clone());
+    let r = rig(move |d| {
+        d.shots = s2;
+        d.hints = h2;
+    });
+    (r, shots, hints)
+}
+
+#[test]
+fn ask_sends_the_queue_clears_it_on_success_and_records_the_images() {
+    let (r, shots, hints) = shot_rig(false);
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    r.session.ask(brief(Some("что на слайде?"))).unwrap();
+    let evs = wait_llm_end(&rx);
+    assert!(
+        evs.iter().any(|e| matches!(e, LlmEvent::Meta { images: 2, .. })),
+        "{evs:?}"
+    );
+    assert_eq!(hints.seen.lock().unwrap()[0].0, 2);
+    assert!(
+        shots.q.lock().unwrap().is_empty(),
+        "queue cleared after a successful send"
+    );
+    let entries = r.store.entries.lock().unwrap().clone();
+    let imgs: Vec<_> = entries
+        .iter()
+        .filter_map(|e| match e {
+            CallEntry::Image {
+                rel_path,
+                source,
+                caption,
+                ..
+            } => Some((rel_path.clone(), source.clone(), caption.clone())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(imgs.len(), 2);
+    let qa_id = entries
+        .iter()
+        .find_map(|e| match e {
+            CallEntry::Qa { id, .. } => Some(id.to_string()),
+            _ => None,
+        })
+        .unwrap();
+    assert!(imgs.iter().all(|(p, s, c)| p.starts_with("mem.assets/")
+        && *s == format!("ask:{qa_id}")
+        && c == "что на слайде?"));
+    assert_eq!(r.store.images.lock().unwrap().len(), 2);
+    r.session.stop().unwrap();
+}
+
+#[test]
+fn failed_ask_keeps_the_queue_and_records_nothing() {
+    let (r, shots, _h) = shot_rig(true);
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    r.session.ask(brief(Some("?"))).unwrap();
+    let evs = wait_llm_end(&rx);
+    assert!(
+        matches!(evs.last(), Some(LlmEvent::Error { error, .. }) if error.code == ErrorCode::ImageTooLarge)
+    );
+    assert_eq!(shots.q.lock().unwrap().len(), 2, "queue kept after a failure");
+    assert!(!r
+        .store
+        .entries
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|e| matches!(e, CallEntry::Image { .. })));
+    r.session.stop().unwrap();
+}
+
+#[test]
+fn stopping_the_session_empties_the_queue() {
+    let (r, shots, _h) = shot_rig(false);
+    r.session.start(opts(false)).unwrap();
+    assert_eq!(shots.q.lock().unwrap().len(), 2);
+    r.session.stop().unwrap();
+    assert!(
+        shots.q.lock().unwrap().is_empty(),
+        "nothing leaks into the next call"
+    );
+}
+
+#[test]
+fn vision_template_with_an_empty_queue_grabs_the_screen() {
+    let shots = Arc::new(FakeShots::default());
+    shots.grab.lock().unwrap().push(img(7));
+    let hints = Arc::new(ImgHints {
+        seen: Mutex::new(vec![]),
+        fail: false,
+    });
+    let mut st = Settings::default();
+    st.templates.push(Template {
+        id: "look".into(),
+        names: LocalizedName {
+            ru: "Смотри".into(),
+            en: "Look".into(),
+        },
+        instruction: "Look".into(),
+        needs_my_answer: false,
+        vision: true,
+        reasoning: false,
+    });
+    let (s2, h2) = (shots.clone(), hints.clone());
+    let r = rig(move |d| {
+        d.shots = s2;
+        d.hints = h2;
+        d.settings = Arc::new(MemSettingsStore::new(st));
+    });
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    // a plain template with an empty queue sends no image; the vision one grabs the screen
+    r.session.ask(brief(Some("a"))).unwrap();
+    wait_llm_end(&rx);
+    r.session
+        .ask(AskRequest {
+            template_id: "look".into(),
+            typed_text: Some("b".into()),
+        })
+        .unwrap();
+    wait_llm_end(&rx);
+    assert_eq!(*hints.seen.lock().unwrap(), vec![(0, false), (1, true)]);
+    r.session.stop().unwrap();
 }

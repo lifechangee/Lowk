@@ -11,6 +11,7 @@ publish = false
 lowk-types.workspace = true
 tracing.workspace = true
 png.workspace = true
+image = { workspace = true, features = ["png", "jpeg"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 screencapturekit = { workspace = true, features = ["macos_14_0"] }

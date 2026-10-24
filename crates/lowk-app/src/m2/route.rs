@@ -109,6 +109,104 @@ pub fn resolve(s: &LlmSettings, local_only: bool, key: Option<String>, purpose: 
     })
 }
 
+/// Models known to read images, by slug. OpenRouter's model metadata (`architecture.input_modalities`)
+/// is not fetched by the app, so this is the capability source; a model not matched here is treated
+/// as text-only and image Asks are routed to `llm.vision_model` instead.
+pub fn model_has_vision(model: &str) -> bool {
+    let m = model.to_ascii_lowercase();
+    let name = m.rsplit('/').next().unwrap_or(&m);
+    if m.starts_with("anthropic/claude-")
+        || m.starts_with("google/gemini")
+        || m.starts_with("openai/gpt-4o")
+        || m.starts_with("openai/gpt-4.1")
+        || m.starts_with("openai/gpt-5")
+        || m.starts_with("openai/o4")
+        || m.starts_with("x-ai/grok-4")
+        || m.starts_with("meta-llama/llama-4")
+    {
+        return true;
+    }
+    [
+        "vision",
+        "-vl",
+        "llava",
+        "pixtral",
+        "minicpm-v",
+        "gemma3",
+        "gemma-3",
+        "mistral-small3",
+        "mistral-small-3",
+        "qwen2.5vl",
+        "qwen3-vl",
+        "moondream",
+        "bakllava",
+    ]
+    .iter()
+    .any(|k| name.contains(k))
+}
+
+/// Picks the endpoint for an Ask that carries screenshots. Same policy as [`resolve`] plus:
+/// * local provider / local-only folder: only a local vision model (`llm.local_vision_model`, or the
+///   local model itself when its name is a known vision model); none = `ImageLocalOnly` (local-only
+///   folder) or `NoVision`. Screenshots never reach the cloud from a local-only folder.
+/// * cloud: the configured model when it reads images, else `llm.vision_model` (default
+///   `DEFAULT_VISION_MODEL`); the upstream-provider pin of the text model does not apply to it.
+pub fn resolve_vision(
+    s: &LlmSettings,
+    local_only: bool,
+    key: Option<String>,
+    session_id: Option<String>,
+) -> Result<Route> {
+    let purpose = Purpose::Ask {
+        session_id: session_id.clone(),
+    };
+    if provider_is_local(s) {
+        let model = if !s.local_vision_model.trim().is_empty() {
+            s.local_vision_model.trim().to_string()
+        } else if model_has_vision(&s.model) {
+            s.model.clone()
+        } else {
+            return Err(AppError::new(ErrorCode::NoVision).with_detail("local model has no vision"));
+        };
+        let mut r = resolve(s, local_only, None, &purpose)?;
+        r.cfg.model = model;
+        return Ok(r);
+    }
+    if local_only {
+        let url = s.local_base_url.trim();
+        let model = if !s.local_vision_model.trim().is_empty() {
+            s.local_vision_model.trim()
+        } else if model_has_vision(&s.local_model) {
+            s.local_model.trim()
+        } else {
+            ""
+        };
+        if url.is_empty() || !is_local_url(url) || model.is_empty() {
+            return Err(AppError::new(ErrorCode::ImageLocalOnly)
+                .with_detail("no local vision model for a local-only folder"));
+        }
+        let mut cfg = LlmConfig::new(ProviderKind::Custom, url, model);
+        cfg.reasoning = false;
+        cfg.session_id = session_id;
+        return Ok(Route { cfg, cloud: false });
+    }
+    let mut r = resolve(s, false, key, &purpose)?;
+    if !model_has_vision(&r.cfg.model) {
+        let v = s.vision_model.trim();
+        r.cfg.model = if v.is_empty() {
+            lowk_types::DEFAULT_VISION_MODEL.into()
+        } else {
+            v.into()
+        };
+        r.cfg.pinned_provider = None;
+        r.cfg.reasoning = false;
+        r.cfg.fallback_model = (r.cfg.model != lowk_llm::FALLBACK_MODEL
+            && r.cfg.kind == ProviderKind::OpenRouter)
+            .then(|| lowk_llm::FALLBACK_MODEL.to_string());
+    }
+    Ok(r)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,5 +339,72 @@ mod tests {
         assert_eq!(r.cfg.model, lowk_types::DEFAULT_LLM_MODEL_PINNED);
         assert_eq!(r.cfg.session_id.as_deref(), Some("c"));
         assert!(!r.cfg.reasoning);
+    }
+
+    #[test]
+    fn vision_capability_list() {
+        assert!(model_has_vision("anthropic/claude-haiku-5.5"));
+        assert!(model_has_vision("google/gemini-2.5-flash"));
+        assert!(model_has_vision("qwen3-vl:8b"));
+        assert!(model_has_vision("llama3.2-vision"));
+        assert!(!model_has_vision("deepseek/deepseek-v4.1-flash-1017"));
+        assert!(!model_has_vision("gemma2"));
+    }
+
+    #[test]
+    fn non_vision_model_routes_to_the_vision_model() {
+        let mut s = cloud();
+        s.pinned_provider = Some("StubHost".into());
+        let r = resolve_vision(&s, false, Some("k".into()), Some("c".into())).unwrap();
+        assert!(r.cloud);
+        assert_eq!(r.cfg.model, lowk_types::DEFAULT_VISION_MODEL);
+        assert!(r.cfg.pinned_provider.is_none());
+        s.vision_model = "openai/gpt-5-mini".into();
+        assert_eq!(
+            resolve_vision(&s, false, Some("k".into()), None)
+                .unwrap()
+                .cfg
+                .model,
+            "openai/gpt-5-mini"
+        );
+        // a vision-capable chat model answers images itself
+        s.model = "google/gemini-2.5-flash".into();
+        assert_eq!(
+            resolve_vision(&s, false, Some("k".into()), None)
+                .unwrap()
+                .cfg
+                .model,
+            "google/gemini-2.5-flash"
+        );
+        assert_eq!(
+            resolve_vision(&cloud(), false, None, None).unwrap_err().code,
+            ErrorCode::ApiKeyMissing
+        );
+    }
+
+    #[test]
+    fn local_only_folder_never_sends_images_to_the_cloud() {
+        let e = resolve_vision(&cloud(), true, Some("k".into()), None).unwrap_err();
+        assert_eq!(e.code, ErrorCode::ImageLocalOnly);
+        let mut s = cloud();
+        s.local_base_url = "http://localhost:11434/v1".into();
+        s.local_model = "qwen3".into(); // text-only
+        assert_eq!(
+            resolve_vision(&s, true, Some("k".into()), None).unwrap_err().code,
+            ErrorCode::ImageLocalOnly
+        );
+        s.local_vision_model = "qwen3-vl".into();
+        let r = resolve_vision(&s, true, Some("k".into()), None).unwrap();
+        assert!(!r.cloud && r.cfg.api_key.is_none());
+        assert_eq!(r.cfg.model, "qwen3-vl");
+        // local provider without a vision model: NoVision
+        let mut l = cloud();
+        l.provider = LlmProvider::Ollama;
+        l.base_url = "http://localhost:11434/v1".into();
+        l.model = "qwen3".into();
+        assert_eq!(
+            resolve_vision(&l, false, None, None).unwrap_err().code,
+            ErrorCode::NoVision
+        );
     }
 }

@@ -225,6 +225,8 @@ fn hint_req(
         call: Some(Ulid::new()),
         cancelled: Arc::new(AtomicBool::new(false)),
         my_answer: None,
+        images: vec![],
+        vision_template: false,
     }
 }
 

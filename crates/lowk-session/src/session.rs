@@ -140,6 +140,38 @@ impl Core {
         out.events.push(AppEvent::Session(self.state.clone()));
     }
 
+    /// Stores the screenshots an answer was asked about next to the call and links them to the Q&A
+    /// (`source=ask:<qa id>`, the question as caption). A failed write is logged, never fatal.
+    fn record_images(&mut self, qa_id: &QaId, at_s: u32, question: &str, images: &[SentImage]) {
+        let Some(r) = self.recorder.as_mut() else { return };
+        let id = qa_id.to_string();
+        let tag = &id[id.len().saturating_sub(6)..];
+        let caption: String = question.chars().take(200).collect();
+        for (i, im) in images.iter().enumerate() {
+            let name = format!(
+                "{:02}{:02}{:02}-ask-{tag}-{}.{}",
+                at_s / 3600,
+                at_s / 60 % 60,
+                at_s % 60,
+                i + 1,
+                im.ext
+            );
+            match r.save_image(&name, &im.bytes) {
+                Ok(rel_path) => {
+                    if let Err(err) = r.push(CallEntry::Image {
+                        at_s,
+                        rel_path,
+                        source: format!("ask:{id}"),
+                        caption: caption.clone(),
+                    }) {
+                        tracing::warn!(?err, "call journal write failed");
+                    }
+                }
+                Err(err) => tracing::warn!(?err, "cannot store the screenshot with the call"),
+            }
+        }
+    }
+
     fn push_entry(&mut self, e: CallEntry) {
         if let Some(r) = self.recorder.as_mut() {
             if let Err(err) = r.push(e) {
@@ -462,6 +494,8 @@ impl Session {
         for h in demo.into_iter().chain(threads) {
             let _ = h.join();
         }
+        // Screenshots queued during this call must not leak into the next one.
+        inner.deps.shots.clear();
 
         let mut out = Out::default();
         let recorder = {
@@ -569,6 +603,12 @@ impl Session {
                     Ok(c) => c,
                     Err(e) => return fail(e),
                 };
+                // Screenshots of the queue go with this Ask (after the policy checks: a refused Ask leaves
+                // the queue untouched). A vision template with an empty queue grabs the active display once.
+                let mut images = me.deps.shots.peek();
+                if images.is_empty() && template.vision {
+                    images = me.deps.shots.capture_if_empty();
+                }
                 let pack = match &folder {
                     FolderRef::User(fid) => me
                         .deps
@@ -607,8 +647,16 @@ impl Session {
                     call,
                     cancelled,
                     my_answer,
+                    images,
+                    vision_template: template.vision,
                 };
+                let n_images = hint_req.images.len() as u32;
                 let mut sources = |s: Vec<SourceRef>, withheld: u32| {
+                    me.bus.emit(AppEvent::Llm(LlmEvent::Meta {
+                        req_id,
+                        model: me.deps.hints.model(),
+                        images: n_images,
+                    }));
                     me.bus.emit(AppEvent::Llm(LlmEvent::Sources {
                         req_id,
                         sources: s,
@@ -628,6 +676,16 @@ impl Session {
                             c.asked = true;
                             c.sent_chunks.extend(out.sent_chunk_ids.iter().cloned());
                         }
+                        // A cancelled Ask keeps the queue (nothing was really asked).
+                        let images = if hint_req.cancelled.load(Ordering::SeqCst) {
+                            vec![]
+                        } else {
+                            out.images.clone()
+                        };
+                        if !images.is_empty() {
+                            let ids: Vec<u64> = images.iter().map(|i| i.id).collect();
+                            me.deps.shots.consume(&ids);
+                        }
                         me.qa_finish(
                             qa_id,
                             req_id,
@@ -636,6 +694,7 @@ impl Session {
                             out.answer,
                             out.truncated,
                             out.usage,
+                            images,
                             now_mono_ns(),
                         )
                     }
@@ -1125,6 +1184,7 @@ impl Inner {
         answer: String,
         truncated: bool,
         usage: Option<LlmUsage>,
+        images: Vec<SentImage>,
         armed_at: MonoNs,
     ) {
         let mut out = Out::default();
@@ -1139,6 +1199,7 @@ impl Inner {
                 );
                 c.range_from = armed_at;
                 let at_s = (clock.offset_ns(armed_at) / 1_000_000_000) as u32;
+                c.record_images(&qa_id, at_s, &question, &images);
                 c.push_entry(CallEntry::Qa {
                     id: qa_id,
                     at_s,
@@ -1193,6 +1254,7 @@ impl Inner {
                     answer.clone(),
                     false,
                     None,
+                    vec![],
                     t0 + item.at_ms * NS_PER_MS,
                 );
             }

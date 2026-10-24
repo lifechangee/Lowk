@@ -1,24 +1,21 @@
-//! G7: screenshot queue. `capture_screenshot` grabs every monitor (our own windows excluded,
-//! see `lowk-capture`) into an in-memory queue and emits `queue://changed`; the next Ask (M3)
-//! takes the queue with [`take_queue`]. Nothing is written to disk here.
+//! G7: screenshot queue. `capture_screenshot` grabs the active monitor (or all / the primary, per
+//! `capture.monitors`; our own windows excluded, see `lowk-capture`) into an in-memory queue and emits
+//! `queue://changed`; the next Ask sends the queue to the model (`ShotSource`). Nothing is written to disk here.
+use crate::emitter::UiEmitter;
 use crate::state::{AppState, Shared};
 use lowk_capture::CapturedShot;
+use lowk_session::ShotSource;
+use lowk_types::CursorSource;
 use lowk_types::*;
-use std::sync::Arc;
+use parking_lot::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 #[cfg(windows)]
 use tauri::Manager;
 use tauri::State;
 
 /// Most screenshots kept waiting for an Ask (oldest dropped first).
 pub const MAX_QUEUE: usize = 12;
-
-fn emit_queue(st: &AppState) {
-    let q = st.shots.lock();
-    st.emit(AppEvent::Queue(QueueState {
-        shots: q.len() as u32,
-        thumbs: q.iter().map(|s| s.thumb.clone()).collect(),
-    }));
-}
 
 /// Raw handles of this app's windows (what a Windows grab must exclude).
 #[cfg(windows)]
@@ -36,37 +33,161 @@ fn own_windows(st: &AppState) -> Vec<isize> {
     vec![]
 }
 
-/// Grab all monitors into the queue; returns the queue length. Used by the command and the bind.
-pub fn capture_into_queue(st: &Arc<AppState>) -> Result<u32> {
+/// The screenshots waiting for the next Ask (in memory only). The session reads it through
+/// [`ShotSource`]: an Ask takes a copy, removes exactly what it sent once it succeeded, and a
+/// stopped session empties it.
+pub struct ShotQueue {
+    q: Mutex<Vec<CapturedShot>>,
+    next_id: AtomicU64,
+    emitter: Arc<UiEmitter>,
+    /// Grabs the active display(s) for a vision template with an empty queue (set after boot).
+    grab: OnceLock<Box<dyn Fn() -> Result<Vec<CapturedShot>> + Send + Sync>>,
+}
+
+impl ShotQueue {
+    pub fn new(emitter: Arc<UiEmitter>) -> Self {
+        Self {
+            q: Mutex::new(vec![]),
+            next_id: AtomicU64::new(1),
+            emitter,
+            grab: OnceLock::new(),
+        }
+    }
+
+    pub fn set_grab(&self, f: Box<dyn Fn() -> Result<Vec<CapturedShot>> + Send + Sync>) {
+        let _ = self.grab.set(f);
+    }
+
+    pub fn lock(&self) -> parking_lot::MutexGuard<'_, Vec<CapturedShot>> {
+        self.q.lock()
+    }
+
+    fn emit(&self) {
+        let ev = {
+            let q = self.q.lock();
+            AppEvent::Queue(QueueState {
+                shots: q.len() as u32,
+                thumbs: q.iter().map(|s| s.thumb.clone()).collect(),
+            })
+        };
+        self.emitter.emit(ev);
+    }
+
+    /// Adds shots (ids assigned here), dropping the oldest beyond [`MAX_QUEUE`].
+    pub fn push(&self, shots: Vec<CapturedShot>) {
+        {
+            let mut q = self.q.lock();
+            for mut s in shots {
+                s.id = self.next_id.fetch_add(1, Ordering::SeqCst);
+                q.push(s);
+            }
+            let n = q.len();
+            if n > MAX_QUEUE {
+                q.drain(..n - MAX_QUEUE);
+            }
+        }
+        self.emit();
+    }
+}
+
+fn queued(s: &CapturedShot) -> QueuedImage {
+    QueuedImage {
+        id: s.id,
+        index: s.index,
+        primary: s.primary,
+        width: s.width,
+        height: s.height,
+        png: s.png.clone(),
+    }
+}
+
+impl ShotSource for ShotQueue {
+    fn peek(&self) -> Vec<QueuedImage> {
+        self.q.lock().iter().map(queued).collect()
+    }
+    fn capture_if_empty(&self) -> Vec<QueuedImage> {
+        let Some(grab) = self.grab.get() else {
+            return vec![];
+        };
+        match grab() {
+            // taken for this Ask only: not shown in the queue, removed again by `consume`
+            Ok(mut shots) => {
+                for s in &mut shots {
+                    s.id = self.next_id.fetch_add(1, Ordering::SeqCst);
+                }
+                shots.iter().map(queued).collect()
+            }
+            Err(e) => {
+                tracing::warn!(code = ?e.code, "vision template: no screenshot taken");
+                vec![]
+            }
+        }
+    }
+    fn consume(&self, ids: &[u64]) {
+        let changed = {
+            let mut q = self.q.lock();
+            let n = q.len();
+            q.retain(|s| !ids.contains(&s.id));
+            q.len() != n
+        };
+        if changed {
+            self.emit();
+        }
+    }
+    fn clear(&self) {
+        let changed = {
+            let mut q = self.q.lock();
+            let had = !q.is_empty();
+            q.clear();
+            had
+        };
+        if changed {
+            self.emit();
+        }
+    }
+}
+
+fn grab_now(st: &AppState) -> Result<Vec<CapturedShot>> {
     #[cfg(target_os = "macos")]
     if lowk_platform::perm::status(PermKind::ScreenRecording) != PermState::Granted {
         return Err(AppError::new(ErrorCode::PermScreenRecording));
     }
     let own = own_windows(st);
-    let shots = lowk_capture::capture_all(&own)?;
-    {
-        let mut q = st.shots.lock();
-        q.extend(shots);
-        let n = q.len();
-        if n > MAX_QUEUE {
-            q.drain(..n - MAX_QUEUE);
-        }
+    let mode = st.settings.get().capture.monitors;
+    let mouse = Some(lowk_input::SystemCursor.position());
+    lowk_capture::capture_all(&own, mode, mouse)
+}
+
+/// Grab the displays picked by `capture.monitors` (default: the active one) into the queue; returns
+/// the queue length. Used by the command and the bind.
+pub fn capture_into_queue(st: &Arc<AppState>) -> Result<u32> {
+    let shots = grab_now(st)?;
+    st.shots.push(shots);
+    Ok(st.shots.lock().len() as u32)
+}
+
+/// The grab used by vision templates with an empty queue.
+pub fn grab_for_ask(st: &Arc<AppState>) -> Result<Vec<CapturedShot>> {
+    grab_now(st)
+}
+
+// TODO(area-bind): the crosshair-drag selection overlay (transparent full-screen window excluded from
+// capture, Esc cancels) is not built yet; the backend below (`lowk_capture::capture_area`, mac + win) is ready
+// and the overlay only has to call it with the picked rect. Until then the ScreenshotArea bind grabs like Screenshot.
+#[allow(dead_code)]
+/// A rectangle picked by the area overlay (global top-left points) into the queue.
+pub fn capture_area_into_queue(st: &Arc<AppState>, rect: Rect) -> Result<u32> {
+    #[cfg(target_os = "macos")]
+    if lowk_platform::perm::status(PermKind::ScreenRecording) != PermState::Granted {
+        return Err(AppError::new(ErrorCode::PermScreenRecording));
     }
-    emit_queue(st);
+    let shot = lowk_capture::capture_area(&own_windows(st), rect)?;
+    st.shots.push(vec![shot]);
     Ok(st.shots.lock().len() as u32)
 }
 
 pub fn clear_queue(st: &AppState) {
-    st.shots.lock().clear();
-    emit_queue(st);
-}
-
-#[allow(dead_code)] // consumed by the LLM ask in M3
-/// The queued screenshots, emptying the queue (called by the LLM ask in M3).
-pub fn take_queue(st: &AppState) -> Vec<CapturedShot> {
-    let v = std::mem::take(&mut *st.shots.lock());
-    emit_queue(st);
-    v
+    ShotSource::clear(&*st.shots);
 }
 
 #[tauri::command(async)]

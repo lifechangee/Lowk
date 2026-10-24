@@ -104,6 +104,12 @@ pub enum LlmEvent {
         /// Chunks withheld by a folder's `allow_cloud = false`.
         withheld: u32,
     },
+    /// Sent once before the first delta: which model answers and how many screenshots go with the Ask.
+    Meta {
+        req_id: ReqId,
+        model: String,
+        images: u32,
+    },
 }
 
 /// A line of the live transcript as kept by `TranscriptBuf`.
@@ -240,4 +246,31 @@ pub trait LlmService: Send + Sync {
         should_continue: &dyn Fn() -> bool,
     ) -> crate::Result<Summary>;
     fn suggest_tags(&self, input: &TagInput) -> crate::Result<Vec<TagSuggestion>>;
+}
+
+// --- screenshots going with an Ask ----------------------------------------
+
+/// A screenshot waiting in the queue (PNG as captured). Not an IPC type: pixels never cross the
+/// Tauri boundary except as thumbnails.
+#[derive(Clone, Debug)]
+pub struct QueuedImage {
+    /// Unique per process; the queue removes exactly the ids that were sent.
+    pub id: u64,
+    /// Monitor index within one press, `primary` as reported by the platform.
+    pub index: u32,
+    pub primary: bool,
+    pub width: u32,
+    pub height: u32,
+    pub png: std::sync::Arc<Vec<u8>>,
+}
+
+/// A screenshot as it was actually sent (downscaled and encoded); the call stores these.
+#[derive(Clone, Debug)]
+pub struct SentImage {
+    pub id: u64,
+    /// `jpg` or `png`.
+    pub ext: &'static str,
+    pub bytes: std::sync::Arc<Vec<u8>>,
+    pub width: u32,
+    pub height: u32,
 }

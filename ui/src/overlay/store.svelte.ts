@@ -84,6 +84,8 @@ export class OverlayStore {
   withheld = $state(0);
   hasAnswered = $state(false);
   model = $state('DeepSeek V4.1 Flash');
+  /** Screenshots that went with the current ask (`llm://meta`); 0 = none. */
+  imagesSent = $state(0);
   myAnswer = $state('');
   /** True from the end of an AI answer until the next Ask: Me finals are collected as "My answer". */
   armed = $state(false);
@@ -153,11 +155,16 @@ export class OverlayStore {
       this.errorCode = null;
       this.sources = [];
       this.withheld = 0;
+      this.imagesSent = 0;
       this.streaming = true;
       this.hasAnswered = true;
       this.armed = false;
       this.myAnswer = '';
       this.stage = 'hint';
+    } else if (e.type === 'meta') {
+      if (this.#req !== e.req_id) return;
+      this.model = modelLabel(e.model);
+      this.imagesSent = e.images;
     } else if (e.type === 'sources') {
       if (this.#req !== e.req_id) return;
       this.sources = e.sources;
@@ -229,6 +236,7 @@ export class OverlayStore {
     this.errorCode = null;
     this.sources = [];
     this.withheld = 0;
+    this.imagesSent = 0;
     this.hasAnswered = false;
     this.myAnswer = '';
     this.armed = false;
@@ -237,6 +245,13 @@ export class OverlayStore {
     this.shots = 0;
     this.thumbs = [];
   }
+}
+
+/** Header label of the answering model: a readable name for known slugs, else the part after the vendor. */
+export function modelLabel(slug: string): string {
+  if (slug.startsWith('deepseek/deepseek-v4.1-flash')) return 'DeepSeek V4.1 Flash';
+  const name = slug.split('/').pop() || slug;
+  return name;
 }
 
 /** `H:MM:SS` / `HH:MM:SS`, as in the mockup timer. */

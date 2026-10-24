@@ -3,7 +3,7 @@
 //! overlay and pill already carry it permanently). Compile-checked from other hosts; the
 //! runtime is verified on a Windows machine later (docs/DECISIONS-M0.md).
 use crate::DisplayShot;
-use lowk_types::{AppError, ErrorCode, Result};
+use lowk_types::{AppError, CaptureMonitors, ErrorCode, Rect, Result};
 use windows::core::BOOL;
 use windows::Win32::Foundation::{HWND, LPARAM, RECT};
 use windows::Win32::Graphics::Gdi::{
@@ -12,7 +12,8 @@ use windows::Win32::Graphics::Gdi::{
     HDC, HMONITOR, SRCCOPY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowDisplayAffinity, SetWindowDisplayAffinity, WDA_EXCLUDEFROMCAPTURE, WINDOW_DISPLAY_AFFINITY,
+    GetForegroundWindow, GetWindowDisplayAffinity, GetWindowRect, SetWindowDisplayAffinity,
+    WDA_EXCLUDEFROMCAPTURE, WINDOW_DISPLAY_AFFINITY,
 };
 
 fn fail(what: &str) -> AppError {
@@ -27,7 +28,27 @@ unsafe extern "system" fn collect(_m: HMONITOR, _dc: HDC, r: *mut RECT, data: LP
 }
 
 /// Excludes `own` windows (raw HWND values) from the grab, restores their affinity afterwards.
-pub fn capture_displays(max_edge: u32, own: &[isize]) -> Result<Vec<DisplayShot>> {
+pub fn capture_displays(
+    max_edge: u32,
+    own: &[isize],
+    mode: CaptureMonitors,
+    mouse: Option<(f64, f64)>,
+) -> Result<Vec<DisplayShot>> {
+    with_own_excluded(own, || grab_all(max_edge, mode, mouse, own))
+}
+
+/// A rectangle of the virtual desktop (physical pixels).
+pub fn capture_area(rect: Rect, max_edge: u32, own: &[isize]) -> Result<DisplayShot> {
+    let r = RECT {
+        left: rect.x.round() as i32,
+        top: rect.y.round() as i32,
+        right: (rect.x + rect.w).round() as i32,
+        bottom: (rect.y + rect.h).round() as i32,
+    };
+    with_own_excluded(own, || grab_one(r, max_edge))
+}
+
+fn with_own_excluded<T>(own: &[isize], f: impl FnOnce() -> Result<T>) -> Result<T> {
     let mut saved: Vec<(HWND, u32)> = vec![];
     for &raw in own {
         let h = HWND(raw as *mut _);
@@ -40,7 +61,7 @@ pub fn capture_displays(max_edge: u32, own: &[isize]) -> Result<Vec<DisplayShot>
             }
         }
     }
-    let r = grab_all(max_edge);
+    let r = f();
     for (h, a) in saved {
         // SAFETY: as above.
         unsafe {
@@ -50,7 +71,31 @@ pub fn capture_displays(max_edge: u32, own: &[isize]) -> Result<Vec<DisplayShot>
     r
 }
 
-fn grab_all(max_edge: u32) -> Result<Vec<DisplayShot>> {
+/// The foreground window of another app (not one of ours), as a rect.
+fn focused_window(own: &[isize]) -> Option<Rect> {
+    // SAFETY: plain queries; the out pointer is valid.
+    unsafe {
+        let h = GetForegroundWindow();
+        if h.0.is_null() || own.contains(&(h.0 as isize)) {
+            return None;
+        }
+        let mut r = RECT::default();
+        GetWindowRect(h, &mut r).ok()?;
+        Some(Rect {
+            x: f64::from(r.left),
+            y: f64::from(r.top),
+            w: f64::from(r.right - r.left),
+            h: f64::from(r.bottom - r.top),
+        })
+    }
+}
+
+fn grab_all(
+    max_edge: u32,
+    mode: CaptureMonitors,
+    mouse: Option<(f64, f64)>,
+    own: &[isize],
+) -> Result<Vec<DisplayShot>> {
     let mut rects: Vec<RECT> = vec![];
     // SAFETY: the callback only pushes into `rects`, which outlives the call.
     unsafe {
@@ -59,7 +104,24 @@ fn grab_all(max_edge: u32) -> Result<Vec<DisplayShot>> {
     if rects.is_empty() {
         return Err(AppError::new(ErrorCode::NotFound).with_detail("no display"));
     }
-    rects.iter().map(|r| grab_one(*r, max_edge)).collect()
+    let frames: Vec<Rect> = rects
+        .iter()
+        .map(|r| Rect {
+            x: f64::from(r.left),
+            y: f64::from(r.top),
+            w: f64::from(r.right - r.left),
+            h: f64::from(r.bottom - r.top),
+        })
+        .collect();
+    let focus = if mode == CaptureMonitors::Active {
+        focused_window(own)
+    } else {
+        None
+    };
+    crate::select_displays(&frames, mode, focus, mouse)
+        .into_iter()
+        .map(|i| grab_one(rects[i], max_edge))
+        .collect()
 }
 
 fn grab_one(r: RECT, max_edge: u32) -> Result<DisplayShot> {
