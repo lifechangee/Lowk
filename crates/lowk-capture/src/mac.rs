@@ -340,14 +340,21 @@ fn stream_filter(c: &SCShareableContent, display: usize) -> Result<SCContentFilt
 }
 
 fn stream_config(g: &StreamGeometry) -> SCStreamConfiguration {
-    let s = g.plan.src;
-    SCStreamConfiguration::new()
-        .with_width(g.req.0)
-        .with_height(g.req.1)
-        .with_source_rect(CGRect::new(s.x, s.y, s.w, s.h))
+    let c = g.config_spec();
+    let mut cfg = SCStreamConfiguration::new()
+        .with_pixel_format(PixelFormat::BGRA)
+        .with_width(c.width)
+        .with_height(c.height)
+        .with_source_rect(CGRect::new(c.src[0], c.src[1], c.src[2], c.src[3]))
+        // The request has the source aspect (`request_px`): fit = plain scale, no crop, no letterbox.
+        .with_scales_to_fit(true)
         .with_shows_cursor(false)
         .with_queue_depth(3)
-        .with_minimum_frame_interval(&CMTime::new(crate::frames::MIN_FRAME_INTERVAL_MS, 1000))
+        .with_minimum_frame_interval(&CMTime::new(crate::frames::MIN_FRAME_INTERVAL_MS, 1000));
+    // sRGB values, not the display's Display P3 ones (the old screenshot path was colour-managed to sRGB).
+    let _ = cfg.set_color_space_name(crate::frames::STREAM_COLOR_SPACE);
+    let _ = cfg.set_preserves_aspect_ratio(true);
+    cfg
 }
 
 impl SckStream {
@@ -411,7 +418,12 @@ impl RegionStream for SckStream {
         }
         // The pixels in flight were rendered for the old geometry: publish the new one first, forget old content.
         *self.shared.geo.lock().unwrap_or_else(|e| e.into_inner()) = new.clone();
-        self.shared.proc.lock().unwrap_or_else(|e| e.into_inner()).reset();
+        {
+            let mut p = self.shared.proc.lock().unwrap_or_else(|e| e.into_inner());
+            p.reset();
+            // frames already in flight show the old region: ignore them
+            p.hold_until(Instant::now() + Duration::from_millis(crate::frames::RETARGET_SETTLE_MS));
+        }
         if new.plan.display != self.geo.plan.display || refresh_filter {
             let f = stream_filter(&self.content, new.plan.display)?;
             self.stream

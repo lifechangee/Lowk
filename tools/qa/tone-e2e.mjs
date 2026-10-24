@@ -35,6 +35,10 @@ const has = (f) => process.argv.includes(f);
 const env = { ...process.env, PATH: `${process.env.HOME}/.cargo/bin:${process.env.HOME}/.local/node/current/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` };
 const work = mkdtempSync(join(tmpdir(), 'lowk-tone-e2e-'));
 const checks = [];
+// Global run budget: a stuck run must end with a clear message instead of taking 18+ minutes.
+const BUDGET_MS = 5 * 60 * 1000, T_RUN = Date.now();
+const READY_MS = 5000; // per position: how long to wait for the sampler to show the backdrop
+const overBudget = () => Date.now() - T_RUN > BUDGET_MS;
 const add = (ok, name, detail = '') => { checks.push({ ok, name, detail }); if (!ok || has('--verbose')) console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}  ${detail}`); };
 
 if (process.platform !== 'darwin') { console.log('tone e2e is macOS only'); process.exit(0); }
@@ -206,6 +210,7 @@ try {
   for (const pos of POSITIONS) {
     { await cmd(`overlay-move ${pos.x} ${pos.y}`); await sleep(300); }
     for (const bd of BDS) {
+      if (overBudget()) throw new Error(`ABORT: run budget of ${BUDGET_MS / 1000} s exceeded before ${bd.name} @ ${pos.name}; ${checks.filter((c) => !c.ok).length} checks failed so far (results.json holds the partial run)`);
       const fr = JSON.parse(await cmd('overlay-frame')).frame;
       const rects = bd.regions.map((r) => ({ x: fr.x + r.x0 * fr.w, y: fr.y + r.y0 * fr.h, w: (r.x1 - r.x0) * fr.w, h: (r.y1 - r.y0) * fr.h, c: RGB[r.c] }));
       // painted scrim (text hidden) of the whole overlay, one lum per cell centre, as fast as a capture goes (latency probe)
@@ -238,14 +243,14 @@ try {
           let last = null;
           for (let n = 0; n < 60; n++) {
             const pr = await probe(); last = pr;
-            if (wit.every((w) => (w.dark ? pr.lum[w.i] < 0.2 : pr.lum[w.i] > 0.5))) { latency = { ms: Math.round(performance.now() - tAck), grab_ms: Math.round(pr.ms), witnesses: wit.length }; break; }
+            if (wit.every((w) => (w.dark ? pr.lum[w.i] < 0.2 : pr.lum[w.i] > 0.5))) { { const total = Math.round(performance.now() - tAck), g = Math.round(pr.ms); latency = { ms: Math.max(0, total - g), total_ms: total, grab_ms: g, witnesses: wit.length }; } break; }
           }
           if (!latency) latency = { ms: null, witnesses: wit.length, never: wit.filter((w) => (w.dark ? last.lum[w.i] >= 0.2 : last.lum[w.i] <= 0.5)).map((w) => w.i) };
         }
       }
       if (latency?.ms != null) latencies.push(latency.ms);
       const tag = `${bd.name} @ ${pos.name}`;
-      add(!latency || (latency.ms != null && latency.ms <= 250), `${tag}: backdrop change reaches the painted scrim within 250 ms of the layout ack`, latency ? JSON.stringify(latency) : 'no cell changed polarity: not measured');
+      add(!latency || (latency.ms != null && latency.ms <= 250), `${tag}: backdrop change reaches the painted scrim within 250 ms of the layout ack (Lowk side: harness grab time subtracted)`, latency ? JSON.stringify(latency) : 'no cell changed polarity: not measured');
       const ofr = JSON.parse(await cmd('overlay-frame'));
       const s = ofr.sampled, f2 = ofr.frame;
       // Expected colour per cell from the REAL overlay frame vs the backdrop geometry: a cell is asserted only when it
@@ -282,7 +287,7 @@ try {
       const frameNow = async () => { try { return JSON.parse(await cmd('tone-diag')).sampler?.frames ?? 0; } catch { return 0; } };
       const f0 = await frameNow();
       let sdiag = null, ready = pureIdx.length === 0, lastMeans = null, frames = f0, mism = [];
-      for (let t = 0; t < 120 && !ready; t++) { // 30 s
+      for (let t = 0; t < READY_MS / 250 && !ready; t++) { // 5 s
         try { const d = JSON.parse(await cmd('tone-diag')); lastMeans = d.sampler?.cell_means ?? []; frames = d.sampler?.frames ?? frames; sdiag = d.sampler; } catch { lastMeans = []; }
         mism = pureIdx.filter((i) => !near(lastMeans[i], RGB[expect[i]]));
         ready = (frames >= f0 + 2 || (sdiag?.mode === 'stream' && frames >= f0 + 1)) && mism.length === 0;
@@ -301,7 +306,13 @@ try {
       const diag = { sampler: diagRaw.sampler, grab: diagRaw.grab };
       const grid = tone.grid?.cells ?? [];
       add(grid.length === GC * GR, `${tag}: backend sent a ${GC}x${GR} grid`, `${grid.length} cells`);
-      add(!!diag.grab && !diag.grab.error && (diag.sampler?.grab_errors ?? 1) === 0, `${tag}: sampler grabs succeed`, JSON.stringify({ err: diag.grab?.error, grab_errors: diag.sampler?.grab_errors, last_error: diag.sampler?.last_error }));
+      if (diag.sampler?.mode === 'stream') {
+        // stream mode has no polled-grab object: assert on the stream's own health
+        const sm = diag.sampler;
+        add(sm.grab_errors === 0 && !sm.last_error && sm.frames_per_s > 0 && sm.last_frame_age_ms != null && sm.last_frame_age_ms < 5000, `${tag}: stream healthy (frames arriving, no errors)`, JSON.stringify({ mode: sm.mode, frames_per_s: sm.frames_per_s, last_frame_age_ms: sm.last_frame_age_ms, grab_errors: sm.grab_errors, last_error: sm.last_error }));
+      } else {
+        add(!!diag.grab && !diag.grab.error && (diag.sampler?.grab_errors ?? 1) === 0, `${tag}: sampler grabs succeed`, JSON.stringify({ mode: diag.sampler?.mode, err: diag.grab?.error, grab_errors: diag.sampler?.grab_errors, last_error: diag.sampler?.last_error }));
+      }
       add((diag.sampler?.cell_means ?? []).some((m) => m[0] + m[1] + m[2] > 0), `${tag}: sampler image is not all black`, JSON.stringify(diag.sampler?.cell_means));
       const be = [];
       // the polarity that matters is the scrim luminance (dark chromatic backdrops are tone kind "color")

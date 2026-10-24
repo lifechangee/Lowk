@@ -16,6 +16,14 @@ pub const STREAM_OVERSAMPLE: u32 = 2;
 /// `minimumFrameInterval` of the stream: at most 25 frames per second reach us (SCK sends none while nothing changes).
 pub const MIN_FRAME_INTERVAL_MS: i64 = 40;
 
+/// After a reconfiguration SCK still delivers frames rendered for the OLD `sourceRect` (queue depth 3 x 40 ms plus
+/// the async `updateConfiguration`); they have the right aspect, so only time can tell them apart. Frames are dropped
+/// for this long after the geometry changed.
+pub const RETARGET_SETTLE_MS: u64 = 200;
+/// Colour space the stream is asked to deliver (`kCGColorSpaceSRGB`): without it SCK hands out the display's own
+/// (Display P3) values and pure sRGB backdrops read shifted (yellow 240,220,40 -> 236,221,83).
+pub const STREAM_COLOR_SPACE: &str = "kCGColorSpaceSRGB";
+
 /// Everything a stream configuration + frame conversion needs for one overlay position.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StreamGeometry {
@@ -29,6 +37,15 @@ impl StreamGeometry {
         let plan = geometry::plan(rect, displays, out_w, out_h)?;
         let req = geometry::request_px(plan.src.w, plan.src.h, plan.cap_w, plan.cap_h, STREAM_OVERSAMPLE);
         Some(Self { plan, req })
+    }
+    /// The numbers handed to `SCStreamConfiguration`: output pixels, then `sourceRect` in display-local points
+    /// (top-left origin).
+    pub fn config_spec(&self) -> ConfigSpec {
+        ConfigSpec {
+            width: self.req.0,
+            height: self.req.1,
+            src: [self.plan.src.x, self.plan.src.y, self.plan.src.w, self.plan.src.h],
+        }
     }
     /// Same stream configuration (so a `retarget` needs no `update_configuration`)?
     pub fn same_config(&self, o: &Self) -> bool {
@@ -48,16 +65,31 @@ impl StreamGeometry {
     }
 }
 
+/// Pure view of the stream configuration (see [`StreamGeometry::config_spec`]).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ConfigSpec {
+    pub width: u32,
+    pub height: u32,
+    /// `[x, y, w, h]` in points relative to the display's top-left.
+    pub src: [f64; 4],
+}
+
 /// Converts frames to tone bitmaps and drops those whose content did not change.
 #[derive(Default)]
 pub struct FrameProcessor {
     last: Option<u64>,
+    hold_until: Option<std::time::Instant>,
 }
 
 impl FrameProcessor {
     /// Forget the last content (after a retarget the same pixels mean something else).
     pub fn reset(&mut self) {
         self.last = None;
+    }
+
+    /// Drop every frame until `until` (frames in flight were rendered for the previous geometry).
+    pub fn hold_until(&mut self, until: std::time::Instant) {
+        self.hold_until = Some(until);
     }
 
     /// `bgra`: `ih` rows `stride` bytes apart, `iw` pixels of 4 bytes each. `None` = not a usable frame
@@ -73,6 +105,9 @@ impl FrameProcessor {
         cols: usize,
         rows: usize,
     ) -> Option<Vec<u8>> {
+        if self.hold_until.is_some_and(|t| std::time::Instant::now() < t) {
+            return None;
+        }
         if !geo.accepts(iw, ih) {
             return None;
         }
@@ -230,5 +265,72 @@ mod tests {
             bmp.chunks_exact(4).all(|px| px[..3] == [255, 255, 255]),
             "all cells white, incl. the 4 off-screen columns"
         );
+    }
+
+    #[test]
+    fn pure_srgb_colours_pass_through_bgra_unchanged_with_padded_rows() {
+        let g = StreamGeometry::new(&r(100.0, 100.0, 600.0, 384.0), &disp(), 48, 32).unwrap();
+        let (w, h) = (g.req.0 as usize, g.req.1 as usize);
+        for (l, rt) in [([240, 220, 40], [200, 30, 30]), ([10, 20, 90], [30, 140, 60])] {
+            let stride = w * 4 + 48;
+            let bmp = FrameProcessor::default()
+                .process(&g, &frame(w, h, stride, l, rt), stride, w as u32, h as u32, 12, 8)
+                .unwrap();
+            assert_eq!(&bmp[..4], &[l[0], l[1], l[2], 255], "BGRA -> RGBA, alpha kept");
+            let i = 47 * 4;
+            assert_eq!(&bmp[i..i + 3], &rt);
+        }
+        assert_eq!(STREAM_COLOR_SPACE, "kCGColorSpaceSRGB");
+    }
+
+    #[test]
+    fn frames_in_flight_after_a_retarget_are_held_back() {
+        let g = StreamGeometry::new(&r(100.0, 100.0, 600.0, 384.0), &disp(), 48, 32).unwrap();
+        let (w, h) = (g.req.0 as usize, g.req.1 as usize);
+        let f = frame(w, h, w * 4, [1, 2, 3], [4, 5, 6]);
+        let mut p = FrameProcessor::default();
+        p.hold_until(std::time::Instant::now() + std::time::Duration::from_secs(3600));
+        assert!(p.process(&g, &f, w * 4, w as u32, h as u32, 12, 8).is_none());
+        p.hold_until(std::time::Instant::now());
+        assert!(p.process(&g, &f, w * 4, w as u32, h as u32, 12, 8).is_some());
+    }
+
+    #[test]
+    fn config_maps_overlay_and_display_to_display_local_points_and_source_aspect() {
+        // second display to the right of the first, origin (1440, 0); overlay on it at global (1540, 120)
+        let ds = vec![r(0.0, 0.0, 1440.0, 900.0), r(1440.0, 0.0, 1920.0, 1080.0)];
+        let g = StreamGeometry::new(&r(1540.0, 120.0, 600.0, 384.0), &ds, 48, 32).unwrap();
+        let c = g.config_spec();
+        assert_eq!(g.plan.display, 1);
+        assert_eq!(c.src, [100.0, 120.0, 600.0, 384.0], "display-local, top-left");
+        assert!((c.width as f64 / c.height as f64 - 600.0 / 384.0).abs() < 0.03);
+        // hanging over the left edge of display 0: only the visible part is requested
+        let g = StreamGeometry::new(&r(-200.0, 100.0, 600.0, 384.0), &ds[..1], 48, 32).unwrap();
+        let c = g.config_spec();
+        assert_eq!(c.src, [0.0, 100.0, 400.0, 384.0]);
+        assert!((c.width as f64 / c.height as f64 - 400.0 / 384.0).abs() < 0.03);
+    }
+
+    #[test]
+    fn stream_pixels_land_in_the_right_cells_including_the_off_screen_corner() {
+        // overlay hangs 200 pt over the LEFT edge: the first cells are off-screen. The visible part is navy on top,
+        // red at the bottom; off-screen cells must repeat the nearest on-screen pixels, never black.
+        let g = StreamGeometry::new(&r(-200.0, 100.0, 600.0, 384.0), &disp(), 48, 32).unwrap();
+        let (w, h) = (g.req.0 as usize, g.req.1 as usize);
+        let mut v = vec![0u8; w * h * 4];
+        for y in 0..h {
+            for x in 0..w {
+                let c: [u8; 3] = if y < h / 2 { [10, 20, 90] } else { [200, 30, 30] };
+                v[(y * w + x) * 4..][..4].copy_from_slice(&[c[2], c[1], c[0], 255]);
+            }
+        }
+        let bmp = FrameProcessor::default()
+            .process(&g, &v, w * 4, w as u32, h as u32, 12, 8)
+            .unwrap();
+        let px = |x: usize, y: usize| bmp[(y * 48 + x) * 4..][..3].to_vec();
+        for x in [0usize, 10, 47] {
+            assert_eq!(px(x, 2), vec![10, 20, 90], "top row navy at column {x}");
+            assert_eq!(px(x, 30), vec![200, 30, 30], "bottom row red at column {x}");
+        }
     }
 }

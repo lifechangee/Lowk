@@ -122,6 +122,8 @@ struct SamplerDiag {
     processed: u64,
     rate_at: Option<Instant>,
     rate_base: (u64, u64),
+    /// When the last frame (stream) / bitmap (poll) arrived; `last_frame_age_ms` in the QA JSON.
+    last_frame_at: Option<Instant>,
 }
 
 impl SamplerDiag {
@@ -287,7 +289,7 @@ impl Stealth {
             .map(|c| format!("[{},{},{}]", c[0], c[1], c[2]))
             .collect();
         format!(
-            "{{\"ticks\":{},\"grab_errors\":{},\"last_error\":{},\"admitted\":{},\"emitted\":{},\"frames\":{},\"mode\":\"{}\",\"frames_per_s\":{:.1},\"processed_per_s\":{:.1},\"delivered\":{},\"processed\":{},\"cell_means\":[{}]}}",
+            "{{\"ticks\":{},\"grab_errors\":{},\"last_error\":{},\"admitted\":{},\"emitted\":{},\"frames\":{},\"mode\":\"{}\",\"frames_per_s\":{:.1},\"last_frame_age_ms\":{},\"processed_per_s\":{:.1},\"delivered\":{},\"processed\":{},\"cell_means\":[{}]}}",
             d.ticks,
             d.grab_errors,
             d.last_error.as_ref().map_or("null".to_string(), |e| format!("{e:?}")),
@@ -296,6 +298,8 @@ impl Stealth {
             d.frames,
             if d.mode.is_empty() { "idle" } else { d.mode },
             d.frames_per_s,
+            d.last_frame_at
+                .map_or("null".to_string(), |t| t.elapsed().as_millis().to_string()),
             d.processed_per_s,
             d.delivered,
             d.processed,
@@ -409,6 +413,9 @@ impl Stealth {
                             let mut d = tone.diag.lock();
                             d.mode = "stream";
                             d.ticks += 1;
+                            if delivered > d.delivered {
+                                d.last_frame_at = Some(Instant::now());
+                            }
                             d.delivered = delivered;
                             d.processed = processed;
                             d.frames = processed;
@@ -460,6 +467,7 @@ impl Stealth {
                         let mut d = tone.diag.lock();
                         d.frames += 1;
                         d.delivered = d.frames;
+                        d.last_frame_at = Some(Instant::now());
                     }
                     let admitted = gate.admit(&bmp);
                     {
