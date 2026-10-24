@@ -3,7 +3,7 @@ import type { UnlistenFn } from '@tauri-apps/api/event';
 import { EVENTS, on, commands } from '../lib/ipc';
 import type { SourceRef, BindReport, ActionId, LlmEvent, OverlayMode, QaUpdate, QueueState, SessionState, Settings, SttEvent } from '../lib/ipc/bindings';
 import { bindFor, triggerText } from '../main/binds';
-import { resolveLang, setLang } from '../lib/i18n';
+import { resolveOverlayLang } from './i18n';
 import type { OverlayStore } from './store.svelte';
 import type { OverlaySource } from './source';
 import type { ToneEvent } from './tone';
@@ -97,8 +97,7 @@ export class TauriSource implements OverlaySource {
       store.keysOverride = { ask: lab('ask_brief') || lab('ask'), complement: lab('ask_complement'), shot: lab('screenshot'), move: lab('move_hold'), click: lab('click_hold'), interactive: lab('toggle_interactive') };
     }
     if (s.templates?.length) store.templates = s.templates.filter((t) => t.id !== 'summary');
-    store.lang = resolveLang(s.ui?.language ?? 'auto', this.#locale);
-    setLang(store.lang);
+    store.lang = resolveOverlayLang(s.ui?.language ?? 'auto', this.#locale);
   }
 
   stop(): void {

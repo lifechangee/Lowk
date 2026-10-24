@@ -1,30 +1,37 @@
 <script lang="ts">
   import '../lib/tokens.css';
   import { onMount } from 'svelte';
-  import { commands } from '../lib/ipc';
-  import { resolveLang, setLang } from '../lib/i18n';
   import { OverlayStore } from './store.svelte';
-  import { TauriSource } from './tauri';
+  import { LazyTauriSource } from './lazy';
+  import { restoreSnapshot, saveSnapshot } from './snapshot';
   import Overlay from './Overlay.svelte';
 
   const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   const store = new OverlayStore();
   store.isMac = /mac/i.test(navigator.platform);
-  const source = new TauriSource();
+  // First paint must not wait for the backend: start from the last known look, then the bridge fills in.
+  store.pillWindow = location.hash === '#pill';
+  restoreSnapshot(store);
+  const source = new LazyTauriSource();
   // Dev harness (mock demo + test backgrounds) is tree-shaken from release builds.
   const dev = import.meta.env.DEV && !inTauri ? import('./DevStage.svelte') : null;
 
   onMount(() => {
+    // First content is on screen after the next frame; the marker is for tests and diagnostics.
+    requestAnimationFrame(() => {
+      performance.mark('overlay-first-content');
+      document.documentElement.dataset.ready = '1';
+    });
     if (!inTauri) return;
     source.start(store);
-    void commands
-      .localeGet()
-      .then((l) => {
-        store.lang = resolveLang('auto', l);
-        setLang(store.lang);
-      })
-      .catch(() => {});
-    return () => source.stop();
+    const save = setInterval(() => saveSnapshot(store), 2000);
+    const onHide = () => saveSnapshot(store);
+    addEventListener('pagehide', onHide);
+    return () => {
+      clearInterval(save);
+      removeEventListener('pagehide', onHide);
+      source.stop();
+    };
   });
 </script>
 

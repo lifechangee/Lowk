@@ -1,5 +1,6 @@
 [
-  { "name": "overlay JS (gzip)", "path": "dist/assets/overlay-*.js", "limit": "60 KB", "gzip": true },
+  { "name": "overlay JS critical path (entry + shared chunk, gzip)", "path": "dist/assets/overlay-*.js", "limit": "40 KB", "gzip": true },
   { "name": "overlay CSS (gzip)", "path": "dist/assets/overlay-*.css", "limit": "10 KB", "gzip": true },
+  { "name": "overlay lazy bridge (gzip)", "path": "dist/assets/tauri-*.js", "limit": "4 KB", "gzip": true },
   { "name": "main JS (gzip)", "path": "dist/assets/main-*.js", "limit": "150 KB", "gzip": true }
 ]
