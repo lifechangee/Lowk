@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-trash-delete-forever"
+description = "Enables the trash_delete_forever command without any pre-configured scope."
+commands.allow = ["trash_delete_forever"]
+
+[[permission]]
+identifier = "deny-trash-delete-forever"
+description = "Denies the trash_delete_forever command without any pre-configured scope."
+commands.deny = ["trash_delete_forever"]
