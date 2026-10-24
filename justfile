@@ -55,6 +55,7 @@ fmt:
 
 # fmt check, clippy, ui type check, dependency rules, license check.
 lint:
+    ruby -ryaml -e 'ARGV.each { |f| YAML.load_file(f) }' .github/workflows/*.yml
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo xtask check-deps

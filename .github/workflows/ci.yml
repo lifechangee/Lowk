@@ -173,4 +173,4 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-      - run: echo "stealth capture-probe: see tools/stealth-probe"
+      - run: echo "stealth capture-probe, see tools/stealth-probe"
