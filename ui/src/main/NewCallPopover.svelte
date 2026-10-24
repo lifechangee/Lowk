@@ -1,6 +1,6 @@
 <script lang="ts">
   // The sidebar «Новый созвон» button opens this popover on every screen (folder + source + languages + Start):
-  // the one and only way to start a call from the UI (docs/design/ux-audit.md, principle 2).
+  // the one and only way to start a call from the UI.
   import type { Target } from '../lib/ipc';
   import Button from '../lib/components/Button.svelte';
   import RecDot from '../lib/components/RecDot.svelte';

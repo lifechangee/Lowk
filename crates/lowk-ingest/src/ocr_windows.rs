@@ -1,6 +1,6 @@
 //! Windows OCR: `Windows.Media.Ocr` (engine per installed language pack) and `Windows.Data.Pdf`
 //! for rasterising PDF pages. Verified by compilation in CI until a Windows machine is available
-//! (docs/M2-PLAN.md risks); the WinRT calls are the documented ones and are blocking (`.join()`),
+//! (see docs/DECISIONS-M2.md); the WinRT calls are the documented ones and are blocking (`.join()`),
 //! which is fine: conversion runs on a worker thread.
 use crate::ocr::{languages_or_default, Ocr, OcrOutput};
 use lowk_types::{AppError, ErrorCode, Result};

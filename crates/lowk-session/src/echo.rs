@@ -1,4 +1,4 @@
-//! Transcript-level echo guard (S4 safety net, docs/research/audio-capture.md §3).
+//! Transcript-level echo guard (S4 safety net).
 //!
 //! Without headphones the speakers play the System stream and the microphone hears it again,
 //! so the same sentence arrives as «Система» and as «Я». AEC removes most of it; this drops what

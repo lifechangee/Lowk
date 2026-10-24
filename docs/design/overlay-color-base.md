@@ -1,7 +1,7 @@
 # Цветовая база адаптивного оверлея (O4)
 
 Код: `crates/lowk-stealth/src/palette.rs` (математика и таблица констант), `tone.rs` (сглаживание, гистерезис, сетка 12x8, большинство голосов в пограничных ячейках, быстрое подтверждение скачка).
-Витрина: [overlay-color-swatches.html](overlay-color-swatches.html) / [.png](overlay-color-swatches.png), числа в [.json](overlay-color-swatches.json).
+Витрина: [overlay-color-swatches.html](overlay-color-swatches.html), числа в [.json](overlay-color-swatches.json).
 
 ## Что было не так
 

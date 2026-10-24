@@ -1,5 +1,5 @@
 # cargo-deny configuration. AGPL-3.0-or-later project (docs/ARCHITECTURE.md 12.2).
-# Changes to this file need architect review (CODEOWNERS).
+# Changes to this file need architect review.
 
 [graph]
 targets = [

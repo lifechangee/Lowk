@@ -1,5 +1,5 @@
 //! Core Audio capture sessions: HAL input (mic) and process taps behind a private aggregate
-//! device. Ported from `spikes/audio/src/mac.rs`; the IOProc only mixes to mono and pushes
+//! device. Ported from an earlier audio spike; the IOProc only mixes to mono and pushes
 //! into the SPSC ring (stack scratch, no allocation, no locks).
 use super::devices;
 use crate::pipeline::RingIn;

@@ -1,4 +1,4 @@
-// Registry of KNOWN product bugs (docs/M0-FEEDBACK.md). A lint issue that matches an entry is
+// Registry of KNOWN product bugs (owner feedback round 0). A lint issue that matches an entry is
 // reported as "known Fx" (orange in the gallery) instead of failing the generic state test; the
 // matching expected-fail test in known-bugs.spec.ts proves the detector still sees it.
 // When a fix lands: delete the entry here AND remove `test.fail()` from the F-test.
@@ -14,7 +14,7 @@ export interface Known {
 }
 
 export const KNOWN: Known[] = [
-  // --- owner feedback (docs/M0-FEEDBACK.md) ---
+  // --- owner feedback (owner feedback round 0) ---
 ];
 
 export function classify(rule: Known['rule'], sel: string, stateKey: string): string | undefined {

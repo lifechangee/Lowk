@@ -1,7 +1,7 @@
 // O4: the colour base of the adaptive overlay. (1) The swatch sheet generated from the real AdaptiveTone
 // (docs/design/overlay-color-swatches.html) lists every backdrop as verified. (2) The REAL overlay component, fed
 // the tone the Rust mapping produced for a backdrop, renders legible text over it (pixel-based contrast).
-// SWATCH_PNG=1 also renders the sheet to docs/design/overlay-color-swatches.png.
+// SWATCH_PNG=1 also renders the sheet to test-results/overlay-color-swatches.png.
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -36,7 +36,7 @@ test.describe('swatch sheet', () => {
       expect(p.bg.replace(/rgba?\(|\)| /g, '').split(',').slice(0, 3).join(','), data[i]!.name).toBe(rgbOf(b.scrim));
       expect(p.fg.replace(/rgba?\(|\)| /g, '').split(',').slice(0, 3).join(','), data[i]!.name).toBe(rgbOf(b.fg));
     });
-    if (info.project.name === 'chromium' && process.env.SWATCH_PNG) await page.screenshot({ path: resolve(docs, 'overlay-color-swatches.png'), fullPage: true });
+    if (info.project.name === 'chromium' && process.env.SWATCH_PNG) await page.screenshot({ path: 'test-results/overlay-color-swatches.png', fullPage: true });
     await expect(page).toHaveScreenshot('swatch-sheet.png', { fullPage: true, maxDiffPixelRatio: 0.02 });
   });
 });

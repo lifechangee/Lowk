@@ -39,7 +39,7 @@ Builds that other people (including the product owner) use must be bundled, sign
 
 ## Architecture rules
 
-`crates/lowk-types` and `deny.toml`, `Cargo.toml`, `.github/` are architect-gated (see `.github/CODEOWNERS`): propose additive changes in an issue or PR description instead of editing them casually. Crate dependency direction is enforced by `cargo xtask check-deps` (part of `just lint`). Keep claims in docs accurate: if it is not implemented, say "planned".
+`crates/lowk-types` and `deny.toml`, `Cargo.toml`, `.github/` are architect-gated: propose additive changes in an issue or PR description instead of editing them casually. Crate dependency direction is enforced by `cargo xtask check-deps` (part of `just lint`). Keep claims in docs accurate: if it is not implemented, say "planned".
 
 ## Pull requests
 

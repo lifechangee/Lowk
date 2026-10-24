@@ -101,7 +101,7 @@ Documents. Supported: PDF (text and scanned), DOCX, PPTX, XLSX, CSV, TXT, MD and
 
 **Ask uses your context.** When you press the answer hotkey, Lowk adds the folder's instructions, pinned documents, relevant chunks of its documents and relevant parts of earlier calls in the same folder (not the current call, which is sent as the live delta). The sources appear as chips under the answer in the overlay and on the call's Sources tab; click one to open it. Screenshots in this guide use sample data from the UI test suite.
 
-Caveats: this is pre-alpha. At the time of the M2 merge the CI run of the final commit and the owner's manual smoke test of the bundle were still pending, and the embedding-model comparison and Windows timing are unfinished ([M2 status](../M2-STATUS.md)).
+Caveats: this is pre-alpha. At the time of the M2 merge the CI run of the final commit and the owner's manual smoke test of the bundle were still pending, and the embedding-model comparison and Windows timing are unfinished.
 
 ## Local-only folders
 

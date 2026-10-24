@@ -1,6 +1,6 @@
 //! macOS backend (AppKit via objc2). Every method runs on the main thread.
 //!
-//! Ported from `spikes/stealth/app/src-tauri/src/mac.rs`. The overlay's class is
+//! Ported from an earlier stealth spike. The overlay's class is
 //! swapped to `LowkPanel` (an `NSPanel` subclass) so that `.nonactivatingPanel`
 //! is honoured and `canBecomeKeyWindow` can be turned on for typing
 //! (interactive mode) without activating the app.

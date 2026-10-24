@@ -1,7 +1,7 @@
 //! `lowk-types`: the contract crate.
 //!
 //! Every type that crosses a crate or IPC boundary lives here, with `serde` and
-//! `specta::Type` derives. Changes are architect-gated (see CODEOWNERS): this
+//! `specta::Type` derives. Changes are architect-gated: this
 //! crate is the seam that lets many engineers work in parallel.
 //!
 //! Rules: no business logic, no OS code, no `tauri` dependency. Small `Fake*` /
@@ -86,7 +86,7 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<SourceInfo>();
     types.register_mut::<SourceKind>();
     types.register_mut::<DeviceInfo>();
-    // M2 contracts (docs/M2-PLAN.md)
+    // M2 contracts (docs/DECISIONS-M2.md)
     types.register_mut::<Document>();
     types.register_mut::<DocKind>();
     types.register_mut::<IngestStatus>();

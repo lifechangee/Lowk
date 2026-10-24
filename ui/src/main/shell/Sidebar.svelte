@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Variant A (docs/design/ux-audit.md): one permanent sidebar on every screen except onboarding.
+  // Variant A: one permanent sidebar on every screen except onboarding.
   // Logo · New call · Home · Search · Folders tree · Unsorted · Trash · Settings · recording indicator.
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';

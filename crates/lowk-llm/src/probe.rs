@@ -1,5 +1,5 @@
 //! Latency probe: picks the fastest upstream OpenRouter provider for the pinned model
-//! (`llm.pinned_provider`), measured as in research/llm-and-jev.md A1.4: time to the first
+//! (`llm.pinned_provider`), measured as in the early LLM research (A1.4): time to the first
 //! content token of a tiny streamed request with the provider forced and no fallbacks.
 use crate::client::OpenAiClient;
 use crate::config::{ChatOptions, LlmConfig, ProviderKind};

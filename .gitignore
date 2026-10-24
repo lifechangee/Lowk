@@ -5,15 +5,9 @@ node_modules/
 models/
 *.m4a
 *.mp3
-spikes/**/target/
-spikes/stt-bench/models/
-spikes/stt-bench/.venv/
 .venv/
 node_modules/
 dist/
-spikes/stt-bench/engines/
-spikes/stealth/results/*.png
-spikes/stealth/evidence/
 
 # Rust / Tauri
 crates/lowk-app/gen/

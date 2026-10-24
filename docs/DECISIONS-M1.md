@@ -55,7 +55,7 @@ references spell numbers out, so CER under-states its gain.
 
 `cargo run --release -p lowk-session --example stt_replay` (FileAudioSource -> session ->
 sidecar -> transcript -> bus; word-to-screen = first appearance on the bus vs estimated word end,
-+-0.3 s, no forced aligner). Raw: `spikes/stt-bench/results/m1-session-replay-*.md`.
++-0.3 s, no forced aligner). Raw replay results are internal (not in this repository).
 
 | config | word-to-screen p50 / p95 | mean CER live | mean CER after correction |
 |---|---|---|---|

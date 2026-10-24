@@ -1,4 +1,4 @@
-// Behaviour tests for the main-window features from docs/M0-FEEDBACK.md that the browser harness can drive:
+// Behaviour tests for the main-window features from owner feedback round 0 that the browser harness can drive:
 // F6 (interface text size), F7 (binds), F8 (stop -> library home), F9 (drag & drop / «Переместить в…»).
 import { expect, test, type Page } from '@playwright/test';
 

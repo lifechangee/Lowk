@@ -1,4 +1,4 @@
-// One test per owner-reported bug (docs/M0-FEEDBACK.md) that the browser harness can observe.
+// One test per owner-reported bug (owner feedback round 0) that the browser harness can observe.
 // `test.fail()` = expected to fail on current main. When the fix lands the test starts passing,
 // Playwright reports "expected to fail but passed": the fix agent then deletes the `test.fail`
 // line (and the matching KNOWN entry in known.ts) so the check becomes a permanent regression test.

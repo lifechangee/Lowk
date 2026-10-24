@@ -1,4 +1,4 @@
-// Owner round 2 (docs/M0-FEEDBACK.md G1, G3, G5, G6, G7): behaviour the pixel matrix cannot express.
+// Owner round 2 (owner feedback round 0, G1, G3, G5, G6, G7): behaviour the pixel matrix cannot express.
 // Permanent regression tests (the G-ids have no expected-fail stage: they were written with the fixes).
 import { expect, test } from '@playwright/test';
 

@@ -134,9 +134,9 @@ check(existsSync(embedWorker) && run('/usr/bin/codesign', ['--verify', embedWork
 // behind (owner bug B: capture must never alter playback). Nothing is played.
 {
   const models = process.env.LOWK_MODELS ?? join(homedir(), 'Library/Application Support/Lowk/models');
-  const benchAudio = [process.env.LOWK_BENCH_AUDIO, join(root, 'spikes/stt-bench/audio'), join(homedir(), 'Applications/Projects/Lowk/spikes/stt-bench/audio')].filter(Boolean).find((d) => existsSync(join(d, '02_them_q.m4a')));
+  const benchAudio = [process.env.LOWK_BENCH_AUDIO, join(root, 'spikes/stt-bench/audio')].filter(Boolean).find((d) => existsSync(join(d, '02_them_q.m4a')));
   if (!existsSync(join(models, 'nemotron-local')) || !benchAudio) {
-    grant('audio self-check (60 s mic+system+AEC from files)', `no engine models in ${models} or no spikes/stt-bench/audio recordings (set LOWK_BENCH_AUDIO)`);
+    grant('audio self-check (60 s mic+system+AEC from files)', `no engine models in ${models} or no spikes/stt-bench/audio recordings (reference texts only are tracked) (set LOWK_BENCH_AUDIO)`);
   } else {
     const sh = mkdtempSync(join(tmpdir(), 'lowk-audio-selfcheck-'));
     const r = spawnSync(exe, ['--selfcheck-audio', '--me', join(benchAudio, '01_me_q.m4a'), '--system', join(benchAudio, '02_them_q.m4a'), '--models', models, '--seconds', '60', '--hot', '--require-aec'], { encoding: 'utf8', timeout: 900000, env: { ...process.env, HOME: sh, LOWK_DATA_DIR: join(sh, 'data'), LOWK_STT_WORKER: worker } });

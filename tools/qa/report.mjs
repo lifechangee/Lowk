@@ -100,7 +100,7 @@ img{height:300px;border:1px solid var(--l);display:block}figure.mk img{border-co
 ul{margin:8px 0 0;padding-left:18px;font-size:12px}li.bad{color:#ff8f90}li.known{color:#e8c070}li.warn{color:var(--t2)}li.okl{color:#6fcf97}code{color:var(--t2)}
 </style>
 <h1>Lowk QA report <small style="color:var(--t2);font-weight:400">${new Date().toISOString().slice(0, 16)}Z</small></h1>
-<p>Browser suite: ${passed}/${total} tests as expected. Cards: ${nCards} (<b style="color:#ff8f90">${nBad} with new failures</b>, <b style="color:#e8c070">${nKnown} with known issues</b>). Red = new failure, amber = known bug (F-id from docs/M0-FEEDBACK.md or N-id from docs/QA.md), blue frame = v3 mockup reference.</p>
+<p>Browser suite: ${passed}/${total} tests as expected. Cards: ${nCards} (<b style="color:#ff8f90">${nBad} with new failures</b>, <b style="color:#e8c070">${nKnown} with known issues</b>). Red = new failure, amber = known bug (F-id from owner feedback round 0 or N-id from docs/QA.md), blue frame = v3 mockup reference.</p>
 <h2>Owner-reported bugs: detector status</h2>
 <table><tr><th>ID</th><th>Check</th><th>Result</th></tr>${fSummary}${realF}</table>
 <div class="bar"><button data-f="all">all</button><button data-f="fail">new failures</button><button data-f="known">known</button><button data-f="ok">ok</button></div>

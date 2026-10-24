@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A folder is a workspace with tabs Calls / Documents / Instructions (docs/design/ux-audit.md, variant A).
+  // A folder is a workspace with tabs Calls / Documents / Instructions (variant A).
   // Unsorted and Trash are plain call lists. Page actions live in the ⋯ menu next to the title.
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';

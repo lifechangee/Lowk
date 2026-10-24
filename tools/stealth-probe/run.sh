@@ -5,7 +5,7 @@
 #
 # Builds the Swift probe and the `lowk-stealth` fixture (magenta OVERLAY + green MAIN,
 # real window-policy code), drives the fixture through the scenarios of
-# spikes/stealth/RESULTS.md plus a NEGATIVE CONTROL (exclusion off: the overlay MUST be
+# the earlier stealth spike's results plus a NEGATIVE CONTROL (exclusion off: the overlay MUST be
 # visible, otherwise the probe itself is broken), and captures the screen four ways
 # (SCK screenshot, SCK stream, legacy CGWindowList, screencapture CLI) per scenario.
 # Needs Screen Recording permission for the terminal / host app running this script.
