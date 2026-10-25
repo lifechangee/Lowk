@@ -116,6 +116,10 @@ pub fn current() -> Option<Config> {
 /// The proxy URL (with credentials, for the HTTP client) a request to `url` must use; `None` = direct.
 pub fn for_url(url: &str) -> Option<String> {
     let (host, https) = split_url(url)?;
+    // loopback (local LLM servers, mock servers) never needs a proxy: skip the OS lookup entirely
+    if parse::Bypass::is_loopback(&host) {
+        return None;
+    }
     current()?.for_target(&host, https).map(|p| p.to_url())
 }
 
