@@ -61,6 +61,7 @@ bump version:
 lint:
     ruby -ryaml -e 'ARGV.each { |f| YAML.load_file(f) }' .github/workflows/*.yml
     tools/release/check-versions.sh
+    tools/check-worker-flags.sh
     tools/release/check-no-keys.sh
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings

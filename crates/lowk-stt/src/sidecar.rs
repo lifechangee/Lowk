@@ -6,7 +6,7 @@ use crate::{SttConfig, SttEngine};
 use lowk_types::*;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Mutex};
@@ -46,7 +46,11 @@ pub fn pcm_i16(pcm: &[f32], out: &mut Vec<u8>) {
 }
 
 pub fn spawn_worker(spec: &SidecarSpec) -> std::io::Result<Child> {
-    let mut cmd = Command::new(&spec.exe);
+    let mut cmd = if spec.nice > 0 {
+        lowk_platform::process::background_command(&spec.exe)
+    } else {
+        lowk_platform::process::command(&spec.exe)
+    };
     cmd.args(&spec.args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -75,28 +79,7 @@ pub fn spawn_worker(spec: &SidecarSpec) -> std::io::Result<Child> {
             });
         }
     }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        // CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS (when niced)
-        let mut flags = 0x0800_0000u32;
-        if spec.nice > 0 {
-            flags |= 0x0000_4000;
-        }
-        cmd.creation_flags(flags);
-    }
     cmd.spawn()
-}
-
-/// Drains a child's stderr into the debug log (never into user-visible errors).
-pub fn drain_stderr(child: &mut Child, tag: &'static str) {
-    if let Some(e) = child.stderr.take() {
-        std::thread::spawn(move || {
-            for l in BufReader::new(e).lines().map_while(std::result::Result::ok) {
-                tracing::debug!(target: "lowk_stt::worker", "{tag}: {l}");
-            }
-        });
-    }
 }
 
 /// One line per worker start: which compute backend the model landed on. A CPU run on a machine that
@@ -125,6 +108,40 @@ fn log_backend(stream: Stream, backend: &str) {
     }
 }
 
+const STDERR_TAIL_LINES: usize = 20;
+pub use lowk_platform::process::{tail_text, StderrTail};
+
+/// Drains a child's stderr into the debug log (never into user-visible errors) and returns its tail.
+pub fn drain_stderr(child: &mut Child, tag: &'static str) -> StderrTail {
+    match child.stderr.take() {
+        Some(e) => lowk_platform::process::tail_stderr(
+            LogLines {
+                inner: BufReader::new(e),
+                tag,
+            },
+            STDERR_TAIL_LINES,
+        ),
+        None => Default::default(),
+    }
+}
+
+/// Pass-through reader that also writes each stderr line to the debug log.
+struct LogLines<R: BufRead> {
+    inner: R,
+    tag: &'static str,
+}
+impl<R: BufRead> std::io::Read for LogLines<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        if n > 0 {
+            for l in String::from_utf8_lossy(&buf[..n]).lines() {
+                tracing::debug!(target: "lowk_stt::worker", "{}: {l}", self.tag);
+            }
+        }
+        Ok(n)
+    }
+}
+
 enum Out {
     Audio(MonoNs, Vec<f32>),
     Flush,
@@ -150,6 +167,7 @@ pub struct SidecarEngine {
     sup: Option<JoinHandle<()>>,
     sink: Option<Arc<dyn SttSink>>,
     overflow_reported: bool,
+    ready_timeout: Duration,
     /// Extra args appended after the spec args (language etc. from `SttConfig`).
     lang_arg: Mutex<Option<String>>,
 }
@@ -172,8 +190,20 @@ impl SidecarEngine {
             sup: None,
             sink: None,
             overflow_reported: false,
+            ready_timeout: READY_TIMEOUT,
             lang_arg: Mutex::new(None),
         }
+    }
+}
+
+/// How long a worker may take to report `ready` before the start is declared failed.
+pub const READY_TIMEOUT: Duration = Duration::from_secs(60);
+
+impl SidecarEngine {
+    /// Overrides the readiness deadline ([`READY_TIMEOUT`]); tests use a short one.
+    pub fn with_ready_timeout(mut self, d: Duration) -> Self {
+        self.ready_timeout = d;
+        self
     }
 }
 
@@ -211,10 +241,11 @@ impl SttEngine for SidecarEngine {
         self.sink = Some(sink.clone());
         let shared = self.shared.clone();
         let stream = self.stream;
+        let ready_timeout = self.ready_timeout;
         self.sup = Some(
             std::thread::Builder::new()
                 .name(format!("lowk-stt-{stream:?}"))
-                .spawn(move || supervise(spec, stream, sink, rx, shared))
+                .spawn(move || supervise(spec, stream, sink, rx, shared, ready_timeout))
                 .map_err(|e| AppError::new(ErrorCode::SttEngine).with_detail(e.to_string()))?,
         );
         Ok(())
@@ -235,6 +266,7 @@ impl SttEngine for SidecarEngine {
                             stream: self.stream,
                             message: "stt backlog: dropping audio".into(),
                             recoverable: true,
+                            code: None,
                         });
                     }
                 }
@@ -314,7 +346,14 @@ fn parse_event(v: &serde_json::Value, stream: Stream, base: u64) -> Option<SttEv
     })
 }
 
-fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Receiver<Out>, sh: Arc<Shared>) {
+fn supervise(
+    spec: SidecarSpec,
+    stream: Stream,
+    sink: Arc<dyn SttSink>,
+    rx: Receiver<Out>,
+    sh: Arc<Shared>,
+    ready_timeout: Duration,
+) {
     let mut restarts = 0u32;
     loop {
         let mut child = match spawn_worker(&spec) {
@@ -324,13 +363,16 @@ fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Rece
                     stream,
                     message: format!("cannot start stt worker: {e}"),
                     recoverable: false,
+                    code: None,
                 });
                 return;
             }
         };
         sh.alive.store(true, Ordering::SeqCst);
         sh.ready.store(false, Ordering::SeqCst);
-        drain_stderr(&mut child, "stt");
+        let tail = drain_stderr(&mut child, "stt");
+        let started = Instant::now();
+        let mut timed_out = false;
         let mut stdin = child.stdin.take().expect("piped");
         let stdout = child.stdout.take().expect("piped");
         let reader = {
@@ -363,6 +405,7 @@ fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Rece
                             stream,
                             message: v["message"].as_str().unwrap_or("worker error").to_owned(),
                             recoverable: v["fatal"] != true,
+                            code: None,
                         }),
                         _ => {}
                     }
@@ -401,6 +444,10 @@ fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Rece
             if !sh.alive.load(Ordering::SeqCst) {
                 break;
             }
+            if !sh.ready.load(Ordering::SeqCst) && started.elapsed() > ready_timeout {
+                timed_out = true;
+                break;
+            }
         }
         drop(stdin);
         if stopping {
@@ -415,16 +462,43 @@ fn supervise(spec: SidecarSpec, stream: Stream, sink: Arc<dyn SttSink>, rx: Rece
             return;
         }
         // crashed or hung up
-        let _ = child.kill();
-        let _ = child.wait();
+        let exit = if timed_out {
+            let _ = child.kill();
+            child.wait().ok()
+        } else {
+            // already gone or hung up on us; do not wait forever for a worker that still runs
+            let st = child.try_wait().ok().flatten();
+            let _ = child.kill();
+            st.or_else(|| child.wait().ok())
+        };
         let _ = reader.join();
         restarts += 1;
         sh.stats.restarts.store(restarts, Ordering::Relaxed);
-        let recoverable = restarts <= MAX_RESTARTS;
+        let cause = if timed_out {
+            Some(ErrorCode::EngineLoadTimeout)
+        } else {
+            exit.and_then(|st| lowk_platform::process::exit_cause(&st))
+        };
+        // A missing instruction set or a model that never loads does not heal by restarting.
+        let recoverable = cause.is_none() && restarts <= MAX_RESTARTS;
+        tracing::warn!(
+            ?stream,
+            ?cause,
+            exit = ?exit.map(|s| s.to_string()),
+            stderr_tail = %tail_text(&tail),
+            "stt worker failed"
+        );
         sink.error(SttError {
             stream,
-            message: "stt worker exited unexpectedly".into(),
+            message: match cause {
+                Some(ErrorCode::EngineLoadTimeout) => {
+                    format!("stt worker not ready after {} s", ready_timeout.as_secs())
+                }
+                Some(_) => "stt worker crashed: unsupported processor (illegal instruction)".into(),
+                None => "stt worker exited unexpectedly".into(),
+            },
             recoverable,
+            code: cause,
         });
         if !recoverable {
             // keep draining so push() never blocks, until stop
@@ -609,6 +683,116 @@ mod tests {
         e.stop().unwrap();
         let n = std::fs::metadata(&got).map(|m| m.len()).unwrap_or(0);
         assert!(n > 320 * 2, "queued audio reached the worker: {n} bytes");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn worker_that_never_reports_ready_times_out_with_a_code() {
+        let dir = std::env::temp_dir().join(format!("lowk-sidecar-hang-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let script = dir.join("w.sh");
+        std::fs::write(&script, "#!/bin/sh\necho loading model >&2\nexec sleep 30\n").unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let desc = EngineDescriptor {
+            id: "t".into(),
+            name: "t".into(),
+            kind: EngineKind::Local,
+            languages: vec![],
+            streaming: StreamingMode::Native,
+            size_mb: 0,
+            license: "".into(),
+        };
+        let mut e = SidecarEngine::new(
+            desc,
+            Stream::Me,
+            SidecarSpec {
+                exe: script,
+                args: vec![],
+                nice: 0,
+            },
+            0,
+        )
+        .with_ready_timeout(Duration::from_millis(600));
+        let sink = arc_sink();
+        e.start(
+            &SttConfig {
+                stream: Stream::Me,
+                langs: vec![],
+                vocab_hints: vec![],
+            },
+            sink.clone(),
+        )
+        .unwrap();
+        let t0 = Instant::now();
+        while sink.errors.lock().unwrap().is_empty() && t0.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let errs = sink.errors.lock().unwrap().clone();
+        assert_eq!(
+            errs.first().and_then(|e| e.code),
+            Some(ErrorCode::EngineLoadTimeout),
+            "{errs:?}"
+        );
+        assert!(!errs[0].recoverable);
+        e.stop().unwrap();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn worker_killed_by_sigill_reports_cpu_unsupported() {
+        let dir = std::env::temp_dir().join(format!("lowk-sidecar-ill-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let script = dir.join("w.sh");
+        std::fs::write(&script, "#!/bin/sh\nkill -ILL $$\n").unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let desc = EngineDescriptor {
+            id: "t".into(),
+            name: "t".into(),
+            kind: EngineKind::Local,
+            languages: vec![],
+            streaming: StreamingMode::Native,
+            size_mb: 0,
+            license: "".into(),
+        };
+        let mut e = SidecarEngine::new(
+            desc,
+            Stream::Me,
+            SidecarSpec {
+                exe: script,
+                args: vec![],
+                nice: 0,
+            },
+            0,
+        );
+        let sink = arc_sink();
+        e.start(
+            &SttConfig {
+                stream: Stream::Me,
+                langs: vec![],
+                vocab_hints: vec![],
+            },
+            sink.clone(),
+        )
+        .unwrap();
+        let t0 = Instant::now();
+        while sink.errors.lock().unwrap().is_empty() && t0.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let errs = sink.errors.lock().unwrap().clone();
+        assert_eq!(
+            errs.first().and_then(|e| e.code),
+            Some(ErrorCode::CpuUnsupported),
+            "{errs:?}"
+        );
+        assert!(
+            !errs[0].recoverable,
+            "no restart loop on a missing instruction set"
+        );
+        e.stop().unwrap();
         let _ = std::fs::remove_dir_all(dir);
     }
 }

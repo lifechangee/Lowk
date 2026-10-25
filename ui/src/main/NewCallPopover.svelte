@@ -20,7 +20,9 @@
   let langChoice = $state<string[] | null>(null);
   const langs = $derived(langChoice ?? callLangs.initial);
   const folder = $derived(folderChoice ?? (folderHint && folderHint !== SYS_TRASH ? folderHint : SYS_UNSORTED));
-  const source = $derived(sourceChoice ?? resolveSource(prefs.value.audio?.default_source, sources.running, prefs.value.capture?.default_source));
+  const source = $derived(sourceChoice ?? prefs.value.audio?.last_source
+    ? resolveSource(prefs.value.audio?.last_source, sources.running)
+    : resolveSource(prefs.value.audio?.default_source, sources.running, prefs.value.capture?.default_source));
   const folderOptions = $derived([
     ...library.folders.map((f) => ({ value: folderKey(f.id), label: f.title })),
     { value: SYS_UNSORTED, label: tm('m.noFolder') },

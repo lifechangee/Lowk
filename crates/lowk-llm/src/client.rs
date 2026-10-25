@@ -101,6 +101,26 @@ fn tls_provider() -> Arc<rustls::crypto::CryptoProvider> {
     Arc::new(rustls_graviola::default_provider())
 }
 
+/// 401 is a bad / missing key; a 403 is a network or region block ("Access denied by security policy")
+/// unless its message says the credentials are the problem. Everything else is a provider error.
+pub(crate) fn status_error_code(status: u16, message: &str) -> ErrorCode {
+    match status {
+        401 => ErrorCode::ApiKeyMissing,
+        403 => {
+            let m = message.to_ascii_lowercase();
+            if ["api key", "credential", "unauthorized", "invalid key", "no auth"]
+                .iter()
+                .any(|w| m.contains(w))
+            {
+                ErrorCode::ApiKeyMissing
+            } else {
+                ErrorCode::ProviderBlocked
+            }
+        }
+        _ => ErrorCode::LlmProvider,
+    }
+}
+
 impl OpenAiClient {
     pub fn new(cfg: LlmConfig) -> Self {
         let tls = ureq::tls::TlsConfig::builder()
@@ -300,11 +320,7 @@ impl OpenAiClient {
             })
             .unwrap_or_else(|| body.to_string());
         let detail = self.scrub(&format!("HTTP {status}: {msg}"));
-        let code = if matches!(status, 401 | 403) {
-            ErrorCode::ApiKeyMissing
-        } else {
-            ErrorCode::LlmProvider
-        };
+        let code = status_error_code(status, &msg);
         let err = AppError::new(code)
             .with_param("status", status)
             .with_detail(detail);

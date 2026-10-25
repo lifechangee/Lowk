@@ -98,6 +98,8 @@ jobs:
           # link.exe must find vulkan-1.lib (run 39755378234: LNK1181)
           if [ "$GPU" = vulkan ]; then export RUSTFLAGS="-L native=${VULKAN_SDK//\\//}/Lib"; fi
           tools/release/stage-sidecars.sh
+      - name: Worker CPU baseline (no host-tuned or AVX-512 code)
+        run: tools/check-worker-isa.sh
       - name: NSIS installer
         working-directory: crates/lowk-app
         env:

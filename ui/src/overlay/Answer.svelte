@@ -9,6 +9,7 @@
   let { store, source }: { store: OverlayStore; source?: OverlaySource } = $props();
   const ERR_KEYS: Record<string, Parameters<typeof ot>[0]> = {
     api_key_missing: 'overlay.answer.noKey',
+    provider_blocked: 'overlay.answer.blocked',
     local_only_blocked: 'overlay.answer.localOnly',
     image_local_only: 'overlay.answer.imageLocalOnly',
     image_too_large: 'overlay.answer.imageTooLarge',

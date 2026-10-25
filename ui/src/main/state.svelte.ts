@@ -295,7 +295,15 @@ export function attachEvents(): void {
   void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; locale.setSetting((s.ui?.language ?? 'auto') as LangSetting); });
   void on<SessionState>(EVENTS.sessionState, (s) => { if (s.phase === 'idle') session.sttLoading = false; session.sync(s); });
   api.onEngineNeeded((e) => (ui.engineNeeded = e));
+  void on<{ action: string; shots?: number }>('binds://fired', (e) => ui.notify(tm('m.bindShot', { n: e.shots ?? 1 })));
   void on<{ perm: string }>('binds://failed', (e) => ui.notify(tm('m.bindFailedPerm', { perm: tm(`m.perm.${e.perm}` as Key) })));
+  // A worker that cannot start (unsupported CPU, model never ready) ends the «loading» state with a named cause.
+  void on<{ recoverable: boolean; code?: string | null }>(EVENTS.sttError, (e) => {
+    if (e.recoverable) return;
+    session.sttLoading = false;
+    const code = e.code ?? 'stt_engine';
+    ui.notify(tm(`error.${code}` as Key));
+  });
   void on<{ loading: boolean }>(EVENTS.sttLoading, (e) => (session.sttLoading = e.loading));
   // go home even when the library reload fails (e.g. the vault is busy writing the just-ended call)
   void on<{ route?: string }>(EVENTS.sessionEnded, () => { void library.reload().catch(() => undefined).then(() => { router.go(hrefs.home); }); });

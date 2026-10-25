@@ -312,6 +312,7 @@ fn main_thread_run_sync_and_fakes() {
         stream: Stream::Me,
         message: "m".into(),
         recoverable: true,
+        code: None,
     });
     assert_eq!(sink.errors.lock().unwrap().len(), 1);
 }
@@ -616,4 +617,50 @@ fn old_settings_file_migrates_to_gradient_off_and_mic_on() {
         ))
         .unwrap();
     assert!(on.overlay.adaptive_scrim);
+}
+
+#[test]
+fn new_call_source_is_explicit_then_last_used_then_default() {
+    let mut a = AudioSettings {
+        default_source: Some(Target::App("ktalk.exe".into())),
+        ..AudioSettings::default()
+    };
+    // nothing used yet: the default source setting
+    assert_eq!(a.start_source(None), Some(Target::App("ktalk.exe".into())));
+    // an explicit choice always wins
+    assert_eq!(
+        a.start_source(Some(&Target::WholeSystem)),
+        Some(Target::WholeSystem)
+    );
+    // the last used source beats the default
+    a.last_source = Some(Target::WholeSystem);
+    assert_eq!(a.start_source(None), Some(Target::WholeSystem));
+    assert_eq!(
+        a.start_source(Some(&Target::App("x".into()))),
+        Some(Target::App("x".into()))
+    );
+}
+
+#[test]
+fn remembering_the_source_survives_switching_between_app_and_system() {
+    use crate::fakes::MemSettingsStore;
+    let st = MemSettingsStore::default();
+    let put = |t: &Target| {
+        st.patch(SettingsPatch(
+            serde_json::json!({ "audio": { "last_source": serde_json::to_value(t).unwrap() } }),
+        ))
+        .unwrap()
+    };
+    assert_eq!(
+        put(&Target::App("ktalk.exe".into())).audio.last_source,
+        Some(Target::App("ktalk.exe".into()))
+    );
+    assert_eq!(
+        put(&Target::WholeSystem).audio.last_source,
+        Some(Target::WholeSystem)
+    );
+    assert_eq!(
+        put(&Target::App("zoom".into())).audio.last_source,
+        Some(Target::App("zoom".into()))
+    );
 }

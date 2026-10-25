@@ -214,6 +214,8 @@ impl WindowBackend for Win {
                 Interaction::Hover => {
                     // Mouse events only: no longer transparent to hit-testing, still no-activate.
                     self.set_ex((self.ex() | WS_EX_NOACTIVATE.0 as isize) & !(WS_EX_TRANSPARENT.0 as isize));
+                    // Above whatever window is focused (the main window included), without taking focus.
+                    self.topmost();
                 }
                 Interaction::Passive => {
                     self.set_ex(self.ex() | PASSIVE_EX | WS_EX_NOACTIVATE.0 as isize);

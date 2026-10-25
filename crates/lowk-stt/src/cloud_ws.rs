@@ -221,6 +221,7 @@ fn run(
                     stream,
                     message: format!("{}: connect failed", vendor.id()),
                     recoverable: reconnects <= MAX_RECONNECTS,
+                    code: None,
                 });
                 if reconnects > MAX_RECONNECTS {
                     while let Ok(m) = rx.recv() {
@@ -318,6 +319,7 @@ fn run(
                 err_msg.unwrap_or_else(|| "connection closed".into())
             ),
             recoverable: !fatal && reconnects <= MAX_RECONNECTS,
+            code: None,
         });
         if fatal || reconnects > MAX_RECONNECTS {
             while let Ok(m) = rx.recv() {

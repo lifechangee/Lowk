@@ -259,7 +259,7 @@ fn pct(v: &[f32], q: f64) -> f32 {
 
 /// (own RSS MB, RSS MB of all descendants) via `ps`; `None` where `ps` is not available.
 fn rss_mb() -> Option<(f64, f64)> {
-    let out = std::process::Command::new("ps")
+    let out = lowk_platform::process::command("ps")
         .args(["-A", "-o", "pid=,ppid=,rss="])
         .output()
         .ok()?;
@@ -304,7 +304,7 @@ fn load1() -> f64 {
             .and_then(|x| x.parse().ok())
             .unwrap_or(f64::NAN);
     }
-    std::process::Command::new("sysctl")
+    lowk_platform::process::command("sysctl")
         .args(["-n", "vm.loadavg"])
         .output()
         .ok()

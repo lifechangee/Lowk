@@ -52,7 +52,7 @@ pub fn convert(
     lim: &Limits,
     progress: &mut Progress<'_>,
 ) -> Result<PdfOut> {
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
     use std::time::{Duration, Instant};
 
     if !Path::new("/Applications/Keynote.app").exists()
@@ -67,7 +67,7 @@ pub fn convert(
     std::fs::create_dir_all(&dir)?;
     let out = dir.join("export.pdf");
     let res = (|| -> Result<PdfOut> {
-        let mut cmd = Command::new("/usr/bin/osascript");
+        let mut cmd = lowk_platform::process::command("/usr/bin/osascript");
         for l in SCRIPT {
             cmd.arg("-e").arg(l);
         }

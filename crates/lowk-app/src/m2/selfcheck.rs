@@ -275,7 +275,7 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
     // ---- 1. the sidecar ----------------------------------------------------------------
     match ctx.env.worker() {
         Some(w) => {
-            let ok = std::process::Command::new(&w)
+            let ok = lowk_platform::process::command(&w)
                 .arg("--version")
                 .output()
                 .map(|o| o.status.success() || !o.stdout.is_empty() || !o.stderr.is_empty())

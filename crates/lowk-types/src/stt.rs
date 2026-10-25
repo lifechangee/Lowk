@@ -45,6 +45,9 @@ pub struct SttError {
     pub message: String,
     /// True when the engine host will restart the worker by itself.
     pub recoverable: bool,
+    /// Specific cause the UI can name (`CpuUnsupported`, `EngineLoadTimeout`); `None` for generic failures.
+    #[serde(default)]
+    pub code: Option<crate::ErrorCode>,
 }
 
 /// Sink-based so cloud (websocket) engines and sidecars fit without blocking.

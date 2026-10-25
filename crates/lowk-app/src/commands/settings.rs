@@ -88,7 +88,7 @@ pub fn relaunch(app: &tauri::AppHandle) {
             .nth(3)
             .filter(|p| p.extension().is_some_and(|e| e == "app"))
         {
-            let _ = std::process::Command::new("/bin/sh")
+            let _ = lowk_platform::process::command("/bin/sh")
                 .arg("-c")
                 .arg(format!(
                     "sleep 1; /usr/bin/open -n '{}'",
@@ -122,15 +122,14 @@ fn reveal(p: &std::path::Path) -> Result<()> {
     {
         use std::os::windows::process::CommandExt;
         // explorer.exe exits with 1 even on success: ignore the status.
-        std::process::Command::new("explorer.exe")
+        lowk_platform::process::command("explorer.exe")
             .raw_arg(explorer_arg(p))
-            .creation_flags(0x0800_0000)
             .spawn()
             .map_err(|e| AppError::new(ErrorCode::Io).with_detail(e.to_string()))?;
     }
     #[cfg(target_os = "macos")]
     {
-        let mut c = std::process::Command::new("/usr/bin/open");
+        let mut c = lowk_platform::process::command("/usr/bin/open");
         if p.is_dir() {
             c.arg(p);
         } else {
@@ -142,7 +141,7 @@ fn reveal(p: &std::path::Path) -> Result<()> {
     #[cfg(not(any(windows, target_os = "macos")))]
     {
         let dir = if p.is_dir() { p } else { p.parent().unwrap_or(p) };
-        let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
+        let _ = lowk_platform::process::command("xdg-open").arg(dir).spawn();
     }
     Ok(())
 }

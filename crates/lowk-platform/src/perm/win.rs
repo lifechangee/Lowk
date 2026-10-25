@@ -1,13 +1,10 @@
 //! Windows permission backends. Only the microphone privacy toggle exists.
 //! Compiles, unverified on real hardware.
 use lowk_types::{PermKind, PermState, Result};
-use std::os::windows::process::CommandExt;
 use windows::core::w;
 use windows::Win32::System::Registry::{
     RegGetValueW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ,
 };
-
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// `Some("Allow" | "Deny")` of the CapabilityAccessManager consent value.
 fn consent(root: HKEY) -> Option<String> {
@@ -62,8 +59,7 @@ pub fn request(k: PermKind) -> Result<PermState> {
 }
 
 pub fn open_url(url: &str) {
-    let _ = std::process::Command::new("cmd")
+    let _ = crate::process::command("cmd")
         .args(["/C", "start", "", url])
-        .creation_flags(CREATE_NO_WINDOW)
         .status();
 }

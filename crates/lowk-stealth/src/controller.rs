@@ -142,6 +142,12 @@ impl OverlayCtl {
 
     /// G6: hold-Ctrl down / up. Never hides or re-shows the window (flags only).
     pub fn hover(&self, phase: Phase) {
+        // One line per hold: tells «the hold arrived but the overlay is hidden» from «the hold never arrived».
+        tracing::info!(
+            ?phase,
+            overlay_visible = self.guard.is_visible(OVERLAY),
+            "overlay hover hold"
+        );
         let _ = self.input(match phase {
             Phase::Down => ModeInput::HoverDown,
             Phase::Up => ModeInput::HoverUp,

@@ -123,7 +123,15 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
             ActionId::PanicHide => st.stealth()?.controller.panic_hide(),
             ActionId::ToggleMain => crate::windows::open_main(&st.app),
             // G7: the active monitor (per `capture.monitors`) into the queue.
-            ActionId::Screenshot => crate::commands::capture::capture_into_queue(st).map(|_| ())?,
+            ActionId::Screenshot => {
+                let shots = crate::commands::capture::capture_into_queue(st)?;
+                // The overlay is hidden outside a call (and during onboarding), so its queue chip shows nothing:
+                // tell the visible windows that the bind worked.
+                st.emitter.broadcast(
+                    "binds://fired",
+                    serde_json::json!({ "action": ev.action, "shots": shots }),
+                );
+            }
             // Crosshair selection over the display under the pointer; the grab joins the same queue.
             ActionId::ScreenshotArea => crate::area::open(st)?,
             ActionId::NextTemplate | ActionId::PrevTemplate => {

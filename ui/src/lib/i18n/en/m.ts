@@ -182,6 +182,7 @@ export const m = {
   'm.retx.restored': 'Live version restored',
   'm.retx.noAudio': 'This call has no saved audio. Turn on “Keep audio” in settings before recording.',
   'm.retx.localOnly': 'This folder is local-only: turn off cloud re-transcription in settings or allow the cloud for the folder.',
+  'm.bindShot': 'Screenshot added to the queue ({n})',
   'm.retx.noKey': 'The Deepgram key is not set. Add it in settings.',
   'm.retx.busy': 'A re-transcription is already running.',
   'm.retx.after': 'Re-transcribe after recording',

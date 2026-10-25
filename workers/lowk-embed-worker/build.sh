@@ -13,6 +13,10 @@ if [ ! -d "$SRC/.git" ]; then
 fi
 flags=(-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DLLAMA_CURL=OFF -DLLAMA_OPENSSL=OFF
        -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=ON -DLLAMA_BUILD_SERVER=ON)
+# Portable x86 baseline (see tools/worker-isa-flags.sh): never tune to the build machine.
+case "$(uname -m)" in
+  x86_64|AMD64|amd64|i686) read -r -a isa <<< "$(../../tools/worker-isa-flags.sh)"; flags+=("${isa[@]}");;
+esac
 case "$(uname -s)" in
   Darwin) flags+=(-DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON) ;;
   *) [ "${LOWK_EMBED_VULKAN:-0}" = 1 ] && flags+=(-DGGML_VULKAN=ON) ;;

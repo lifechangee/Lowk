@@ -180,5 +180,5 @@ pub fn request(k: PermKind) -> Result<PermState> {
 }
 
 pub fn open_url(url: &str) {
-    let _ = std::process::Command::new("/usr/bin/open").arg(url).status();
+    let _ = crate::process::command("/usr/bin/open").arg(url).status();
 }

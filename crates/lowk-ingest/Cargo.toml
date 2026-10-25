@@ -13,6 +13,7 @@ corpus = []
 
 [dependencies]
 lowk-types.workspace = true
+lowk-platform.workspace = true
 tracing.workspace = true
 pdf_oxide.workspace = true
 zip.workspace = true

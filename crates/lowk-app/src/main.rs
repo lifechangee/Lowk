@@ -1,5 +1,5 @@
-// Prevents an extra console window on Windows in release.
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// GUI subsystem in every profile: no console window on Windows (debug builds included).
+#![windows_subsystem = "windows"]
 
 fn main() {
     // Headless diagnostics of the documents pipeline (docs, index, Ask flow); used by `just qa-bundle`.

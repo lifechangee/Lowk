@@ -3049,6 +3049,7 @@ dependencies = [
  "chardetng",
  "encoding_rs",
  "image",
+ "lowk-platform",
  "lowk-types",
  "objc2",
  "objc2-core-foundation",
@@ -3112,6 +3113,7 @@ dependencies = [
  "lowk-stt",
  "lowk-types",
  "serde",
+ "serde_json",
  "time",
  "tracing",
 ]

@@ -9,7 +9,7 @@ use crate::pipeline::{RingIn, StreamShared};
 use cidre::core_audio as ca;
 use lowk_platform::perm::{report_system_audio_probe, set_system_audio_reason, SystemAudioProbe};
 use ringbuf::traits::Consumer;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -49,7 +49,7 @@ fn run_probe() -> SystemAudioProbe {
 
 fn probe_with(wav: &std::path::Path) -> SystemAudioProbe {
     // Long enough to still be playing while a permission prompt is on screen.
-    let Ok(mut child) = Command::new("/usr/bin/afplay")
+    let Ok(mut child) = lowk_platform::process::command("/usr/bin/afplay")
         .args(["-v", "0.5"])
         .arg(wav)
         .stdout(Stdio::null())

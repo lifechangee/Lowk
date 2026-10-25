@@ -11,7 +11,7 @@ use lowk_types::{
 };
 use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
@@ -142,6 +142,14 @@ impl Drop for Proc {
     }
 }
 
+/// The error for a worker that died while starting: an unsupported CPU is named, anything else is generic.
+/// The stderr tail goes to the log, never into the error shown to the user.
+fn worker_exit_error(st: &std::process::ExitStatus, stderr_tail: &str) -> AppError {
+    tracing::warn!(exit = %st, stderr_tail, "embed worker exited while starting");
+    let code = lowk_platform::process::exit_cause(st).unwrap_or(ErrorCode::EmbedFailed);
+    AppError::new(code).with_detail(format!("worker exited: {st}"))
+}
+
 pub struct LocalEmbedder {
     worker: PathBuf,
     model: PathBuf,
@@ -174,7 +182,7 @@ impl LocalEmbedder {
             .and_then(|l| l.local_addr())
             .map(|a| a.port())
             .map_err(|e| AppError::new(ErrorCode::EmbedFailed).with_detail(e.to_string()))?;
-        let child = Command::new(&self.worker)
+        let child = lowk_platform::process::command(&self.worker)
             .args(["-m"])
             .arg(&self.model)
             .args(["--embedding", "--host", "127.0.0.1", "--port"])
@@ -195,15 +203,21 @@ impl LocalEmbedder {
             ])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| AppError::new(ErrorCode::EmbedderMissing).with_detail(e.to_string()))?;
+        let mut child = child;
+        let tail = child
+            .stderr
+            .take()
+            .map(|e| lowk_platform::process::tail_stderr(e, 20))
+            .unwrap_or_default();
         let mut p = Proc { child, port };
         // loading 300 MB from a cold disk can take a while
         let deadline = Instant::now() + Duration::from_secs(180);
         loop {
             if let Ok(Some(st)) = p.child.try_wait() {
-                return Err(AppError::new(ErrorCode::EmbedFailed).with_detail(format!("worker exited: {st}")));
+                return Err(worker_exit_error(&st, &lowk_platform::process::tail_text(&tail)));
             }
             let ok = self
                 .agent
@@ -215,6 +229,7 @@ impl LocalEmbedder {
                 return Ok(p);
             }
             if Instant::now() > deadline {
+                tracing::warn!(stderr_tail = %lowk_platform::process::tail_text(&tail), "embed worker not ready in time");
                 return Err(AppError::new(ErrorCode::EmbedFailed).with_detail("worker did not become ready"));
             }
             std::thread::sleep(Duration::from_millis(250));
@@ -303,6 +318,21 @@ impl Embedder for LocalEmbedder {
 
 #[cfg(all(test, unix))]
 mod tests {
+    #[cfg(unix)]
+    #[test]
+    fn worker_killed_by_illegal_instruction_names_the_cpu() {
+        let st = lowk_platform::process::command("sh")
+            .args(["-c", "kill -ILL $$"])
+            .status()
+            .unwrap();
+        assert_eq!(super::worker_exit_error(&st, "x").code, ErrorCode::CpuUnsupported);
+        let ok = lowk_platform::process::command("sh")
+            .args(["-c", "exit 3"])
+            .status()
+            .unwrap();
+        assert_eq!(super::worker_exit_error(&ok, "").code, ErrorCode::EmbedFailed);
+    }
+
     use super::*;
 
     #[test]

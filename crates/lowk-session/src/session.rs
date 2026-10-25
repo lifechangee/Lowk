@@ -393,7 +393,7 @@ impl Session {
             // New call: the folder preset (inherit = the global setting) decides whether the microphone starts on.
             let folder = o.folder.clone().unwrap_or(FolderRef::Unsorted);
             let mode = (inner.deps.folder_mic)(&folder).resolve(settings.audio.record_mic);
-            let target = o.system.clone().or_else(|| settings.audio.default_source.clone());
+            let target = settings.audio.start_source(o.system.as_ref());
             // auto starts with the microphone closed; without detection it records like "on"
             let unsupported = mode == MicMode::Auto && !inner.auto_supported(&target, o.demo);
             let mic_on = match mode {
@@ -762,6 +762,20 @@ impl Inner {
         Ok(())
     }
 
+    /// Persists the source of this call so the next «new call» preselects it.
+    fn remember_source(&self, settings: &Settings, used: Option<&Target>) {
+        let Some(used) = used else { return };
+        if settings.audio.last_source.as_ref() == Some(used) {
+            return;
+        }
+        let Ok(v) = serde_json::to_value(used) else { return };
+        if let Err(e) = self.deps.settings.patch(SettingsPatch(
+            serde_json::json!({ "audio": { "last_source": v } }),
+        )) {
+            tracing::warn!(%e, "could not remember the last call source");
+        }
+    }
+
     /// Opens the call, engines and capture (or just the call for demo).
     fn setup(self: &Arc<Self>, o: &StartOpts, settings: &Settings) -> Result<CallId> {
         let clock = self.core().clock.expect("clock set in start");
@@ -770,7 +784,10 @@ impl Inner {
             UiLanguage::En => ("Me", "System"),
             _ => ("Я", "Система"),
         };
-        let system = o.system.clone().or_else(|| settings.audio.default_source.clone());
+        let system = settings.audio.start_source(o.system.as_ref());
+        if !o.demo {
+            self.remember_source(settings, system.as_ref());
+        }
         let mic = o.mic.clone().or_else(|| settings.audio.mic_device.clone());
         let engine_id = if o.demo {
             "demo".to_string()

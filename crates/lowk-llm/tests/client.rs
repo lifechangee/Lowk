@@ -147,6 +147,25 @@ fn auth_error_maps_and_is_not_retried_and_never_leaks_key() {
 }
 
 #[test]
+fn network_block_403_maps_to_provider_blocked_not_missing_key() {
+    let body = r#"{ "success": false, "error": "Access denied by security policy." }"#;
+    let s = MockServer::scripted(vec![Reply::json(403, body)]);
+    let (r, _) = run(&OpenAiClient::new(cfg(&s)), &ledger());
+    assert_eq!(r.unwrap_err().code, ErrorCode::ProviderBlocked);
+    assert_eq!(s.chat_requests().len(), 1, "a block is not retried");
+}
+
+#[test]
+fn forbidden_naming_the_credentials_stays_a_key_error() {
+    let s = MockServer::scripted(vec![Reply::json(
+        403,
+        r#"{"error":{"message":"Invalid API key"}}"#,
+    )]);
+    let (r, _) = run(&OpenAiClient::new(cfg(&s)), &ledger());
+    assert_eq!(r.unwrap_err().code, ErrorCode::ApiKeyMissing);
+}
+
+#[test]
 fn retries_5xx_and_429_before_first_token() {
     let s = MockServer::scripted(vec![
         Reply::json(503, r#"{"error":{"message":"overloaded"}}"#),

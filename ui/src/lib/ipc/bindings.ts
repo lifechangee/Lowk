@@ -364,6 +364,8 @@ export type AudioNotice = "target_lost" | "target_restored";
 export type AudioSettings = {
 	/**  Default system source; `None` = ask / whole system. */
 	default_source?: Target | null,
+	/**  The source the last call was started with; a new call preselects it (falls back to `default_source`). */
+	last_source?: Target | null,
 	mic_device?: string | null,
 	aec?: AecMode,
 	/**  Keep the recorded audio next to the call (opt-in; default text only). */
@@ -733,7 +735,13 @@ export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_
 /**  The folder is local-only, so its screenshots never go to the cloud, and no local vision model is set. */
 "image_local_only" | 
 /**  The provider refused the screenshots as too large even after a smaller downscale. */
-"image_too_large";
+"image_too_large" | 
+/**  The provider answered 403 (network / region block): the key itself is fine. */
+"provider_blocked" | 
+/**  A sidecar died with an illegal-instruction fault: the CPU lacks an instruction set the build needs. */
+"cpu_unsupported" | 
+/**  The speech worker did not report ready in time. */
+"engine_load_timeout";
 
 export type FacetCount = {
 	folder: FolderRef,
@@ -1560,6 +1568,8 @@ export type SttError = {
 	message: string,
 	/**  True when the engine host will restart the worker by itself. */
 	recoverable: boolean,
+	/**  Specific cause the UI can name (`CpuUnsupported`, `EngineLoadTimeout`); `None` for generic failures. */
+	code?: ErrorCode | null,
 };
 
 /**  One revision of one utterance. `stt://segment` payload. */

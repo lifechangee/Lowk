@@ -6,4 +6,5 @@ pub mod dirs;
 pub mod hw;
 pub mod locale;
 pub mod perm;
+pub mod process;
 pub mod secrets;

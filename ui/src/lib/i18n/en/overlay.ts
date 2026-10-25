@@ -65,6 +65,7 @@ export const overlay = {
   'overlay.more.ans': 'more ↓',
   'overlay.answer.empty': 'Press {key} to ask the AI',
   'overlay.answer.error': 'Could not get an answer',
+  'overlay.answer.blocked': 'OpenRouter rejected the request from this network. The key is fine: try another network or a VPN.',
   'overlay.answer.noKey': 'No OpenRouter API key is set.',
   'overlay.answer.openSettings': 'Open Settings',
   'overlay.answer.localOnly': 'This folder is local-only and no local model is connected. Connect Ollama or LM Studio in Settings.',

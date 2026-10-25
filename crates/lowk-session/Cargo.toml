@@ -8,6 +8,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+serde_json.workspace = true
 lowk-types.workspace = true
 lowk-audio.workspace = true
 lowk-stt.workspace = true

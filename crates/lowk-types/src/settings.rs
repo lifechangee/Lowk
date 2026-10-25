@@ -198,6 +198,9 @@ impl Settings {
 
 fn merge(dst: &mut serde_json::Value, patch: &serde_json::Value) {
     match (dst, patch) {
+        // An internally/adjacently tagged value (`{"kind": ..}`, e.g. `Target`) is replaced as a whole: merging
+        // would keep the previous variant's fields (`id` of an app) and break the unit variants.
+        (d, p) if p.as_object().is_some_and(|o| o.contains_key("kind")) => *d = p.clone(),
         (serde_json::Value::Object(d), serde_json::Value::Object(p)) => {
             for (k, pv) in p {
                 if pv.is_null() {
@@ -288,6 +291,8 @@ pub enum AecMode {
 pub struct AudioSettings {
     /// Default system source; `None` = ask / whole system.
     pub default_source: Option<Target>,
+    /// The source the last call was started with; a new call preselects it (falls back to `default_source`).
+    pub last_source: Option<Target>,
     pub mic_device: Option<String>,
     pub aec: AecMode,
     /// Keep the recorded audio next to the call (opt-in; default text only).
@@ -296,10 +301,21 @@ pub struct AudioSettings {
     /// Old files stored a bool; `true`/`false` still load as on/off.
     pub record_mic: MicMode,
 }
+impl AudioSettings {
+    /// The source a call starts with: the explicit choice, else the last one used, else the default setting.
+    pub fn start_source(&self, explicit: Option<&Target>) -> Option<Target> {
+        explicit
+            .cloned()
+            .or_else(|| self.last_source.clone())
+            .or_else(|| self.default_source.clone())
+    }
+}
+
 impl Default for AudioSettings {
     fn default() -> Self {
         Self {
             default_source: None,
+            last_source: None,
             mic_device: None,
             aec: AecMode::Auto,
             keep_audio: false,

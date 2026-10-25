@@ -86,7 +86,7 @@ impl Corrector for LazyCorrector {
 fn free_memory_pct() -> u32 {
     #[cfg(target_os = "macos")]
     {
-        if let Ok(o) = std::process::Command::new("/usr/sbin/sysctl")
+        if let Ok(o) = lowk_platform::process::command("/usr/sbin/sysctl")
             .args(["-n", "kern.memorystatus_level"])
             .output()
         {

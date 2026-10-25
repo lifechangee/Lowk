@@ -108,6 +108,15 @@ pub enum ErrorCode {
     /// The provider refused the screenshots as too large even after a smaller downscale.
     #[error("screenshots are too large for the model")]
     ImageTooLarge,
+    /// The provider answered 403 (network / region block): the key itself is fine.
+    #[error("the provider rejected the request from this network")]
+    ProviderBlocked,
+    /// A sidecar died with an illegal-instruction fault: the CPU lacks an instruction set the build needs.
+    #[error("the processor lacks a required instruction set")]
+    CpuUnsupported,
+    /// The speech worker did not report ready in time.
+    #[error("the speech engine did not become ready in time")]
+    EngineLoadTimeout,
 }
 
 /// Serializable error crossing crate and IPC boundaries.
