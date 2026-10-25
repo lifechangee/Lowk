@@ -1148,8 +1148,10 @@ export type OverlayEvent = { type: "mode"; data: OverlayMode } | { type: "tone";
 export type OverlayMode = 
 /**  Click-through, no focus. Default. */
 "passive" | 
-/**  Takes clicks and keyboard. Stays on until the user toggles it or presses Esc: losing focus
-(a call app, a notification, a click elsewhere) does not end it. */
+/**
+ *  Takes clicks and keyboard. Stays on until the user toggles it or presses Esc: losing focus
+ *  (a call app, a notification, a click elsewhere) does not end it.
+ */
 "interactive" | 
 /**  Hold-to-move magnet; returns to the prior mode on release. */
 "moving" | 
@@ -1695,7 +1697,9 @@ export type SttTier =
 "cloud";
 
 /**
- *  Post-call summary: 3-5 key points, decisions, tasks, questions to me and my answers.
+ *  Post-call summary. The model picks the sections that fit the call (meeting, lecture, interview,
+ *  broadcast, casual talk): they are all in `sections` and in `md`. `tasks` and `questions` (and
+ *  `decisions`, `key_points`) are read from the sections of those names and are empty when the call had none.
  *  `md` is what is written into `## Summary` of the call file.
  */
 export type Summary = {
@@ -1704,6 +1708,8 @@ export type Summary = {
 	decisions: string[],
 	tasks: SummaryTask[],
 	questions: SummaryQuestion[],
+	/**  Every section in order, whatever its heading. */
+	sections?: SummarySection[],
 	md: string,
 	model: string,
 	/**  RFC 3339. */
@@ -1721,6 +1727,15 @@ export type SummaryEvent = { type: "start"; call: Ulid } |
 export type SummaryQuestion = {
 	question: string,
 	my_answer: string | null,
+};
+
+/**
+ *  One section of a summary as the model chose it for this kind of call (a lecture has topics, key ideas,
+ *  terms; a meeting has the main points, decisions, tasks ...).
+ */
+export type SummarySection = {
+	heading: string,
+	items: string[],
 };
 
 /**  A task from the call: who does what. */

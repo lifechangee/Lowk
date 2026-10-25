@@ -9,6 +9,15 @@ All notable changes to Lowk are documented here. The format follows [Keep a Chan
 - Move to trash in the ⋯ menu of call rows (folder list and Home), with Undo.
 - Proxy support: every outbound connection (OpenRouter, cloud embeddings, Deepgram and Soniox streaming, model downloads, updates, key checks) now follows the system proxy (Windows Internet Settings, macOS network proxies) or the `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` / `NO_PROXY` variables, over HTTP CONNECT or SOCKS5. Settings → Network shows the detected proxy, lets you set one manually and checks the connection. PAC scripts are not supported. Localhost always connects directly.
 
+### Changed
+- Summaries fit the call: the model recognises a meeting, interview, lecture, broadcast or casual talk and writes the sections that suit it (for a lecture: topics, key ideas, terms and definitions, what was asked, what to learn) instead of always four fixed ones. Empty sections are dropped; tasks and questions to you keep their format; the folder's instructions override the automatic choice. Long recordings are condensed the same way.
+- Log lines carry local time with the UTC offset (`2026-10-25T23:25:15.898+03:00`) instead of UTC.
+- Interactive mode (typing in the overlay) now stays on until you toggle it or press Esc; losing focus to another app no longer switches it off.
+
+### Fixed
+- Model download: the «download the model» prompt of a call that could not start no longer appears while that model is already downloading (it shows the running download instead), and a second click can no longer start a second download of the same files. The progress shows one total for the whole set that never goes down. A stalled or dropped connection is detected and resumed automatically; a file that fails its checksum is downloaded again by itself, and only repeated failures show an error with a working Retry.
+- Hold binds (click-hold, move-hold) could stay dead after the interactive mode was toggled, when a key release was lost. Lost key and mouse-button releases are now detected and repaired, and the Windows keyboard and mouse hooks are re-registered periodically and after a mode switch.
+
 ### Removed
 - Tags: chips, the add-tag control, tag filter in search, AI tag suggestions and the related commands. Existing `tags:` in Markdown front matter are still read and never rewritten or stripped.
 

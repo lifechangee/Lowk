@@ -749,7 +749,7 @@ export class MockBackend implements Backend {
       }
       this.#summaries.add(call);
       this.#summaryText.set(call, md);
-      const summary: Summary = { call, key_points: [], decisions: [], tasks: [], questions: [], md, model: this.#settings.llm?.summary_model ?? '', generated_at: new Date().toISOString() };
+      const summary: Summary = { call, key_points: [], decisions: [], tasks: [], questions: [], sections: [], md, model: this.#settings.llm?.summary_model ?? '', generated_at: new Date().toISOString() };
       this.#sumEmit({ type: 'done', call, summary });
     };
     this.#sumTimers.set(call, setTimeout(step, 200));
