@@ -154,6 +154,7 @@ impl EngineRegistry {
                     license_url: f.license_url(),
                     runtime_missing: !f.runtime_available(),
                     extra_mb: 0,
+                    installing: None,
                     descriptor: d,
                 }
             })

@@ -10,6 +10,13 @@ use lowk_types::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+/// The model download in flight.
+pub struct ActiveInstall {
+    pub engine: String,
+    pub cancel: Arc<AtomicBool>,
+    pub last: EngineProgress,
+}
+
 pub fn registry() -> EngineRegistry {
     let mut reg = EngineRegistry::default();
     if let Some(store) = ModelStore::default_location() {
@@ -265,50 +272,59 @@ impl AppState {
 
     /// Downloads an engine's assets (and the Whisper correction model for local engines),
     /// emitting `engine://progress`. Blocks; run it off the UI thread.
+    ///
+    /// One download at a time. A second request (another window, the prompt of a call that could not
+    /// start, a double click) does not start a second writer on the same files: it waits for the
+    /// running one and returns Ok when the engine is installed afterwards.
     pub fn install_engine(&self, id: &str) -> Result<()> {
         let cancel = Arc::new(AtomicBool::new(false));
-        *self.install_cancel.lock() = Some(cancel.clone());
+        {
+            let mut g = self.install.lock();
+            while g.is_some() {
+                tracing::info!(engine = id, "model download already running; waiting for it");
+                self.install_ended.wait(&mut g);
+            }
+            if self.engines.factory(id).is_some_and(|f| f.installed()) && !self.whisper_pending(id) {
+                return Ok(());
+            }
+            *g = Some(ActiveInstall {
+                engine: id.to_owned(),
+                cancel: cancel.clone(),
+                last: EngineProgress {
+                    engine: id.to_owned(),
+                    file: String::new(),
+                    phase: InstallPhase::Downloading,
+                    done_bytes: 0,
+                    total_bytes: 0,
+                    message: None,
+                },
+            });
+        }
         let em = self.emitter.clone();
         let engine = id.to_owned();
-        // One progress bar for everything this install downloads (the live model, Silero and, with
-        // background correction on, the Whisper model): `total` is the grand total, `done` cumulative.
-        let with_whisper = id == local::NEMOTRON_ID && self.settings.get().stt.background_correction;
-        let grand_total: u64 = if id == local::NEMOTRON_ID {
-            local::nemotron_assets()
-                .iter()
-                .chain(
-                    if with_whisper {
-                        local::whisper_assets()
-                    } else {
-                        vec![]
-                    }
-                    .iter(),
-                )
-                .map(|a| a.size_bytes)
-                .sum()
-        } else {
-            0
-        };
-        let mut finished: std::collections::HashSet<String> = Default::default();
-        let mut finished_bytes = 0u64;
-        let mut report = |file: &str, phase: InstallPhase, done: u64, total: u64| {
-            if phase == InstallPhase::Ready && finished.insert(file.to_owned()) {
-                finished_bytes += total;
-            }
-            let (done, total) = if grand_total > 0 {
-                let inflight = if finished.contains(file) { 0 } else { done };
-                ((finished_bytes + inflight).min(grand_total), grand_total)
-            } else {
-                (done, total)
-            };
-            em.emit(AppEvent::EngineProgress(EngineProgress {
+        // One progress figure for everything this install downloads (the live model, Silero and, with
+        // background correction on, the Whisper model): the grand total is known up front, `done` is
+        // cumulative and never goes down. The UI shows these numbers as they are.
+        let with_whisper = self.whisper_pending(id);
+        let mut specs = self.engines.factory(id).map(|f| f.assets()).unwrap_or_default();
+        if with_whisper {
+            specs.extend(local::whisper_assets());
+        }
+        let mut totals = lowk_stt::models::InstallTotals::of_specs(&specs);
+        let mut report = |file: &str, phase: InstallPhase, done: u64, size: u64| {
+            let (done, total) = totals.update(file, phase, done, size);
+            let p = EngineProgress {
                 engine: engine.clone(),
                 file: file.to_owned(),
                 phase,
                 done_bytes: done,
                 total_bytes: total,
                 message: None,
-            }))
+            };
+            if let Some(a) = self.install.lock().as_mut() {
+                a.last = p.clone();
+            }
+            em.emit(AppEvent::EngineProgress(p))
         };
         let mut res = self.engines.install(id, &cancel, &mut report);
         if res.is_ok() && with_whisper {
@@ -316,14 +332,17 @@ impl AppState {
                 res = local::install_whisper(&store, &cancel, &mut report);
             }
         }
-        *self.install_cancel.lock() = None;
+        let last = self.install.lock().take().map(|a| a.last);
+        self.install_ended.notify_all();
         if let Err(e) = &res {
+            let (done, total) = last.map_or((0, 0), |p| (p.done_bytes, p.total_bytes));
+            tracing::warn!(engine = id, error = %e, detail = e.detail.as_deref().unwrap_or(""), "model download failed");
             self.emitter.emit(AppEvent::EngineProgress(EngineProgress {
                 engine: id.to_owned(),
                 file: String::new(),
                 phase: InstallPhase::Failed,
-                done_bytes: 0,
-                total_bytes: 0,
+                done_bytes: done,
+                total_bytes: total,
                 // the UI maps the machine-readable reason (checksum / cancelled / network) to text
                 message: Some(format!(
                     "{e} {}",
@@ -334,9 +353,25 @@ impl AppState {
         res
     }
 
+    /// The Whisper correction model comes with the live model while background correction is on.
+    fn whisper_pending(&self, id: &str) -> bool {
+        id == local::NEMOTRON_ID
+            && self.settings.get().stt.background_correction
+            && ModelStore::default_location().is_some_and(|s| !local::whisper_installed(&s))
+    }
+
+    /// The running download's last progress for `engine`, if it is the one in flight.
+    pub fn install_progress(&self, engine: &str) -> Option<EngineProgress> {
+        self.install
+            .lock()
+            .as_ref()
+            .filter(|a| a.engine == engine)
+            .map(|a| a.last.clone())
+    }
+
     pub fn cancel_install(&self) {
-        if let Some(c) = self.install_cancel.lock().as_ref() {
-            c.store(true, Ordering::SeqCst);
+        if let Some(a) = self.install.lock().as_ref() {
+            a.cancel.store(true, Ordering::SeqCst);
         }
     }
 }

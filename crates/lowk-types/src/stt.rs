@@ -179,13 +179,21 @@ pub struct EngineInfo {
     /// model while background correction is on), in MB; 0 when nothing more is needed.
     #[serde(default)]
     pub extra_mb: u32,
+    /// A download of this engine is running right now (its latest progress). The prompt that a call
+    /// could not start shows this instead of «download the model».
+    #[serde(default)]
+    pub installing: Option<EngineProgress>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum InstallPhase {
     Downloading,
+    /// The connection dropped or went silent; reconnecting (resumes from the last byte).
+    Retrying,
     Verifying,
+    /// A file failed its checksum and is being downloaded again.
+    Repairing,
     Ready,
     Failed,
 }

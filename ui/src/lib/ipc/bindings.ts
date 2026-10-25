@@ -741,6 +741,11 @@ export type EngineInfo = {
 	 *  model while background correction is on), in MB; 0 when nothing more is needed.
 	 */
 	extra_mb?: number,
+	/**
+	 *  A download of this engine is running right now (its latest progress). The prompt that a call
+	 *  could not start shows this instead of «download the model».
+	 */
+	installing?: EngineProgress | null,
 };
 
 export type EngineKind = "local" | "cloud";
@@ -937,7 +942,11 @@ export type IngestWarningCode =
 /**  Spreadsheet cut at the row/column limits. */
 "sheet_truncated" | "encrypted_partial" | "large_file";
 
-export type InstallPhase = "downloading" | "verifying" | "ready" | "failed";
+export type InstallPhase = "downloading" | 
+/**  The connection dropped or went silent; reconnecting (resumes from the last byte). */
+"retrying" | "verifying" | 
+/**  A file failed its checksum and is being downloaded again. */
+"repairing" | "ready" | "failed";
 
 /**
  *  W3C `KeyboardEvent.code` name (`KeyS`, `Enter`, `Backslash`, ...): layout

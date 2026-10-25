@@ -286,4 +286,4 @@ export interface Backend {
 }
 
 /** `engine://needed`: a real call cannot start; what the prompt should offer. */
-export type EngineNeeded = { engine: string; kind: 'local' | 'cloud' | 'none'; size_mb: number };
+export type EngineNeeded = { engine: string; kind: 'local' | 'cloud' | 'none'; size_mb: number; /** this engine's download is already running: show its progress, never «download the model». */ downloading?: boolean };

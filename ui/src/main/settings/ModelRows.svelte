@@ -4,6 +4,7 @@
   import type { EmbedderInfo, EngineInfo } from '../../lib/ipc';
   import { api } from '../api';
   import { Dl } from '../dl.svelte';
+  import { installs } from '../installs.svelte';
   import { fmtMbBytes } from '../fmt';
   import { tm } from '../i18n';
   import { prefs } from '../state.svelte';
@@ -11,29 +12,37 @@
 
   let engines = $state<EngineInfo[]>([]);
   let embedder = $state<EmbedderInfo | null>(null);
-  const dls = { stt: new Dl(), embedder: new Dl() };
+  const embedderDl = new Dl();
+  const dls = $derived({ stt: installs.dl(prefs.value.stt?.engine || engines.find((e) => e.recommended)?.descriptor.id || ''), embedder: embedderDl });
   let failed = $state({ stt: false, embedder: false });
 
   const sttId = $derived(prefs.value.stt?.engine || engines.find((e) => e.recommended)?.descriptor.id);
   const stt = $derived(engines.find((e) => e.descriptor.id === sttId && e.descriptor.kind === 'local') ?? null);
 
+  $effect(() => { installs.ended; void refresh(); });
   async function refresh() {
     engines = await api.engineStatus();
     embedder = await api.embedderInfo().catch(() => null);
   }
   const stateOf = (key: 'stt' | 'embedder', installed: boolean | undefined): ModelState => {
+    if (key === 'stt' && sttId) {
+      // the speech model is tracked by the app-wide store (one story on every screen)
+      if (installs.active[sttId]) return dls.stt.view.phase === 'verifying' ? 'verifying' : 'downloading';
+      if (installs.failed[sttId] != null && !installed) return 'error';
+      return installed ? 'ready' : 'missing';
+    }
     const v = dls[key].view;
-    if (v.phase === 'downloading') return 'downloading';
+    if (v.phase === 'downloading' || v.phase === 'retrying' || v.phase === 'repairing') return 'downloading';
     if (v.phase === 'verifying') return 'verifying';
     if (v.phase === 'failed' || failed[key]) return 'error';
     return installed ? 'ready' : 'missing';
   };
   onMount(() => {
-    void refresh();
+    installs.ensure();
     return api.onEngineProgress((p) => {
       const key = p.engine === 'embedder' ? 'embedder' : p.engine === sttId ? 'stt' : null;
       if (!key) return;
-      dls[key].feed(p);
+      if (key === 'embedder') embedderDl.feed(p);
       failed[key] = p.phase === 'failed';
       if (p.phase === 'ready' || p.phase === 'failed') void refresh();
     });

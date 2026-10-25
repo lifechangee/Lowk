@@ -267,6 +267,7 @@ export class MockBackend implements Backend {
       needs_key: d.kind === 'cloud',
       license_url: 'https://openmdw.ai/license/1-1/',
       extra_mb: d.id === 'whisper-large-v3-turbo' ? 620 : 0,
+      installing: qp('needed') === 'downloading' && d.id === 'whisper-large-v3-turbo' ? { engine: d.id, file: 'model.gguf', phase: 'downloading' as const, done_bytes: 580 * 1048576, total_bytes: 1371 * 1048576, message: null } : null,
       runtime_missing: d.kind === 'local' && typeof location !== 'undefined' && /[?&]runtime=missing\b/.test(location.search),
     }));
   }
@@ -276,13 +277,19 @@ export class MockBackend implements Backend {
     const fail = typeof location !== 'undefined' && /[?&]install=fail\b/.test(location.search);
     const mode = qp('install');
     for (let i = 1; i <= 10; i++) {
-      await delay(mode === 'slow' || mode === 'jitter' ? 320 : 60);
+      await delay(mode === 'slow' || mode === 'jitter' || mode === 'repair' ? 320 : 60);
       if (this.#installCancel) throw new Error('cancelled');
       const phase = i === 10 ? 'verifying' : 'downloading';
       // QA: `?install=jitter` also emits stale (lower) counts after the real one, like the backend did
       if (mode === 'jitter' && phase === 'downloading') for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase, done_bytes: (total / 10) * i - 3 * 1048576, total_bytes: total, message: null });
       for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase, done_bytes: (total / 10) * i, total_bytes: total, message: null });
       if (mode === 'jitter' && phase === 'downloading') for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase, done_bytes: (total / 10) * i - 8 * 1048576, total_bytes: total, message: null });
+      // QA: `?install=repair` shows the transient states the backend reports: a dropped connection, then a damaged part fetched again
+      if (mode === 'repair' && i === 4) for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase: 'retrying', done_bytes: (total / 10) * i, total_bytes: total, message: null });
+      if (mode === 'repair' && i === 6) {
+        for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase: 'repairing', done_bytes: 0, total_bytes: total, message: null });
+        await delay(500);
+      }
       if (fail && i === 6) {
         for (const f of this.#engineSubs) f({ engine: id, file: '', phase: 'failed', done_bytes: 0, total_bytes: 0, message: 'checksum' });
         throw new Error('download_failed');
@@ -324,7 +331,12 @@ export class MockBackend implements Backend {
   onStealthStatus(cb: (s: StealthStatus) => void): () => void { this.#stealthSubs.add(cb); return () => this.#stealthSubs.delete(cb); }
   async appRelaunch(): Promise<void> { await delay(); }
   /** Backend asks for the «download the model / choose cloud» prompt (a real call cannot start). */
-  onEngineNeeded(_cb: (e: EngineNeeded) => void): () => void { return () => undefined; }
+  onEngineNeeded(cb: (e: EngineNeeded) => void): () => void {
+    // QA: `?needed=1` raises the «download the model» prompt, `?needed=downloading` the one for a download already running
+    const q = qp('needed');
+    if (q) setTimeout(() => cb({ engine: 'whisper-large-v3-turbo', kind: 'local', size_mb: 751, downloading: q === 'downloading' }), 150);
+    return () => undefined;
+  }
   onBindReport(_cb: (r: BindReport) => void): () => void { return () => undefined; }
   async secretStatus(p: SecretProvider): Promise<boolean> { return this.#secrets.has(p); }
   async secretSet(p: SecretProvider, value: string): Promise<void> { if (value.trim()) this.#secrets.add(p); }
