@@ -1148,7 +1148,8 @@ export type OverlayEvent = { type: "mode"; data: OverlayMode } | { type: "tone";
 export type OverlayMode = 
 /**  Click-through, no focus. Default. */
 "passive" | 
-/**  Takes clicks and keyboard; auto-exits on blur or Esc. */
+/**  Takes clicks and keyboard. Stays on until the user toggles it or presses Esc: losing focus
+(a call app, a notification, a click elsewhere) does not end it. */
 "interactive" | 
 /**  Hold-to-move magnet; returns to the prior mode on release. */
 "moving" | 

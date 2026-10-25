@@ -1,9 +1,10 @@
 //! `EventBus` -> Tauri events (`emit_to` per window). Partial STT updates are
 //! coalesced to <= 20 Hz per utterance; everything else is forwarded as is.
-use lowk_types::{AppEvent, EventSink, OverlayEvent, Stream, SttEvent, SttKind, UttId};
+use lowk_types::{AppEvent, EventSink, OverlayEvent, OverlayMode, Stream, SttEvent, SttKind, UttId};
 use parking_lot::Mutex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, EventTarget};
@@ -21,6 +22,8 @@ pub struct UiEmitter {
     pending: Mutex<HashMap<(Stream, UttId), SttEvent>>,
     /// Every store change (ours and the watcher's) also reaches the index feed.
     store_tap: std::sync::OnceLock<StoreTap>,
+    /// The overlay was interactive at the last mode event (to spot the switch on / off).
+    was_interactive: AtomicBool,
 }
 
 fn payload(ev: &AppEvent) -> Value {
@@ -79,6 +82,7 @@ impl UiEmitter {
             app,
             pending: Mutex::new(HashMap::new()),
             store_tap: std::sync::OnceLock::new(),
+            was_interactive: AtomicBool::new(false),
         });
         let weak = Arc::downgrade(&e);
         std::thread::Builder::new()
@@ -126,8 +130,24 @@ impl UiEmitter {
     }
 }
 
+/// True when `m` switches typing mode on or off (hover / move flips do not count). `was` remembers the last state.
+fn interactive_edge(was: &AtomicBool, m: OverlayMode) -> bool {
+    match m {
+        OverlayMode::Interactive => !was.swap(true, Ordering::SeqCst),
+        OverlayMode::Passive => was.swap(false, Ordering::SeqCst),
+        OverlayMode::Hover | OverlayMode::Moving => false,
+    }
+}
+
 impl EventSink for UiEmitter {
     fn emit(&self, ev: AppEvent) {
+        if let AppEvent::Overlay(OverlayEvent::Mode(m)) = &ev {
+            if interactive_edge(&self.was_interactive, *m) {
+                // Typing mode switched: bring the key hooks in line with the OS (a stuck key from the toggle
+                // combo silenced the hold binds) and re-register them when idle.
+                lowk_input::platform::request_resync();
+            }
+        }
         if let AppEvent::Store(c) = &ev {
             if let Some(t) = self.store_tap.get() {
                 t(c);
@@ -159,6 +179,22 @@ mod tests {
         assert!(f(&EventTarget::webview_window("main")));
         assert!(!f(&EventTarget::webview_window("pill")));
         assert!(!f(&EventTarget::Any));
+    }
+
+    #[test]
+    fn only_switching_typing_mode_on_or_off_asks_the_hooks_to_resync() {
+        let was = AtomicBool::new(false);
+        assert!(!interactive_edge(&was, OverlayMode::Passive), "already passive");
+        assert!(!interactive_edge(&was, OverlayMode::Hover));
+        assert!(interactive_edge(&was, OverlayMode::Interactive));
+        assert!(!interactive_edge(&was, OverlayMode::Interactive), "repeat");
+        assert!(
+            !interactive_edge(&was, OverlayMode::Moving),
+            "a move is not a switch"
+        );
+        assert!(!interactive_edge(&was, OverlayMode::Hover));
+        assert!(interactive_edge(&was, OverlayMode::Passive));
+        assert!(!interactive_edge(&was, OverlayMode::Passive));
     }
 
     /// F10 regression guard: delivery is a single call, so the emitter source must

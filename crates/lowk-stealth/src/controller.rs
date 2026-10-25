@@ -126,6 +126,10 @@ impl OverlayCtl {
     fn input(&self, i: ModeInput) -> Result<()> {
         let change = self.machine.lock().apply(i);
         let Some(c) = change else { return Ok(()) };
+        if c.prev != c.now && (c.prev == OverlayMode::Interactive || c.now == OverlayMode::Interactive) {
+            // Interactive mode never ends silently: the log says what ended it.
+            tracing::info!(prev = ?c.prev, now = ?c.now, cause = ?i, "overlay mode");
+        }
         if c.style_changed {
             self.sync_style()?;
             // Re-verify (and repair) the capture exclusion after the style change. This
@@ -167,12 +171,13 @@ impl OverlayCtl {
 
     /// Forwarded window events. Re-applies are throttled (never at 120 Hz while
     /// moving; the release re-applies once).
+    ///
+    /// Losing focus never ends the interactive mode: it stays on until the user toggles it or
+    /// presses Escape. (The old blur exit switched it off silently whenever Windows moved the
+    /// foreground elsewhere, e.g. a call app or a notification.)
     pub fn on_window_event(&self, ev: WindowEventKind) {
         if ev == WindowEventKind::Focused(false) && self.machine.lock().style() == Interaction::Interactive {
-            let b = self.backend.clone();
-            if !run_main_sync(&self.main, move || b.is_key()) {
-                let _ = self.input(ModeInput::Blur);
-            }
+            tracing::info!("overlay lost focus while interactive; staying interactive");
         }
         if matches!(
             ev,
@@ -622,19 +627,49 @@ mod tests {
         }
     }
 
+    /// Owner's Windows test: interactive switched itself off after a few minutes (the foreground
+    /// moved to another app) and the binds stopped working. Losing focus must change nothing.
     #[test]
-    fn blur_exits_interactive_only_when_not_key() {
-        let (c, _fb, _) = setup();
+    fn losing_focus_never_ends_interactive_mode() {
+        let (c, fb, sink) = setup();
+        c.show().unwrap();
+        c.set_mode(OverlayMode::Interactive).unwrap();
+        // another window takes the foreground: the backend no longer reports the overlay as key
+        fb.0.lock().interaction = Some(Interaction::Passive);
+        let (calls_before, modes_before) = (fb.calls().len(), sink.0.lock().unwrap().len());
+        for _ in 0..5 {
+            c.on_window_event(WindowEventKind::Focused(false));
+            c.on_window_event(WindowEventKind::Focused(true));
+            c.on_window_event(WindowEventKind::Focused(false));
+        }
+        assert_eq!(c.mode(), OverlayMode::Interactive);
+        assert_eq!(sink.0.lock().unwrap().len(), modes_before, "no mode event");
+        assert!(
+            fb.calls()[calls_before..]
+                .iter()
+                .all(|x| !x.starts_with("interaction:")),
+            "the native style is left alone"
+        );
+        // only the user ends it
+        c.escape();
+        assert_eq!(c.mode(), OverlayMode::Passive);
+        c.set_mode(OverlayMode::Interactive).unwrap();
+        c.set_mode(OverlayMode::Passive).unwrap();
+        assert_eq!(c.mode(), OverlayMode::Passive);
+    }
+
+    /// Hold-to-move and click-hold while typing mode is on and the overlay is not focused: the mode
+    /// machine returns to Interactive afterwards and the native style follows.
+    #[test]
+    fn holds_while_interactive_and_unfocused_restore_interactive() {
+        let (c, fb, _) = setup();
         c.show().unwrap();
         c.set_mode(OverlayMode::Interactive).unwrap();
         c.on_window_event(WindowEventKind::Focused(false));
-        assert_eq!(
-            c.mode(),
-            OverlayMode::Interactive,
-            "fake backend still reports key"
-        );
-        c.escape();
-        assert_eq!(c.mode(), OverlayMode::Passive);
+        c.hover(Phase::Down);
+        c.hover(Phase::Up);
+        assert_eq!(c.mode(), OverlayMode::Interactive);
+        assert_eq!(fb.0.lock().interaction, Some(Interaction::Interactive));
     }
 
     struct Path(Mutex<Vec<(f64, f64)>>);
