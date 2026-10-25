@@ -649,12 +649,18 @@ pub struct UpdateSettings {
     pub check_daily: bool,
     /// RFC 3339 time of the last check.
     pub last_checked: Option<String>,
+    /// A version the user chose to skip: automatic checks stop offering it.
+    pub skipped_version: Option<String>,
+    /// Download and install a found update without asking (still never during a recording). Off by default.
+    pub auto_install: bool,
 }
 impl Default for UpdateSettings {
     fn default() -> Self {
         Self {
             check_daily: true,
             last_checked: None,
+            skipped_version: None,
+            auto_install: false,
         }
     }
 }

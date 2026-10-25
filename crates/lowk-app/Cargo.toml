@@ -31,6 +31,12 @@ lowk-llm.workspace = true
 blake3.workspace = true
 libc = "0.2"
 tauri-plugin-dialog.workspace = true
+tauri-plugin-updater.workspace = true
+time = { workspace = true, features = ["formatting", "parsing"] }
+tokio.workspace = true
+url = "2"
+base64 = "0.22"
+minisign-verify = "0.3"
 parking_lot.workspace = true
 regex = "1"
 zip.workspace = true
@@ -47,6 +53,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
 tempfile.workspace = true
 
 [build-dependencies]

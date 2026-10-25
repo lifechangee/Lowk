@@ -12,7 +12,7 @@ export const m = {
   'm.mon.primary': 'Primary',
   'm.mon.active': 'Active',
   'm.change': 'Change',
-  'm.checkUpdates': 'Check for updates',
+  'm.checkUpdates': 'Check for updates automatically',
   'm.checkUpdatesHint': 'Once a day via GitHub. The only automatic network request.',
   'm.lastChecked': 'Last checked: {when}',
   'm.clearBind': 'Clear bind',

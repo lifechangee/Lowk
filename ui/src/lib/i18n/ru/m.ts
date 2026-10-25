@@ -12,7 +12,7 @@ export const m = {
   'm.mon.primary': 'Основной',
   'm.mon.active': 'Активный',
   'm.change': 'Изменить',
-  'm.checkUpdates': 'Проверять обновления',
+  'm.checkUpdates': 'Проверять обновления автоматически',
   'm.checkUpdatesHint': 'Раз в день, через GitHub. Единственный автоматический сетевой запрос.',
   'm.lastChecked': 'Последняя проверка: {when}',
   'm.clearBind': 'Снять назначение',

@@ -107,6 +107,10 @@
     "allow-logs-reveal",
     "allow-path-reveal",
     "allow-update-check",
+    "allow-update-install",
+    "allow-update-restart",
+    "allow-update-skip",
+    "allow-update-status",
     "allow-vault-info",
     "allow-vault-open"
   ]

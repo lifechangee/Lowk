@@ -25,8 +25,19 @@ export const commands = {
 	 *  the Dock reopen event and the overlay.
 	 */
 	mainOpen: () => __TAURI_INVOKE<void>("main_open"),
-	/**  Updater skeleton: the plugin is not wired until the minisign key exists. */
-	updateCheck: () => typedError<UpdateStatus, AppError>(__TAURI_INVOKE("update_check")),
+	/**  Current update state; cheap, polled by the main window. */
+	updateStatus: () => __TAURI_INVOKE<UpdateStatus>("update_status"),
+	/**  «Проверить сейчас» (`manual`: ignores the toggle and the daily throttle, not the recording rule). */
+	updateCheck: (manual: boolean) => typedError<UpdateStatus, AppError>(__TAURI_INVOKE("update_check", { manual })),
+	/**
+	 *  «Обновить»: downloads and verifies in the background (poll `update_status`). Nothing is installed
+	 *  yet; the user then picks «Перезапустить» (or «Перезапустить после записи»).
+	 */
+	updateInstall: () => __TAURI_INVOKE<UpdateStatus>("update_install"),
+	/**  «Перезапустить» for a downloaded update: now, or right after the recording if one is running. */
+	updateRestart: () => __TAURI_INVOKE<UpdateStatus>("update_restart"),
+	/**  «Пропустить версию». */
+	updateSkip: (version: string) => typedError<UpdateStatus, AppError>(__TAURI_INVOKE("update_skip", { version })),
 	/**  Shows a vault / document path in the file manager (Explorer on Windows, Finder on macOS). */
 	pathReveal: (path: string) => typedError<null, AppError>(__TAURI_INVOKE("path_reveal", { path })),
 	/**  Opens the folder with `lowk.log` (and `lowk.prev.log`): what a user sends us when something breaks. */
@@ -1727,18 +1738,46 @@ export type UiSettings = {
 /**  ULID, serialized as its 26-char string. Identity of calls, folders, docs. */
 export type Ulid = string;
 
+export type UpdateErrorKind = 
+/**  Offline, server unreachable, no release found. */
+"network" | 
+/**  The package does not match the public key: it is never installed. */
+"signature" | "other";
+
+export type UpdateInfo = {
+	version: string,
+	/**  Excerpt of the release notes. */
+	notes: string | null,
+	date: string | null,
+};
+
+export type UpdatePhase = "idle" | "checking" | "available" | "downloading" | "ready" | "error";
+
 export type UpdateSettings = {
 	/**  The only automatic network call; on by default. */
 	check_daily?: boolean,
 	/**  RFC 3339 time of the last check. */
 	last_checked?: string | null,
+	/**  A version the user chose to skip: automatic checks stop offering it. */
+	skipped_version?: string | null,
+	/**  Download and install a found update without asking (still never during a recording). Off by default. */
+	auto_install?: boolean,
 };
 
 export type UpdateStatus = {
-	/**  False until the release signing keys exist. */
+	/**  False when this build has no update signing key: the updater is off and makes no requests. */
 	enabled: boolean,
 	current: string,
-	available: string | null,
+	phase: UpdatePhase,
+	available: UpdateInfo | null,
+	downloaded: number,
+	total: number | null,
+	error: UpdateErrorKind | null,
+	/**  A restart was requested while recording; it happens as soon as the recording ends. */
+	restart_pending: boolean,
+	/**  The last user action was refused because a recording is running. */
+	blocked_by_recording: boolean,
+	last_checked: string | null,
 };
 
 export type Utterance = {

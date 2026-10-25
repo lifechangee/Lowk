@@ -76,6 +76,11 @@ pub fn app_quit(st: State<'_, Shared>) {
 #[tauri::command]
 #[specta::specta]
 pub fn app_relaunch(st: State<'_, Shared>) {
+    relaunch(&st.app);
+}
+
+/// See [`app_relaunch`]; also used by the updater once an update is installed.
+pub fn relaunch(app: &tauri::AppHandle) {
     #[cfg(target_os = "macos")]
     if let Ok(exe) = std::env::current_exe() {
         if let Some(bundle) = exe
@@ -90,11 +95,11 @@ pub fn app_relaunch(st: State<'_, Shared>) {
                     bundle.display().to_string().replace('\'', "")
                 ))
                 .spawn();
-            st.app.exit(0);
+            app.exit(0);
             return;
         }
     }
-    st.app.restart();
+    app.restart();
 }
 
 /// `explorer.exe` argument that selects `p` (or opens it when it is a folder). Windows quoting: the
@@ -252,26 +257,6 @@ pub fn diagnostics_save(st: State<'_, Shared>, dest: String) -> Result<Diagnosti
 #[specta::specta]
 pub fn main_open(st: State<'_, Shared>) {
     crate::windows::open_main(&st.app);
-}
-
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct UpdateStatus {
-    /// False until the release signing keys exist.
-    pub enabled: bool,
-    pub current: String,
-    pub available: Option<String>,
-}
-
-/// Updater skeleton: the plugin is not wired until the minisign key exists.
-#[tauri::command(async)]
-#[specta::specta]
-pub fn update_check(st: State<'_, Shared>) -> Result<UpdateStatus> {
-    let _ = &st;
-    Ok(UpdateStatus {
-        enabled: false,
-        current: env!("CARGO_PKG_VERSION").into(),
-        available: None,
-    })
 }
 
 #[cfg(test)]

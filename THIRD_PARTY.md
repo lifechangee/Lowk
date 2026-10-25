@@ -53,7 +53,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | style-mod | 4.1.4 | MIT | <https://code.haverbeke.berlin/marijn/style-mod> |
 | w3c-keyname | 2.2.8 | MIT | <https://github.com/marijnh/w3c-keyname#readme> |
 
-## Rust crates in the app (670)
+## Rust crates in the app (692)
 
 | Crate | Version | Licence | Repository |
 |---|---|---|---|
@@ -139,6 +139,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | constant_time_eq | 0.4.2 | CC0-1.0 OR MIT-0 OR Apache-2.0 | <https://github.com/cesarb/constant_time_eq> |
 | cookie | 0.18.2 | MIT OR Apache-2.0 | <https://github.com/SergioBenitez/cookie-rs> |
 | core-foundation | 0.10.1 | MIT OR Apache-2.0 | <https://github.com/servo/core-foundation-rs> |
+| core-foundation | 0.9.4 | MIT OR Apache-2.0 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 | <https://github.com/servo/core-foundation-rs> |
 | core-graphics | 0.25.0 | MIT OR Apache-2.0 | <https://github.com/servo/core-foundation-rs> |
 | core-graphics-types | 0.2.0 | MIT OR Apache-2.0 | <https://github.com/servo/core-foundation-rs> |
@@ -213,6 +214,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | fax | 0.3.0 | MIT | <https://github.com/pdf-rs/fax> |
 | fdeflate | 0.3.7 | MIT OR Apache-2.0 | <https://github.com/image-rs/fdeflate> |
 | field-offset | 0.3.6 | MIT OR Apache-2.0 | <https://github.com/Diggsey/rust-field-offset> |
+| filetime | 0.2.29 | MIT/Apache-2.0 | <https://github.com/alexcrichton/filetime> |
 | flate2 | 1.1.10 | MIT OR Apache-2.0 | <https://github.com/rust-lang/flate2-rs> |
 | fnv | 1.0.7 | Apache-2.0 / MIT | <https://github.com/servo/rust-fnv> |
 | foldhash | 0.2.0 | Zlib | <https://github.com/orlp/foldhash> |
@@ -274,6 +276,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | httparse | 1.10.1 | MIT OR Apache-2.0 | <https://github.com/seanmonstar/httparse> |
 | hybrid-array | 0.4.15 | MIT OR Apache-2.0 | <https://github.com/RustCrypto/hybrid-array> |
 | hyper | 1.12.0 | MIT | <https://github.com/hyperium/hyper> |
+| hyper-rustls | 0.27.10 | Apache-2.0 OR ISC OR MIT | <https://github.com/rustls/hyper-rustls> |
 | hyper-util | 0.1.21 | MIT | <https://github.com/hyperium/hyper-util> |
 | iana-time-zone | 0.1.65 | MIT OR Apache-2.0 | <https://github.com/strawlab/iana-time-zone> |
 | iana-time-zone-haiku | 0.1.2 | MIT OR Apache-2.0 | <https://github.com/strawlab/iana-time-zone> |
@@ -307,6 +310,8 @@ Models are not part of the app: they are downloaded on demand from the source be
 | jiff-tzdb | 0.1.9 | Unlicense OR MIT | <https://github.com/BurntSushi/jiff> |
 | jiff-tzdb-platform | 0.1.3 | Unlicense OR MIT | <https://github.com/BurntSushi/jiff> |
 | jni | 0.21.1 | MIT/Apache-2.0 | <https://github.com/jni-rs/jni-rs> |
+| jni | 0.22.4 | MIT OR Apache-2.0 | <https://github.com/jni-rs/jni-rs> |
+| jni-macros | 0.22.4 | MIT OR Apache-2.0 | <https://github.com/jni-rs/jni-rs> |
 | jni-sys | 0.3.1 | MIT OR Apache-2.0 | <https://github.com/jni-rs/jni-sys> |
 | jni-sys | 0.4.1 | MIT OR Apache-2.0 | <https://github.com/jni-rs/jni-sys> |
 | jni-sys-macros | 0.4.1 | MIT OR Apache-2.0 | <https://github.com/jni-rs/jni-sys> |
@@ -339,6 +344,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | memchr | 2.8.3 | Unlicense OR MIT | <https://github.com/BurntSushi/memchr> |
 | memoffset | 0.9.1 | MIT | <https://github.com/Gilnaa/memoffset> |
 | mime | 0.3.17 | MIT OR Apache-2.0 | <https://github.com/hyperium/mime> |
+| minisign-verify | 0.3.0 | MIT | <https://github.com/jedisct1/rust-minisign-verify> |
 | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 | <https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide> |
 | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 | <https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide> |
 | mio | 1.2.4 | MIT | <https://github.com/tokio-rs/mio> |
@@ -388,6 +394,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | objc2-io-surface | 0.3.2 | Zlib OR Apache-2.0 OR MIT | <https://github.com/madsmtm/objc2> |
 | objc2-metal | 0.3.2 | Zlib OR Apache-2.0 OR MIT | <https://github.com/madsmtm/objc2> |
 | objc2-open-directory | 0.3.2 | Zlib OR Apache-2.0 OR MIT | <https://github.com/madsmtm/objc2> |
+| objc2-osa-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT | <https://github.com/madsmtm/objc2> |
 | objc2-quartz-core | 0.3.2 | Zlib OR Apache-2.0 OR MIT | <https://github.com/madsmtm/objc2> |
 | objc2-ui-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT | <https://github.com/madsmtm/objc2> |
 | objc2-user-notifications | 0.3.2 | Zlib OR Apache-2.0 OR MIT | <https://github.com/madsmtm/objc2> |
@@ -396,8 +403,10 @@ Models are not part of the app: they are downloaded on demand from the source be
 | office_oxide | 0.1.15 | MIT OR Apache-2.0 | <https://github.com/yfedoseev/office_oxide> |
 | once_cell | 1.21.4 | MIT OR Apache-2.0 | <https://github.com/matklad/once_cell> |
 | once_cell_polyfill | 1.70.2 | MIT OR Apache-2.0 | <https://github.com/polyfill-rs/once_cell_polyfill> |
+| openssl-probe | 0.2.1 | MIT OR Apache-2.0 | <https://github.com/rustls/openssl-probe> |
 | option-ext | 0.2.0 | MPL-2.0 | <https://github.com/soc/option-ext.git> |
 | ordered-stream | 0.2.0 | MIT OR Apache-2.0 | <https://github.com/danieldg/ordered-stream> |
+| osakit | 0.3.1 | MIT OR Apache-2.0 | <https://github.com/mdevils/rust-osakit> |
 | pango | 0.18.3 | MIT | <https://github.com/gtk-rs/gtk-rs-core> |
 | pango-sys | 0.18.0 | MIT | <https://github.com/gtk-rs/gtk-rs-core> |
 | parking | 2.2.1 | Apache-2.0 OR MIT | <https://github.com/smol-rs/parking> |
@@ -467,10 +476,14 @@ Models are not part of the app: they are downloaded on demand from the source be
 | rustix | 1.1.5 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | <https://github.com/bytecodealliance/rustix> |
 | rustls | 0.23.46 | Apache-2.0 OR ISC OR MIT | <https://github.com/rustls/rustls> |
 | rustls-graviola | 0.4.0 | Apache-2.0 OR ISC OR MIT-0 | <https://github.com/ctz/graviola/> |
+| rustls-native-certs | 0.8.5 | Apache-2.0 OR ISC OR MIT | <https://github.com/rustls/rustls-native-certs> |
 | rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 | <https://github.com/rustls/pki-types> |
+| rustls-platform-verifier | 0.7.1 | MIT OR Apache-2.0 | <https://github.com/rustls/rustls-platform-verifier> |
+| rustls-platform-verifier-android | 0.2.0 | MIT OR Apache-2.0 | <https://github.com/rustls/rustls-platform-verifier> |
 | rustls-webpki | 0.103.16 | ISC | <https://github.com/rustls/webpki> |
 | rustversion | 1.0.23 | MIT OR Apache-2.0 | <https://github.com/dtolnay/rustversion> |
 | same-file | 1.0.6 | Unlicense/MIT | <https://github.com/BurntSushi/same-file> |
+| schannel | 0.1.30 | MIT | <https://github.com/steffengy/schannel-rs> |
 | schemars | 0.8.22 | MIT | <https://github.com/GREsau/schemars> |
 | schemars | 0.9.0 | MIT | <https://github.com/GREsau/schemars> |
 | schemars | 1.2.3 | MIT | <https://github.com/GREsau/schemars> |
@@ -502,6 +515,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | sharded-slab | 0.1.7 | MIT | <https://github.com/hawkw/sharded-slab> |
 | signal-hook-registry | 1.4.8 | MIT OR Apache-2.0 | <https://github.com/vorner/signal-hook> |
 | simd-adler32 | 0.3.10 | MIT | <https://github.com/mcountryman/simd-adler32> |
+| simd_cesu8 | 1.2.0 | Apache-2.0 OR MIT | <https://github.com/seancroach/simd_cesu8> |
 | simdutf8 | 0.1.5 | MIT OR Apache-2.0 | <https://github.com/rusticstuff/simdutf8> |
 | siphasher | 1.0.4 | MIT OR Apache-2.0 | <https://github.com/jedisct1/rust-siphash> |
 | skrifa | 0.42.1 | MIT OR Apache-2.0 | <https://github.com/googlefonts/fontations> |
@@ -542,9 +556,12 @@ Models are not part of the app: they are downloaded on demand from the source be
 | synstructure | 0.14.0 | MIT | <https://github.com/mystor/synstructure> |
 | sys-locale | 0.3.2 | MIT OR Apache-2.0 | <https://github.com/1Password/sys-locale> |
 | sysinfo | 0.39.6 | MIT | <https://github.com/GuillaumeGomez/sysinfo> |
+| system-configuration | 0.7.0 | MIT OR Apache-2.0 | <https://github.com/mullvad/system-configuration-rs> |
+| system-configuration-sys | 0.6.0 | MIT OR Apache-2.0 | <https://github.com/mullvad/system-configuration-rs> |
 | taffy | 0.14.0 | MIT | <https://github.com/DioxusLabs/taffy> |
 | tao | 0.37.1 | Apache-2.0 | <https://github.com/tauri-apps/tao> |
 | tao-macros | 0.1.4 | MIT OR Apache-2.0 | <https://github.com/tauri-apps/tao> |
+| tar | 0.4.46 | MIT OR Apache-2.0 | <https://github.com/composefs/tar-rs> |
 | tauri | 2.12.4 | Apache-2.0 OR MIT | <https://github.com/tauri-apps/tauri> |
 | tauri-codegen | 2.7.3 | Apache-2.0 OR MIT | <https://github.com/tauri-apps/tauri> |
 | tauri-macros | 2.7.3 | Apache-2.0 OR MIT | <https://github.com/tauri-apps/tauri> |
@@ -552,6 +569,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | tauri-plugin-fs | 2.7.1 | Apache-2.0 OR MIT | <https://github.com/tauri-apps/plugins-workspace> |
 | tauri-plugin-global-shortcut | 2.4.1 | Apache-2.0 OR MIT | <https://github.com/tauri-apps/plugins-workspace> |
 | tauri-plugin-single-instance | 2.5.4 | Apache-2.0 OR MIT | <https://github.com/tauri-apps/plugins-workspace> |
+| tauri-plugin-updater | 2.14.0 | Apache-2.0 OR MIT | <https://github.com/tauri-apps/plugins-workspace> |
 | tauri-runtime | 2.12.2 | Apache-2.0 OR MIT | <https://github.com/tauri-apps/tauri> |
 | tauri-runtime-wry | 2.12.2 | Apache-2.0 OR MIT | <https://github.com/tauri-apps/tauri> |
 | tauri-specta | 2.0.0-rc.25 | MIT | <https://github.com/specta-rs/tauri-specta> |
@@ -572,6 +590,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | tinyvec | 1.13.3 | Zlib OR Apache-2.0 OR MIT | <https://github.com/Lokathor/tinyvec> |
 | tokio | 1.54.1 | MIT | <https://github.com/tokio-rs/tokio> |
 | tokio-macros | 2.7.2 | MIT | <https://github.com/tokio-rs/tokio> |
+| tokio-rustls | 0.26.6 | MIT OR Apache-2.0 | <https://github.com/rustls/tokio-rustls> |
 | tokio-util | 0.7.20 | MIT | <https://github.com/tokio-rs/tokio> |
 | toml | 1.1.8+spec-1.1.0 | MIT OR Apache-2.0 | <https://github.com/toml-rs/toml> |
 | toml_datetime | 0.6.3 | MIT OR Apache-2.0 | <https://github.com/toml-rs/toml> |
@@ -633,6 +652,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | web_atoms | 0.2.6 | MIT OR Apache-2.0 | <https://github.com/servo/html5ever> |
 | webkit2gtk | 2.0.2 | MIT | <https://github.com/tauri-apps/webkit2gtk-rs> |
 | webkit2gtk-sys | 2.0.2 | MIT | <https://github.com/tauri-apps/webkit2gtk-rs> |
+| webpki-root-certs | 1.0.11 | CDLA-Permissive-2.0 | <https://github.com/rustls/webpki-roots> |
 | webpki-roots | 1.0.10 | CDLA-Permissive-2.0 | <https://github.com/rustls/webpki-roots> |
 | webrtc-audio-processing | 2.1.0 | see license file in the crate | <https://github.com/tonarino/webrtc-audio-processing> |
 | webrtc-audio-processing-config | 2.1.0 | see license file in the crate | <https://github.com/tonarino/webrtc-audio-processing> |
@@ -657,6 +677,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | windows-link | 0.2.1 | MIT OR Apache-2.0 | <https://github.com/microsoft/windows-rs> |
 | windows-native-keyring-store | 1.1.0 | MIT OR Apache-2.0 | <https://github.com/open-source-cooperative/windows-native-keyring-store.git> |
 | windows-numerics | 0.3.1 | MIT OR Apache-2.0 | <https://github.com/microsoft/windows-rs> |
+| windows-registry | 0.6.1 | MIT OR Apache-2.0 | <https://github.com/microsoft/windows-rs> |
 | windows-result | 0.4.1 | MIT OR Apache-2.0 | <https://github.com/microsoft/windows-rs> |
 | windows-strings | 0.5.1 | MIT OR Apache-2.0 | <https://github.com/microsoft/windows-rs> |
 | windows-sys | 0.45.0 | MIT OR Apache-2.0 | <https://github.com/microsoft/windows-rs> |
@@ -702,6 +723,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | x11-dl | 2.21.0 | MIT | <https://github.com/AltF02/x11-rs.git> |
 | x11rb | 0.13.2 | MIT OR Apache-2.0 | <https://github.com/psychon/x11rb> |
 | x11rb-protocol | 0.13.2 | MIT OR Apache-2.0 | <https://github.com/psychon/x11rb> |
+| xattr | 1.6.1 | MIT OR Apache-2.0 | <https://github.com/Stebalien/xattr> |
 | xkeysym | 0.2.1 | MIT OR Apache-2.0 OR Zlib | <https://github.com/notgull/xkeysym> |
 | yoke | 0.8.3 | Unicode-3.0 | <https://github.com/unicode-org/icu4x> |
 | yoke-derive | 0.8.4 | Unicode-3.0 | <https://github.com/unicode-org/icu4x> |

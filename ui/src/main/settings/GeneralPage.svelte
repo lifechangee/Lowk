@@ -4,7 +4,6 @@
   import SettingRow from '../../lib/components/SettingRow.svelte';
   import Select from '../../lib/components/Select.svelte';
   import Toggle from '../../lib/components/Toggle.svelte';
-  import { when } from '../fmt';
   import { tm } from '../i18n';
   import { hrefs, router } from '../router.svelte';
   import { callLangs, prefs, sources } from '../state.svelte';
@@ -12,6 +11,7 @@
   import LangPicker from '../LangPicker.svelte';
   import { resolveSource } from '../source';
   import SourcePicker from '../SourcePicker.svelte';
+  import UpdateCard from './UpdateCard.svelte';
 
   const s = $derived(prefs.value);
   const src = $derived(s.audio?.default_source);
@@ -49,9 +49,7 @@
 </SettingRow>
 
 <h2 class="gap">{tm('m.set.updates')}</h2>
-<SettingRow label={tm('m.checkUpdates')} hint={s.updates?.last_checked ? tm('m.lastChecked', { when: when(s.updates.last_checked) }) : tm('m.checkUpdatesHint')}>
-  <Toggle checked={s.updates?.check_daily ?? true} label={tm('m.checkUpdates')} onchange={(v) => prefs.patch({ updates: { check_daily: v } })} />
-</SettingRow>
+<UpdateCard />
 
 <h2 class="gap">{tm('m.set.setup')}</h2>
 <SettingRow label={tm('m.rerunOnboarding')} hint={tm('m.rerunOnboardingHint')}>

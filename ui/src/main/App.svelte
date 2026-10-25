@@ -17,6 +17,8 @@
   import Sidebar from './shell/Sidebar.svelte';
   import { attachEvents, callLangs, index, library, prefs, session, ui } from './state.svelte';
   import TourCoach from './tour/TourCoach.svelte';
+  import UpdateNotice from './UpdateNotice.svelte';
+  import { updates } from './updates.svelte';
   import Home from './home/Home.svelte';
   import CallPage from './workspace/CallPage.svelte';
   import DocPage from './workspace/DocPage.svelte';
@@ -46,7 +48,9 @@
       if (!prefs.value.onboarding?.done && router.route.name !== 'onboarding') router.go(hrefs.onboarding(prefs.value.onboarding?.step ?? 0));
       ready = true;
     })();
-    return api.onIndexStatus((s) => { index.status = s; });
+    const stopUpdates = updates.start();
+    const stopIndex = api.onIndexStatus((s) => { index.status = s; });
+    return () => { stopUpdates(); stopIndex(); };
   });
 
   // F6: interface text size (settings ui.font_px, 14 = 100%) scales the whole main window live.
@@ -137,6 +141,7 @@
   <MoveMenu />
   <NewFolderDialog />
   <TourCoach />
+  {#if route.name !== 'onboarding'}<UpdateNotice />{/if}
   {#if dnd.call}
     <div class="ghost pop" style:left="{(dnd.x + 12) / zoom}px" style:top="{(dnd.y + 12) / zoom}px"><Icon name="doc" size={14} /><span class="lbl">{dnd.call.title}</span></div>
   {/if}

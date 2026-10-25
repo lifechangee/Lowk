@@ -11,7 +11,8 @@ import { search } from './search';
 import { settings } from './settings';
 import { summary } from './summary';
 import { tour } from './tour';
+import { upd } from './upd';
 
 // Source of truth for keys (en/index.ts must have the same set; see i18n.test.ts).
 // One file per feature namespace so two features rarely touch the same file.
-export const dict = { ...common, ...errors, ...main, ...m, ...overlay, ...area, ...settings, ...onboarding, ...docs, ...search, ...summary, ...tour, ...about } as const;
+export const dict = { ...common, ...errors, ...main, ...m, ...overlay, ...area, ...settings, ...onboarding, ...docs, ...search, ...summary, ...tour, ...about, ...upd } as const;

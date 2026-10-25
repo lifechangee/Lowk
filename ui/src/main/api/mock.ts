@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command the backend has not wired yet. Mutations are real within the page's life.
-import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TagSuggestion, UpdateStatus } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -80,7 +80,7 @@ export class MockBackend implements Backend {
       capture: { monitors: 'active' },
       binds: defaultBinds(this.#os),
       stealth: { hide_main: false, verify_interval_ms: 5000 },
-      updates: { check_daily: true, last_checked: new Date(this.#now - 3 * 3600_000).toISOString() },
+      updates: { check_daily: true, last_checked: new Date(this.#now - 3 * 3600_000).toISOString(), skipped_version: null, auto_install: false },
       templates: [
         { id: 'brief', names: { ru: 'Кратко', en: 'Brief' }, instruction: 'Кратко ответь на вопрос, заданный в системе/приложении.', needs_my_answer: false, vision: false, reasoning: null },
         { id: 'complement', names: { ru: 'Дополни мой ответ', en: 'Complement my answer' }, instruction: 'Я уже ответил. Добавь недостающие детали, не повторяя сказанное.', needs_my_answer: true, vision: false, reasoning: null },
@@ -98,6 +98,56 @@ export class MockBackend implements Backend {
     return forced ?? (typeof navigator !== 'undefined' ? navigator.language : 'en');
   }
   async settingsGet(): Promise<Settings> { await delay(); return structuredClone(this.#settings); }
+
+  // Updater. `?update=` picks the scenario: (none) = this build has no signing key; idle = up to date; available;
+  // offline = the check fails; badsig = the download fails the signature check; recording = a recording is running.
+  #upd: UpdateStatus = (() => {
+    const mode = qp('update');
+    const base: UpdateStatus = { enabled: !!mode, current: '0.1.0', phase: 'idle', available: null, downloaded: 0, total: null, error: null, restart_pending: false, blocked_by_recording: false, last_checked: null };
+    if (mode === 'available' || mode === 'badsig' || mode === 'recording') {
+      base.phase = 'available';
+      base.available = { version: '0.2.0', notes: 'Faster start of the speech engine.\nFixed the overlay position after sleep.', date: '2030-01-01T00:00:00Z' };
+    }
+    return base;
+  })();
+  async updateStatus(): Promise<UpdateStatus> { return structuredClone(this.#upd); }
+  async updateCheck(_manual: boolean): Promise<UpdateStatus> {
+    await delay(150);
+    const u = this.#upd;
+    if (!u.enabled) return structuredClone(u);
+    if (qp('update') === 'recording') { u.blocked_by_recording = true; return structuredClone(u); }
+    u.blocked_by_recording = false;
+    u.last_checked = new Date().toISOString();
+    if (qp('update') === 'offline') { u.phase = 'error'; u.error = 'network'; }
+    return structuredClone(u);
+  }
+  async updateInstall(): Promise<UpdateStatus> {
+    const u = this.#upd;
+    if (!u.enabled || u.phase !== 'available') return structuredClone(u);
+    u.phase = 'downloading'; u.downloaded = 0; u.total = 1000; u.error = null;
+    const step = () => {
+      if (u.phase !== 'downloading') return;
+      u.downloaded += 250;
+      if (u.downloaded < 1000) { setTimeout(step, 120); return; }
+      if (qp('update') === 'badsig') { u.phase = 'error'; u.error = 'signature'; return; }
+      u.phase = 'ready';
+    };
+    setTimeout(step, 120);
+    return structuredClone(u);
+  }
+  async updateRestart(): Promise<UpdateStatus> {
+    const u = this.#upd;
+    if (u.phase !== 'ready') return structuredClone(u);
+    if (qp('update') === 'recording') u.restart_pending = true;
+    else Object.assign(u, { current: u.available?.version ?? u.current, phase: 'idle', available: null, restart_pending: false });
+    return structuredClone(u);
+  }
+  async updateSkip(version: string): Promise<UpdateStatus> {
+    const u = this.#upd;
+    this.#settings = mergePatch(this.#settings, { updates: { skipped_version: version } });
+    if (u.available?.version === version) Object.assign(u, { phase: 'idle', available: null, error: null });
+    return structuredClone(u);
+  }
   async settingsPatch(patch: unknown): Promise<Settings> {
     this.#settings = mergePatch(this.#settings, patch);
     return structuredClone(this.#settings);

@@ -114,7 +114,8 @@ tauri-plugin-global-shortcut = "2.4"
 tauri-plugin-single-instance = "2.5"
 # native file dialogs («Добавить документ», export / import zip)
 tauri-plugin-dialog = "2"
-tauri-plugin-updater = "2.14"
+# no `zip` feature: the release ships NSIS .exe / .app.tar.gz, and zip 4.x has open advisories
+tauri-plugin-updater = { version = "2.14", default-features = false, features = ["rustls-tls", "system-proxy"] }
 raw-window-handle = "0.6"
 
 # platform

@@ -37,6 +37,7 @@ import type {
   SessionState,
   StealthStatus,
   SttDiagnostics,
+  UpdateStatus,
   Settings,
   SourceInfo,
   SourceRef,
@@ -131,6 +132,11 @@ export interface Backend {
   localeGet(): Promise<string>;
   settingsGet(): Promise<Settings>;
   settingsPatch(patch: unknown): Promise<Settings>;
+  updateStatus(): Promise<UpdateStatus>;
+  updateCheck(manual: boolean): Promise<UpdateStatus>;
+  updateInstall(): Promise<UpdateStatus>;
+  updateRestart(): Promise<UpdateStatus>;
+  updateSkip(version: string): Promise<UpdateStatus>;
 
   libraryList(): Promise<LibrarySnapshot>;
   folderGet(key: FolderKey): Promise<FolderDetail | null>;

@@ -12,6 +12,7 @@ pub mod session;
 pub mod settings;
 pub mod stealth;
 pub mod transfer;
+pub mod updates;
 pub mod vault;
 
 macro_rules! all_commands {
@@ -26,7 +27,11 @@ macro_rules! all_commands {
             crate::commands::settings::app_quit,
             crate::commands::settings::app_relaunch,
             crate::commands::settings::main_open,
-            crate::commands::settings::update_check,
+            crate::commands::updates::update_status,
+            crate::commands::updates::update_check,
+            crate::commands::updates::update_install,
+            crate::commands::updates::update_restart,
+            crate::commands::updates::update_skip,
             crate::commands::settings::path_reveal,
             crate::commands::settings::logs_reveal,
             crate::commands::vault::vault_open,

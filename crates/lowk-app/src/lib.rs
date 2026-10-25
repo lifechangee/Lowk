@@ -21,6 +21,7 @@ mod qa;
 mod sigterm;
 pub mod soak;
 mod state;
+pub mod updater;
 mod visibility;
 mod windows;
 
@@ -28,7 +29,7 @@ mod windows;
 #[cfg(all(feature = "qa", not(debug_assertions)))]
 compile_error!("the `qa` feature is for debug QA builds only; it must not be enabled in release builds");
 
-use tauri::RunEvent;
+use tauri::{Manager, RunEvent};
 
 /// The single source of truth for IPC: commands + exported DTO types.
 pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
@@ -124,6 +125,12 @@ pub fn run() {
             windows::open_main(app);
         }));
     }
+    let context = tauri::generate_context!();
+    // The updater plugin exists only with a real signing key; without one the app never contacts the update server.
+    let update_key_ok = updater::configured_pubkey(context.config()).is_some_and(|k| updater::key_usable(&k));
+    if update_key_ok {
+        tb = tb.plugin(tauri_plugin_updater::Builder::new().build());
+    }
     let app = tb
         .plugin(tauri_plugin_dialog::init())
         .plugin(
@@ -134,10 +141,16 @@ pub fn run() {
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
-            boot::setup(app)
+            let ups = std::sync::Arc::new(updater::Updates::new(update_key_ok));
+            app.manage(ups.clone());
+            boot::setup(app)?;
+            if let Some(st) = app.try_state::<state::Shared>() {
+                updater::spawn(st.inner().clone(), ups);
+            }
+            Ok(())
         })
         .on_window_event(windows::on_window_event)
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building Lowk");
 
     app.run(|handle, event| match event {

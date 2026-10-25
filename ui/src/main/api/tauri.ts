@@ -3,7 +3,7 @@
 // File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
 import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AboutInfo, AppError, BindReport, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SelfTestReport, SessionState, Settings, SourceInfo, StartOpts, StealthStatus, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SelfTestReport, SessionState, Settings, SourceInfo, StartOpts, StealthStatus, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion, UpdateStatus } from '../../lib/ipc';
 import { MockBackend } from './mock';
 import { CommandError, folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider } from './types';
 
@@ -31,6 +31,12 @@ export class TauriBackend extends MockBackend {
   override async localeGet(): Promise<string> { return commands.localeGet(); }
   override async settingsGet(): Promise<Settings> { return commands.settingsGet(); }
   override async settingsPatch(patch: unknown): Promise<Settings> { return ok(await commands.settingsPatch(patch)); }
+
+  override async updateStatus(): Promise<UpdateStatus> { return commands.updateStatus(); }
+  override async updateCheck(manual: boolean): Promise<UpdateStatus> { return ok(await commands.updateCheck(manual)); }
+  override async updateInstall(): Promise<UpdateStatus> { return commands.updateInstall(); }
+  override async updateRestart(): Promise<UpdateStatus> { return commands.updateRestart(); }
+  override async updateSkip(version: string): Promise<UpdateStatus> { return ok(await commands.updateSkip(version)); }
 
   async #ensureVault(): Promise<void> {
     if (this.#vaultOpen) return;
