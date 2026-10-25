@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Button from '../../lib/components/Button.svelte';
+  import { api } from '../api';
   import { tm } from '../i18n';
   import { PERM_ORDER, perms } from '../permissions.svelte';
   import PermRow from './PermRow.svelte';
@@ -16,7 +17,7 @@
 {#if perms.anyNeedsRestart}
   <div class="restart" role="status"><span class="lbl">{tm('m.perm.restartNeeded')}</span><Button size="sm" variant="primary" onclick={() => perms.relaunch()}>{tm('m.perm.relaunch')}</Button></div>
 {/if}
-<p class="note">{tm('onboarding.permissions.windowsNote')}</p>
+{#if api.platform() === 'windows'}<p class="note">{tm('onboarding.permissions.windowsNote')}</p>{/if}
 
 <style>
   h2 { font: 600 var(--fs-lg) var(--font); margin: 0 0 var(--s1); }

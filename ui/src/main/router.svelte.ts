@@ -42,7 +42,7 @@ export function parse(hash: string): Route {
     return { name: 'search', q: query.get('q') ?? '', folder: query.get('folder') ?? '', tag: query.get('tag') ?? '', from: query.get('from') ?? '', to: query.get('to') ?? '', kind: kind && SEARCH_KINDS.includes(kind) ? kind : '' };
   }
   if (a === 'settings') return { name: 'settings', page: SETTINGS_PAGES.includes(b as SettingsPage) ? (b as SettingsPage) : 'general' };
-  if (a === 'onboarding') return { name: 'onboarding', step: Math.min(7, Math.max(0, Number(b) || 0)) };
+  if (a === 'onboarding') return { name: 'onboarding', step: Math.min(8, Math.max(0, Number(b) || 0)) };
   return { name: 'home' };
 }
 

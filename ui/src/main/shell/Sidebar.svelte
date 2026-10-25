@@ -16,6 +16,7 @@
   import { library, prefs, session, ui } from '../state.svelte';
   import { tour } from '../tour/tour.svelte';
   import NewCallPopover from '../NewCallPopover.svelte';
+  import StealthBadge from './StealthBadge.svelte';
 
   let { folder }: { folder: string } = $props();
 
@@ -64,6 +65,8 @@
     <a class="f" class:cur={folder === SYS_UNSORTED} class:dropping={dnd.over === SYS_UNSORTED} data-drop={SYS_UNSORTED} href={hrefs.folder(SYS_UNSORTED)}><Icon name="inbox" /><span class="lbl">{tm('main.unsorted')}</span><span class="n">{library.unsorted.length}</span></a>
     <a class="f" class:cur={folder === SYS_TRASH} href={hrefs.folder(SYS_TRASH)}><Icon name="trash" /><span class="lbl">{tm('main.trash')}</span><span class="n">{library.trashed.length}</span></a>
   </nav>
+
+  <StealthBadge />
 
   <div class="foot">
     <a class="ni" class:on={route.name === 'settings'} href={hrefs.settings()}><Icon name="settings" /><span class="lbl">{tm('common.settings')}</span></a>

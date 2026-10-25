@@ -210,7 +210,7 @@ for (const lang of ['ru', 'en'] as const) {
   test.describe(`tour ${lang}`, () => {
   test.use({ locale: lang === 'ru' ? 'ru-RU' : 'en-US' });
   test(`tour (${lang}): offered after onboarding, 6 steps, demos, done; Esc skips`, async ({ page }) => {
-    await page.goto(`/main.html?lang=${lang}&fresh#/onboarding/7`);
+    await page.goto(`/main.html?lang=${lang}&fresh&ack#/onboarding/8`);
     await page.locator('.nav button.primary').click();
     await expect(page.getByTestId('tour-offer')).toBeVisible();
     await page.getByTestId('tour-offer').getByRole('button').first().click();

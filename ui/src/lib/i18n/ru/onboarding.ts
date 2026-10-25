@@ -1,4 +1,4 @@
-// First-run onboarding (8 steps, every step skippable). Keys: `onboarding.*`.
+// First-run onboarding (9 steps, every step skippable). Keys: `onboarding.*`.
 export const onboarding = {
   'onboarding.welcome': 'Привет! Давайте быстро настроим Lowk',
   'onboarding.welcomeHint': 'Это займёт около двух минут. Каждый шаг можно пропустить. Всё можно изменить позже в настройках. Данные остаются на вашем компьютере, телеметрии нет.',
@@ -8,7 +8,7 @@ export const onboarding = {
   'onboarding.step.capture': 'Захват звука',
   'onboarding.step.permissions': 'Разрешения',
   'onboarding.step.hardware': 'Железо',
-  'onboarding.step.apiKey': 'API-ключ',
+  'onboarding.step.apiKey': 'Ключи',
   'onboarding.step.hotkeys': 'Горячие клавиши',
   'onboarding.step.done': 'Готово',
   'onboarding.skipped': 'пропущено',
@@ -29,7 +29,7 @@ export const onboarding = {
   'onboarding.capture.systemHint': 'Всё, что играет на компьютере. Нужно для Windows 10, там запись одного приложения недоступна.',
   'onboarding.capture.micNote': 'Ваш микрофон записывается всегда и помечается как «Я». Остальной звук — как «Система».',
   'onboarding.permissions.title': 'Разрешите Lowk слышать звук',
-  'onboarding.permissions.body': 'macOS попросит три разрешения. Мы ничего не отправляем без вашего ведома.',
+  'onboarding.permissions.body': 'Здесь все разрешения, которые Lowk может запросить. Статус обновляется сам; часть разрешений нужна только для отдельных функций. Ничего не отправляется без вашего ведома.',
   'onboarding.permissions.screen': 'Запись экрана и системного звука',
   'onboarding.permissions.screenWhy': 'Чтобы слышать собеседников и делать скриншоты',
   'onboarding.permissions.mic': 'Микрофон',
@@ -39,7 +39,7 @@ export const onboarding = {
   'onboarding.permissions.open': 'Открыть настройки',
   'onboarding.permissions.allow': 'Разрешить',
   'onboarding.permissions.granted': 'Разрешено',
-  'onboarding.permissions.windowsNote': 'На Windows 10/11 этот шаг не нужен, разрешения запрашивает сама система.',
+  'onboarding.permissions.windowsNote': 'На Windows нужен только микрофон; остальное система не запрашивает.',
   'onboarding.hardware.title': 'Проверяем, что потянет железо',
   'onboarding.hardware.body': 'Lowk подберёт, где считать распознавание и ответы: на вашем компьютере или в облаке.',
   'onboarding.hardware.local': 'Локально',
@@ -74,4 +74,12 @@ export const onboarding = {
   'onboarding.hotkeys.templateHint': 'переключить следующий',
   'onboarding.done.title': 'Всё готово',
   'onboarding.done.body': 'Откройте созвон и нажмите {key}, чтобы начать запись.',
+  'onboarding.step.folder': 'Папка',
+  'onboarding.hardware.later': 'Модель можно скачать позже: Настройки → Провайдеры. Пока она не установлена, запись с локальным движком не начнётся.',
+  'onboarding.apiKey.optional': 'Ключ необязателен: без него Lowk распознаёт речь локально, а ответы ИИ можно подключить позже в настройках.',
+  'onboarding.apiKey.sttTitle': 'Облачное распознавание',
+  'onboarding.apiKey.sttHint': 'Нужен только если вы выберете облачный движок ({vendor}). Можно пропустить.',
+  'onboarding.folder.title': 'Где хранить записи',
+  'onboarding.folder.body': 'Звонки и документы лежат обычными Markdown-файлами в этой папке. Можно выбрать существующий Obsidian-vault.',
+  'onboarding.folder.note': 'Папку можно сменить позже: Настройки → Хранилище. Файлы не шифруются.',
 } as const;

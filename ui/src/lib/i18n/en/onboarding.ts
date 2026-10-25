@@ -1,4 +1,4 @@
-// First-run onboarding (8 steps, every step skippable). Keys: `onboarding.*`.
+// First-run onboarding (9 steps, every step skippable). Keys: `onboarding.*`.
 export const onboarding = {
   'onboarding.welcome': 'Hi! Let’s set up Lowk quickly',
   'onboarding.welcomeHint': 'This takes about two minutes. You can skip any step. Everything can be changed later in Settings. Your data stays on your computer; there is no telemetry.',
@@ -8,7 +8,7 @@ export const onboarding = {
   'onboarding.step.capture': 'Audio capture',
   'onboarding.step.permissions': 'Permissions',
   'onboarding.step.hardware': 'Hardware',
-  'onboarding.step.apiKey': 'API key',
+  'onboarding.step.apiKey': 'Keys',
   'onboarding.step.hotkeys': 'Hotkeys',
   'onboarding.step.done': 'Done',
   'onboarding.skipped': 'skipped',
@@ -29,7 +29,7 @@ export const onboarding = {
   'onboarding.capture.systemHint': 'Everything the computer plays. Needed on Windows 10, where recording a single app is not available.',
   'onboarding.capture.micNote': 'Your microphone is always recorded and labelled “Me”. Other sound is labelled “System”.',
   'onboarding.permissions.title': 'Let Lowk hear the call',
-  'onboarding.permissions.body': 'macOS will ask for three permissions. We send nothing without your knowledge.',
+  'onboarding.permissions.body': 'These are all the permissions Lowk may ask for. Status updates on its own; some are needed only for specific features. Nothing is sent without your knowledge.',
   'onboarding.permissions.screen': 'Screen and system audio recording',
   'onboarding.permissions.screenWhy': 'To hear the other participants and take screenshots',
   'onboarding.permissions.mic': 'Microphone',
@@ -39,7 +39,7 @@ export const onboarding = {
   'onboarding.permissions.open': 'Open settings',
   'onboarding.permissions.allow': 'Allow',
   'onboarding.permissions.granted': 'Allowed',
-  'onboarding.permissions.windowsNote': 'This step is not needed on Windows 10/11; the system asks for permissions itself.',
+  'onboarding.permissions.windowsNote': 'On Windows only the microphone applies; the system does not ask for anything else.',
   'onboarding.hardware.title': 'Checking what your hardware can handle',
   'onboarding.hardware.body': 'Lowk will pick where recognition and answers run: on your computer or in the cloud.',
   'onboarding.hardware.local': 'Local',
@@ -74,4 +74,12 @@ export const onboarding = {
   'onboarding.hotkeys.templateHint': 'switch to the next one',
   'onboarding.done.title': 'All set',
   'onboarding.done.body': 'Open a call and press {key} to start recording.',
+  'onboarding.step.folder': 'Folder',
+  'onboarding.hardware.later': 'You can download the model later in Settings → Providers. Until it is installed, recording with the local engine cannot start.',
+  'onboarding.apiKey.optional': 'A key is optional: without it Lowk transcribes locally, and AI answers can be connected later in Settings.',
+  'onboarding.apiKey.sttTitle': 'Cloud transcription',
+  'onboarding.apiKey.sttHint': 'Only needed if you choose a cloud engine ({vendor}). You can skip this.',
+  'onboarding.folder.title': 'Where to keep your notes',
+  'onboarding.folder.body': 'Calls and documents are stored as plain Markdown files in this folder. You can pick an existing Obsidian vault.',
+  'onboarding.folder.note': 'You can change the folder later in Settings → Storage. Files are not encrypted.',
 } as const;

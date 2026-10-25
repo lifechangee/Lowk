@@ -3,7 +3,7 @@
 // File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
 import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, SelfTestReport, StealthStatus, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { MockBackend } from './mock';
 import { CommandError, folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider } from './types';
 
@@ -84,6 +84,9 @@ export class TauriBackend extends MockBackend {
     const s = await commands.permStatus();
     return Object.fromEntries(PERMS.map((k) => [k, s[k] ?? 'unknown'])) as Record<PermKind, PermState>;
   }
+  override async stealthStatus(): Promise<StealthStatus> { return commands.stealthStatus(); }
+  override async stealthSelftest(): Promise<SelfTestReport> { return ok(await commands.stealthSelftest()); }
+  override onStealthStatus(cb: (s: StealthStatus) => void): () => void { return TauriBackend.#listen(EVENTS.stealthStatus, cb); }
   override async permRequest(kind: PermKind): Promise<PermState> { return ok(await commands.permRequest(kind)); }
   override async permOpenSettings(kind: PermKind): Promise<void> { await commands.permOpenSettings(kind); }
   override async appRelaunch(): Promise<void> { await commands.appRelaunch(); }

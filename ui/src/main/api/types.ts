@@ -31,7 +31,9 @@ import type {
   RetxStatus,
   SearchQuery,
   SearchResults,
+  SelfTestReport,
   SessionState,
+  StealthStatus,
   SttDiagnostics,
   Settings,
   SourceInfo,
@@ -221,6 +223,12 @@ export interface Backend {
   onEngineProgress(cb: (p: EngineProgress) => void): () => void;
   hwProbe(): Promise<HwInfo>;
   permStatus(): Promise<Record<PermKind, PermState>>;
+  /** Cheap flag state of the overlay protection; changes arrive through `onStealthStatus`. */
+  stealthStatus(): Promise<StealthStatus>;
+  /** Paints the sentinel and grabs the screen like a capturer would (needs Screen Recording on macOS). */
+  stealthSelftest(): Promise<SelfTestReport>;
+  /** `stealth://status` */
+  onStealthStatus(cb: (s: StealthStatus) => void): () => void;
   permRequest(kind: PermKind): Promise<PermState>;
   permOpenSettings(kind: PermKind): Promise<void>;
   /** Quit and start Lowk again (macOS applies some grants only to a fresh process). */

@@ -18,14 +18,33 @@ Lowk is an open-source (AGPL-3.0-or-later) desktop copilot for calls and intervi
 <p align="center"><img src="docs/images/en-call-transcript.png" alt="Call page" width="49%"> <img src="docs/images/en-search.png" alt="Search" width="49%"></p>
 <p align="center"><sub>Main window. Captured from the UI running on a mock backend with sample data (the repo's visual test suite), not from real recordings.</sub></p>
 
+## Install
+
+Download the latest build from [Releases](https://github.com/lifechangee/Lowk/releases).
+
+**Requirements:** macOS 14.4 or newer on Apple Silicon, or Windows 11 (x64). Windows 10 works with whole-system audio only (no per-app capture). About 3 GB of free disk space for the local speech models, which are downloaded on first run.
+
+**macOS**
+1. Open `Lowk-<version>.dmg` and drag Lowk to Applications.
+2. Lowk is not notarized, so the first launch is blocked. Click *Done* on the dialog, open **System Settings > Privacy & Security**, scroll down to the message about Lowk and click **Open Anyway**.
+3. If that button does not appear, run `xattr -dr com.apple.quarantine /Applications/Lowk.app` in Terminal and open the app again.
+
+**Windows**
+1. Run `Lowk-<version>-setup.exe` (NSIS installer).
+2. SmartScreen shows "Windows protected your PC": click **More info**, then **Run anyway**. The installer is not code-signed yet.
+
+**First run.** A short setup walks through the interface language, a notice about recording laws (you confirm it once), the audio source, system permissions (macOS: microphone, system audio, screen recording, input monitoring, accessibility, with live status and buttons that open the right System Settings pane), the speech engine and model download, optional API keys (OpenRouter for answers, Deepgram or Soniox for cloud transcription; both can be skipped), the notes folder and hotkeys. Every step can be revisited later in Settings, and an interrupted setup resumes where it stopped. More in the [user guide](docs/user-guide/en.md).
+
 ## Status: pre-alpha
 
 | Area | State |
 |---|---|
-| macOS (Apple Silicon, macOS 14+) | Primary target. Live transcription, overlay, hotkeys, vault and AI hints work and have been tested by hand on a MacBook Air M4. Rough edges are expected. |
+| macOS (Apple Silicon, macOS 14.4+) | Primary target. Live transcription, overlay, hotkeys, vault and AI hints work and have been tested by hand on a MacBook Air M4. Rough edges are expected. |
 | Windows 10/11 | Release builds exist but are **experimental**: see [docs/release.md](docs/release.md). Not verified on real hardware. |
 | Documents, search, summary, Ask with context | Implemented. Documents (PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, images with OCR), hybrid search, summary and tags, folder instructions, pinned documents, and AI answers that use folder context with source chips under the answer. Known limits: the embedding-model comparison and timing on Windows are unfinished. |
 | Builds | Unsigned or self-signed, not notarized; test builds come from GitHub Actions ([docs/release.md](docs/release.md)) or build from source. No auto-update channel yet. |
+
+**Known limitations:** unsigned installers (see above); no auto-update yet; Windows is not verified on real hardware; Windows 10 captures whole-system audio only; the overlay hides from common screen-share paths but this is not guaranteed; no speaker diarization; vault files are not encrypted.
 
 Not implemented yet (see the [roadmap](docs/ROADMAP.md)): speaker diarization, slide capture, virtual camera, vault encryption, sync, process disguise.
 

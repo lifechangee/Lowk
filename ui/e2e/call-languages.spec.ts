@@ -70,7 +70,7 @@ test('russian UI: language names and labels are translated', async ({ page }) =>
 });
 
 test('onboarding capture step offers the languages, pre-filled with system language + English', async ({ page }) => {
-  await page.goto('/main.html?lang=en&fresh#/onboarding/2');
+  await page.goto('/main.html?lang=en&fresh&ack#/onboarding/2');
   await expect(page.getByText('Call languages')).toBeVisible();
   await expect(chip(page, 'en')).toHaveAttribute('aria-pressed', 'true');
   await expect(chip(page, 'ru')).toHaveAttribute('aria-pressed', 'false');

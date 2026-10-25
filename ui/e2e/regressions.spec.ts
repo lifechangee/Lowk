@@ -70,7 +70,7 @@ test('F13b «Мой ответ» row and hint footer do not overlap and fit the 
 });
 
 test('F12 no app list (real backend today): onboarding preselects whole system and home matches it', async ({ page }) => {
-  await page.goto('/main.html?lang=en&fresh&src=system&apps=none#/onboarding/2');
+  await page.goto('/main.html?lang=en&fresh&src=system&apps=none&ack#/onboarding/2');
   await page.waitForSelector('.win');
   const chosen = await page.locator('.step .opt.on, .step [aria-pressed=true], .step [class*=selected]').first().innerText().catch(() => '');
   await page.locator('.nav button.primary').click();
@@ -83,7 +83,7 @@ test('F12 no app list (real backend today): onboarding preselects whole system a
 });
 
 test('F12 (mock with an app list) Next on the capture step persists the preselected app', async ({ page }) => {
-  await page.goto('/main.html?lang=en&fresh&src=system#/onboarding/2');
+  await page.goto('/main.html?lang=en&fresh&src=system&ack#/onboarding/2');
   await page.waitForSelector('.win');
   await page.locator('.nav button.primary').click();
   await page.waitForTimeout(300);
@@ -94,7 +94,7 @@ test('F12 (mock with an app list) Next on the capture step persists the preselec
 });
 
 test('F12b onboarding "Skip" on the capture step stores the preselected «one app»; home matches', async ({ page }) => {
-  await page.goto('/main.html?lang=en&fresh&src=system#/onboarding/2');
+  await page.goto('/main.html?lang=en&fresh&src=system&ack#/onboarding/2');
   await page.waitForSelector('.win');
   await page.locator('.nav .skip').click();
   await page.waitForTimeout(300);

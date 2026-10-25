@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import type { HwInfo, UiLanguage } from '../../lib/ipc';
   import Mark from '../../lib/components/Mark.svelte';
   import Button from '../../lib/components/Button.svelte';
@@ -21,10 +21,11 @@
   import KeyCard from '../settings/KeyCard.svelte';
   import BindEditor from '../settings/BindEditor.svelte';
   import PermRow from '../settings/PermRow.svelte';
+  import EngineCard from '../settings/EngineCard.svelte';
 
   let { step }: { step: number } = $props();
-  const TOTAL = 8;
-  const names: Key[] = ['onboarding.step.language', 'onboarding.step.legal', 'onboarding.step.capture', 'onboarding.step.permissions', 'onboarding.step.hardware', 'onboarding.step.apiKey', 'onboarding.step.hotkeys', 'onboarding.step.done'];
+  const TOTAL = 9;
+  const names: Key[] = ['onboarding.step.language', 'onboarding.step.legal', 'onboarding.step.capture', 'onboarding.step.permissions', 'onboarding.step.hardware', 'onboarding.step.apiKey', 'onboarding.step.folder', 'onboarding.step.hotkeys', 'onboarding.step.done'];
   const os = api.platform();
 
   let skipped = $state<Set<number>>(new Set());
@@ -36,6 +37,8 @@
   /** Call languages, pre-filled: what is stored once onboarding was done before, else the system language + English. */
   let callLangsChoice = $state<string[]>(['ru', 'en']);
   let localTotalMb = $state(1400);
+  let recId = $state('');
+  let cloudName = $state('Soniox');
 
   onMount(async () => {
     await sources.refresh();
@@ -50,14 +53,22 @@
     callLangsChoice = prefs.value.onboarding?.done ? callLangs.default : resolveLangs(sys, ['en'], callLangs.supported);
     try {
       const l = (await api.engineStatus()).find((i) => i.recommended && i.descriptor.kind === 'local');
+      if (l) recId = l.descriptor.id;
       if (l) localTotalMb = l.descriptor.size_mb + (prefs.value.stt?.background_correction === false ? 0 : (l.extra_mb ?? 0));
     } catch { /* keep the estimate */ }
+    try {
+      const v = prefs.value.stt?.cloud_vendor;
+      const cs = (await api.engines()).filter((e) => e.kind === 'cloud');
+      cloudName = (cs.find((e) => e.id === v) ?? cs[0])?.name ?? cloudName;
+    } catch { /* keep the default */ }
   });
   // Live permission status while the permissions step is open (focus + light poll).
   $effect(() => (step === 3 ? perms.watch() : undefined));
 
   const ack = $derived(prefs.value.onboarding?.recording_notice_ack ?? false);
   const canNext = $derived(step !== 1 || ack);
+  // A deep link or a stale stored step must not skip the notice: past step 1 it has to be acknowledged.
+  $effect(() => { if (step > 1 && prefs.loaded && !ack) untrack(() => void go(1)); });
   const lang = $derived(prefs.value.ui?.language ?? 'auto');
   const recBind = $derived(bindFor(prefs.value.binds, 'toggle_record'));
   const recKey = $derived(recBind ? triggerText(recBind.trigger, os, mouseNames()) : '');
@@ -101,6 +112,12 @@
     if (!prefs.value.onboarding?.tour_done) tour.offer = true;
   }
 
+  const vaultPath = $derived(prefs.value.vault?.path ?? '~/Documents/Lowk');
+  async function pickVault() {
+    const p = await api.pickVaultDir();
+    if (p) await prefs.patch({ vault: { path: p } });
+  }
+
   const shownPerms = $derived(PERM_ORDER.filter((k) => perms.state[k] !== 'not_applicable'));
   const langOptions: { v: UiLanguage; title: Key | MKey; hint: Key | MKey }[] = [
     { v: 'auto', title: 'settings.language.auto', hint: 'settings.language.autoHint' },
@@ -125,7 +142,7 @@
 
   <div class="body">
     <section class="step">
-      {#if step < 7}<div class="eyebrow lbl">{tm('onboarding.stepCounter', { n: step + 1, total: TOTAL })} · {tm(names[step]!)}</div>{/if}
+      {#if step < 8}<div class="eyebrow lbl">{tm('onboarding.stepCounter', { n: step + 1, total: TOTAL })} · {tm(names[step]!)}</div>{/if}
 
       {#if step === 0}
         <h1>{tm('onboarding.welcome')}</h1>
@@ -153,10 +170,10 @@
       {:else if step === 3}
         <h1>{tm('onboarding.permissions.title')}</h1>
         <p class="lead">{tm('onboarding.permissions.body')}</p>
-        {#each shownPerms as k (k)}<PermRow kind={k} />{/each}
+        {#each shownPerms as k (k)}<PermRow kind={k} withOpen={os === 'macos'} />{/each}
         {#if perms.anyNeedsRestart}<div class="restart" role="status"><span class="lbl">{tm('m.perm.restartNeeded')}</span><Button size="sm" variant="primary" onclick={() => perms.relaunch()}>{tm('m.perm.relaunch')}</Button></div>{/if}
         <div class="all"><Button variant="primary" icon="shield" onclick={() => perms.requestAll()}>{tm('m.ob.allowAll')}</Button></div>
-        <p class="note">{tm('onboarding.permissions.windowsNote')}</p>
+        {#if os === 'windows'}<p class="note">{tm('onboarding.permissions.windowsNote')}</p>{/if}
 
       {:else if step === 4}
         <h1>{tm('onboarding.hardware.title')}</h1>
@@ -172,15 +189,31 @@
           <OptionCard selected={engineMode === 'local'} title={tm('onboarding.hardware.local')} hint={tm('onboarding.hardware.localDesc', { size: `${(localTotalMb / 1000).toFixed(1)} GB` })} badge={tm('onboarding.hardware.localFit')} onselect={() => (engineMode = 'local')} />
           <OptionCard selected={engineMode === 'cloud'} title={tm('onboarding.hardware.cloud')} hint={tm('onboarding.hardware.cloudDesc')} onselect={() => (engineMode = 'cloud')} />
         </div>
+        {#if engineMode === 'local' && recId}<EngineCard engine={recId} />{/if}
+        <p class="note">{tm('onboarding.hardware.later')}</p>
         <p class="note">{tm('onboarding.hardware.defaultModel', { model: 'DeepSeek V4.1 Flash' })}</p>
 
       {:else if step === 5}
         <h1>{tm('onboarding.apiKey.title')}</h1>
         <p class="lead">{tm('onboarding.apiKey.body')}</p>
         <KeyCard provider="openrouter" title={tm('settings.apiKey')} placeholder="sk-or-v1-…" />
+        <p class="note">{tm('onboarding.apiKey.optional')}</p>
         <div class="card"><b>{tm('onboarding.apiKey.noKey')}</b><p>{tm('onboarding.apiKey.noKeyHint')}</p><Button icon="external" onclick={() => window.open('https://openrouter.ai/keys', '_blank', 'noopener')}>{tm('onboarding.apiKey.openSite')}</Button></div>
 
+        <h2 class="sub">{tm('onboarding.apiKey.sttTitle')}</h2>
+        <p class="note">{tm('onboarding.apiKey.sttHint', { vendor: cloudName })}</p>
+        <KeyCard provider="stt-cloud" title={tm('m.sttKey', { vendor: cloudName })} placeholder={tm('m.sttKeyPlaceholder')} />
+
       {:else if step === 6}
+        <h1>{tm('onboarding.folder.title')}</h1>
+        <p class="lead">{tm('onboarding.folder.body')}</p>
+        <div class="card vault" data-testid="onb-vault">
+          <code class="path lbl" title={vaultPath}>{vaultPath}</code>
+          <Button onclick={pickVault}>{tm('m.change')}</Button>
+        </div>
+        <p class="note">{tm('onboarding.folder.note')}</p>
+
+      {:else if step === 7}
         <h1>{tm('onboarding.hotkeys.title')}</h1>
         <p class="lead">{tm('onboarding.hotkeys.hint')}</p>
         <BindEditor actions={['ask_brief', 'ask_complement', 'screenshot', 'screenshot_area', 'click_hold', 'toggle_interactive', 'toggle_record', 'move_hold']} showReset={false} />
@@ -204,8 +237,8 @@
     <div class="nav">
       <Button disabled={step === 0} onclick={() => go(step - 1)}>{tm('common.back')}</Button>
       <span class="sp"></span>
-      {#if step >= 2 && step <= 6}<button class="skip" onclick={skip}>{tm('common.skip')}</button>{/if}
-      {#if step < 7}<Button variant="primary" disabled={!canNext} onclick={next}>{step === 6 ? tm('common.done') : tm('common.next')}</Button>
+      {#if step >= 2 && step <= 7}<button class="skip" onclick={skip}>{tm('common.skip')}</button>{/if}
+      {#if step < 8}<Button variant="primary" disabled={!canNext} onclick={next}>{step === 7 ? tm('common.done') : tm('common.next')}</Button>
       {:else}<Button variant="primary" onclick={finish}>{tm('onboarding.finish')}</Button>{/if}
     </div>
   </div>
@@ -243,6 +276,9 @@
   .chk { all: unset; display: flex; gap: var(--s3); align-items: center; cursor: pointer; margin-top: var(--s2); }
   .bx { width: 20px; height: 20px; border-radius: var(--r-sm); border: 1.5px solid var(--tx3); display: grid; place-items: center; flex: none; color: var(--acfg); }
   .chk.on .bx { background: var(--ac); border-color: var(--ac); }
+  h2.sub { font: 600 var(--fs-lg) var(--font); margin: var(--s8) 0 var(--s1); }
+  .vault { display: flex; gap: var(--s3); align-items: center; }
+  .path { flex: 1; min-width: 0; font: 12px var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); padding: 0 var(--s3); height: 32px; line-height: 30px; }
   .apps { margin: var(--s1) 0 var(--s3); }
   .all { margin-top: var(--s3); }
   .restart { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4); border: 1px solid var(--warn); border-radius: var(--r-lg); margin-top: var(--s3); font-size: 13px; }

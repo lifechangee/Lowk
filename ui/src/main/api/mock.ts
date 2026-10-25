@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command the backend has not wired yet. Mutations are real within the page's life.
-import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, SelfTestReport, StealthStatus, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -30,7 +30,8 @@ export function detectOs(): Os {
 
 export class MockBackend implements Backend {
   readonly isMock: boolean = true;
-  #os: Os = detectOs();
+  /** QA switch: `?os=windows|macos` picks the platform variant (default: from the user agent). */
+  #os: Os = ((): Os => { const o = qp('os'); return o === 'windows' || o === 'macos' || o === 'linux' ? o : detectOs(); })();
   #now = Date.now();
   #folders: FolderMeta[] = makeFolders();
   #calls: CallMeta[] = makeCalls(this.#now);
@@ -67,7 +68,7 @@ export class MockBackend implements Backend {
     this.#settings = {
       schema_version: 1,
       ui: { language: 'auto', font_px: 14 },
-      onboarding: { step: 0, done: !fresh, recording_notice_ack: !fresh, tour_done: !fresh },
+      onboarding: { step: Number(qp('step') ?? 0), done: !fresh, recording_notice_ack: !fresh || qp('ack') !== null, tour_done: !fresh },
       vault: { path: '~/Documents/Lowk', unsorted_dir: 'Unsorted', trash_dir: 'Trash' },
       // ?src=system mirrors the real backend's fresh default (no default_source stored yet) for the QA suite.
       audio: { default_source: typeof location !== 'undefined' && /[?&]src=system\b/.test(location.search) ? null : { kind: 'app', id: 'us.zoom.xos' }, aec: 'auto', keep_audio: false },
@@ -226,7 +227,21 @@ export class MockBackend implements Backend {
     return { ...this.#perms };
   }
   async permRequest(kind: PermKind): Promise<PermState> { await delay(200); this.#perms[kind] = 'granted'; return 'granted'; }
-  async permOpenSettings(_kind: PermKind): Promise<void> { await delay(); }
+  async permOpenSettings(kind: PermKind): Promise<void> { const g = globalThis as { __permOpened?: PermKind[] }; g.__permOpened = [...(g.__permOpened ?? []), kind]; await delay(); }
+  /** QA switch: `?stealth=degraded|unavailable` (default verified); a re-check with `?stealth=flip` turns green after the first run. */
+  #stealth: StealthStatus = ((): StealthStatus => {
+    const q = qp('stealth');
+    return q === 'degraded' || q === 'flip' ? { state: 'degraded', reason: 'sharing_type_not_none' } : q === 'unavailable' ? { state: 'unavailable', reason: 'no_window_backend' } : { state: 'verified' };
+  })();
+  #stealthSubs = new Set<(s: StealthStatus) => void>();
+  async stealthStatus(): Promise<StealthStatus> { return structuredClone(this.#stealth); }
+  async stealthSelftest(): Promise<SelfTestReport> {
+    await delay(150);
+    if (qp('stealth') === 'flip') { this.#stealth = { state: 'verified' }; for (const f of this.#stealthSubs) f(this.#stealth); }
+    const hidden = this.#stealth.state === 'verified';
+    return { overlay_hidden: hidden, main_visible: false, details: `overlay flag: ${this.#stealth.state}; pixels: overlay sentinel px=${hidden ? 0 : 9000}; ` };
+  }
+  onStealthStatus(cb: (s: StealthStatus) => void): () => void { this.#stealthSubs.add(cb); return () => this.#stealthSubs.delete(cb); }
   async appRelaunch(): Promise<void> { await delay(); }
   /** Backend asks for the «download the model / choose cloud» prompt (a real call cannot start). */
   onEngineNeeded(_cb: (e: EngineNeeded) => void): () => void { return () => undefined; }
