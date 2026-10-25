@@ -47,6 +47,8 @@ pub fn build_overlay(app: &AppHandle) -> Result<WebviewWindow> {
         .focused(false)
         .visible_on_all_workspaces(true)
         .content_protected(true)
+        // Holding Ctrl (click-hold bind) makes every wheel event a zoom gesture in WebView2; the page scrolls itself.
+        .zoom_hotkeys_enabled(false)
         .build()
         .map_err(err)
 }

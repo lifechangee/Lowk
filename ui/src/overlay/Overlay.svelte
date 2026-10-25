@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { installCtrlWheel } from './wheel';
+  onMount(installCtrlWheel);
   import './overlay.css';
   import type { OverlayStore } from './store.svelte';
   import type { OverlaySource } from './source';

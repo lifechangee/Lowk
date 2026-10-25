@@ -176,3 +176,40 @@ test('O7 scroll up (hold ⌃): stays put while streaming, «ещё ↓» appears
   await wheel(page, '.ans .body', 5000);
   await expect(more).toHaveCount(0);
 });
+
+/** Ctrl held = the click-hold bind: wheel events carry ctrlKey (browser zoom gesture). They must scroll, not zoom. */
+async function ctrlWheel(page: Page, sel: string, dy: number, mode = 0) {
+  return page.locator(sel).evaluate(
+    (el, [d, m]) => {
+      const r = el.getBoundingClientRect();
+      const ev = new WheelEvent('wheel', { deltaY: d, deltaMode: m, ctrlKey: true, bubbles: true, cancelable: true, clientX: r.x + 40, clientY: r.y + 10 });
+      el.dispatchEvent(ev);
+      return { prevented: ev.defaultPrevented, scrollTop: el.scrollTop, zoom: window.visualViewport?.scale ?? 1, dpr: window.devicePixelRatio };
+    },
+    [dy, mode] as const,
+  );
+}
+
+test('scroll: Ctrl+wheel over the AI answer in passive+hold scrolls it and is not a zoom', async ({ page }) => {
+  await page.goto(url('&mode=hover'));
+  await page.waitForSelector('.ans .body');
+  await stream(page, 0, 36);
+  const before = (await ansState(page)).top;
+  const r = await ctrlWheel(page, '.ans .body', -150);
+  expect(r.prevented).toBe(true);
+  expect(r.scrollTop).toBeLessThan(before);
+  expect(r.zoom).toBe(1);
+  const r2 = await ctrlWheel(page, '.ans .body', 3, 1); // line mode
+  expect(r2.scrollTop).toBeGreaterThan(r.scrollTop);
+});
+
+test('scroll: Ctrl+wheel over the subtitles scrolls the history and is not a zoom', async ({ page }) => {
+  await page.goto(url('&mode=hover'));
+  await page.waitForSelector('.sub .hist');
+  await replay(page, 0, 30);
+  const before = await page.locator('.sub .hist').evaluate((e) => e.scrollTop);
+  const r = await ctrlWheel(page, '.sub .hist', -120);
+  expect(r.prevented).toBe(true);
+  expect(r.scrollTop).toBeLessThan(before);
+  expect(r.zoom).toBe(1);
+});
