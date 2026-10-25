@@ -53,3 +53,31 @@ export function download(name: string, text: string): void {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/** 15.923527 -> "16 ГБ" / "16 GB"; one decimal below 10 GB. */
+export function fmtGb(gb: number): string {
+  const n = new Intl.NumberFormat(locale.lang, { maximumFractionDigits: gb < 10 ? 1 : 0 }).format(gb);
+  return `${n} ${tm('m.unit.gb')}`;
+}
+
+/** Bytes -> whole MB, grouped ("1 308"). */
+export function fmtMbBytes(bytes: number): string {
+  return new Intl.NumberFormat(locale.lang, { maximumFractionDigits: 0 }).format(Math.round(bytes / 1048576));
+}
+
+/** Seconds -> "40 с" / "3 мин" / "1 ч 5 мин"; rounds up so it never promises less than it takes. */
+export function fmtEta(sec: number): string {
+  const s = Math.max(1, Math.ceil(sec));
+  if (s < 60) return tm('m.eta.sec', { n: Math.max(5, Math.ceil(s / 5) * 5) });
+  const m = Math.ceil(s / 60);
+  return m < 60 ? tm('m.eta.min', { n: m }) : duration(m * 60);
+}
+
+/** Bytes/s -> "3,2 МБ/с". */
+export function fmtSpeed(bps: number): string {
+  const v = bps / 1048576;
+  return tm('m.model.speed', { speed: new Intl.NumberFormat(locale.lang, { maximumFractionDigits: v < 10 ? 1 : 0 }).format(v) });
+}
+
+/** Rough download time at 50 Mbit/s (6.25 MB/s) for a size in MB. */
+export const estimateSeconds = (mb: number): number => mb / 6.25;

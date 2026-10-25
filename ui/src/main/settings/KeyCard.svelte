@@ -6,6 +6,7 @@
   import { api, type SecretProvider } from '../api';
   import { appErrorText, errText } from '../errors';
   import { tm } from '../i18n';
+  import { keyStorageHint, keyStoredText } from '../os';
 
   let { provider, title, placeholder, note }: { provider: SecretProvider; title: string; placeholder: string; note?: string } = $props();
 
@@ -36,7 +37,7 @@
 </script>
 
 <div class="card">
-  <div class="top"><b class="lbl">{title}</b><span class="pill lbl" class:on={present}>{#if present}<Icon name="check" size={12} />{tm('settings.apiKey.stored')}{:else}{tm('settings.apiKey.missing')}{/if}</span></div>
+  <div class="top"><b class="lbl">{title}</b><span class="pill" class:on={present} title={present ? keyStoredText() : undefined}>{#if present}<Icon name="check" size={12} />{/if}<span class="lbl">{present ? keyStoredText() : tm('settings.apiKey.missing')}</span></span></div>
   <div class="in">
     <TextInput bind:value type="password" mono label={title} placeholder={present ? '••••••••••••' : placeholder} onenter={save} />
     <Button disabled={!value.trim()} onclick={save}>{tm('common.save')}</Button>
@@ -46,13 +47,13 @@
     {#if present}<Button size="sm" variant="danger" onclick={remove}>{tm('m.removeKey')}</Button>{/if}
     {#if msg}<span class="msg lbl" class:ok={msg.ok}>{msg.text}</span>{/if}
   </div>
-  <p class="note">{note ?? tm('onboarding.apiKey.storage')}</p>
+  <p class="note">{note ?? keyStorageHint()}</p>
 </div>
 
 <style>
   .card { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-lg); padding: var(--s4); margin: var(--s3) 0; display: flex; flex-direction: column; gap: var(--s3); }
   .top { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-width: 0; }
-  .pill { display: inline-flex; align-items: center; gap: var(--s1); font-size: 12px; padding: 0 var(--s2); height: 20px; border-radius: 99px; background: var(--hv); color: var(--tx3); max-width: 60%; }
+  .pill { display: inline-flex; align-items: center; gap: var(--s1); font-size: 12px; padding: 0 var(--s2); height: 20px; line-height: 20px; border-radius: 99px; background: var(--hv); color: var(--tx3); max-width: 75%; box-sizing: border-box; }
   .pill.on { background: var(--acbg); color: var(--ac); }
   .in { display: flex; gap: var(--s2); }
   .in :global(.btn) { flex: none; }

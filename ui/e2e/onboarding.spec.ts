@@ -8,8 +8,8 @@ test.use({ viewport: { width: 1280, height: 800 }, timezoneId: 'UTC' });
 type Os = 'macos' | 'windows';
 type Lang = 'en' | 'ru';
 const T = {
-  en: { legalTitle: /Recording conversations and the law/, ack: /I understand and take responsibility/, next: 'Continue', back: 'Back', skip: 'Skip', finish: 'Get started', open: 'Open settings', allowAll: 'Allow all', install: /Download/, installed: 'Installed', change: 'Change', done: 'Done', skipped: 'skipped' },
-  ru: { legalTitle: /Запись разговоров и закон/, ack: /Я понимаю и беру ответственность/, next: 'Продолжить', back: 'Назад', skip: 'Пропустить', finish: 'Начать работу', open: 'Открыть настройки', allowAll: 'Разрешить всё', install: /Скачать/, installed: 'Установлена', change: 'Изменить', done: 'Готово', skipped: 'пропущено' },
+  en: { legalTitle: /Recording conversations and the law/, ack: /I understand and take responsibility/, next: 'Continue', back: 'Back', skip: 'Skip', finish: 'Get started', open: 'Open settings', allowAll: 'Allow all', install: /Download/, installed: 'Ready', change: 'Change', done: 'Done', skipped: 'skipped' },
+  ru: { legalTitle: /Запись разговоров и закон/, ack: /Я понимаю и беру ответственность/, next: 'Продолжить', back: 'Назад', skip: 'Пропустить', finish: 'Начать работу', open: 'Открыть настройки', allowAll: 'Разрешить всё', install: /Скачать/, installed: 'Готова', change: 'Изменить', done: 'Готово', skipped: 'пропущено' },
 } as const;
 
 const lint = async (page: Page, where: string) => {
@@ -65,7 +65,7 @@ for (const os of ['macos', 'windows'] as Os[]) {
 
       // 4: hardware + engine; the model downloads right here
       expect(await stepNo(page)).toBe(4);
-      await expect(page.getByText(os === 'macos' ? 'Apple M4' : 'Intel Core i5-10400F')).toBeVisible();
+      await expect(page.getByText(os === 'macos' ? 'Apple M4' : 'i5-12400F')).toBeVisible();
       const card = page.getByTestId('engine-card');
       await expect(card).toBeVisible();
       await card.getByRole('button', { name: t.install }).click();

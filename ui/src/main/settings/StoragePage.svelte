@@ -3,6 +3,7 @@
   import SettingRow from '../../lib/components/SettingRow.svelte';
   import { api } from '../api';
   import { tm } from '../i18n';
+  import { revealText } from '../os';
   import { prefs, ui } from '../state.svelte';
   import TransferCard from './TransferCard.svelte';
 
@@ -17,7 +18,7 @@
 <SettingRow stack label={tm('m.vaultPath')} hint={tm('m.vaultPathHint')}>
   <code class="path lbl" title={path}>{path}</code>
   <Button onclick={change}>{tm('m.change')}</Button>
-  <Button icon="external" onclick={() => api.revealPath(path)}>{tm('m.reveal')}</Button>
+  <Button icon="external" onclick={() => api.revealPath(path)}>{revealText()}</Button>
 </SettingRow>
 <SettingRow label={tm('main.unsorted')} hint={tm('m.unsortedDirHint')}><code class="dir lbl">{prefs.value.vault?.unsorted_dir ?? 'Unsorted'}</code></SettingRow>
 <SettingRow label={tm('main.trash')} hint={tm('m.trashDirHint')}><code class="dir lbl">.lowk/{prefs.value.vault?.trash_dir ?? 'trash'}</code></SettingRow>

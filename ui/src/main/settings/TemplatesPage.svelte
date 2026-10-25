@@ -6,6 +6,7 @@
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';
   import Kbd from '../../lib/components/Kbd.svelte';
+  import { defaultAskNote } from '../os';
   import Modal from '../../lib/components/Modal.svelte';
   import Select from '../../lib/components/Select.svelte';
   import SettingRow from '../../lib/components/SettingRow.svelte';
@@ -169,7 +170,7 @@
         <Button variant="primary" size="sm" icon="check" onclick={save}>{tm('m.tpl.save')}</Button>
         <Button size="sm" onclick={close}>{tm('m.tpl.cancel')}</Button>
         {#if t}
-          {#if t.id === def}<span class="isdef">{tm('m.tpl.defaultNote')}</span>
+          {#if t.id === def}<span class="isdef">{defaultAskNote()}</span>
           {:else}<Button size="sm" icon="star" onclick={() => makeDefault(t)}>{tm('m.tpl.makeDefault')}</Button>{/if}
           <Button size="sm" icon="copy" onclick={() => dup(t)}>{tm('m.tpl.duplicate')}</Button>
           {#if !isBuiltin(t.id)}<Button size="sm" variant="danger" icon="trash" onclick={() => (confirmDelete = t)}>{tm('m.tpl.delete')}</Button>{/if}

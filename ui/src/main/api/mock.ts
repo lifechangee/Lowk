@@ -248,11 +248,15 @@ export class MockBackend implements Backend {
     this.#installCancel = false;
     const total = 751 * 1024 * 1024;
     const fail = typeof location !== 'undefined' && /[?&]install=fail\b/.test(location.search);
+    const mode = qp('install');
     for (let i = 1; i <= 10; i++) {
-      await delay(60);
+      await delay(mode === 'slow' || mode === 'jitter' ? 320 : 60);
       if (this.#installCancel) throw new Error('cancelled');
       const phase = i === 10 ? 'verifying' : 'downloading';
+      // QA: `?install=jitter` also emits stale (lower) counts after the real one, like the backend did
+      if (mode === 'jitter' && phase === 'downloading') for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase, done_bytes: (total / 10) * i - 3 * 1048576, total_bytes: total, message: null });
       for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase, done_bytes: (total / 10) * i, total_bytes: total, message: null });
+      if (mode === 'jitter' && phase === 'downloading') for (const f of this.#engineSubs) f({ engine: id, file: 'model.gguf', phase, done_bytes: (total / 10) * i - 8 * 1048576, total_bytes: total, message: null });
       if (fail && i === 6) {
         for (const f of this.#engineSubs) f({ engine: id, file: '', phase: 'failed', done_bytes: 0, total_bytes: 0, message: 'checksum' });
         throw new Error('download_failed');
@@ -269,7 +273,7 @@ export class MockBackend implements Backend {
   async hwProbe(): Promise<HwInfo> {
     await delay(400);
     return this.#os === 'windows'
-      ? { os: 'windows', os_version: 'Windows 11', arch: 'x86_64', chip: 'Intel Core i5-10400F', ram_gb: 16, gpus: [{ vendor: 'NVIDIA', name: 'RTX 3060', vram_mb: 12288 }], cpu_features: ['avx2'], free_disk_gb: 310, on_battery: false }
+      ? { os: 'windows', os_version: 'Windows 11', arch: 'x86_64', chip: '12th Gen Intel(R) Core(TM) i5-12400F @ 2.50GHz', ram_gb: 15.923527, gpus: [{ vendor: 'NVIDIA', name: 'GeForce RTX 3060', vram_mb: 12288 }], cpu_features: ['avx2'], free_disk_gb: 134.99377, on_battery: false }
       : { os: 'macos', os_version: 'macOS 27.0.1', arch: 'aarch64', chip: 'Apple M4', ram_gb: 24, gpus: [], cpu_features: ['neon'], free_disk_gb: 310, on_battery: false };
   }
   async permStatus(): Promise<Record<PermKind, PermState>> {

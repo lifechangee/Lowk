@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { EngineDescriptor, LlmProvider, LocalServer } from '../../lib/ipc';
+  import type { EngineDescriptor, HwInfo, LlmProvider, LocalServer } from '../../lib/ipc';
   import SettingRow from '../../lib/components/SettingRow.svelte';
   import Select from '../../lib/components/Select.svelte';
   import TextInput from '../../lib/components/TextInput.svelte';
@@ -10,10 +10,13 @@
   import { tm } from '../i18n';
   import { prefs } from '../state.svelte';
   import EngineCard from './EngineCard.svelte';
+  import HwCard from './HwCard.svelte';
+  import ModelRows from './ModelRows.svelte';
   import KeyCard from './KeyCard.svelte';
 
   let engines = $state<EngineDescriptor[]>([]);
   let recommended = $state('');
+  let hw = $state<HwInfo | null>(null);
   let found = $state<LocalServer[]>([]);
   let detecting = $state(false);
   let detected = $state(false);
@@ -29,6 +32,7 @@
   };
   onMount(async () => {
     void detect();
+    void api.hwProbe().then((h) => (hw = h)).catch(() => undefined);
     engines = await api.engines();
     recommended = (await api.engineStatus()).find((i) => i.recommended)?.descriptor.id ?? '';
   });
@@ -107,6 +111,11 @@
   <TextInput bind:value={localModel} mono label={tm('summary.settings.localModel')} onenter={() => prefs.patch({ llm: { local_model: localModel.trim() } })} oninput={() => {}} />
 </SettingRow>
 <KeyCard provider="openrouter" title={tm('settings.apiKey')} placeholder="sk-or-v1-…" />
+
+<h2 class="gap">{tm('m.models.title')}</h2>
+<ModelRows />
+<h2 class="gap">{tm('m.hw.title')}</h2>
+<HwCard {hw} />
 
 <h2 class="gap">{tm('m.set.stt')}</h2>
 <SettingRow label={tm('settings.stt')} hint={engine ? sizeLabel(engine) : undefined}>

@@ -13,12 +13,12 @@ async function openCard(page: import('@playwright/test').Page, query = '') {
 
 test('engine card: not installed says recording cannot start, installs with progress, ends installed', async ({ page }) => {
   const card = await openCard(page);
-  await expect(card).toContainText('Not installed');
+  await expect(card).toContainText('Not downloaded');
   await expect(card).toContainText('cannot start until the model is installed');
   await card.getByRole('button', { name: /Download/ }).click();
   await expect(card.getByRole('progressbar')).toBeVisible();
   await expect(card.getByRole('button', { name: 'Cancel' })).toBeVisible();
-  await expect(card).toContainText('Installed', { timeout: 5000 });
+  await expect(card).toContainText('Ready', { timeout: 5000 });
   await expect(card).toContainText('transcribed on this computer');
 });
 
@@ -28,7 +28,8 @@ test('engine card: a failed download (checksum) shows a readable reason and a re
   const alert = card.getByRole('alert');
   await expect(alert).toContainText('integrity check', { timeout: 5000 });
   await expect(card.getByRole('button', { name: /Try again/ })).toBeVisible();
-  await expect(card).toContainText('Not installed');
+  await expect(card.getByTestId('model-chip')).toHaveAttribute('data-state', 'error');
+  await expect(card).toContainText('Error: The file failed');
 });
 
 test('engine card: cancel returns to the install button', async ({ page }) => {
@@ -41,7 +42,7 @@ test('engine card: cancel returns to the install button', async ({ page }) => {
 test('engine card: model installed but the speech component missing says so (no silent demo)', async ({ page }) => {
   const card = await openCard(page, '&runtime=missing');
   await card.getByRole('button', { name: /Download/ }).click();
-  await expect(card).toContainText('Installed', { timeout: 5000 });
+  await expect(card).toContainText('Ready', { timeout: 5000 });
   await expect(card.getByTestId('engine-runtime-missing')).toContainText('speech component');
   await expect(card).not.toContainText('transcribed on this computer');
 });
@@ -49,7 +50,7 @@ test('engine card: model installed but the speech component missing says so (no 
 test('engine card: a worker on the CPU shows a non-blocking notice with the cloud hint (mock IPC)', async ({ page }) => {
   const card = await openCard(page, '&cpu=1');
   await card.getByRole('button', { name: /Download/ }).click();
-  await expect(card).toContainText('Installed', { timeout: 5000 });
+  await expect(card).toContainText('Ready', { timeout: 5000 });
   const n = card.getByTestId('engine-cpu-notice');
   await expect(n).toContainText('running on the processor, not the graphics card');
   await expect(n).toContainText('cloud engine');
@@ -58,7 +59,7 @@ test('engine card: a worker on the CPU shows a non-blocking notice with the clou
 test('engine card: no CPU notice when the worker runs on a GPU backend', async ({ page }) => {
   const card = await openCard(page);
   await card.getByRole('button', { name: /Download/ }).click();
-  await expect(card).toContainText('Installed', { timeout: 5000 });
+  await expect(card).toContainText('Ready', { timeout: 5000 });
   await expect(card.getByTestId('engine-cpu-notice')).toHaveCount(0);
 });
 

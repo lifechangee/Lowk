@@ -27,6 +27,5 @@ export const settings = {
   'settings.hotkeys.hint': 'Нажмите на поле и введите новую комбинацию. Можно использовать боковые кнопки мыши.',
   'settings.hotkeys.reset': 'Вернуть по умолчанию',
   'settings.apiKey': 'Ключ OpenRouter',
-  'settings.apiKey.stored': 'сохранён в Keychain',
   'settings.apiKey.missing': 'не указан',
 } as const;

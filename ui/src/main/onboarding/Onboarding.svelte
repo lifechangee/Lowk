@@ -9,6 +9,8 @@
   import { bindFor, triggerText } from '../binds';
   import type { Key } from '../../lib/i18n';
   import { tm, type MKey } from '../i18n';
+  import { keyStoredText } from '../os';
+  import { fmtGb } from '../fmt';
   import { mouseNames } from '../names';
   import { PERM_ORDER, perms } from '../permissions.svelte';
   import { hrefs, router } from '../router.svelte';
@@ -22,6 +24,7 @@
   import BindEditor from '../settings/BindEditor.svelte';
   import PermRow from '../settings/PermRow.svelte';
   import EngineCard from '../settings/EngineCard.svelte';
+  import HwCard from '../settings/HwCard.svelte';
 
   let { step }: { step: number } = $props();
   const TOTAL = 9;
@@ -179,14 +182,9 @@
         <h1>{tm('onboarding.hardware.title')}</h1>
         <p class="lead">{tm('onboarding.hardware.body')}</p>
         <div class="scan"><i style:width={scanned ? '100%' : '0'}></i></div>
-        <div class="hw">
-          <div><small>{tm('m.hw.chip')}</small><b class="lbl">{hw?.chip ?? '…'}</b></div>
-          <div><small>{tm('m.hw.ram')}</small><b class="lbl">{hw?.ram_gb ? `${hw.ram_gb} GB` : '…'}</b></div>
-          <div><small>{tm('m.hw.disk')}</small><b class="lbl">{hw?.free_disk_gb ? tm('m.hw.free', { n: hw.free_disk_gb }) : '…'}</b></div>
-          <div><small>{tm('m.hw.os')}</small><b class="lbl">{hw?.os_version ?? '…'}</b></div>
-        </div>
+        <HwCard {hw} />
         <div class="two">
-          <OptionCard selected={engineMode === 'local'} title={tm('onboarding.hardware.local')} hint={tm('onboarding.hardware.localDesc', { size: `${(localTotalMb / 1000).toFixed(1)} GB` })} badge={tm('onboarding.hardware.localFit')} onselect={() => (engineMode = 'local')} />
+          <OptionCard selected={engineMode === 'local'} title={tm('onboarding.hardware.local')} hint={tm('onboarding.hardware.localDesc', { size: fmtGb(localTotalMb / 1000) })} badge={tm('onboarding.hardware.localFit')} onselect={() => (engineMode = 'local')} />
           <OptionCard selected={engineMode === 'cloud'} title={tm('onboarding.hardware.cloud')} hint={tm('onboarding.hardware.cloudDesc')} onselect={() => (engineMode = 'cloud')} />
         </div>
         {#if engineMode === 'local' && recId}<EngineCard engine={recId} />{/if}
@@ -228,7 +226,7 @@
             <div><span>{tm('m.ob.capture')}</span><span class="lbl">{skippedLabel(2) ?? (captureMode === 'app' ? (sources.find(appId)?.name ?? nameFromId(appId)) : tm('m.sourceSystemShort'))}</span></div>
             <div><span>{tm('settings.stt')}</span><span class="lbl">{skippedLabel(4) ?? (engineMode === 'local' ? tm('settings.stt.local') : 'Soniox')}</span></div>
             <div><span>{tm('settings.answers')}</span><span class="lbl">{skippedLabel(5) ?? 'DeepSeek V4.1 Flash'}</span></div>
-            <div><span>{tm('settings.apiKey')}</span><span class="lbl">{skippedLabel(5) ?? tm('settings.apiKey.stored')}</span></div>
+            <div><span>{tm('settings.apiKey')}</span><span class="lbl">{skippedLabel(5) ?? keyStoredText()}</span></div>
           </div>
         </div>
       {/if}
@@ -284,10 +282,6 @@
   .restart { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4); border: 1px solid var(--warn); border-radius: var(--r-lg); margin-top: var(--s3); font-size: 13px; }
   .scan { height: 4px; border-radius: 99px; background: var(--line); overflow: hidden; margin-bottom: var(--s4); }
   .scan i { display: block; height: 100%; background: var(--ac); transition: width 1.4s; }
-  .hw { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); margin-bottom: var(--s4); }
-  .hw div { border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3); background: var(--panel); min-width: 0; }
-  .hw small { display: block; color: var(--tx3); font: 600 var(--fs-xs) var(--font); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: var(--s1); }
-  .hw b { font-weight: 550; font-size: 13px; display: block; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
   .card { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-lg); padding: var(--s4); margin-top: var(--s4); }
   .card p { margin: var(--s1) 0 var(--s3); color: var(--tx2); font-size: 13px; }
@@ -297,5 +291,5 @@
   .sum div { display: flex; justify-content: space-between; gap: var(--s6); padding: var(--s2) 0; border-bottom: 1px solid var(--line); font-size: 13px; min-width: 0; }
   .sum div:last-child { border-bottom: none; }
   .sum div span:first-child { color: var(--tx2); flex: none; }
-  @media (max-width: 860px) { .win { grid-template-columns: 1fr; height: auto; } .rail { display: none; } .step { padding: var(--s6) var(--s5); } .hw, .two { grid-template-columns: 1fr 1fr; } .nav { padding: var(--s4) var(--s5); } }
+  @media (max-width: 860px) { .win { grid-template-columns: 1fr; height: auto; } .rail { display: none; } .step { padding: var(--s6) var(--s5); } .two { grid-template-columns: 1fr 1fr; } .nav { padding: var(--s4) var(--s5); } }
 </style>
