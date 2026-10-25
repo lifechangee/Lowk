@@ -464,7 +464,7 @@ mod tests {
     }
 
     #[test]
-    fn screenshots_go_out_as_image_url_parts_on_the_vision_model() {
+    fn screenshots_go_out_as_image_url_parts_on_the_default_model() {
         let srv = MockServer::start(|_, _| Reply::answer(&["42"]));
         let r = rig("img", srv.base_url());
         let out = run(&r, &request(FolderRef::Unsorted, vec![shot(1), shot(2)])).unwrap();
@@ -473,8 +473,8 @@ mod tests {
         let reqs = srv.chat_requests();
         assert_eq!(reqs.len(), 1);
         let j = reqs[0].json();
-        // the default chat model (DeepSeek) cannot read images: the vision model answers
-        assert_eq!(j["model"], lowk_types::DEFAULT_VISION_MODEL);
+        // the default chat model (DeepSeek V4.1 Flash) reads images itself: no switch to another model
+        assert_eq!(j["model"], lowk_types::LlmSettings::default().model);
         let parts = image_parts(&j);
         assert_eq!(parts.len(), 2);
         assert!(parts.iter().all(|u| u.starts_with("data:image/")));

@@ -124,6 +124,9 @@ pub fn model_has_vision(model: &str) -> bool {
     let m = model.to_ascii_lowercase();
     let name = m.rsplit('/').next().unwrap_or(&m);
     if m.starts_with("anthropic/claude-")
+        // reads images (OpenRouter input_modalities) and answers a screenshot question in ~1.7 s vs ~2.5 s
+        // for claude-haiku, so image Asks stay on the default model
+        || m.starts_with("deepseek/deepseek-v4.1-flash")
         || m.starts_with("google/gemini")
         || m.starts_with("openai/gpt-4o")
         || m.starts_with("openai/gpt-4.1")
@@ -377,13 +380,15 @@ mod tests {
         assert!(model_has_vision("google/gemini-2.5-flash"));
         assert!(model_has_vision("qwen3-vl:8b"));
         assert!(model_has_vision("llama3.2-vision"));
-        assert!(!model_has_vision("deepseek/deepseek-v4.1-flash-1017"));
+        assert!(model_has_vision("deepseek/deepseek-v4.1-flash-1017"));
+        assert!(!model_has_vision("deepseek/deepseek-chat"));
         assert!(!model_has_vision("gemma2"));
     }
 
     #[test]
     fn non_vision_model_routes_to_the_vision_model() {
         let mut s = cloud();
+        s.model = "deepseek/deepseek-chat".into();
         s.pinned_provider = Some("StubHost".into());
         let r = resolve_vision(&s, false, Some("k".into()), Some("c".into())).unwrap();
         assert!(r.cloud);
