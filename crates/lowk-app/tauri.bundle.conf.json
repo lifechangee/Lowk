@@ -9,6 +9,9 @@
       "binaries/lowk-stt-worker",
       "binaries/lowk-embed-worker"
     ],
+    "resources": {
+      "../../THIRD_PARTY.md": "THIRD_PARTY.md"
+    },
     "macOS": {
       "entitlements": "Entitlements.plist"
     }

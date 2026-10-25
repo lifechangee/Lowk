@@ -2895,6 +2895,7 @@ dependencies = [
  "lowk-types",
  "parking_lot",
  "raw-window-handle",
+ "regex",
  "serde",
  "serde_json",
  "specta",
@@ -2905,8 +2906,10 @@ dependencies = [
  "tauri-plugin-global-shortcut",
  "tauri-plugin-single-instance",
  "tauri-specta",
+ "tempfile",
  "tracing",
  "tracing-subscriber",
+ "zip",
 ]
 
 [[package]]

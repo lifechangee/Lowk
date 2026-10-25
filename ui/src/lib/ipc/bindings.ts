@@ -236,9 +236,25 @@ export const commands = {
 	folderExport: (id: Ulid, dest: string) => typedError<number, AppError>(__TAURI_INVOKE("folder_export", { id, dest })),
 	/**  Imports a folder/vault zip (ids reassigned on collision, never overwrites). */
 	folderImport: (src: string) => typedError<ImportSummary, AppError>(__TAURI_INVOKE("folder_import", { src })),
+	appAbout: () => __TAURI_INVOKE<AboutInfo>("app_about"),
+	licensesText: () => __TAURI_INVOKE<string>("licenses_text"),
+	/**  Writes the diagnostics zip (logs, versions, OS and hardware, engine status, redacted settings) to `dest`. */
+	diagnosticsSave: (dest: string) => typedError<DiagnosticsSaved, AppError>(__TAURI_INVOKE("diagnostics_save", { dest })),
 };
 
 /* Types */
+/**
+ *  Static facts for Settings -> About. `commit` and `build_date` are embedded by build.rs
+ *  (`unknown` when the build had no git or clock).
+ */
+export type AboutInfo = {
+	version: string,
+	commit: string,
+	build_date: string,
+	license: string,
+	source_url: string,
+};
+
 export type ActionId = "toggle_record" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | "clear_shots" | 
 /**  Microphone on/off during a recording (default unbound; roadmap «auto» mode: docs/ROADMAP.md). */
 "toggle_mic" | 
@@ -535,6 +551,11 @@ export type DeviceInfo = {
 	id: string,
 	name: string,
 	is_default: boolean,
+};
+
+export type DiagnosticsSaved = {
+	path: string,
+	bytes: number,
 };
 
 /**  What a source file is. Presentations and spreadsheets are first-class kinds. */

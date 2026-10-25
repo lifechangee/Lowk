@@ -128,6 +128,9 @@ macro_rules! all_commands {
             crate::commands::retx::retx_restore,
             crate::commands::transfer::folder_export,
             crate::commands::transfer::folder_import,
+            crate::commands::settings::app_about,
+            crate::commands::settings::licenses_text,
+            crate::commands::settings::diagnostics_save,
         ]
     };
 }

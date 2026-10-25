@@ -1,3 +1,4 @@
+import { about } from './about';
 import { area } from './area';
 import { common } from './common';
 import { docs } from './docs';
@@ -12,4 +13,4 @@ import { summary } from './summary';
 import { tour } from './tour';
 
 // Must mirror ru/index.ts key-for-key (enforced by i18n.test.ts).
-export const dict = { ...common, ...errors, ...main, ...m, ...overlay, ...area, ...settings, ...onboarding, ...docs, ...search, ...summary, ...tour } as const;
+export const dict = { ...common, ...errors, ...main, ...m, ...overlay, ...area, ...settings, ...onboarding, ...docs, ...search, ...summary, ...tour, ...about } as const;

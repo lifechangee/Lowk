@@ -38,6 +38,15 @@ fn cache() -> std::sync::MutexGuard<'static, Option<HashMap<String, Zeroizing<St
     CACHE.lock().unwrap_or_else(|p| p.into_inner())
 }
 
+/// Values already held in memory (read or saved in this run). Never touches the keychain, so it
+/// cannot raise a prompt: the diagnostics export uses it to scrub exact secret values from the logs.
+pub fn cached_values() -> Vec<String> {
+    cache()
+        .as_ref()
+        .map(|m| m.values().map(|v| v.to_string()).collect())
+        .unwrap_or_default()
+}
+
 pub fn keychain_reads() -> usize {
     READS.load(Ordering::Relaxed)
 }

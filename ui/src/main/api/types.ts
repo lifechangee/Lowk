@@ -1,7 +1,9 @@
 // View-model types for the main window. DTOs that already exist in the generated
 // bindings are reused as-is; the rest are the shapes the backend provides.
 import type {
+  AboutInfo,
   AppError,
+  DiagnosticsSaved,
   BindReport,
   CallMeta,
   DocPatch,
@@ -244,6 +246,12 @@ export interface Backend {
   revealPath(path: string): Promise<void>;
   /** Opens the folder with lowk.log (support). */
   logsReveal(): Promise<void>;
+  /** Settings -> About: version, commit, build date, licence, source link. */
+  appAbout(): Promise<AboutInfo>;
+  /** The bundled THIRD_PARTY.md. */
+  licensesText(): Promise<string>;
+  /** Writes the redacted diagnostics zip to `dest`; returns where and how big. */
+  diagnosticsSave(dest: string): Promise<DiagnosticsSaved>;
   bindReport(): Promise<BindReport>;
 
   sessionStart(opts: StartOpts): Promise<SessionState>;

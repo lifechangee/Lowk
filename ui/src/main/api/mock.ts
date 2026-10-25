@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command the backend has not wired yet. Mutations are real within the page's life.
-import type { AppError, BindReport, CallMeta, ChunkKind, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, SelfTestReport, StealthStatus, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -259,6 +259,13 @@ export class MockBackend implements Backend {
   async pickVaultDir(): Promise<string | null> { return this.#os === 'windows' ? 'D:\\Notes\\Lowk' : '~/Obsidian/Lowk'; }
   async revealPath(_path: string): Promise<void> { await delay(); }
   async logsReveal(): Promise<void> { await delay(); }
+  async appAbout(): Promise<AboutInfo> {
+    return { version: '0.0.1', commit: 'a1b2c3d4e5f6', build_date: '2026-10-25', license: 'AGPL-3.0-or-later', source_url: 'https://github.com/lowk-app/lowk' };
+  }
+  async licensesText(): Promise<string> {
+    return '# Third-party components\n\n## Downloadable models\n\n| Model | Licence | Source |\n|---|---|---|\n| Nemotron 3.5 ASR Streaming 0.6B | OpenMDW-1.1 | <https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/main/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf> |\n' + Array.from({ length: 80 }, (_, i) => `| crate-${i} | 1.${i}.0 | MIT OR Apache-2.0 | <https://github.com/example/crate-${i}> |`).join('\n');
+  }
+  async diagnosticsSave(dest: string): Promise<DiagnosticsSaved> { await delay(); return { path: dest, bytes: 48_213 }; }
   async bindReport(): Promise<BindReport> {
     return {
       entries: (this.#settings.binds ?? []).map((b) => ({

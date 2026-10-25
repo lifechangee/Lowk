@@ -7,6 +7,7 @@
   ],
   "permissions": [
     "core:event:default",
+    "allow-app-about",
     "allow-app-quit",
     "allow-app-relaunch",
     "allow-binds-get",
@@ -25,6 +26,7 @@
     "allow-call-summarized",
     "allow-capture-screenshot",
     "allow-demo-start",
+    "allow-diagnostics-save",
     "allow-doc-cancel",
     "allow-doc-delete",
     "allow-doc-find-duplicates",
@@ -70,6 +72,7 @@
     "allow-retx-start",
     "allow-retx-cancel",
     "allow-retx-restore",
+    "allow-licenses-text",
     "allow-locale-get",
     "allow-main-open",
     "allow-perm-open-settings",

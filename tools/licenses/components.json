@@ -1,0 +1,73 @@
+{
+  "native": [
+    {
+      "name": "llama.cpp (llama-server, embedding sidecar)",
+      "version": "v0.7.0",
+      "license": "MIT",
+      "url": "https://github.com/ggml-org/llama.cpp",
+      "license_url": "https://github.com/ggml-org/llama.cpp/blob/master/LICENSE"
+    },
+    {
+      "name": "ggml (tensor library inside llama.cpp and transcribe.cpp)",
+      "version": "bundled",
+      "license": "MIT",
+      "url": "https://github.com/ggml-org/ggml",
+      "license_url": "https://github.com/ggml-org/ggml/blob/master/LICENSE"
+    },
+    {
+      "name": "transcribe.cpp (speech worker runtime)",
+      "version": "0.4.0",
+      "license": "MIT",
+      "url": "https://github.com/handy-computer/transcribe.cpp",
+      "license_url": "https://github.com/handy-computer/transcribe.cpp/blob/main/LICENSE"
+    },
+    {
+      "name": "WebRTC audio processing (AEC3 echo canceller)",
+      "version": "2.1.0 (tonarino/webrtc-audio-processing)",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/tonarino/webrtc-audio-processing",
+      "license_url": "https://webrtc.googlesource.com/src/+/refs/heads/main/LICENSE"
+    },
+    {
+      "name": "Abseil C++ (built together with WebRTC audio processing)",
+      "version": "bundled",
+      "license": "Apache-2.0",
+      "url": "https://github.com/abseil/abseil-cpp",
+      "license_url": "https://github.com/abseil/abseil-cpp/blob/master/LICENSE"
+    }
+  ],
+  "models": [
+    {
+      "name": "Nemotron 3.5 ASR Streaming 0.6B (GGUF, Q8_0)",
+      "file": "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+      "purpose": "live speech recognition",
+      "license": "OpenMDW-1.1",
+      "license_url": "https://openmdw.ai/license/1-1/",
+      "source_url": "https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/main/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf"
+    },
+    {
+      "name": "Silero VAD v6.2 (GGUF)",
+      "file": "silero-vad-v6.2-F32.gguf",
+      "purpose": "voice activity detection",
+      "license": "MIT",
+      "license_url": "https://github.com/snakers4/silero-vad/blob/master/LICENSE",
+      "source_url": "https://huggingface.co/handy-computer/silero-vad-v6.2-gguf/resolve/main/silero-vad-v6.2-F32.gguf"
+    },
+    {
+      "name": "Whisper large-v3-turbo (GGUF, Q5_K_M)",
+      "file": "whisper-large-v3-turbo-Q5_K_M.gguf",
+      "purpose": "background transcript correction",
+      "license": "MIT",
+      "license_url": "https://github.com/openai/whisper/blob/main/LICENSE",
+      "source_url": "https://huggingface.co/handy-computer/whisper-large-v3-turbo-gguf/resolve/main/whisper-large-v3-turbo-Q5_K_M.gguf"
+    },
+    {
+      "name": "EmbeddingGemma 2 (GGUF, Q8_0)",
+      "file": "embeddinggemma-2-Q8_0.gguf",
+      "purpose": "local semantic search",
+      "license": "Apache-2.0",
+      "license_url": "https://ai.google.dev/gemma/apache_2",
+      "source_url": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/58faf90940886df2d62be555c8765d00dac362c5/embeddinggemma-2-Q8_0.gguf"
+    }
+  ]
+}

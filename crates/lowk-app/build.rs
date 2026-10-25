@@ -113,9 +113,66 @@ const COMMANDS: &[&str] = &[
     "llm_detect_local",
     "folder_export",
     "folder_import",
+    "app_about",
+    "licenses_text",
+    "diagnostics_save",
 ];
 
+/// Short commit hash of the checkout, `unknown` without git (source tarball, CI without history).
+fn git_commit() -> String {
+    println!("cargo:rerun-if-env-changed=LOWK_GIT_COMMIT");
+    if let Some(c) = std::env::var("LOWK_GIT_COMMIT")
+        .ok()
+        .filter(|c| !c.trim().is_empty())
+    {
+        return c.trim().chars().take(12).collect();
+    }
+    let git = |args: &[&str]| {
+        std::process::Command::new("git")
+            .args(args)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    // rebuild when HEAD moves (works for worktrees: the path comes from git itself)
+    for p in ["HEAD", "logs/HEAD"] {
+        if let Some(path) = git(&["rev-parse", "--git-path", p]) {
+            println!("cargo:rerun-if-changed={path}");
+        }
+    }
+    git(&["rev-parse", "--short=12", "HEAD"]).unwrap_or_else(|| "unknown".into())
+}
+
+/// UTC date `YYYY-MM-DD` (civil-from-days, no date crate). `SOURCE_DATE_EPOCH` makes it reproducible.
+fn build_date() -> String {
+    println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
+    let secs = std::env::var("SOURCE_DATE_EPOCH")
+        .ok()
+        .and_then(|v| v.trim().parse::<i64>().ok())
+        .or_else(|| {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .ok()
+                .map(|d| d.as_secs() as i64)
+        });
+    let Some(secs) = secs else { return "unknown".into() };
+    let z = secs.div_euclid(86_400) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
 fn main() {
+    println!("cargo:rustc-env=LOWK_GIT_COMMIT={}", git_commit());
+    println!("cargo:rustc-env=LOWK_BUILD_DATE={}", build_date());
     // The Swift runtime rpath (screencapturekit, cidre) comes from .cargo/config.toml.
     let manifest = tauri_build::AppManifest::new().commands(COMMANDS);
     // Windows: the default Tauri manifest (common controls v6) plus `longPathAware` (vault/model paths > 260 chars).

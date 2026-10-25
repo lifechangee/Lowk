@@ -3,7 +3,7 @@
 // File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
 import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AppError, BindReport, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, SelfTestReport, StealthStatus, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SessionState, Settings, SourceInfo, StartOpts, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SelfTestReport, SessionState, Settings, SourceInfo, StartOpts, StealthStatus, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion } from '../../lib/ipc';
 import { MockBackend } from './mock';
 import { CommandError, folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider } from './types';
 
@@ -66,6 +66,9 @@ export class TauriBackend extends MockBackend {
   override async exportMarkdown(id: string): Promise<string> { return ok(await commands.callGetMd(id)); }
   override async revealPath(path: string): Promise<void> { ok(await commands.pathReveal(path)); }
   override async logsReveal(): Promise<void> { ok(await commands.logsReveal()); }
+  override async appAbout(): Promise<AboutInfo> { return commands.appAbout(); }
+  override async licensesText(): Promise<string> { return commands.licensesText(); }
+  override async diagnosticsSave(dest: string): Promise<DiagnosticsSaved> { return ok(await commands.diagnosticsSave(dest)); }
   override async sourceList(): Promise<SourceInfo[]> { return ok(await commands.sourceList()); }
   override async sourceListInstalled(): Promise<SourceInfo[]> { return ok(await commands.sourceListInstalled()); }
   override async engines(): Promise<EngineDescriptor[]> { return commands.engineList(); }

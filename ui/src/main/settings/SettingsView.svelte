@@ -3,6 +3,7 @@
   import Tabs from '../../lib/components/Tabs.svelte';
   import { tm, type MKey } from '../i18n';
   import { hrefs, router, SETTINGS_PAGES, type SettingsPage } from '../router.svelte';
+  import AboutPage from './AboutPage.svelte';
   import AppearancePage from './AppearancePage.svelte';
   import GeneralPage from './GeneralPage.svelte';
   import HotkeysPage from './HotkeysPage.svelte';
@@ -28,6 +29,7 @@
       {:else if page === 'providers'}<ProvidersPage />
       {:else if page === 'knowledge'}<KnowledgePage />
       {:else if page === 'storage'}<StoragePage />
+      {:else if page === 'about'}<AboutPage />
       {:else}<PermissionsPage />{/if}
     </div>
   </main>

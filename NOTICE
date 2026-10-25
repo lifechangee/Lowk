@@ -5,7 +5,7 @@ This program is free software licensed under the GNU Affero General Public
 License, version 3 or (at your option) any later version. See LICENSE.
 
 Third-party components keep their own licenses; the generated THIRD_PARTY.md
-(cargo-about + pnpm licenses) lists them for each release.
+(`just licenses`; also shown in Settings -> About) lists them.
 
 Prior art acknowledged (ideas only, no copied code): Pluely (GPL-3.0), Meetily
 (MIT), Char/Anarlog (MIT). If code is ever adapted, it is attributed here and in

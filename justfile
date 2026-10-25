@@ -53,12 +53,13 @@ bindings:
 fmt:
     cargo fmt --all
 
-# fmt check, clippy, ui type check, dependency rules, license check.
+# fmt check, clippy, ui type check, dependency rules, license check, THIRD_PARTY.md freshness.
 lint:
     ruby -ryaml -e 'ARGV.each { |f| YAML.load_file(f) }' .github/workflows/*.yml
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo xtask check-deps
+    cargo xtask licenses --check
     QA_GUARD_COMPILE=0 tools/qa/check-no-qa-release.sh
     pnpm --dir ui check
     cargo deny check
@@ -167,3 +168,7 @@ check-windows:
 # Stealth probe against the real app (macOS, debug build, Screen Recording needed).
 stealth-probe-app:
     tools/stealth-probe/run-app.sh
+
+# Regenerate THIRD_PARTY.md (Rust crates, frontend packages, native components, downloadable models). Needs `just setup`.
+licenses:
+    cargo xtask licenses

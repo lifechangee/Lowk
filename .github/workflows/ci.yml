@@ -64,6 +64,26 @@ jobs:
       - run: QA_GUARD_COMPILE=0 tools/qa/check-no-qa-release.sh # the qa feature must never reach a release build
       - run: cargo deny check
 
+  # THIRD_PARTY.md is generated (`just licenses`); a stale file fails the build.
+  licenses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - run: pnpm --dir ui install --frozen-lockfile
+      - run: cargo xtask licenses --check
+
   test-pure:
     runs-on: ubuntu-latest
     steps:

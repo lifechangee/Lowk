@@ -9,6 +9,7 @@ mod callstore;
 mod capture;
 mod combo;
 mod commands;
+mod diagnostics;
 mod emitter;
 mod engines;
 pub mod m2;
@@ -37,6 +38,11 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .commands(commands::all_commands!())
         .types(&types)
         .dangerously_cast_bigints_to_number() // MonoNs/UttId stay < 2^53
+}
+
+/// The bundled third-party licence list (Settings -> About).
+pub fn about_licenses() -> &'static str {
+    commands::settings::THIRD_PARTY
 }
 
 /// Writes `ui/src/lib/ipc/bindings.ts` (called by `cargo xtask bindings`).
@@ -69,6 +75,16 @@ impl std::io::Write for Tee {
     }
 }
 
+/// Appends text to `lowk.log` and flushes (panic hook: the process may be gone a moment later).
+pub(crate) fn log_raw(text: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    if let Some(mut f) = log() {
+        f.write_all(text.as_bytes())?;
+        f.flush()?;
+    }
+    Ok(())
+}
+
 fn log_file() -> Option<std::fs::File> {
     let dir = state::data_dir().ok()?;
     std::fs::create_dir_all(&dir).ok()?;
@@ -94,6 +110,7 @@ fn init_tracing() {
 
 pub fn run() {
     init_tracing();
+    diagnostics::install_panic_hook();
     let builder = specta_builder();
     let mut tb = tauri::Builder::default();
     // QA builds may run next to a developer's own instance (`LOWK_QA_MULTI=1`): no single-instance hand-off.
