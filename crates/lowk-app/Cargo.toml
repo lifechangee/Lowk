@@ -34,7 +34,7 @@ tauri-plugin-dialog.workspace = true
 tauri-plugin-updater.workspace = true
 # SOCKS5 proxies for the updater (its reqwest is built without the feature by default)
 reqwest = { workspace = true, features = ["socks"] }
-time = { workspace = true, features = ["formatting", "parsing"] }
+time = { workspace = true, features = ["formatting", "parsing", "local-offset"] }
 tokio.workspace = true
 url = "2"
 base64 = "0.22"

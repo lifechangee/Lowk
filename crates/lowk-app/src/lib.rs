@@ -101,13 +101,83 @@ fn log_file() -> Option<std::fs::File> {
     o.open(path).ok()
 }
 
+/// Log timestamps in the user's local time with the UTC offset (`2026-10-25T23:25:15.898+03:00`), so a log
+/// can be read against the wall clock of the person who sent it. (They were UTC `...Z`: three hours off
+/// for the owner, and every report needed converting.)
+struct LocalTime;
+
+/// The offset measured once at start: the OS only reports it reliably while the process is single-threaded
+/// (macOS / Linux); later reads fall back to this. Windows reports it at any time (and follows DST).
+static START_OFFSET: std::sync::OnceLock<time::UtcOffset> = std::sync::OnceLock::new();
+
+fn local_stamp(now: time::OffsetDateTime) -> String {
+    use time::format_description::{parse_borrowed, BorrowedFormatItem};
+    static FMT: std::sync::OnceLock<Vec<BorrowedFormatItem<'static>>> = std::sync::OnceLock::new();
+    let fmt = FMT.get_or_init(|| {
+        parse_borrowed::<2>("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3][offset_hour sign:mandatory]:[offset_minute]")
+            .unwrap_or_default()
+    });
+    let offset = time::UtcOffset::local_offset_at(now)
+        .ok()
+        .or_else(|| START_OFFSET.get().copied())
+        .unwrap_or(time::UtcOffset::UTC);
+    now.to_offset(offset)
+        .format(fmt)
+        .unwrap_or_else(|_| now.to_string())
+}
+
+impl tracing_subscriber::fmt::time::FormatTime for LocalTime {
+    fn format_time(&self, w: &mut tracing_subscriber::fmt::format::Writer<'_>) -> std::fmt::Result {
+        w.write_str(&local_stamp(time::OffsetDateTime::now_utc()))
+    }
+}
+
 fn init_tracing() {
     use tracing_subscriber::EnvFilter;
+    if let Ok(o) = time::UtcOffset::current_local_offset() {
+        let _ = START_OFFSET.set(o);
+    }
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with_ansi(false)
+        .with_timer(LocalTime)
         .with_writer(|| Tee)
         .try_init();
+}
+
+#[cfg(test)]
+mod log_time_tests {
+    use super::*;
+
+    #[test]
+    fn stamp_has_milliseconds_and_an_explicit_offset() {
+        let s =
+            local_stamp(time::OffsetDateTime::from_unix_timestamp_nanos(1_792_959_915_898_000_000).unwrap());
+        // 2026-10-25T20:25:15.898 UTC, written in this machine's zone with its offset
+        let re_ok = s.len() == 29
+            && s.as_bytes()[10] == b'T'
+            && s.as_bytes()[19] == b'.'
+            && (s.as_bytes()[23] == b'+' || s.as_bytes()[23] == b'-')
+            && s.as_bytes()[26] == b':';
+        assert!(re_ok, "{s}");
+        assert!(!s.ends_with('Z'), "{s}");
+        assert_eq!(&s[20..23], "898");
+    }
+
+    #[test]
+    fn a_fixed_offset_shifts_the_clock_and_prints_it() {
+        // the owner's case: UTC+3
+        let now = time::OffsetDateTime::from_unix_timestamp_nanos(1_792_959_915_898_000_000).unwrap();
+        let off = time::UtcOffset::from_hms(3, 0, 0).unwrap();
+        let fmt = time::format_description::parse_borrowed::<2>(
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3][offset_hour sign:mandatory]:[offset_minute]",
+        )
+        .unwrap();
+        assert_eq!(
+            now.to_offset(off).format(&fmt).unwrap(),
+            "2026-10-25T23:25:15.898+03:00"
+        );
+    }
 }
 
 pub fn run() {
