@@ -179,9 +179,19 @@ fn main() {
     println!("cargo:rustc-env=LOWK_BUILD_DATE={}", build_date());
     // The Swift runtime rpath (screencapturekit, cidre) comes from .cargo/config.toml.
     let manifest = tauri_build::AppManifest::new().commands(COMMANDS);
-    // Windows: the default Tauri manifest (common controls v6) plus `longPathAware` (vault/model paths > 260 chars).
-    let windows =
-        tauri_build::WindowsAttributes::new().app_manifest(include_str!("windows-app-manifest.xml"));
+    // Windows: common controls v6 plus `longPathAware` (vault/model paths > 260 chars). Embedded by the linker for
+    // every binary of this crate, test harnesses included: without it the test executables fail to start with
+    // STATUS_ENTRYPOINT_NOT_FOUND (comctl32 v6 entry points), so Tauri's own resource manifest is turned off.
+    let windows = tauri_build::WindowsAttributes::new_without_app_manifest();
+    println!("cargo:rerun-if-changed=windows-app-manifest.xml");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
+        && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc")
+    {
+        let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+        println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+        println!("cargo:rustc-link-arg=/MANIFESTINPUT:{dir}\\windows-app-manifest.xml");
+        println!("cargo:rustc-link-arg=/WX:NO");
+    }
     tauri_build::try_build(
         tauri_build::Attributes::new()
             .app_manifest(manifest)
