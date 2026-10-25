@@ -6,6 +6,13 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 export const commands = {
 	settingsGet: () => __TAURI_INVOKE<Settings_Serialize>("settings_get"),
 	settingsPatch: (patch: SettingsPatch) => typedError<Settings_Serialize, AppError>(__TAURI_INVOKE("settings_patch", { patch })),
+	/**  Settings -> Network: the proxy found in the environment / OS settings (read-only). */
+	networkStatus: () => __TAURI_INVOKE<NetworkStatus>("network_status"),
+	/**
+	 *  «Проверить подключение»: GET openrouter.ai/api/v1/models through `proxy` (empty = the effective
+	 *  system / saved proxy) and report status and latency. Never sends the API key.
+	 */
+	networkCheck: (proxy: string) => typedError<NetworkCheck, AppError>(__TAURI_INVOKE("network_check", { proxy })),
 	/**  Raw system locale tag (`ru-RU`); the UI resolves `auto|ru|en` from it. */
 	localeGet: () => __TAURI_INVOKE<string>("locale_get"),
 	secretSet: (providerId: string, value: string) => typedError<null, AppError>(__TAURI_INVOKE("secret_set", { providerId, value })),
@@ -1031,6 +1038,31 @@ export type Mods = {
 
 export type MouseBtn = { kind: "middle" } | { kind: "back" } | { kind: "forward" } | { kind: "other"; n: number };
 
+/**  `network_check` result: a GET to the provider through the effective proxy. */
+export type NetworkCheck = {
+	ok: boolean,
+	/**  HTTP status when a response arrived. */
+	status: number | null,
+	ms: number,
+	/**  The proxy that was used (no credentials); `None` = direct. */
+	via: string | null,
+	/**  Short reason when nothing arrived. */
+	error: string | null,
+};
+
+/**  Settings -> Network. */
+export type NetworkSettings = {
+	/**  Manual proxy (`http://<host>:<port>` or `socks5://<host>:<port>`); empty = the system / environment proxy. */
+	proxy?: string,
+};
+
+/**  `network_status` payload (read-only; credentials are never included). */
+export type NetworkStatus = {
+	/**  The proxy found in the environment / OS settings, e.g. `http://127.0.0.1:10809`. */
+	system_proxy: string | null,
+	system_source: ProxySource | null,
+};
+
 export type NewCall = {
 	title: string,
 	folder: FolderRef,
@@ -1162,6 +1194,9 @@ export type PinnedUsage = {
 	budget_tokens: number,
 	over_budget: boolean,
 };
+
+/**  Where the system proxy came from. */
+export type ProxySource = "env" | "windows" | "macos";
 
 export type QaItem = {
 	id: string,
@@ -1419,6 +1454,7 @@ export type Settings_Deserialize = {
 	binds?: BindSpec_Deserialize[],
 	stealth?: StealthSettings,
 	updates?: UpdateSettings,
+	network?: NetworkSettings,
 	templates?: Template[],
 };
 
@@ -1437,6 +1473,7 @@ export type Settings_Serialize = {
 	binds: BindSpec_Serialize[],
 	stealth: StealthSettings,
 	updates: UpdateSettings,
+	network: NetworkSettings,
 	templates: Template[],
 };
 

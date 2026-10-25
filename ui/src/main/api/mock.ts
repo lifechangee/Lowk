@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command the backend has not wired yet. Mutations are real within the page's life.
-import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TagSuggestion, UpdateStatus } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TagSuggestion, UpdateStatus } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -80,6 +80,7 @@ export class MockBackend implements Backend {
       capture: { monitors: 'active' },
       binds: defaultBinds(this.#os),
       stealth: { hide_main: false, verify_interval_ms: 5000 },
+      network: { proxy: '' },
       updates: { check_daily: true, last_checked: new Date(this.#now - 3 * 3600_000).toISOString(), skipped_version: null, auto_install: false },
       templates: [
         { id: 'brief', names: { ru: 'Кратко', en: 'Brief' }, instruction: 'Кратко ответь на вопрос, заданный в системе/приложении.', needs_my_answer: false, vision: false, reasoning: null },
@@ -318,6 +319,18 @@ export class MockBackend implements Backend {
   }
   async licensesText(): Promise<string> {
     return '# Third-party components\n\n## Downloadable models\n\n| Model | Licence | Source |\n|---|---|---|\n| Nemotron 3.5 ASR Streaming 0.6B | OpenMDW-1.1 | <https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/main/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf> |\n' + Array.from({ length: 80 }, (_, i) => `| crate-${i} | 1.${i}.0 | MIT OR Apache-2.0 | <https://github.com/example/crate-${i}> |`).join('\n');
+  }
+  async networkStatus(): Promise<NetworkStatus> {
+    await delay();
+    const none = qp('sysproxy') === 'none' || this.#os !== 'windows';
+    return none ? { system_proxy: null, system_source: null } : { system_proxy: 'http://127.0.0.1:10809', system_source: 'windows' };
+  }
+  async networkCheck(proxy: string): Promise<NetworkCheck> {
+    await delay(300);
+    const sys = (await this.networkStatus()).system_proxy;
+    const via = proxy.trim() || sys;
+    if (via?.endsWith(':1')) return { ok: false, status: null, ms: 80, via, error: 'proxy 127.0.0.1:1: Connection refused' };
+    return { ok: true, status: Number(qp('check') ?? 200), ms: 312, via, error: null };
   }
   async diagnosticsSave(dest: string): Promise<DiagnosticsSaved> { await delay(); return { path: dest, bytes: 48_213 }; }
   async bindReport(): Promise<BindReport> {

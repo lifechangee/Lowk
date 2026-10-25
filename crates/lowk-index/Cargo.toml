@@ -22,7 +22,7 @@ sha2 = "0.11"
 # HTTP(S): rustls with the pure-Rust graviola provider (same as lowk-stt; no C toolchain, no openssl).
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
 rustls-graviola = "0.4"
-ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots"] }
+ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots", "socks-proxy"] }
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -12,7 +12,52 @@ pub fn settings_get(st: State<'_, Shared>) -> Settings {
 #[tauri::command(async)]
 #[specta::specta]
 pub fn settings_patch(st: State<'_, Shared>, patch: SettingsPatch) -> Result<Settings> {
-    st.settings.patch(patch)
+    let next = st.settings.patch(patch)?;
+    apply_network(&next)?;
+    Ok(next)
+}
+
+/// Makes the manual proxy (Settings -> Network) effective for every outbound client at once.
+/// A value that is not an http / socks5 proxy URL is refused instead of silently ignored.
+pub fn apply_network(s: &Settings) -> Result<()> {
+    if lowk_platform::proxy::set_manual(&s.network.proxy) {
+        Ok(())
+    } else {
+        Err(AppError::new(ErrorCode::InvalidArgument)
+            .with_detail("proxy must look like http://<host>:<port> or socks5://<host>:<port>"))
+    }
+}
+
+/// Settings -> Network: the proxy found in the environment / OS settings (read-only).
+#[tauri::command]
+#[specta::specta]
+pub fn network_status() -> NetworkStatus {
+    use lowk_platform::proxy::Source;
+    match lowk_platform::proxy::describe_system() {
+        Some((url, src)) => NetworkStatus {
+            system_proxy: Some(url),
+            system_source: match src {
+                Source::Env => Some(ProxySource::Env),
+                Source::Windows => Some(ProxySource::Windows),
+                Source::Macos => Some(ProxySource::Macos),
+                Source::Manual => None,
+            },
+        },
+        None => NetworkStatus {
+            system_proxy: None,
+            system_source: None,
+        },
+    }
+}
+
+/// «Проверить подключение»: GET openrouter.ai/api/v1/models through `proxy` (empty = the effective
+/// system / saved proxy) and report status and latency. Never sends the API key.
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn network_check(proxy: String) -> Result<NetworkCheck> {
+    tauri::async_runtime::spawn_blocking(move || lowk_llm::net_check(&proxy, lowk_llm::NET_CHECK_URL))
+        .await
+        .map_err(|e| AppError::new(ErrorCode::Network).with_detail(e.to_string()))
 }
 
 /// Raw system locale tag (`ru-RU`); the UI resolves `auto|ru|en` from it.

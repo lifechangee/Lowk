@@ -1,8 +1,8 @@
 // Tiny hash router:
 //   #/  #/folder/:id[/calls|documents|instructions]  #/call/:id[?t=SEC]  #/doc/:id[?p=PAGE]
 //   #/search?q=..&folder=..&tag=..&from=..&to=..&kind=..  #/settings/:page  #/onboarding/:step
-export type SettingsPage = 'general' | 'hotkeys' | 'templates' | 'appearance' | 'providers' | 'knowledge' | 'storage' | 'permissions' | 'about';
-export const SETTINGS_PAGES: SettingsPage[] = ['general', 'hotkeys', 'templates', 'appearance', 'providers', 'knowledge', 'storage', 'permissions', 'about'];
+export type SettingsPage = 'general' | 'hotkeys' | 'templates' | 'appearance' | 'providers' | 'network' | 'knowledge' | 'storage' | 'permissions' | 'about';
+export const SETTINGS_PAGES: SettingsPage[] = ['general', 'hotkeys', 'templates', 'appearance', 'providers', 'network', 'knowledge', 'storage', 'permissions', 'about'];
 
 export type FolderTab = 'calls' | 'documents' | 'instructions';
 export const FOLDER_TABS: FolderTab[] = ['calls', 'documents', 'instructions'];

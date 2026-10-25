@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 lowk-types.workspace = true
+lowk-platform.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 time = { workspace = true, features = ["formatting"] }
@@ -17,7 +18,7 @@ time = { workspace = true, features = ["formatting"] }
 # toolchain, no openssl. Blocking transport (ureq); the caller owns the thread.
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
 rustls-graviola = "0.4"
-ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots"] }
+ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots", "socks-proxy"] }
 
 [lints]
 workspace = true

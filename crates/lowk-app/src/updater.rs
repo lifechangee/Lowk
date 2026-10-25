@@ -304,12 +304,17 @@ pub async fn check<R: Runtime>(
         i.error = None;
     }
     let found = async {
-        app.updater_builder()
+        let mut b = app
+            .updater_builder()
             .endpoints(vec![endpoint.clone()])?
-            .timeout(std::time::Duration::from_secs(30))
-            .build()?
-            .check()
-            .await
+            .timeout(std::time::Duration::from_secs(30));
+        // honour the system / manual proxy (re-read on every check; the download reuses it)
+        if let Some(p) =
+            lowk_platform::proxy::for_url(endpoint.as_str()).and_then(|p| p.parse::<url::Url>().ok())
+        {
+            b = b.proxy(p);
+        }
+        b.build()?.check().await
     }
     .await;
     match found {

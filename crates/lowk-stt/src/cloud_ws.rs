@@ -5,7 +5,7 @@ use crate::sidecar::pcm_i16;
 use crate::{SttConfig, SttEngine};
 use lowk_types::*;
 use serde_json::{json, Value};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::TcpStream;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError, SyncSender};
 use std::sync::Arc;
@@ -80,12 +80,13 @@ fn connect(url: &str, auth: Option<(&str, String)>) -> std::result::Result<Ws, S
         );
     }
     let host = req.uri().host().ok_or("no host")?.to_owned();
-    let addr = (host.as_str(), 443)
-        .to_socket_addrs()
-        .map_err(|e| e.to_string())?
-        .next()
-        .ok_or("dns")?;
-    let tcp = TcpStream::connect_timeout(&addr, Duration::from_secs(10)).map_err(|e| e.to_string())?;
+    // direct, HTTP CONNECT or SOCKS5 per the system / manual proxy settings, read on every connect
+    let tcp = lowk_platform::proxy::connect(
+        &host,
+        req.uri().port_u16().unwrap_or(443),
+        Duration::from_secs(10),
+    )
+    .map_err(|e| e.to_string())?;
     let _ = tcp.set_nodelay(true);
     let _ = tcp.set_read_timeout(Some(Duration::from_secs(10)));
     let (mut ws, _) = tungstenite::client_tls_with_config(
@@ -419,5 +420,107 @@ mod lang_tests {
         assert!(deepgram_url(&["pl".into()]).contains("language=pl"));
         assert!(deepgram_url(&["en".into()]).contains("language=en"));
         assert!(deepgram_url(&["ru".into(), "en".into()]).contains("language=multi"));
+    }
+}
+
+#[cfg(test)]
+mod proxy_tests {
+    use super::*;
+    use lowk_platform::proxy::{
+        self,
+        mock::{Kind, MockProxy},
+    };
+    use std::net::TcpListener;
+
+    /// The manual proxy is process-wide: these tests take turns.
+    static TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// A plain `ws://` server that greets every client with "hello".
+    fn ws_server() -> std::net::SocketAddr {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for c in l.incoming() {
+                let Ok(c) = c else { continue };
+                if let Ok(mut ws) = tungstenite::accept(c) {
+                    let _ = ws.send(Message::text("hello"));
+                    let _ = ws.flush();
+                }
+            }
+        });
+        addr
+    }
+
+    /// The streaming-STT dial (Deepgram / Soniox) goes through the system / manual proxy, HTTP CONNECT
+    /// and SOCKS5, is re-read per connection, and never proxies loopback.
+    #[test]
+    fn websocket_stt_connects_through_the_proxy() {
+        let _g = TURN.lock().unwrap_or_else(|e| e.into_inner());
+        let backend = ws_server();
+        for kind in [Kind::HttpConnect, Kind::Socks5] {
+            let p = MockProxy::start(kind, backend);
+            assert!(proxy::set_manual(&p.url()));
+            let mut ws = connect("ws://stt.mock.test:4443/v1/listen", None).unwrap();
+            let Message::Text(t) = ws.read().unwrap() else {
+                panic!("text")
+            };
+            assert_eq!(t.as_str(), "hello");
+            assert_eq!(p.seen(), vec!["stt.mock.test:4443".to_string()], "{kind:?}");
+            // loopback bypasses the proxy even though one is configured
+            let mut ws = connect(&format!("ws://{backend}/x"), None).unwrap();
+            assert!(matches!(ws.read().unwrap(), Message::Text(_)));
+            assert_eq!(p.seen().len(), 1, "{kind:?}: loopback went direct");
+        }
+        assert!(proxy::set_manual(""));
+    }
+
+    /// Model downloads (resumable `.part` requests) go through the proxy too.
+    #[test]
+    fn model_download_goes_through_the_proxy() {
+        let _g = TURN.lock().unwrap_or_else(|e| e.into_inner());
+        use crate::models::{hex, DownloadSpec, ModelStore};
+        use sha2::{Digest, Sha256};
+        use std::io::{BufRead, BufReader, Write};
+        let body = vec![7u8; 4096];
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let backend = l.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for c in l.incoming() {
+                let Ok(mut s) = c else { continue };
+                let mut r = BufReader::new(s.try_clone().unwrap());
+                loop {
+                    let mut line = String::new();
+                    if r.read_line(&mut line).unwrap_or(0) == 0 || line.trim().is_empty() {
+                        break;
+                    }
+                }
+                let _ = s.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4096\r\nConnection: close\r\n\r\n");
+                let _ = s.write_all(&[7u8; 4096]);
+            }
+        });
+        let p = MockProxy::start(Kind::HttpConnect, backend);
+        assert!(proxy::set_manual(&p.url()));
+        let dir = std::env::temp_dir().join(format!("lowk-proxy-dl-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let spec = DownloadSpec {
+            file: "m.bin".into(),
+            url: "http://models.mock.test:8080/m.bin".into(),
+            sha256: hex(&Sha256::digest(&body)),
+            size_bytes: body.len() as u64,
+            license: "MIT".into(),
+            license_url: String::new(),
+        };
+        let store = ModelStore::new(dir.clone());
+        store
+            .install(
+                "e",
+                &[spec],
+                &std::sync::atomic::AtomicBool::new(false),
+                &mut |_, _, _, _| {},
+            )
+            .unwrap();
+        assert_eq!(p.seen(), vec!["models.mock.test:8080".to_string()]);
+        assert!(proxy::set_manual(""));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -22,6 +22,8 @@ import type {
   LocalServer,
   MicMode,
   MicPreset,
+  NetworkCheck,
+  NetworkStatus,
   NewFolder,
   Os,
   PermKind,
@@ -256,6 +258,10 @@ export interface Backend {
   appAbout(): Promise<AboutInfo>;
   /** The bundled THIRD_PARTY.md. */
   licensesText(): Promise<string>;
+  /** Settings -> Network: the proxy found in the environment / OS settings. */
+  networkStatus(): Promise<NetworkStatus>;
+  /** GET to the provider through `proxy` (empty = the effective system / saved proxy): status and latency. */
+  networkCheck(proxy: string): Promise<NetworkCheck>;
   /** Writes the redacted diagnostics zip to `dest`; returns where and how big. */
   diagnosticsSave(dest: string): Promise<DiagnosticsSaved>;
   bindReport(): Promise<BindReport>;

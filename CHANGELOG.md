@@ -4,6 +4,9 @@ All notable changes to Lowk are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+- Proxy support: every outbound connection (OpenRouter, cloud embeddings, Deepgram and Soniox streaming, model downloads, updates, key checks) now follows the system proxy (Windows Internet Settings, macOS network proxies) or the `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` / `NO_PROXY` variables, over HTTP CONNECT or SOCKS5. Settings → Network shows the detected proxy, lets you set one manually and checks the connection. PAC scripts are not supported. Localhost always connects directly.
+
 ## [0.1.0]
 
 First public release (macOS 14.4+ on Apple Silicon, Windows 11; Windows 10 with whole-system audio only).

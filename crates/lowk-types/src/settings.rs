@@ -48,6 +48,7 @@ pub struct Settings {
     pub binds: Vec<BindSpec>,
     pub stealth: StealthSettings,
     pub updates: UpdateSettings,
+    pub network: NetworkSettings,
     pub templates: Vec<Template>,
 }
 
@@ -75,6 +76,7 @@ impl Settings {
             binds: default_binds(os),
             stealth: StealthSettings::default(),
             updates: UpdateSettings::default(),
+            network: NetworkSettings::default(),
             templates: default_templates(),
         }
     }
@@ -679,6 +681,44 @@ impl Default for UpdateSettings {
             auto_install: false,
         }
     }
+}
+
+/// Settings -> Network.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(default)]
+pub struct NetworkSettings {
+    /// Manual proxy (`http://<host>:<port>` or `socks5://<host>:<port>`); empty = the system / environment proxy.
+    pub proxy: String,
+}
+
+/// Where the system proxy came from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ProxySource {
+    Env,
+    Windows,
+    Macos,
+}
+
+/// `network_status` payload (read-only; credentials are never included).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct NetworkStatus {
+    /// The proxy found in the environment / OS settings, e.g. `http://127.0.0.1:10809`.
+    pub system_proxy: Option<String>,
+    pub system_source: Option<ProxySource>,
+}
+
+/// `network_check` result: a GET to the provider through the effective proxy.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct NetworkCheck {
+    pub ok: bool,
+    /// HTTP status when a response arrived.
+    pub status: Option<u16>,
+    pub ms: u32,
+    /// The proxy that was used (no credentials); `None` = direct.
+    pub via: Option<String>,
+    /// Short reason when nothing arrived.
+    pub error: Option<String>,
 }
 
 // --- templates -----------------------------------------------------------

@@ -4,6 +4,8 @@
 const COMMANDS: &[&str] = &[
     "settings_get",
     "settings_patch",
+    "network_status",
+    "network_check",
     "locale_get",
     "secret_set",
     "secret_status",

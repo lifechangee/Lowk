@@ -60,7 +60,8 @@ impl ChatClient for FakeLlm {
 
 pub struct OpenAiClient {
     cfg: LlmConfig,
-    agent: ureq::Agent,
+    /// One agent per resolved proxy: rebuilt when the system proxy (or the manual override) changes.
+    agent: lowk_platform::proxy::ProxyCache<ureq::Agent>,
 }
 
 /// Failure of one attempt.
@@ -97,7 +98,7 @@ enum Msg {
     Err(String),
 }
 
-fn tls_provider() -> Arc<rustls::crypto::CryptoProvider> {
+pub(crate) fn tls_provider() -> Arc<rustls::crypto::CryptoProvider> {
     Arc::new(rustls_graviola::default_provider())
 }
 
@@ -123,20 +124,29 @@ pub(crate) fn status_error_code(status: u16, message: &str) -> ErrorCode {
 
 impl OpenAiClient {
     pub fn new(cfg: LlmConfig) -> Self {
-        let tls = ureq::tls::TlsConfig::builder()
-            .provider(ureq::tls::TlsProvider::Rustls)
-            .unversioned_rustls_crypto_provider(tls_provider())
-            .root_certs(ureq::tls::RootCerts::WebPki)
-            .build();
-        let agent: ureq::Agent = ureq::Agent::config_builder()
-            .tls_config(tls)
-            .http_status_as_error(false)
-            .timeout_connect(Some(cfg.connect_timeout))
-            .timeout_recv_response(Some(cfg.first_token_timeout.max(Duration::from_secs(1))))
-            .timeout_global(Some(cfg.total_timeout))
-            .build()
-            .into();
-        Self { cfg, agent }
+        Self {
+            cfg,
+            agent: Default::default(),
+        }
+    }
+
+    fn agent_for(&self, url: &str) -> ureq::Agent {
+        self.agent.get(url, |proxy| {
+            let tls = ureq::tls::TlsConfig::builder()
+                .provider(ureq::tls::TlsProvider::Rustls)
+                .unversioned_rustls_crypto_provider(tls_provider())
+                .root_certs(ureq::tls::RootCerts::WebPki)
+                .build();
+            ureq::Agent::config_builder()
+                .tls_config(tls)
+                .proxy(proxy.and_then(|p| ureq::Proxy::new(p).ok()))
+                .http_status_as_error(false)
+                .timeout_connect(Some(self.cfg.connect_timeout))
+                .timeout_recv_response(Some(self.cfg.first_token_timeout.max(Duration::from_secs(1))))
+                .timeout_global(Some(self.cfg.total_timeout))
+                .build()
+                .into()
+        })
     }
 
     pub fn config(&self) -> &LlmConfig {
@@ -256,14 +266,14 @@ impl OpenAiClient {
         let auth = self.cfg.api_key.as_ref().map(|k| format!("Bearer {k}"));
         let session = opts.session_id.as_ref().or(self.cfg.session_id.as_ref());
         let res = if method_get {
-            let mut r = self.agent.get(url).header("Accept", "application/json");
+            let mut r = self.agent_for(url).get(url).header("Accept", "application/json");
             if let Some(a) = &auth {
                 r = r.header("Authorization", a);
             }
             r.call()
         } else {
             let mut r = self
-                .agent
+                .agent_for(url)
                 .post(url)
                 .header("Content-Type", "application/json")
                 .header("Accept", "text/event-stream");

@@ -84,12 +84,15 @@ pub fn parse_openai_models(body: &str) -> Option<Vec<String>> {
 }
 
 fn probe_one(t: &LocalTarget, timeout: Duration, vision: &dyn Fn(&str) -> bool) -> Option<LocalServer> {
+    let url = t.list_url();
+    let proxy = lowk_platform::proxy::for_url(&url);
     let agent: ureq::Agent = ureq::Agent::config_builder()
+        .proxy(proxy.and_then(|p| ureq::Proxy::new(&p).ok()))
         .http_status_as_error(false)
         .timeout_global(Some(timeout))
         .build()
         .into();
-    let mut resp = agent.get(&t.list_url()).call().ok()?;
+    let mut resp = agent.get(&url).call().ok()?;
     if !resp.status().is_success() {
         return None;
     }

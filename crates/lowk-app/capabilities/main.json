@@ -68,6 +68,8 @@
     "allow-llm-suggest-tags",
     "allow-llm-summarize",
     "allow-llm-summarize-cancel",
+    "allow-network-check",
+    "allow-network-status",
     "allow-retx-status",
     "allow-retx-start",
     "allow-retx-cancel",

@@ -12,32 +12,38 @@ pub struct CloudEmbedder {
     model: String,
     dim: usize,
     id: String,
-    agent: ureq::Agent,
+    agent: lowk_platform::proxy::ProxyCache<ureq::Agent>,
 }
 
 impl CloudEmbedder {
     /// `dim` is the size stored in the index (leading values of the vector are kept).
     pub fn new(base_url: &str, api_key: &str, model: &str, dim: usize) -> Self {
-        let tls = ureq::tls::TlsConfig::builder()
-            .provider(ureq::tls::TlsProvider::Rustls)
-            .unversioned_rustls_crypto_provider(super::tls_provider())
-            .root_certs(ureq::tls::RootCerts::WebPki)
-            .build();
-        let agent: ureq::Agent = ureq::Agent::config_builder()
-            .tls_config(tls)
-            .timeout_connect(Some(Duration::from_secs(15)))
-            .timeout_global(Some(Duration::from_secs(60)))
-            .http_status_as_error(false)
-            .build()
-            .into();
         Self {
             base: base_url.trim_end_matches('/').to_string(),
             key: api_key.to_string(),
             model: model.to_string(),
             dim,
             id: format!("cloud:{model}:{dim}"),
-            agent,
+            agent: Default::default(),
         }
+    }
+
+    fn agent_for(&self, url: &str) -> ureq::Agent {
+        self.agent.get(url, |proxy| {
+            let tls = ureq::tls::TlsConfig::builder()
+                .provider(ureq::tls::TlsProvider::Rustls)
+                .unversioned_rustls_crypto_provider(super::tls_provider())
+                .root_certs(ureq::tls::RootCerts::WebPki)
+                .build();
+            ureq::Agent::config_builder()
+                .tls_config(tls)
+                .proxy(proxy.and_then(|p| ureq::Proxy::new(p).ok()))
+                .timeout_connect(Some(Duration::from_secs(15)))
+                .timeout_global(Some(Duration::from_secs(60)))
+                .http_status_as_error(false)
+                .build()
+                .into()
+        })
     }
 }
 
@@ -66,9 +72,10 @@ impl Embedder for CloudEmbedder {
             return Err(AppError::new(ErrorCode::ApiKeyMissing));
         }
         let body = serde_json::json!({ "model": self.model, "input": texts, "encoding_format": "float" });
+        let url = format!("{}/embeddings", self.base);
         let mut resp = self
-            .agent
-            .post(&format!("{}/embeddings", self.base))
+            .agent_for(&url)
+            .post(&url)
             .header("Authorization", &format!("Bearer {}", self.key))
             .header("Content-Type", "application/json")
             .send(body.to_string())

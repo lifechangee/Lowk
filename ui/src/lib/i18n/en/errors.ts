@@ -49,7 +49,7 @@ export const errors = {
   'error.local_only_blocked': 'This folder is local-only: connect a local model (Ollama / LM Studio) in Settings',
   'error.image_local_only': 'This folder is local-only: screenshots need a local model that can read images',
   'error.image_too_large': 'The screenshots are too large for the model even after shrinking',
-  'error.provider_blocked': 'OpenRouter rejected the request from your network (region or network block). Your key is saved and valid. Try another network or a VPN, or a local model',
+  'error.provider_blocked': 'OpenRouter rejected the request from your network (region or network block). Your key is saved and valid. Turn on a VPN or set a proxy in Settings → Network, or use a local model',
   'error.cpu_unsupported': 'This processor lacks the instruction set (AVX2) that local recognition needs. Use a cloud engine',
   'error.engine_load_timeout': 'The speech engine did not start within a minute. See the log; stop the recording and start again',
   'error.archive_invalid': 'The archive is damaged or is not a Lowk archive',

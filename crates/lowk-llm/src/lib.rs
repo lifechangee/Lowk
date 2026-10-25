@@ -8,6 +8,7 @@ mod config;
 mod ledger;
 mod local;
 pub mod mock;
+mod netcheck;
 mod probe;
 mod prompt;
 mod sse;
@@ -21,6 +22,7 @@ pub use ledger::{ChatLedger, CompactionEvent};
 pub use local::{
     detect_local, parse_ollama_tags, parse_openai_models, LocalTarget, DEFAULT_TARGETS, PROBE_TIMEOUT,
 };
+pub use netcheck::{check as net_check, CHECK_URL as NET_CHECK_URL};
 pub use probe::{list_providers, probe_fastest_provider, ProbeOptions, ProbeResult, ProbeSample};
 pub use prompt::{BuildInput, BuiltTurn, ImagePart, PromptBuilder, SYSTEM_PROMPT};
 pub use sse::{SseEvent, SseParser};

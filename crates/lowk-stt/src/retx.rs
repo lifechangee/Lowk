@@ -453,7 +453,7 @@ pub struct DeepgramBatch {
     key: String,
     endpoint: String,
     query: String,
-    agent: ureq::Agent,
+    agent: lowk_platform::proxy::ProxyCache<ureq::Agent>,
 }
 
 impl DeepgramBatch {
@@ -462,23 +462,29 @@ impl DeepgramBatch {
     }
 
     pub fn with_endpoint(key: String, langs: &[String], endpoint: String) -> Self {
-        let tls = ureq::tls::TlsConfig::builder()
-            .provider(ureq::tls::TlsProvider::Rustls)
-            .unversioned_rustls_crypto_provider(crate::cloud::tls_provider())
-            .root_certs(ureq::tls::RootCerts::WebPki)
-            .build();
-        let agent: ureq::Agent = ureq::Agent::config_builder()
-            .tls_config(tls)
-            .timeout_connect(Some(Duration::from_secs(20)))
-            .timeout_global(Some(Duration::from_secs(120)))
-            .build()
-            .into();
         Self {
             key,
             endpoint,
             query: deepgram_query(langs),
-            agent,
+            agent: Default::default(),
         }
+    }
+
+    fn agent_for(&self, url: &str) -> ureq::Agent {
+        self.agent.get(url, |proxy| {
+            let tls = ureq::tls::TlsConfig::builder()
+                .provider(ureq::tls::TlsProvider::Rustls)
+                .unversioned_rustls_crypto_provider(crate::cloud::tls_provider())
+                .root_certs(ureq::tls::RootCerts::WebPki)
+                .build();
+            ureq::Agent::config_builder()
+                .tls_config(tls)
+                .proxy(proxy.and_then(|p| ureq::Proxy::new(p).ok()))
+                .timeout_connect(Some(Duration::from_secs(20)))
+                .timeout_global(Some(Duration::from_secs(120)))
+                .build()
+                .into()
+        })
     }
 }
 
@@ -496,7 +502,7 @@ impl Transcriber for DeepgramBatch {
                 std::thread::sleep(Duration::from_millis(500 * attempt));
             }
             let r = self
-                .agent
+                .agent_for(&url)
                 .post(&url)
                 .header("Authorization", format!("Token {}", self.key))
                 .header("Content-Type", "audio/wav")

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-network-check"
+description = "Enables the network_check command without any pre-configured scope."
+commands.allow = ["network_check"]
+
+[[permission]]
+identifier = "deny-network-check"
+description = "Denies the network_check command without any pre-configured scope."
+commands.deny = ["network_check"]

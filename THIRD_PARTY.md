@@ -53,7 +53,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | style-mod | 4.1.4 | MIT | <https://code.haverbeke.berlin/marijn/style-mod> |
 | w3c-keyname | 2.2.8 | MIT | <https://github.com/marijnh/w3c-keyname#readme> |
 
-## Rust crates in the app (692)
+## Rust crates in the app (700)
 
 | Crate | Version | Licence | Repository |
 |---|---|---|---|
@@ -92,6 +92,8 @@ Models are not part of the app: they are downloaded on demand from the source be
 | audioadapter | 5.0.0 | MIT OR Apache-2.0 | <https://github.com/HEnquist/audioadapter-rs> |
 | audioadapter-buffers | 5.2.0 | MIT OR Apache-2.0 | <https://github.com/HEnquist/audioadapter-buffers-rs> |
 | audioadapter-sample | 5.2.0 | MIT OR Apache-2.0 | <https://github.com/HEnquist/audioadapter-sample-rs> |
+| aws-lc-rs | 1.18.2 | ISC AND (Apache-2.0 OR ISC) | <https://github.com/aws/aws-lc-rs> |
+| aws-lc-sys | 0.46.0 | ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0) | <https://github.com/aws/aws-lc-rs> |
 | base64 | 0.21.7 | MIT OR Apache-2.0 | <https://github.com/marshallpierce/rust-base64> |
 | base64 | 0.22.1 | MIT OR Apache-2.0 | <https://github.com/marshallpierce/rust-base64> |
 | base64 | 0.23.1 | MIT OR Apache-2.0 | <https://github.com/marshallpierce/rust-base64> |
@@ -338,6 +340,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | litemap | 0.8.3 | Unicode-3.0 | <https://github.com/unicode-org/icu4x> |
 | lock_api | 0.4.14 | MIT OR Apache-2.0 | <https://github.com/Amanieu/parking_lot> |
 | log | 0.4.34 | MIT OR Apache-2.0 | <https://github.com/rust-lang/log> |
+| lru-slab | 0.1.3 | MIT OR Apache-2.0 OR Zlib | <https://github.com/Ralith/lru-slab> |
 | markup5ever | 0.39.0 | MIT OR Apache-2.0 | <https://github.com/servo/html5ever> |
 | matchers | 0.2.0 | MIT | <https://github.com/hawkw/matchers> |
 | md-5 | 0.11.0 | MIT OR Apache-2.0 | <https://github.com/RustCrypto/hashes> |
@@ -446,11 +449,15 @@ Models are not part of the app: they are downloaded on demand from the source be
 | qcms | 0.3.0 | MIT | <https://github.com/FirefoxGraphics/qcms> |
 | quick-error | 2.0.1 | MIT/Apache-2.0 | <http://github.com/tailhook/quick-error> |
 | quick-xml | 0.42.0 | MIT | <https://github.com/tafia/quick-xml> |
+| quinn | 0.11.12 | MIT OR Apache-2.0 | <https://github.com/quinn-rs/quinn> |
+| quinn-proto | 0.11.19 | MIT OR Apache-2.0 | <https://github.com/quinn-rs/quinn> |
+| quinn-udp | 0.5.16 | MIT OR Apache-2.0 | <https://github.com/quinn-rs/quinn> |
 | quote | 1.0.47 | MIT OR Apache-2.0 | <https://github.com/dtolnay/quote> |
 | r-efi | 5.3.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later | <https://github.com/r-efi/r-efi> |
 | r-efi | 6.0.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later | <https://github.com/r-efi/r-efi> |
 | rand | 0.10.3 | MIT OR Apache-2.0 | <https://github.com/rust-random/rand> |
 | rand_core | 0.10.1 | MIT OR Apache-2.0 | <https://github.com/rust-random/rand_core> |
+| rand_pcg | 0.10.2 | MIT OR Apache-2.0 | <https://github.com/rust-random/rngs> |
 | raw-window-handle | 0.6.2 | MIT OR Apache-2.0 OR Zlib | <https://github.com/rust-windowing/raw-window-handle> |
 | rayon | 1.12.0 | MIT OR Apache-2.0 | <https://github.com/rayon-rs/rayon> |
 | rayon-core | 1.13.0 | MIT OR Apache-2.0 | <https://github.com/rayon-rs/rayon> |
@@ -523,6 +530,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | slotmap | 1.1.1 | Zlib | <https://github.com/orlp/slotmap> |
 | smallvec | 1.16.3 | MIT OR Apache-2.0 | <https://github.com/servo/rust-smallvec> |
 | socket2 | 0.6.5 | MIT OR Apache-2.0 | <https://github.com/rust-lang/socket2> |
+| socks | 0.3.4 | MIT/Apache-2.0 | <https://github.com/sfackler/rust-socks> |
 | softbuffer | 0.4.8 | MIT OR Apache-2.0 | <https://github.com/rust-windowing/softbuffer> |
 | soup3 | 0.5.0 | MIT | <https://gitlab.gnome.org/World/Rust/soup3-rs> |
 | soup3-sys | 0.5.0 | MIT | <https://gitlab.gnome.org/World/Rust/soup3-rs> |

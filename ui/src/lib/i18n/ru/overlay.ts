@@ -65,7 +65,7 @@ export const overlay = {
   'overlay.more.ans': 'ещё ↓',
   'overlay.answer.empty': 'Нажмите {key}, чтобы спросить ИИ',
   'overlay.answer.error': 'Не удалось получить ответ',
-  'overlay.answer.blocked': 'OpenRouter отклонил запрос из вашей сети. Ключ верен: смените сеть или VPN.',
+  'overlay.answer.blocked': 'OpenRouter отклонил запрос из вашей сети. Ключ верен: включите VPN или укажите прокси в Настройки → Сеть.',
   'overlay.answer.noKey': 'Не задан ключ OpenRouter.',
   'overlay.answer.openSettings': 'Открыть Настройки',
   'overlay.answer.localOnly': 'Папка только локальная, а локальная модель не подключена. Подключите Ollama или LM Studio в Настройках.',

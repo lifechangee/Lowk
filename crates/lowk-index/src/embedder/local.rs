@@ -161,7 +161,9 @@ pub struct LocalEmbedder {
 
 impl LocalEmbedder {
     pub fn new(worker: PathBuf, model: PathBuf, dim: usize) -> Self {
+        // the worker listens on loopback: never through a proxy (ureq would otherwise read the env)
         let agent: ureq::Agent = ureq::Agent::config_builder()
+            .proxy(None)
             .timeout_global(Some(Duration::from_secs(180)))
             .http_status_as_error(false)
             .build()

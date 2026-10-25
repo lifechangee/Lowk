@@ -8,6 +8,7 @@
   import GeneralPage from './GeneralPage.svelte';
   import HotkeysPage from './HotkeysPage.svelte';
   import KnowledgePage from './KnowledgePage.svelte';
+  import NetworkPage from './NetworkPage.svelte';
   import PermissionsPage from './PermissionsPage.svelte';
   import ProvidersPage from './ProvidersPage.svelte';
   import TemplatesPage from './TemplatesPage.svelte';
@@ -27,6 +28,7 @@
       {:else if page === 'templates'}<TemplatesPage />
       {:else if page === 'appearance'}<AppearancePage />
       {:else if page === 'providers'}<ProvidersPage />
+      {:else if page === 'network'}<NetworkPage />
       {:else if page === 'knowledge'}<KnowledgePage />
       {:else if page === 'storage'}<StoragePage />
       {:else if page === 'about'}<AboutPage />

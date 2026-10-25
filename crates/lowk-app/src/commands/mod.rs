@@ -20,6 +20,8 @@ macro_rules! all_commands {
         tauri_specta::collect_commands![
             crate::commands::settings::settings_get,
             crate::commands::settings::settings_patch,
+            crate::commands::settings::network_status,
+            crate::commands::settings::network_check,
             crate::commands::settings::locale_get,
             crate::commands::settings::secret_set,
             crate::commands::settings::secret_status,

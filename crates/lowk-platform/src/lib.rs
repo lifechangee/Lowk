@@ -7,4 +7,5 @@ pub mod hw;
 pub mod locale;
 pub mod perm;
 pub mod process;
+pub mod proxy;
 pub mod secrets;

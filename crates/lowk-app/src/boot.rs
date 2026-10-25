@@ -74,6 +74,7 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     let emitter = UiEmitter::new(handle.clone());
     let vault = Arc::new(RwLock::new(None));
     migrate_settings(&settings);
+    let _ = crate::commands::settings::apply_network(&settings.get());
 
     // Documents, index, embedder, LLM routing. The retriever and the hint generator are the
     // real ones; there is no stub path (no key means a clear error in the overlay).

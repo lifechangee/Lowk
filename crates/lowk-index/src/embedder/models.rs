@@ -173,6 +173,7 @@ fn download(
         .build();
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .tls_config(tls)
+        .proxy(lowk_platform::proxy::for_url(url).and_then(|p| ureq::Proxy::new(&p).ok()))
         .timeout_connect(Some(Duration::from_secs(20)))
         .timeout_recv_response(Some(Duration::from_secs(60)))
         .build()
