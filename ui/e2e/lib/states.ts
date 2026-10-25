@@ -94,7 +94,7 @@ export const MAIN_STATES: MainState[] = [
   { id: 'settings-storage-import', title: 'vault import result', hash: '#/settings/storage', act: 'import-vault', mockup: 'mn' },
   { id: 'settings-storage-import-fail', title: 'import failed (invalid archive)', hash: '#/settings/storage', q: '&import=fail', act: 'import-vault', mockup: 'mn' },
   { id: 'settings-providers-key', title: 'LLM provider card: key test fails', hash: '#/settings/providers', q: '&key=bad', act: 'key-test', mockup: 'mn' },
-  { id: 'tour-offer', title: 'tour offered after onboarding', hash: '#/onboarding/7', q: '&fresh', act: 'tour-offer', mockup: 'mn' },
+  { id: 'tour-offer', title: 'tour offered after onboarding', hash: '#/onboarding/8', q: '&fresh&ack', act: 'tour-offer', mockup: 'mn' },
   ...Array.from({ length: 6 }, (_, i) => ({ id: `tour-${i + 1}`, title: `tour step ${i + 1} / 6`, hash: '#/', act: `tour-${i}`, mockup: 'mn' as const })),
   { id: 'tour-3-try', title: 'tour step 3: demo answer streamed', hash: '#/', act: 'tour-try-ask', mockup: 'mn' },
   { id: 'tour-4-try', title: 'tour step 4: overlay follows the cursor', hash: '#/', act: 'tour-try-hold', mockup: 'mn' },

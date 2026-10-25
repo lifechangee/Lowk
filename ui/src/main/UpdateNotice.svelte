@@ -4,12 +4,14 @@
   import { tm } from './i18n';
   import { session } from './state.svelte';
   import { updates } from './updates.svelte';
+  import { tour } from './tour/tour.svelte';
 
   const st = $derived(updates.status);
   const v = $derived(st?.available?.version ?? '');
   const recording = $derived(session.phase !== 'idle');
   const pct = $derived(st?.total ? Math.min(100, Math.round((st.downloaded / st.total) * 100)) : null);
-  const show = $derived(!!st?.enabled && (
+  // The tour offer / tour card share this corner and go first; the notice waits until they are gone.
+  const show = $derived(!!st?.enabled && !tour.offer && !tour.open && (
     st.phase === 'downloading' || st.phase === 'ready' || (st.phase === 'error' && updates.dismissed !== 'err') || (st.phase === 'available' && updates.dismissed !== v)
   ));
   const errKey = $derived(st?.error === 'network' ? 'upd.err.network' : st?.error === 'signature' ? 'upd.err.signature' : 'upd.err.generic');
