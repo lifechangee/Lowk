@@ -46,6 +46,7 @@ impl Engine {
 
     fn emit(&self, evs: impl IntoIterator<Item = Fire>) {
         for f in evs {
+            tracing::debug!(action = ?f.action, phase = ?f.phase, "input: matched, queued for dispatch");
             let _ = self.tx.send(BindEvent {
                 action: f.action,
                 phase: f.phase,
@@ -109,6 +110,19 @@ impl Engine {
         }
         let out = g.matcher.handle(raw);
         drop(guard);
+        if out.events.is_empty()
+            && matches!(
+                raw,
+                Raw::Key {
+                    down: true,
+                    repeat: false,
+                    ..
+                }
+            )
+        {
+            // Key content is never logged; this only proves the key reached the matcher.
+            tracing::debug!("input: key down reached the matcher, no bind matched");
+        }
         self.emit(out.events);
         out.swallow
     }

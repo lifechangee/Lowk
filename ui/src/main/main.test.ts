@@ -7,7 +7,7 @@ import { ACTIONS_PRIMARY, bindFor, bindWarnings, defaultBinds, formatTrigger, or
 import { parse } from './router.svelte';
 import { greeting } from './fmt';
 import type { SourceInfo } from '../lib/ipc';
-import { nameFromId, presetInfo, presetsFor, resolveSource } from './source';
+import { NEW_CALL_DEFAULT_SOURCE, nameFromId, presetInfo, presetsFor, resolveSource } from './source';
 
 const names = { middle: 'Wheel', back: 'Back', forward: 'Forward', other: (n: number) => `Btn ${n}` };
 
@@ -199,5 +199,11 @@ describe('library trash counter', () => {
     expect(library.trashed.length).toBe(1);
     expect(library.active.length).toBe(0);
     library.calls = [];
+  });
+});
+
+describe('New call default source', () => {
+  it('is always the whole system', () => {
+    expect(NEW_CALL_DEFAULT_SOURCE).toBe('system');
   });
 });

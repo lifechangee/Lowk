@@ -7,10 +7,10 @@
   import Select from '../lib/components/Select.svelte';
   import { folderKey, SYS_TRASH, SYS_UNSORTED } from './api';
   import { tm } from './i18n';
-  import { nameFromId, resolveSource } from './source';
+  import { NEW_CALL_DEFAULT_SOURCE, nameFromId } from './source';
   import SourcePicker from './SourcePicker.svelte';
   import LangPicker from './LangPicker.svelte';
-  import { callLangs, library, prefs, session, sources } from './state.svelte';
+  import { callLangs, library, session, sources } from './state.svelte';
 
   let { folderHint, onclose }: { folderHint: string | null; onclose: () => void } = $props();
 
@@ -20,13 +20,8 @@
   let langChoice = $state<string[] | null>(null);
   const langs = $derived(langChoice ?? callLangs.initial);
   const folder = $derived(folderChoice ?? (folderHint && folderHint !== SYS_TRASH ? folderHint : SYS_UNSORTED));
-  // explicit choice in this popover, else the source of the last call, else the default from Settings
-  const source = $derived(
-    sourceChoice ??
-      (prefs.value.audio?.last_source
-        ? resolveSource(prefs.value.audio.last_source, sources.running)
-        : resolveSource(prefs.value.audio?.default_source, sources.running, prefs.value.capture?.default_source)),
-  );
+  // explicit choice in this popover, else ALWAYS the whole system (never a remembered or default app)
+  const source = $derived(sourceChoice ?? NEW_CALL_DEFAULT_SOURCE);
   const folderOptions = $derived([
     ...library.folders.map((f) => ({ value: folderKey(f.id), label: f.title })),
     { value: SYS_UNSORTED, label: tm('m.noFolder') },

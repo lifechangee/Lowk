@@ -37,7 +37,12 @@
       "nsis": {
         "installMode": "currentUser",
         "languages": ["Russian", "English"],
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerHooks": "windows/nsis/hooks.nsh",
+        "customLanguageFiles": {
+          "English": "windows/nsis/English.nsh",
+          "Russian": "windows/nsis/Russian.nsh"
+        }
       }
     }
   }

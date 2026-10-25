@@ -64,6 +64,11 @@ impl InputManager {
         self.combo.as_ref().map(|c| c.events_handle())
     }
 
+    /// End every running hold and clear the key state (call when a Lowk window that grabbed the keyboard closes).
+    pub fn reset_holds(&self) {
+        self.low.reset_holds();
+    }
+
     pub fn status(&self) -> &InputStatus {
         &self.status
     }

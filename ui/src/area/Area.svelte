@@ -16,6 +16,9 @@
   let cur = $state<Pt>([0, 0]);
   // After a confirm / cancel the page clears itself at once (the native window hides a moment later).
   let done = $state(false);
+  // Own crosshair, drawn inside this capture-excluded window: the OS cursor stays a plain arrow because the
+  // system cursor (any shape change) is composited into screen shares.
+  let ptr = $state<Pt | null>(null);
   let vw = $state(innerWidth);
   let vh = $state(innerHeight);
 
@@ -46,12 +49,14 @@
 
   function down(e: PointerEvent) {
     if (done) return;
+    ptr = pt(e);
     if (e.button !== 0) return cancel();
     start = pt(e);
     cur = start;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
   function move(e: PointerEvent) {
+    ptr = pt(e);
     if (start) cur = pt(e);
   }
   function up(e: PointerEvent) {
@@ -95,6 +100,10 @@
   onpointerup={up}
   oncontextmenu={(e) => (e.preventDefault(), cancel())}
 >
+  {#if ptr && !done}
+    <div class="ch ch-v" data-testid="crosshair-v" style="left:{ptr[0]}px"></div>
+    <div class="ch ch-h" data-testid="crosshair-h" style="top:{ptr[1]}px"></div>
+  {/if}
   {#if box}
     <div class="rect" data-testid="rect" style="left:{box.x}px;top:{box.y}px;width:{box.w}px;height:{box.h}px"></div>
     <div class="size" data-testid="size" style="left:{labelLeft}px;top:{labelTop}px">{size}</div>
@@ -105,7 +114,10 @@
 </div>
 
 <style>
-  .sel { position: fixed; inset: 0; cursor: crosshair; touch-action: none; }
+  .sel { position: fixed; inset: 0; cursor: default; touch-action: none; }
+  .ch { position: absolute; pointer-events: none; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
+  .ch-v { top: 0; bottom: 0; width: 1px; }
+  .ch-h { left: 0; right: 0; height: 1px; }
   .sel.done { visibility: hidden; }
   .dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); }
   .rect {

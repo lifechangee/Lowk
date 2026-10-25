@@ -120,3 +120,7 @@ The overlay is excluded from screen capture using OS window flags, and is hidden
 ## Consent
 
 Recording or transcribing a call, and using an AI assistant during interviews or exams, may be regulated or forbidden by law, by your employer, a school or the meeting's rules. In many places all participants must consent. **You are responsible for knowing and following these rules.** The authors provide Lowk as is, without warranty, under AGPL-3.0-or-later, and are not liable for how you use it.
+
+## Uninstall
+
+On Windows, uninstall Lowk from Settings, Apps. The uninstaller keeps your settings, downloaded models and logs by default, so a reinstall picks up where you left off. To remove them too, tick **Also delete Lowk settings, downloaded models and logs** on the uninstall page (it is unchecked by default). That deletes `%APPDATA%\Lowk` and the saved API keys in Windows Credential Manager. Your vault (the notes in `Documents\Lowk` or the folder you chose) is never deleted.

@@ -83,3 +83,64 @@ pub fn request_accessibility() -> bool {
 pub fn cursor_position() -> (f64, f64) {
     imp::cursor_position()
 }
+
+/// Pure: bring the tracked modifier slots in line with what the OS reports (`actual`), leaving
+/// `skip` (the slot of the key being processed) alone. A lost key-up (hook timeout, focus
+/// change, secure desktop) otherwise leaves a modifier «stuck down» and every exact-mod bind dies.
+/// Returns true when something changed.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn reconcile_mods(tracked: &mut [bool; 8], actual: [bool; 8], skip: Option<usize>) -> bool {
+    let mut changed = false;
+    for i in 0..8 {
+        if Some(i) != skip && tracked[i] != actual[i] {
+            tracked[i] = actual[i];
+            changed = true;
+        }
+    }
+    changed
+}
+
+/// Pure health decision for the Windows hook thread: a modifier whose OS state disagrees with what the
+/// hook delivered for a whole poll interval means a key event never reached us (Windows silently drops a
+/// low-level hook whose callback exceeded the timeout), so the hook must be re-installed.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn hook_dropped(tracked: &[bool; 8], actual: &[bool; 8]) -> bool {
+    tracked != actual
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn disagreement_after_a_whole_interval_means_a_dropped_hook() {
+        let t = [false; 8];
+        let mut a = [false; 8];
+        assert!(!super::hook_dropped(&t, &a));
+        a[2] = true;
+        assert!(super::hook_dropped(&t, &a));
+    }
+
+    use super::reconcile_mods;
+
+    #[test]
+    fn stuck_modifier_is_released() {
+        let mut t = [false, false, true, false, false, false, false, false]; // lctrl «stuck»
+        assert!(reconcile_mods(&mut t, [false; 8], None));
+        assert_eq!(t, [false; 8]);
+    }
+    #[test]
+    fn missed_modifier_down_is_picked_up() {
+        let mut t = [false; 8];
+        let mut a = [false; 8];
+        a[0] = true;
+        assert!(reconcile_mods(&mut t, a, None));
+        assert!(t[0]);
+    }
+    #[test]
+    fn processed_key_slot_is_left_alone() {
+        let mut t = [false; 8];
+        let mut a = [false; 8];
+        a[2] = true;
+        assert!(!reconcile_mods(&mut t, a, Some(2)));
+        assert!(!t[2]);
+    }
+}

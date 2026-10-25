@@ -57,3 +57,6 @@ export function nameFromId(id: string): string {
   const tail = id.split(/[\\/]/).pop() ?? id;
   return tail.replace(/\.exe$/i, '');
 }
+
+/** What the «New call» popover preselects, regardless of settings or the last used source. */
+export const NEW_CALL_DEFAULT_SOURCE: SourceValue = 'system';

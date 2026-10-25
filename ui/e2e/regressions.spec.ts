@@ -69,39 +69,24 @@ test('F13b «Мой ответ» row and hint footer do not overlap and fit the 
   }
 });
 
-test('F12 no app list (real backend today): onboarding preselects whole system and home matches it', async ({ page }) => {
-  await page.goto('/main.html?lang=en&fresh&src=system&apps=none&ack#/onboarding/2');
+test('New call popover always opens with the whole system, whatever settings or last_source hold', async ({ page }) => {
+  // mock: audio.default_source = Zoom; ?last=app adds audio.last_source = Spotify
+  for (const q of ['', '&last=app', '&src=system&last=app']) {
+    await page.goto(`/main.html?lang=en${q}#/`);
+    await page.locator('.side .nc button.btn.primary').click();
+    await expect(page.locator('.np [data-source-value]')).toHaveAttribute('data-source-value', 'system');
+  }
+});
+
+test('onboarding capture step stores no sticky app default; the popover stays on the whole system', async ({ page }) => {
+  await page.goto('/main.html?lang=en&fresh&ack#/onboarding/2');
   await page.waitForSelector('.win');
-  const chosen = await page.locator('.step .opt.on, .step [aria-pressed=true], .step [class*=selected]').first().innerText().catch(() => '');
+  await expect(page.getByTestId('capture-app-note')).toBeVisible();
   await page.locator('.nav button.primary').click();
   await page.waitForTimeout(300);
   await page.evaluate(() => (location.hash = '#/'));
   await page.locator('.side .nc button.btn.primary').click();
-  const sources = await page.locator('.np [data-source-value]').evaluateAll((els) => els.map((e) => e.getAttribute('data-source-value')!));
-  const onboardingSaysApp = /One app|Одно приложение/i.test(chosen);
-  expect(onboardingSaysApp ? /^app:/.test(sources[0]!) : sources[0] === 'system', `onboarding «${chosen.split('\n')[0]}» vs home source «${sources[0]}»`).toBe(true);
-});
-
-test('F12 (mock with an app list) Next on the capture step persists the preselected app', async ({ page }) => {
-  await page.goto('/main.html?lang=en&fresh&src=system&ack#/onboarding/2');
-  await page.waitForSelector('.win');
-  await page.locator('.nav button.primary').click();
-  await page.waitForTimeout(300);
-  await page.evaluate(() => (location.hash = '#/'));
-  await page.locator('.side .nc button.btn.primary').click();
-  const sources = await page.locator('.np [data-source-value]').evaluateAll((els) => els.map((e) => e.getAttribute('data-source-value')!));
-  expect(sources[0]).toMatch(/^app:/);
-});
-
-test('F12b onboarding "Skip" on the capture step stores the preselected «one app»; home matches', async ({ page }) => {
-  await page.goto('/main.html?lang=en&fresh&src=system&ack#/onboarding/2');
-  await page.waitForSelector('.win');
-  await page.locator('.nav .skip').click();
-  await page.waitForTimeout(300);
-  await page.evaluate(() => (location.hash = '#/'));
-  await page.locator('.side .nc button.btn.primary').click();
-  const sources = await page.locator('.np [data-source-value]').evaluateAll((els) => els.map((e) => e.getAttribute('data-source-value')!));
-  expect(sources[0]).toMatch(/^app:/);
+  await expect(page.locator('.np [data-source-value]')).toHaveAttribute('data-source-value', 'system');
 });
 
 test('F10 (browser mock) streaming answer applies each delta exactly once', async ({ page }) => {

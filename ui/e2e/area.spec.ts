@@ -86,3 +86,18 @@ test('Enter with no rect does nothing', async ({ page }) => {
   await page.keyboard.press('Enter');
   expect(await calls(page)).toEqual([]);
 });
+
+test('the system cursor stays an arrow; our own crosshair is drawn inside the window', async ({ page }) => {
+  await open(page, 'en');
+  for (const sel of ['html', 'body', '.sel']) {
+    const c = await page.locator(sel).first().evaluate((e) => getComputedStyle(e).cursor);
+    expect(['default', 'auto'], `${sel} cursor`).toContain(c);
+  }
+  await page.mouse.move(120, 90);
+  await expect(page.getByTestId('crosshair-v')).toBeVisible();
+  await expect(page.getByTestId('crosshair-h')).toBeVisible();
+  const v = await page.getByTestId('crosshair-v').boundingBox();
+  const h = await page.getByTestId('crosshair-h').boundingBox();
+  expect(Math.round(v!.x)).toBe(120);
+  expect(Math.round(h!.y)).toBe(90);
+});

@@ -43,6 +43,7 @@ impl ComboHub {
 pub fn on_shortcut(_app: &AppHandle, shortcut: &Shortcut, ev: ShortcutEvent) {
     let h = hub();
     let Some((action, template)) = h.lookup(shortcut.id()) else {
+        tracing::debug!(shortcut = %shortcut.into_string(), "global shortcut with no bound action");
         return;
     };
     if ev.state == ShortcutState::Pressed {

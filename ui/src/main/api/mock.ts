@@ -71,7 +71,7 @@ export class MockBackend implements Backend {
       onboarding: { step: Number(qp('step') ?? 0), done: !fresh, recording_notice_ack: !fresh || qp('ack') !== null, tour_done: !fresh },
       vault: { path: '~/Documents/Lowk', unsorted_dir: 'Unsorted', trash_dir: 'Trash' },
       // ?src=system mirrors the real backend's fresh default (no default_source stored yet) for the QA suite.
-      audio: { default_source: typeof location !== 'undefined' && /[?&]src=system\b/.test(location.search) ? null : { kind: 'app', id: 'us.zoom.xos' }, aec: 'auto', keep_audio: false },
+      audio: { default_source: typeof location !== 'undefined' && /[?&]src=system\b/.test(location.search) ? null : { kind: 'app', id: 'us.zoom.xos' }, last_source: qp('last') === 'app' ? { kind: 'app', id: 'com.spotify.client' } : null, aec: 'auto', keep_audio: false },
       stt: { engine: 'whisper-large-v3-turbo', languages: ['ru', 'en'], cloud_vendor: 'soniox' },
       llm: { provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4.1-flash-1017', reasoning: false, data_collection_deny: true, default_template: 'brief', summary_model: 'deepseek/deepseek-v4.1-flash-1017', pinned_provider: 'DeepInfra', local_base_url: '', local_model: '', vision_model: 'anthropic/claude-haiku-5.5', local_vision_model: '', ask_context_tokens: 0 },
       embedder: { mode: qp('embedder') === 'off' ? 'off' : 'local', model: 'embeddinggemma-2-q8_0', cloud_model: 'openai/text-embedding-3-small' },

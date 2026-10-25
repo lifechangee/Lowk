@@ -76,7 +76,8 @@ test('G3 source picker: running apps with icon+name, presets, «Other…» from 
   await page.goto('/main.html?lang=en#/');
   await page.locator('.side .nc button.btn.primary').click();
   const picker = page.locator('.np [data-source-value]');
-  await expect(picker).toHaveAttribute('data-source-value', 'app:us.zoom.xos');
+  // the popover always starts with the whole system, even though the (mock) settings default is Zoom
+  await expect(picker).toHaveAttribute('data-source-value', 'system');
   await picker.getByRole('button').click();
   const list = page.getByRole('listbox');
   await expect(list.getByText('Playing audio now')).toBeVisible();

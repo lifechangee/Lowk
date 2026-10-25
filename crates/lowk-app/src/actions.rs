@@ -11,8 +11,15 @@ pub fn spawn(st: Arc<AppState>, rx: Receiver<BindEvent>) {
         .name("lowk-actions".into())
         .spawn(move || {
             for ev in rx {
+                tracing::debug!(action = ?ev.action, phase = ?ev.phase, "actions: received from input");
                 st.emit(AppEvent::Bind(ev.clone()));
-                dispatch(&st, ev);
+                let t0 = std::time::Instant::now();
+                dispatch(&st, ev.clone());
+                let took = t0.elapsed();
+                if took > std::time::Duration::from_millis(250) {
+                    // A blocked dispatch stalls every following bind: name the culprit.
+                    tracing::warn!(action = ?ev.action, phase = ?ev.phase, ?took, "slow bind dispatch (blocks all binds meanwhile)");
+                }
             }
         })
         .expect("spawn actions thread");

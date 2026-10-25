@@ -90,7 +90,8 @@ fn place(w: &tauri::WebviewWindow, d: &AreaDisplay) {
         let _ = w.set_position(LogicalPosition::new(d.points.x, d.points.y));
         let _ = w.set_size(LogicalSize::new(d.points.w, d.points.h));
     }
-    let _ = w.set_cursor_icon(tauri::CursorIcon::Crosshair);
+    // The system cursor stays a plain arrow: any shape change is composited into screen shares. The page draws its own crosshair.
+    let _ = w.set_cursor_icon(tauri::CursorIcon::Default);
 }
 
 /// The bind: show the selection over the display under the pointer. A second press while it is open does nothing.
@@ -137,6 +138,8 @@ pub fn open(st: &Arc<AppState>) -> Result<()> {
 }
 
 fn close(st: &AppState) {
+    // The selection window ate the key-ups: end any modifier hold (Ctrl click-hold, Alt move-hold) instead of leaving it stuck.
+    st.input.lock().reset_holds();
     if let Some(a) = st.stealth.get().and_then(|s| s.area.as_ref()) {
         a.close();
     }

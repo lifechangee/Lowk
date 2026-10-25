@@ -250,4 +250,18 @@ mod tests {
         assert_eq!((c.prev, c.now, c.style_changed), (Moving, Moving, true));
         assert_eq!(m.apply(ModeInput::MoveUp).unwrap().now, Passive);
     }
+
+    /// The main window taking focus (Blur) must not drop a running hover hold, and the hold
+    /// keeps the overlay in the Hover style (clickable, not click-through).
+    #[test]
+    fn hover_survives_main_window_focus_changes() {
+        let mut m = ModeMachine::new();
+        m.apply(ModeInput::HoverDown);
+        assert_eq!(m.style(), Interaction::Hover);
+        assert!(m.apply(ModeInput::Blur).is_none());
+        assert_eq!(m.style(), Interaction::Hover);
+        assert_eq!(m.effective(), Hover);
+        assert!(m.apply(ModeInput::HoverUp).is_some());
+        assert_eq!(m.style(), Interaction::Passive);
+    }
 }

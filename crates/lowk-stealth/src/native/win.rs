@@ -105,6 +105,54 @@ impl Win {
             ),
         }
     }
+
+    fn set_interaction_inner(&self, i: Interaction) -> Result<()> {
+        // SAFETY: valid HWNDs; all calls on the UI thread.
+        unsafe {
+            match i {
+                Interaction::Interactive => {
+                    *self.prev_fg.lock() = GetForegroundWindow().0 as isize;
+                    self.set_ex(self.ex() & !((WS_EX_NOACTIVATE.0 | WS_EX_TRANSPARENT.0) as isize));
+                    let _ = SetForegroundWindow(self.hwnd());
+                    if GetForegroundWindow() != self.hwnd() {
+                        // Allowed right after a global-hotkey event; otherwise borrow the
+                        // foreground thread's input state.
+                        let fg = GetForegroundWindow();
+                        let fg_thread = GetWindowThreadProcessId(fg, None);
+                        let me = GetCurrentThreadId();
+                        let _ = AttachThreadInput(me, fg_thread, true);
+                        let _ = SetForegroundWindow(self.hwnd());
+                        let _ = AttachThreadInput(me, fg_thread, false);
+                    }
+                    self.topmost();
+                    let _ = SetFocus(Some(self.hwnd()));
+                    if GetForegroundWindow() != self.hwnd() {
+                        self.set_ex(self.ex() | PASSIVE_EX | WS_EX_NOACTIVATE.0 as isize);
+                        return Err(unavailable("overlay could not take the foreground"));
+                    }
+                }
+                Interaction::Hover => {
+                    // Mouse events only: no longer transparent to hit-testing, still no-activate.
+                    self.set_ex((self.ex() | WS_EX_NOACTIVATE.0 as isize) & !(WS_EX_TRANSPARENT.0 as isize));
+                    // Above whatever window is focused (the main window included), without taking focus.
+                    self.topmost();
+                }
+                Interaction::Passive => {
+                    self.set_ex(self.ex() | PASSIVE_EX | WS_EX_NOACTIVATE.0 as isize);
+                    self.topmost();
+                    let prev = h(std::mem::take(&mut *self.prev_fg.lock()));
+                    if !prev.0.is_null()
+                        && prev != self.hwnd()
+                        && IsWindow(Some(prev)).as_bool()
+                        && GetForegroundWindow() == self.hwnd()
+                    {
+                        let _ = SetForegroundWindow(prev);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 const STEALTH_EX: isize = (WS_EX_TOOLWINDOW.0 | WS_EX_NOACTIVATE.0) as isize;
@@ -188,49 +236,22 @@ impl WindowBackend for Win {
     }
 
     fn set_interaction(&self, i: Interaction) -> Result<()> {
-        // SAFETY: valid HWNDs; all calls on the UI thread.
-        unsafe {
-            match i {
-                Interaction::Interactive => {
-                    *self.prev_fg.lock() = GetForegroundWindow().0 as isize;
-                    self.set_ex(self.ex() & !((WS_EX_NOACTIVATE.0 | WS_EX_TRANSPARENT.0) as isize));
-                    let _ = SetForegroundWindow(self.hwnd());
-                    if GetForegroundWindow() != self.hwnd() {
-                        // Allowed right after a global-hotkey event; otherwise borrow the
-                        // foreground thread's input state.
-                        let fg = GetForegroundWindow();
-                        let fg_thread = GetWindowThreadProcessId(fg, None);
-                        let me = GetCurrentThreadId();
-                        let _ = AttachThreadInput(me, fg_thread, true);
-                        let _ = SetForegroundWindow(self.hwnd());
-                        let _ = AttachThreadInput(me, fg_thread, false);
-                    }
-                    let _ = SetFocus(Some(self.hwnd()));
-                    if GetForegroundWindow() != self.hwnd() {
-                        self.set_ex(self.ex() | PASSIVE_EX | WS_EX_NOACTIVATE.0 as isize);
-                        return Err(unavailable("overlay could not take the foreground"));
-                    }
-                }
-                Interaction::Hover => {
-                    // Mouse events only: no longer transparent to hit-testing, still no-activate.
-                    self.set_ex((self.ex() | WS_EX_NOACTIVATE.0 as isize) & !(WS_EX_TRANSPARENT.0 as isize));
-                    // Above whatever window is focused (the main window included), without taking focus.
-                    self.topmost();
-                }
-                Interaction::Passive => {
-                    self.set_ex(self.ex() | PASSIVE_EX | WS_EX_NOACTIVATE.0 as isize);
-                    let prev = h(std::mem::take(&mut *self.prev_fg.lock()));
-                    if !prev.0.is_null()
-                        && prev != self.hwnd()
-                        && IsWindow(Some(prev)).as_bool()
-                        && GetForegroundWindow() == self.hwnd()
-                    {
-                        let _ = SetForegroundWindow(prev);
-                    }
-                }
-            }
-        }
-        Ok(())
+        let before = self.ex();
+        let r = self.set_interaction_inner(i);
+        let after = self.ex();
+        tracing::info!(
+            ?i,
+            ok = r.is_ok(),
+            before = format_args!("0x{before:x}"),
+            after = format_args!("0x{after:x}"),
+            transparent = after & WS_EX_TRANSPARENT.0 as isize != 0,
+            layered = after & WS_EX_LAYERED.0 as isize != 0,
+            noactivate = after & WS_EX_NOACTIVATE.0 as isize != 0,
+            // SAFETY: no preconditions.
+            foreground_is_overlay = unsafe { GetForegroundWindow() } == self.hwnd(),
+            "overlay extended styles"
+        );
+        r
     }
 
     fn frame(&self) -> Rect {

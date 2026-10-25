@@ -49,6 +49,12 @@ impl LowLevelBackend {
         }
     }
 
+    /// Forget every held key/modifier and end running holds (their `Up` events are emitted): the
+    /// screenshot area window eats key-ups, so a modifier hold could otherwise stay «down» for good.
+    pub fn reset_holds(&self) {
+        self.engine.on_raw(crate::matcher::Raw::Reset);
+    }
+
     /// Capability of the running hook, if any.
     pub fn hook_info(&self) -> Option<HookInfo> {
         self.hook.as_ref().map(|h| h.1)
