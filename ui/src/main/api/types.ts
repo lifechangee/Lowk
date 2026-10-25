@@ -23,6 +23,7 @@ import type {
   MicMode,
   MicPreset,
   NetworkCheck,
+  DataDirInfo,
   NetworkStatus,
   NewFolder,
   Os,
@@ -258,6 +259,10 @@ export interface Backend {
   revealPath(path: string): Promise<void>;
   /** Opens the folder with lowk.log (support). */
   logsReveal(): Promise<void>;
+  /** Settings -> Storage: the data root (models, engines, logs) and the state of a running move. */
+  dataDirInfo(): Promise<DataDirInfo>;
+  /** Moves models and engines (copy, verify, delete old) to `path`; `null` = the default folder. Poll `dataDirInfo`. */
+  dataDirMove(path: string | null): Promise<void>;
   /** Settings -> About: version, commit, build date, licence, source link. */
   appAbout(): Promise<AboutInfo>;
   /** The bundled THIRD_PARTY.md. */

@@ -3151,6 +3151,7 @@ dependencies = [
  "sys-locale",
  "sysinfo",
  "system-configuration",
+ "tempfile",
  "tracing",
  "windows",
  "zeroize",

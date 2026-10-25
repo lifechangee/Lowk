@@ -25,3 +25,5 @@ LangString webview2Downloading ${LANG_ENGLISH} "Downloading WebView2 bootstrappe
 LangString webview2InstallError ${LANG_ENGLISH} "Error: Installing WebView2 failed with exit code $1"
 LangString webview2InstallSuccess ${LANG_ENGLISH} "WebView2 installed successfully"
 LangString deleteAppData ${LANG_ENGLISH} "Also delete Lowk settings, downloaded models and logs (your notes in Documents\Lowk are never touched)"
+LangString lowkWelcomeTitle ${LANG_ENGLISH} "Welcome to Lowk"
+LangString lowkWelcomeText ${LANG_ENGLISH} "Lowk listens to your calls and lectures, keeps the notes and helps you at the right moment. Everything stays on your computer.$\r$\n$\r$\nInstalling takes under a minute and needs no administrator rights.$\r$\n$\r$\nClick Next to continue."

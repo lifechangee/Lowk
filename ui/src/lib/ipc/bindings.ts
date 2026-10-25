@@ -49,6 +49,10 @@ export const commands = {
 	pathReveal: (path: string) => typedError<null, AppError>(__TAURI_INVOKE("path_reveal", { path })),
 	/**  Opens the folder with `lowk.log` (and `lowk.prev.log`): what a user sends us when something breaks. */
 	logsReveal: () => typedError<null, AppError>(__TAURI_INVOKE("logs_reveal")),
+	/**  Settings -> Storage: where models, engines and logs live, and whether a move is running. */
+	dataDirInfo: () => typedError<DataDirInfo, AppError>(__TAURI_INVOKE("data_dir_info")),
+	/**  Moves models and engines to `path` (`null` = the default folder) in the background; progress is in `data_dir_info`. */
+	dataDirMove: (path: string | null) => typedError<null, AppError>(__TAURI_INVOKE("data_dir_move", { path })),
 	vaultOpen: (path: string | null) => typedError<VaultInfo, AppError>(__TAURI_INVOKE("vault_open", { path })),
 	vaultInfo: () => __TAURI_INVOKE<{
 	/**  Absolute path of the open vault. */
@@ -571,6 +575,20 @@ export type ContextPack = {
 	pinned_dropped: number,
 };
 
+export type DataDirInfo = {
+	path: string,
+	default_path: string,
+	is_default: boolean,
+	/**  Size of the models and engines in the current folder. */
+	used_mb: number,
+	/**  Set while a move (user-initiated or the upgrade migration) is running. */
+	moving: MoveProgress | null,
+	/**  Last move failed: short reason (not localised, shown as detail). */
+	error: string | null,
+	/**  Old files that could not be deleted after a successful move. */
+	leftover: string | null,
+};
+
 export type DeviceInfo = {
 	id: string,
 	name: string,
@@ -1039,6 +1057,11 @@ export type Mods = {
 };
 
 export type MouseBtn = { kind: "middle" } | { kind: "back" } | { kind: "forward" } | { kind: "other"; n: number };
+
+export type MoveProgress = {
+	done_mb: number,
+	total_mb: number,
+};
 
 /**  `network_check` result: a GET to the provider through the effective proxy. */
 export type NetworkCheck = {

@@ -16,6 +16,8 @@ const COMMANDS: &[&str] = &[
     "update_check",
     "path_reveal",
     "logs_reveal",
+    "data_dir_info",
+    "data_dir_move",
     "vault_open",
     "vault_info",
     "folder_list",

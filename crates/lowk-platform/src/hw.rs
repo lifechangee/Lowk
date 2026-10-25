@@ -69,7 +69,7 @@ fn cpu_features() -> Vec<String> {
 }
 
 fn free_disk_gb() -> f32 {
-    let target = crate::dirs::app_data()
+    let target = crate::dirs::data_root()
         .or_else(|| std::env::current_dir().ok())
         .unwrap_or_default();
     let disks = Disks::new_with_refreshed_list();

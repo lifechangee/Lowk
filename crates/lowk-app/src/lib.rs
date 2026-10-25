@@ -9,6 +9,7 @@ mod callstore;
 mod capture;
 mod combo;
 mod commands;
+pub mod datadir;
 mod diagnostics;
 mod emitter;
 mod engines;
@@ -52,7 +53,7 @@ pub fn export_bindings(path: &std::path::Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-/// stderr plus `<data dir>/lowk.log` (a bundle launched from Finder has no terminal; this is what
+/// stderr plus `<data root>/logs/lowk.log` (a bundle launched from Finder has no terminal; this is what
 /// «why does X not work in the real app» is answered from). The file restarts past 2 MB.
 struct Tee;
 static LOG: std::sync::OnceLock<Option<std::sync::Mutex<std::fs::File>>> = std::sync::OnceLock::new();
@@ -87,13 +88,13 @@ pub(crate) fn log_raw(text: &str) -> std::io::Result<()> {
 }
 
 fn log_file() -> Option<std::fs::File> {
-    let dir = state::data_dir().ok()?;
-    std::fs::create_dir_all(&dir).ok()?;
-    let path = dir.join("lowk.log");
+    let l = lowk_platform::dirs::layout()?;
+    std::fs::create_dir_all(l.logs()).ok()?;
+    let path = l.log_file();
     let big = std::fs::metadata(&path).is_ok_and(|m| m.len() > 2_000_000);
     if big {
         // keep the previous run's log next to the new one (a bug report needs both)
-        let _ = std::fs::rename(&path, dir.join("lowk.prev.log"));
+        let _ = std::fs::rename(&path, l.prev_log_file());
     }
     let mut o = std::fs::OpenOptions::new();
     o.create(true).append(true);
@@ -110,6 +111,7 @@ fn init_tracing() {
 }
 
 pub fn run() {
+    datadir::startup();
     init_tracing();
     diagnostics::install_panic_hook();
     let builder = specta_builder();

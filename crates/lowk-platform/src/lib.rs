@@ -5,7 +5,9 @@
 pub mod dirs;
 pub mod hw;
 pub mod locale;
+pub mod migrate;
 pub mod perm;
 pub mod process;
 pub mod proxy;
+pub mod purge;
 pub mod secrets;

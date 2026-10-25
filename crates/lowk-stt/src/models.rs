@@ -29,25 +29,29 @@ impl DownloadSpec {
 /// Progress callback: (file, phase, done_bytes, total_bytes).
 pub type ProgressFn<'a> = &'a mut dyn FnMut(&str, InstallPhase, u64, u64);
 
-/// `<app data>/models/<engine id>/`.
+/// `<data root>/models/<engine id>/`.
 #[derive(Clone, Debug)]
 pub struct ModelStore {
-    root: PathBuf,
+    /// `None` = follow the app's data root (it can be moved at runtime), `Some` = a fixed folder.
+    root: Option<PathBuf>,
 }
 
 impl ModelStore {
     pub fn new(root: PathBuf) -> Self {
-        Self { root }
+        Self { root: Some(root) }
     }
-    /// Default location (`<app data>/models`).
+    /// Follows the data root (`<data root>/models`), also after the user moves it.
     pub fn default_location() -> Option<Self> {
-        lowk_platform::dirs::models().map(Self::new)
+        lowk_platform::dirs::models().map(|_| Self { root: None })
     }
-    pub fn root(&self) -> &Path {
-        &self.root
+    pub fn root(&self) -> PathBuf {
+        self.root
+            .clone()
+            .or_else(lowk_platform::dirs::models)
+            .unwrap_or_default()
     }
     pub fn dir(&self, engine: &str) -> PathBuf {
-        self.root.join(engine)
+        self.root().join(engine)
     }
     pub fn path(&self, engine: &str, file: &str) -> PathBuf {
         self.dir(engine).join(file)

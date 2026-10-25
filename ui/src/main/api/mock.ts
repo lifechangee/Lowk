@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command the backend has not wired yet. Mutations are real within the page's life.
-import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TrashedFolder, UpdateStatus } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DataDirInfo, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TrashedFolder, UpdateStatus } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -339,6 +339,16 @@ export class MockBackend implements Backend {
   async pickVaultDir(): Promise<string | null> { return this.#os === 'windows' ? 'D:\\Notes\\Lowk' : '~/Obsidian/Lowk'; }
   async revealPath(_path: string): Promise<void> { await delay(); }
   async logsReveal(): Promise<void> { await delay(); }
+  #dataDir: string | null = null;
+  #moveLeft = 0;
+  async dataDirInfo(): Promise<DataDirInfo> {
+    const def = this.#os === 'windows' ? 'C:\\Users\\me\\AppData\\Local\\Programs\\Lowk\\data' : '~/Library/Application Support/Lowk';
+    if (this.#moveLeft > 0) this.#moveLeft -= 1;
+    const moving = this.#moveLeft > 0 ? { done_mb: (4 - this.#moveLeft) * 300, total_mb: 1200 } : null;
+    const path = this.#dataDir ?? def;
+    return { path, default_path: def, is_default: path === def, used_mb: 1200, moving, error: null, leftover: null };
+  }
+  async dataDirMove(path: string | null): Promise<void> { this.#moveLeft = 4; this.#dataDir = path; await delay(); }
   async appAbout(): Promise<AboutInfo> {
     return { version: '0.0.1', commit: 'a1b2c3d4e5f6', build_date: '2026-10-25', license: 'AGPL-3.0-or-later', source_url: 'https://github.com/lowk-app/lowk' };
   }

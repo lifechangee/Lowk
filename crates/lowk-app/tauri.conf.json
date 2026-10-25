@@ -42,7 +42,21 @@
         "customLanguageFiles": {
           "English": "windows/nsis/English.nsh",
           "Russian": "windows/nsis/Russian.nsh"
-        }
+        },
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "sidebarImage": "windows/nsis/sidebar.bmp",
+        "headerImage": "windows/nsis/header.bmp",
+        "uninstallerHeaderImage": "windows/nsis/header.bmp"
+      }
+    },
+    "licenseFile": "../../LICENSE",
+    "macOS": {
+      "dmg": {
+        "background": "windows/dmg/background.png",
+        "windowSize": { "width": 660, "height": 400 },
+        "appPosition": { "x": 180, "y": 210 },
+        "applicationFolderPosition": { "x": 480, "y": 210 }
       }
     }
   }

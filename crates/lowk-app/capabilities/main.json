@@ -107,6 +107,8 @@
     "allow-trash-empty",
     "allow-trash-folders",
     "allow-logs-reveal",
+    "allow-data-dir-info",
+    "allow-data-dir-move",
     "allow-path-reveal",
     "allow-update-check",
     "allow-update-install",

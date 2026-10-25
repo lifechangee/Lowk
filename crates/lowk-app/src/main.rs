@@ -4,6 +4,10 @@
 fn main() {
     // Headless diagnostics of the documents pipeline (docs, index, Ask flow); used by `just qa-bundle`.
     let args: Vec<String> = std::env::args().collect();
+    // Uninstaller option «delete settings, models and logs»: headless, no window (see datadir.rs).
+    if args.iter().any(|a| a == "--purge-user-data") {
+        std::process::exit(lowk_app::datadir::purge_cli());
+    }
     if args.iter().any(|a| a == "--selfcheck-m2") {
         std::process::exit(lowk_app::m2::selfcheck::main(&args));
     }

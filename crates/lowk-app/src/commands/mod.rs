@@ -36,6 +36,8 @@ macro_rules! all_commands {
             crate::commands::updates::update_skip,
             crate::commands::settings::path_reveal,
             crate::commands::settings::logs_reveal,
+            crate::commands::settings::data_dir_info,
+            crate::commands::settings::data_dir_move,
             crate::commands::vault::vault_open,
             crate::commands::vault::vault_info,
             crate::commands::vault::folder_list,

@@ -202,9 +202,23 @@ pub fn path_reveal(path: String) -> Result<()> {
 #[tauri::command(async)]
 #[specta::specta]
 pub fn logs_reveal() -> Result<()> {
-    let dir = crate::state::data_dir()?;
-    let log = dir.join("lowk.log");
-    reveal(if log.exists() { &log } else { &dir })
+    let l = lowk_platform::dirs::layout().ok_or_else(|| AppError::new(ErrorCode::Io))?;
+    let log = l.log_file();
+    reveal(if log.exists() { &log } else { &l.data_root })
+}
+
+/// Settings -> Storage: where models, engines and logs live, and whether a move is running.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn data_dir_info() -> Result<crate::datadir::DataDirInfo> {
+    crate::datadir::info()
+}
+
+/// Moves models and engines to `path` (`null` = the default folder) in the background; progress is in `data_dir_info`.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn data_dir_move(path: Option<String>) -> Result<()> {
+    crate::datadir::start_move(path)
 }
 
 /// Static facts for Settings -> About. `commit` and `build_date` are embedded by build.rs
@@ -264,8 +278,8 @@ pub fn diagnostics_save(st: State<'_, Shared>, dest: String) -> Result<Diagnosti
     let recommendation = lowk_platform::hw::recommend(&report);
     let settings = st.settings.get();
     let engines = st.engines.infos(&report, &settings.stt.cloud_vendor);
-    let dir = crate::state::data_dir()?;
-    let read = |n: &str| std::fs::read_to_string(dir.join(n)).ok();
+    let logs = lowk_platform::dirs::logs().unwrap_or_default();
+    let read = |n: &str| std::fs::read_to_string(logs.join(n)).ok();
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_default();
