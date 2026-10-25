@@ -42,7 +42,7 @@ Download the latest build from [Releases](https://github.com/lifechangee/Lowk/re
 | macOS (Apple Silicon, macOS 14.4+) | Primary target. Live transcription, overlay, hotkeys, vault and AI hints work and have been tested by hand on a MacBook Air M4. Rough edges are expected. |
 | Windows 10/11 | Release builds exist but are **experimental**: see [docs/release.md](docs/release.md). Not verified on real hardware. |
 | Documents, search, summary, Ask with context | Implemented. Documents (PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, images with OCR), hybrid search, summary and tags, folder instructions, pinned documents, and AI answers that use folder context with source chips under the answer. Known limits: the embedding-model comparison and timing on Windows are unfinished. |
-| Builds | Unsigned or self-signed, not notarized; test builds come from GitHub Actions ([docs/release.md](docs/release.md)) or build from source. No auto-update channel yet. |
+| Builds | Unsigned or self-signed, not notarized; test builds come from GitHub Actions ([docs/release.md](docs/release.md)) or build from source. Auto-update ships with the first release. |
 
 **Known limitations:** unsigned installers (see above); no auto-update yet; Windows is not verified on real hardware; Windows 10 captures whole-system audio only; the overlay hides from common screen-share paths but this is not guaranteed; no speaker diarization; vault files are not encrypted.
 

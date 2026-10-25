@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Lowk",
-  "version": "0.0.1",
   "identifier": "dev.lowk.app",
   "build": {
     "frontendDist": "../../ui/dist",
@@ -15,6 +14,12 @@
     "windows": [],
     "security": {
       "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://127.0.0.1:1420 http://127.0.0.1:1420; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": ["https://github.com/lowk-app/lowk/releases/latest/download/latest.json"]
     }
   },
   "bundle": {

@@ -13,6 +13,7 @@
       "../../THIRD_PARTY.md": "THIRD_PARTY.md"
     },
     "macOS": {
+      "minimumSystemVersion": "14.4",
       "entitlements": "Entitlements.plist"
     }
   }

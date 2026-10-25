@@ -53,9 +53,15 @@ bindings:
 fmt:
     cargo fmt --all
 
+# Set the version everywhere (Cargo workspace = source of truth). `just bump 0.1.0`
+bump version:
+    tools/release/bump.sh {{version}}
+
 # fmt check, clippy, ui type check, dependency rules, license check, THIRD_PARTY.md freshness.
 lint:
     ruby -ryaml -e 'ARGV.each { |f| YAML.load_file(f) }' .github/workflows/*.yml
+    tools/release/check-versions.sh
+    tools/release/check-no-keys.sh
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo xtask check-deps

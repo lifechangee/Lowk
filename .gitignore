@@ -29,3 +29,9 @@ ui/e2e/baselines/
 
 # staged STT worker sidecar (tools/build-worker.sh)
 /crates/lowk-app/binaries/
+
+# Updater signing keys: NEVER commit (tools/release/check-no-keys.sh enforces it in CI)
+*.key
+*.key.pub.secret
+.tauri/
+lowk*.key*

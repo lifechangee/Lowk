@@ -15,10 +15,23 @@ on:
         type: choice
         options: [both, windows, macos]
         default: both
+  # Reusable: release.yml (tag push) calls this to build the installers.
+  workflow_call:
+    inputs:
+      windows_gpu:
+        type: string
+        default: vulkan
+      platforms:
+        type: string
+        default: both
+      sign_updater:
+        description: "Sign Tauri updater artifacts (needs TAURI_SIGNING_PRIVATE_KEY)"
+        type: boolean
+        default: false
   # nightly `schedule` is added once manual runs are stably green
 
 concurrency:
-  group: release-build-${{ github.ref }}
+  group: release-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -87,16 +100,23 @@ jobs:
           tools/release/stage-sidecars.sh
       - name: NSIS installer
         working-directory: crates/lowk-app
-        run: cargo tauri build --config tauri.bundle.conf.json --config tauri.release.conf.json --bundles nsis
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          cfg=(--config tauri.bundle.conf.json --config tauri.release.conf.json)
+          if [ "${{ inputs.sign_updater }}" = true ]; then cfg+=(--config tauri.updater.conf.json); fi
+          cargo tauri build "${cfg[@]}" --bundles nsis
       - name: Collect
         run: |
           mkdir -p dist
           cp target/release/bundle/nsis/*.exe dist/
+          cp target/release/bundle/nsis/*.exe.sig dist/ 2>/dev/null || true
           ls -l dist
       - uses: actions/upload-artifact@v4
         with:
           name: lowk-windows-x64-${{ env.GPU }}
-          path: dist/*.exe
+          path: dist/*
           if-no-files-found: error
           retention-days: 14
 
@@ -158,6 +178,18 @@ jobs:
           codesign -d -r- target/release/bundle/macos/Lowk.app 2>&1 | grep designated
       - name: dmg + zip
         run: tools/release/make-dmg.sh dist
+      - name: Updater bundle (tar.gz of the signed app) + signature
+        if: inputs.sign_updater
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          ver="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          out="dist/Lowk-$ver-macos-$(uname -m).app.tar.gz"
+          # built from the already re-signed app (tauri's own tar.gz would predate tools/sign-bundle.sh)
+          COPYFILE_DISABLE=1 tar -czf "$out" -C target/release/bundle/macos Lowk.app
+          cargo tauri signer sign "$out"
+          ls -l dist
       - uses: actions/upload-artifact@v4
         with:
           name: lowk-macos-arm64
