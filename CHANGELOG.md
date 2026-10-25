@@ -5,7 +5,12 @@ All notable changes to Lowk are documented here. The format follows [Keep a Chan
 ## [Unreleased]
 
 ### Added
+- Delete folder (sidebar ⋯ menu and folder page): the folder with all its calls and documents goes to the Trash after a confirmation with counts, and Restore brings everything back. Refused while a recording is running in it; Unsorted and Trash cannot be deleted.
+- Move to trash in the ⋯ menu of call rows (folder list and Home), with Undo.
 - Proxy support: every outbound connection (OpenRouter, cloud embeddings, Deepgram and Soniox streaming, model downloads, updates, key checks) now follows the system proxy (Windows Internet Settings, macOS network proxies) or the `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` / `NO_PROXY` variables, over HTTP CONNECT or SOCKS5. Settings → Network shows the detected proxy, lets you set one manually and checks the connection. PAC scripts are not supported. Localhost always connects directly.
+
+### Removed
+- Tags: chips, the add-tag control, tag filter in search, AI tag suggestions and the related commands. Existing `tags:` in Markdown front matter are still read and never rewritten or stripped.
 
 ## [0.1.0]
 

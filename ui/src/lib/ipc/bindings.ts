@@ -58,8 +58,15 @@ export const commands = {
 	folderGet: (id: FolderRef) => typedError<FolderDetail, AppError>(__TAURI_INVOKE("folder_get", { id })),
 	folderCreate: (folder: NewFolder) => typedError<FolderMeta, AppError>(__TAURI_INVOKE("folder_create", { folder })),
 	folderUpdate: (id: Ulid, patch: FolderUpdate) => typedError<FolderMeta, AppError>(__TAURI_INVOKE("folder_update", { id, patch })),
-	/**  Moves the folder to the Trash (restorable); never hard-deletes. */
+	/**
+	 *  Moves the folder and everything in it to the Trash (restorable); never hard-deletes. Refuses while a
+	 *  call is being recorded in it. The calls and documents inside are re-indexed (they are trashed now).
+	 */
 	folderDelete: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("folder_delete", { id })),
+	/**  Brings a trashed folder back with its calls and documents. */
+	folderRestore: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("folder_restore", { id })),
+	/**  Folders in the Trash with their contents. */
+	trashFolders: () => typedError<TrashedFolder[], AppError>(__TAURI_INVOKE("trash_folders")),
 	callList: (folder: { kind: "user"; id: Ulid } | 
 /**  `sys:unsorted` — calls recorded without a chosen folder. */
 { kind: "unsorted" } | 
@@ -76,7 +83,6 @@ export const commands = {
 	callDelete: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("call_delete", { id })),
 	callRestore: (id: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("call_restore", { id })),
 	callRename: (id: Ulid, title: string) => typedError<CallMeta, AppError>(__TAURI_INVOKE("call_rename", { id, title })),
-	callSetTags: (id: Ulid, tags: string[]) => typedError<CallMeta, AppError>(__TAURI_INVOKE("call_set_tags", { id, tags })),
 	/**  The only hard delete («Очистить корзину»). Returns the number of items removed. */
 	trashEmpty: () => typedError<number, AppError>(__TAURI_INVOKE("trash_empty")),
 	/**  «Delete forever» for one item in the Trash: also removes its saved audio and transcript revisions. */
@@ -228,8 +234,6 @@ export const commands = {
 	llmSummarize: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("llm_summarize", { call })),
 	/**  Cancels a running summary. */
 	llmSummarizeCancel: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("llm_summarize_cancel", { call })),
-	/**  AI tag suggestions for a call; the user confirms, then `call_set_tags`. */
-	llmSuggestTags: (call: Ulid) => typedError<TagSuggestion[], AppError>(__TAURI_INVOKE("llm_suggest_tags", { call })),
 	/**  Provider, pinned model/provider and whether the BYOK key is present. */
 	llmProviderStatus: () => typedError<LlmProviderStatus, AppError>(__TAURI_INVOKE("llm_provider_status")),
 	/**  Cheap authenticated request to verify the OpenRouter key (`ApiKeyMissing`, `Network`, `LlmProvider`). */
@@ -590,7 +594,6 @@ export type DocKind = "pdf" | "docx" |
 /**  Editable document fields (`doc_patch`); `None` = unchanged. */
 export type DocPatch = {
 	title?: string | null,
-	tags?: string[] | null,
 	pinned?: boolean | null,
 	folder?: FolderRef | null,
 };
@@ -787,7 +790,6 @@ export type FolderRef = { kind: "user"; id: Ulid } |
 
 export type FolderUpdate = {
 	title?: string | null,
-	tags?: string[] | null,
 	allow_cloud?: boolean | null,
 	/**  Empty string clears the folder's default template. */
 	default_template?: string | null,
@@ -1087,14 +1089,12 @@ export type NewDocument = {
 	source_path: string,
 	title: string | null,
 	pin: boolean,
-	tags: string[],
 	/**  What to do when the same content (SHA-256 of the original) is already in the folder. */
 	on_duplicate?: DupAction,
 };
 
 export type NewFolder = {
 	title: string,
-	tags: string[],
 	allow_cloud: boolean,
 	instructions: string,
 };
@@ -1290,7 +1290,6 @@ export type RetrievalScope = {
 	 *  live delta). Other calls of the folder are.
 	 */
 	call: Ulid | null,
-	tags: string[],
 	/**  Include other folders (soft boost for the same folder still applies). */
 	all_folders: boolean,
 };
@@ -1339,8 +1338,6 @@ export type RetxStatus = {
 
 export type SearchFilters = {
 	folders?: FolderRef[],
-	/**  All listed tags must match. */
-	tags?: string[],
 	/**  RFC 3339 dates (inclusive); apply to call start / document added. */
 	from?: string | null,
 	to?: string | null,
@@ -1699,14 +1696,6 @@ export type SummaryTask = {
 	what: string,
 };
 
-export type TagSuggestion = {
-	tag: string,
-	confidence: number | null,
-	/**  Already used somewhere in the vault (preferred over inventing new tags). */
-	existing: boolean,
-	reason: string | null,
-};
-
 /**  Audio source selection types shared by audio, session and UI. */
 export type Target = 
 /**  Bundle id (macOS) or exe path (Windows). */
@@ -1771,6 +1760,18 @@ export type TranscriptLine = {
 	offset_s: number,
 	text: string,
 	is_final: boolean,
+};
+
+/**  A folder that sits in the Trash with everything it contained (restorable as a whole). */
+export type TrashedFolder = {
+	id: Ulid,
+	title: string,
+	/**  RFC 3339 (UTC). */
+	deleted_at: string,
+	calls: number,
+	docs: number,
+	/**  The calls inside; the Trash list shows them under the folder, not on their own. */
+	call_ids: Ulid[],
 };
 
 export type Trigger = { kind: "combo"; mods: Mods; key: KeyCode } | { kind: "modifier_only"; mods: Mods } | { kind: "mouse"; button: MouseBtn; mods: Mods };

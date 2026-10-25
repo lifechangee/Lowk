@@ -16,7 +16,6 @@ export const search = {
   'search.count': 'Найдено: {n} · {ms} мс',
   'search.filters': 'Фильтры поиска',
   'search.filter.allFolders': 'Все папки',
-  'search.filter.allTags': 'Все теги',
   'search.filter.allKinds': 'Всё',
   'search.filter.kind': 'Что искать',
   'search.filter.anyDate': 'Любая дата',

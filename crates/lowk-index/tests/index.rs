@@ -145,21 +145,8 @@ fn filters_folder_tag_date_kind_trash() {
         "Tagged",
         "# T\n\nbudget notes about hiring".into(),
     );
-    it.tags = vec!["HR".into()];
     it.when = Some("2026-03-05T00:00:00+00:00".into());
     ix.upsert(&it).unwrap();
-    let mut f = SearchFilters::default();
-    f.tags = vec!["hr".into()];
-    assert_eq!(
-        ix.search(&SearchQuery {
-            filters: f,
-            ..q("budget")
-        })
-        .unwrap()
-        .hits
-        .len(),
-        1
-    );
     let mut f = SearchFilters::default();
     f.from = Some("2026-03-01".into());
     f.to = Some("2026-03-05".into());
@@ -326,7 +313,6 @@ fn rq(folder: Option<Ulid>, text: &str) -> RetrievalQuery {
         scope: RetrievalScope {
             folder,
             call: None,
-            tags: vec![],
             all_folders: false,
         },
         budget_tokens: 2000,

@@ -37,6 +37,11 @@
     close();
     await library.move(id, key);
   }
+  async function trash() {
+    const id = m!.id;
+    close();
+    await library.trashCall(id);
+  }
   function onkey(e: KeyboardEvent) {
     if (!m) return;
     const btns = [...(el?.querySelectorAll<HTMLElement>('[role=menuitem]') ?? [])];
@@ -57,6 +62,8 @@
     {#each items as i (i.key)}
       <button role="menuitem" class="it" onclick={() => pick(i.key)}><Icon name={i.icon} size={14} /><span class="lbl">{i.label}</span></button>
     {/each}
+    <div class="sep" role="separator"></div>
+    <button role="menuitem" class="it danger" data-testid="call-row-trash" onclick={trash}><Icon name="trash" size={14} /><span class="lbl">{tm('m.moveToTrash')}</span></button>
   </div>
 {/if}
 
@@ -65,6 +72,8 @@
   .h { padding: var(--s1) var(--s2); font: 600 var(--fs-xs) var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx3); }
   .it { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: var(--s2); height: 32px; padding: 0 var(--s2); border-radius: var(--r); cursor: pointer; font-size: 13px; color: var(--tx); }
   .it :global(svg) { color: var(--tx2); }
+  .sep { height: 1px; background: var(--line); margin: var(--s1) var(--s1); }
+  .it.danger, .it.danger :global(svg) { color: #ff8f90; }
   .it:hover, .it:focus-visible { background: var(--sel); }
   .it:focus-visible { outline: 2px solid var(--ac); outline-offset: -2px; }
 </style>

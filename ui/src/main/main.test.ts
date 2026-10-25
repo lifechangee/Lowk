@@ -71,7 +71,7 @@ describe('infra', () => {
     expect(parse('#/folder/f1/documents')).toEqual({ name: 'folder', id: 'f1', tab: 'documents' });
     expect(parse('#/folder/f1/nope')).toEqual({ name: 'folder', id: 'f1', tab: 'calls' });
     expect(parse('#/doc/d1?p=14')).toEqual({ name: 'doc', id: 'd1', page: 14 });
-    expect(parse('#/search?q=EBITDA&folder=f1&kind=doc')).toEqual({ name: 'search', q: 'EBITDA', folder: 'f1', tag: '', from: '', to: '', kind: 'doc' });
+    expect(parse('#/search?q=EBITDA&folder=f1&kind=doc')).toEqual({ name: 'search', q: 'EBITDA', folder: 'f1', from: '', to: '', kind: 'doc' });
     expect(parse('#/settings/knowledge')).toEqual({ name: 'settings', page: 'knowledge' });
     expect(parse('#/settings/nope')).toEqual({ name: 'settings', page: 'general' });
     expect(parse('#/onboarding/99')).toEqual({ name: 'onboarding', step: 8 });

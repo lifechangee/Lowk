@@ -76,7 +76,6 @@ pub fn folder_create(st: State<'_, Shared>, folder: NewFolder) -> Result<FolderM
 #[serde(default)]
 pub struct FolderUpdate {
     pub title: Option<String>,
-    pub tags: Option<Vec<String>>,
     pub allow_cloud: Option<bool>,
     /// Empty string clears the folder's default template.
     pub default_template: Option<String>,
@@ -94,7 +93,6 @@ pub fn folder_update(st: State<'_, Shared>, id: Ulid, patch: FolderUpdate) -> Re
         &id,
         FolderPatch {
             title: patch.title,
-            tags: patch.tags,
             allow_cloud: patch.allow_cloud,
             default_template: patch
                 .default_template
@@ -108,13 +106,39 @@ pub fn folder_update(st: State<'_, Shared>, id: Ulid, patch: FolderUpdate) -> Re
     Ok(meta)
 }
 
-/// Moves the folder to the Trash (restorable); never hard-deletes.
+/// Moves the folder and everything in it to the Trash (restorable); never hard-deletes. Refuses while a
+/// call is being recorded in it. The calls and documents inside are re-indexed (they are trashed now).
 #[tauri::command(async)]
 #[specta::specta]
 pub fn folder_delete(st: State<'_, Shared>, id: Ulid) -> Result<()> {
-    vault(&st)?.delete(&id)?;
+    let v = vault(&st)?;
+    let inside = v.folder_item_ids(&id)?;
+    v.delete(&id)?;
+    for c in inside {
+        changed(&st, StoreChangeKind::Trashed, c, false);
+    }
     changed(&st, StoreChangeKind::Trashed, id, true);
     Ok(())
+}
+
+/// Brings a trashed folder back with its calls and documents.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn folder_restore(st: State<'_, Shared>, id: Ulid) -> Result<()> {
+    let v = vault(&st)?;
+    v.restore(&id)?;
+    for c in v.folder_item_ids(&id)? {
+        changed(&st, StoreChangeKind::Restored, c, false);
+    }
+    changed(&st, StoreChangeKind::Restored, id, true);
+    Ok(())
+}
+
+/// Folders in the Trash with their contents.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn trash_folders(st: State<'_, Shared>) -> Result<Vec<TrashedFolder>> {
+    vault(&st)?.trashed_folders()
 }
 
 #[tauri::command(async)]
@@ -321,14 +345,6 @@ pub fn call_rename(st: State<'_, Shared>, id: Ulid, title: String) -> Result<Cal
         d.fm.title = title.clone();
         d.heading = title;
     })?;
-    changed(&st, StoreChangeKind::Updated, id, false);
-    Ok(m)
-}
-
-#[tauri::command(async)]
-#[specta::specta]
-pub fn call_set_tags(st: State<'_, Shared>, id: Ulid, tags: Vec<String>) -> Result<CallMeta> {
-    let m = vault(&st)?.set_call_tags(&id, tags)?;
     changed(&st, StoreChangeKind::Updated, id, false);
     Ok(m)
 }

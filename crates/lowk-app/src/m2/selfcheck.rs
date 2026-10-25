@@ -5,7 +5,7 @@
 //! ingest PDF + XLSX (+ DOCX, PPTX, CSV, MD; scanned PDF with `ocr`) -> search finds them ->
 //! index rebuild from the vault -> semantic search (when a model file is given) -> local-only
 //! folders never reach the cloud (LLM, embeddings, retrieval) -> Ask flow with sources against a
-//! stub OpenAI-compatible server (and, with `live`, the real OpenRouter) -> summary and tags ->
+//! stub OpenAI-compatible server (and, with `live`, the real OpenRouter) -> summary ->
 //! folder export / import round trip.
 //!
 //! The stub server is `lowk_llm::mock`; nothing here runs unless the flag is passed.
@@ -115,7 +115,6 @@ fn q(text: &str, mode: SearchMode) -> SearchQuery {
 fn new_folder(v: &Vault, title: &str, cloud: bool, ins: &str) -> FolderRef {
     v.create_folder(NewFolder {
         title: title.into(),
-        tags: vec![],
         allow_cloud: cloud,
         instructions: ins.into(),
     })
@@ -129,7 +128,6 @@ fn import(svc: &Services, folder: &FolderRef, dir: &Path, file: &str, pin: bool)
         source_path: dir.join(file).to_string_lossy().into_owned(),
         title: None,
         pin,
-        tags: vec![],
         on_duplicate: Default::default(),
     }])?;
     Ok(v.remove(0))
@@ -162,9 +160,6 @@ fn stub(answer: &'static [&'static str]) -> MockServer {
                 .collect();
             return Reply::json(200, serde_json::json!({ "data": data }).to_string());
         }
-        if req.body.contains("<vocabulary>") {
-            return Reply::answer(&["{\"tags\":[{\"tag\":\"договор\",\"confidence\":0.9}]}"]);
-        }
         if req.body.contains("## Главное") || req.body.contains("key points") || req.body.contains("Summary")
         {
             return Reply::answer(&[
@@ -195,7 +190,6 @@ fn hint_req(
             scope: RetrievalScope {
                 folder: Some(*fid),
                 call: None,
-                tags: vec![],
                 all_folders: false,
             },
             budget_tokens: s.docs.retrieved_budget_tokens,
@@ -424,7 +418,7 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
         );
     }
 
-    // ---- 4. a call in the vault is searchable, summary + tags ------------------------------
+    // ---- 4. a call in the vault is searchable, summary ------------------------------
     let call = {
         let started = "2026-10-21T10:00:00+00:00".to_string();
         let mut w = vault
@@ -742,7 +736,7 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
         serde_json::json!({ "llm": { "local_base_url": "", "local_model": "" }, "embedder": { "mode": "off" } }),
     );
 
-    // ---- 9. summary and tags (stub) ------------------------------------------------------------
+    // ---- 9. summary (stub) ------------------------------------------------------------
     ctx.sink.0.lock().clear();
     match svc.summarize(call.id) {
         Ok(()) => {
@@ -766,14 +760,6 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
             }
         }
         Err(e) => r.add(false, "summary starts", e.to_string()),
-    }
-    match svc.suggest_tags(&call.id) {
-        Ok(t) => r.add(
-            !t.is_empty(),
-            "tag suggestions",
-            t.iter().map(|x| x.tag.clone()).collect::<Vec<_>>().join(","),
-        ),
-        Err(e) => r.add(false, "tag suggestions", e.to_string()),
     }
     let blocked = {
         // a call in the local-only folder: the summary is refused before anything is sent
@@ -818,9 +804,8 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
     let n_chat = srv.chat_requests().len();
     r.add(
         svc.summarize(blocked.id).err().map(|e| e.code) == Some(ErrorCode::LocalOnlyBlocked)
-            && svc.suggest_tags(&blocked.id).err().map(|e| e.code) == Some(ErrorCode::LocalOnlyBlocked)
             && srv.chat_requests().len() == n_chat,
-        "local-only call: summary and tags are refused, nothing sent",
+        "local-only call: summary is refused, nothing sent",
         "",
     );
 
@@ -977,7 +962,6 @@ mod tests {
                 source_path: fixtures.join("text.pdf").to_string_lossy().into_owned(),
                 title: None,
                 pin: false,
-                tags: vec![],
                 on_duplicate: DupAction::Copy,
             }])
             .unwrap()
@@ -1059,7 +1043,6 @@ mod tests {
                 source_path: src.to_string_lossy().into_owned(),
                 title: None,
                 pin: false,
-                tags: vec![],
                 on_duplicate: Default::default(),
             }])
             .expect("import")

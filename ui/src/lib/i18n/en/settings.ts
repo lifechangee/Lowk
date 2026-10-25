@@ -20,7 +20,6 @@ export const settings = {
   'settings.folder.instructions': 'Instructions',
   'settings.folder.instructionsHint': 'Folder settings. They apply to every call in this folder.',
   'settings.folder.instructionsPlaceholder': 'For example: fintech client, formal tone. Keep terms like EBITDA in English.',
-  'settings.folder.tags': 'Folder tags',
   'settings.folder.documents': 'Documents',
   'settings.folder.documentsHint': 'Sent to the model by relevance',
   'settings.hotkeys': 'Hotkeys',

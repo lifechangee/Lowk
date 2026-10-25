@@ -2,7 +2,7 @@
 
 ## Available now (pre-alpha)
 1. Live transcription (Me / the app you pick)
-2. Context: folders, calls as `.md`, documents, tags, search, summary
+2. Context: folders, calls as `.md`, documents, search, summary
 3. AI answers on a hotkey, plus screenshots
 4. Stealth overlay with adaptive colour
 5. Onboarding, RU/EN, a notice about recording laws
@@ -29,7 +29,7 @@
 
 ## Сейчас (пре-альфа)
 1. Транскрипция в реальном времени (я / система-приложение)
-2. Контекст: папки, созвоны в `.md`, документы, теги, поиск, саммари
+2. Контекст: папки, созвоны в `.md`, документы, поиск, саммари
 3. Ответ нейронки по биндам и скриншоты
 4. Стелс-оверлей с адаптивным цветом
 5. Онбординг, RU/EN, предупреждение о законности записи

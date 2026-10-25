@@ -1,4 +1,4 @@
-// Documents behaviour (mock IPC): documents, search, summary + tags, tour, embedder, export/import. Both languages for the tour.
+// Documents behaviour (mock IPC): documents, search, summary, tour, embedder, export/import. Both languages for the tour.
 import { expect, test, type Page } from '@playwright/test';
 
 test.use({ viewport: { width: 1280, height: 800 }, locale: 'en-US', timezoneId: 'UTC' });
@@ -172,18 +172,17 @@ test.describe('search', () => {
   });
 });
 
-test.describe('summary and tags', () => {
-  test('stream, done, then tag suggestions: accept adds the tag, reject drops it', async ({ page }) => {
+test.describe('summary', () => {
+  test('stream, done: the summary is kept and no tag suggestions appear', async ({ page }) => {
     await page.goto(`/main.html?lang=en#/call/${CALL4}`);
     await page.getByRole('tab', { name: 'Summary' }).click();
     await page.getByRole('button', { name: 'Create summary' }).click();
     await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
-    const sug = page.getByTestId('tag-suggestions');
-    await expect(sug.locator('.sg')).toHaveCount(3, { timeout: 15_000 });
-    await sug.getByRole('button', { name: 'Add tag продажи' }).click();
-    await sug.getByRole('button', { name: 'Reject tag q4-план' }).click();
-    await expect(sug.locator('.sg')).toHaveCount(1);
-    await expect(page.getByTestId('tag-editor').first()).toContainText('продажи');
+    await expect(page.getByRole('button', { name: 'Refresh summary' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('md')).toBeVisible();
+    await page.waitForTimeout(800);
+    await expect(page.getByTestId('tag-suggestions')).toHaveCount(0);
+    await expect(page.getByTestId('tag-editor')).toHaveCount(0);
   });
 
   test('errors surface as readable messages (no key, offline)', async ({ page }) => {

@@ -636,7 +636,6 @@ impl Session {
                             scope: RetrievalScope {
                                 folder: Some(*fid),
                                 call,
-                                tags: vec![],
                                 all_folders: false,
                             },
                             budget_tokens: settings.docs.retrieved_budget_tokens,

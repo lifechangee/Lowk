@@ -195,13 +195,6 @@ export function docMd(doc: Document): string {
   return [...fm, ...body].join('\n');
 }
 
-/** Tag vocabulary the AI prefers (what the vault already uses) plus one invented tag. */
-export const TAG_SUGGESTIONS: { tag: string; existing: boolean; confidence: number; reason: string }[] = [
-  { tag: 'продажи', existing: true, confidence: 0.92, reason: 'партнёрский канал, CAC' },
-  { tag: 'финансы', existing: true, confidence: 0.81, reason: 'EBITDA, бюджет' },
-  { tag: 'q4-план', existing: false, confidence: 0.64, reason: 'цели на квартал' },
-];
-
 export const SUMMARY_MD = [
   '### Ключевые пункты',
   '- Цель Q4: рост выручки выше 30% без роста CAC; ставка на partner-канал (дешевле на 20–25%).',

@@ -1,12 +1,13 @@
 // View state for the main window. No business logic: everything goes through `api`.
 import { locale } from '../lib/i18n/locale.svelte';
 import type { Key, LangSetting } from '../lib/i18n';
-import type { CallMeta, FolderMeta, IndexStatus, MicMode, Settings, SourceInfo, Target } from '../lib/ipc';
+import type { CallMeta, FolderMeta, IndexStatus, MicMode, Settings, SourceInfo, Target, TrashedFolder } from '../lib/ipc';
 import { api, CommandError, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type EngineNeeded, type FolderKey, type LiveLine } from './api';
 import { EVENTS, on } from '../lib/ipc';
 import type { SessionState } from '../lib/ipc';
 import { mergePatch } from './api/mock';
 import { hrefs, router } from './router.svelte';
+import { errText } from './errors';
 import { tm } from './i18n';
 import { ALL_LANGS, resolve as resolveLangs, supportedBy } from './langs';
 
@@ -24,13 +25,16 @@ class Library {
   folders = $state<FolderMeta[]>([]);
   calls = $state<CallMeta[]>([]);
   summarized = $state<string[]>([]);
+  /** Folders sitting in the Trash (restorable together with their calls and documents). */
+  trashedFolders = $state<TrashedFolder[]>([]);
   loaded = $state(false);
 
   async reload(): Promise<void> {
-    const s = await api.libraryList();
+    const [s, tf] = await Promise.all([api.libraryList(), api.trashFolders().catch(() => [] as TrashedFolder[])]);
     this.folders = s.folders;
     this.calls = dedupe(s.calls);
     this.summarized = s.summarized;
+    this.trashedFolders = tf;
     this.loaded = true;
   }
   live = $derived(this.calls.find((c) => c.ended === null && !c.deleted) ?? null);
@@ -38,13 +42,15 @@ class Library {
   trashed = $derived(this.calls.filter((c) => c.deleted === true));
   recent = $derived([...this.active].sort((a, b) => b.started.localeCompare(a.started)));
   unsorted = $derived(this.active.filter((c) => c.folder.kind === 'unsorted'));
-  tags = $derived.by(() => {
-    const m = new Map<string, number>();
-    for (const c of this.active) for (const t of c.tags) m.set(t, (m.get(t) ?? 0) + 1);
-    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  /** Calls in the Trash that are listed on their own (those inside a trashed folder show under it). */
+  trashedAlone = $derived.by(() => {
+    const inFolders = new Set(this.trashedFolders.flatMap((f) => f.call_ids));
+    return this.trashed.filter((c) => !inFolders.has(c.id));
   });
+  /** Trash badge: lone calls plus trashed folders. */
+  trashCount = $derived(this.trashedAlone.length + this.trashedFolders.length);
   callsIn(key: FolderKey): CallMeta[] {
-    if (key === SYS_TRASH) return this.trashed;
+    if (key === SYS_TRASH) return this.trashedAlone;
     return this.active.filter((c) => folderKey(c.folder) === key).sort((a, b) => b.started.localeCompare(a.started));
   }
   call(id: string): CallMeta | undefined { return this.calls.find((c) => c.id === id); }
@@ -59,6 +65,48 @@ class Library {
     await this.reload();
     ui.notify(tm('m.movedTo', { folder: to === SYS_UNSORTED ? tm('main.unsorted') : (this.folder(to)?.title ?? '') }));
     return true;
+  }
+
+  /** «В корзину» from a list: moves the call to the Trash and offers «Отменить». */
+  async trashCall(id: string): Promise<boolean> {
+    const c = this.call(id);
+    if (!c || c.deleted) return false;
+    try {
+      await api.callTrash(id);
+      await this.reload();
+      ui.notify(tm('m.movedToTrash'), { label: tm('m.undo'), run: () => void api.callRestore(id).then(() => this.reload()).catch((e) => ui.notify(errText(e))) });
+      return true;
+    } catch (e) { ui.notify(errText(e)); return false; }
+  }
+
+  /** A recording is running in this folder (the backend refuses the delete as well). */
+  recordingIn(key: FolderKey): boolean {
+    return this.calls.some((c) => !c.deleted && c.ended === null && folderKey(c.folder) === key);
+  }
+
+  /** Moves the folder with all its calls and documents to the Trash; «Отменить» restores it. */
+  async deleteFolder(key: FolderKey): Promise<boolean> {
+    const f = this.folder(key);
+    if (!f) return false;
+    if (this.recordingIn(key)) { ui.notify(tm('m.folderDelete.recording')); return false; }
+    try {
+      await api.folderDelete(key);
+      await this.reload();
+      ui.notify(tm('m.folderDeleted', { title: f.title }), { label: tm('m.undo'), run: () => void this.restoreFolder(key, false) });
+      return true;
+    } catch (e) {
+      ui.notify(e instanceof CommandError && e.app.code === 'session_busy' ? tm('m.folderDelete.recording') : errText(e));
+      return false;
+    }
+  }
+
+  async restoreFolder(key: FolderKey, announce = true): Promise<void> {
+    const t = this.trashedFolders.find((x) => x.id === key);
+    try {
+      await api.folderRestore(key);
+      await this.reload();
+      if (announce) ui.notify(tm('m.folderRestored', { title: t?.title ?? '' }));
+    } catch (e) { ui.notify(errText(e)); }
   }
 }
 export const library = new Library();
@@ -248,6 +296,8 @@ class Ui {
   newCallFolder = $state<string | null>(null);
   /** The «Новая папка» dialog (sidebar «+», empty states). */
   newFolderOpen = $state(false);
+  /** Folder whose «Удалить папку» confirmation is open. */
+  deleteFolderKey = $state<string | null>(null);
   /** A real call cannot start: the prompt to download the model / pick a cloud engine (`engine://needed`). */
   engineNeeded = $state<EngineNeeded | null>(null);
   toast = $state<string | null>(null);

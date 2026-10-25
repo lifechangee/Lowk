@@ -1,4 +1,4 @@
-// Main window: library, call workspace, folders, tags. Keys: `main.*`.
+// Main window: library, call workspace, folders. Keys: `main.*`.
 export const main = {
   'main.title': 'Library',
   'main.newCall': 'New call',
@@ -30,9 +30,6 @@ export const main = {
   'main.screenshots': 'Screenshots',
   'main.exportMd': 'Source .md',
   'main.export': 'Export',
-  'main.tags': 'Tags',
-  'main.addTag': '+ tag',
-  'main.newTag': 'New tag',
   'main.speakerMe': 'Me',
   'main.speakerSystem': 'System',
   'main.dropFiles': 'Drop a PDF, DOCX, TXT or MD file',
@@ -62,7 +59,7 @@ export const main = {
   'main.callMenu': 'Call menu',
   'main.showProps': 'Call properties',
   'main.hideProps': 'Hide properties',
-  'main.removeTag': 'Remove tag {tag}',
+  'main.folderMenuOf': 'Actions for folder “{title}”',
   'main.folderActions': 'Folder menu',
   'main.exportFolder': 'Export folder (.zip)',
   'main.folderExported': 'Folder exported, {n} files',

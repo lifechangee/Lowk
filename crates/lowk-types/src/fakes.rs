@@ -192,7 +192,7 @@ impl DocumentStore for FakeDocumentStore {
             warnings: vec![],
             pinned: n.pin,
             tokens: 0,
-            tags: n.tags.clone(),
+            tags: vec![],
             added: "2026-01-01T00:00:00+00:00".into(),
             source_sha256: String::new(),
             converter: String::new(),
@@ -232,9 +232,6 @@ impl DocumentStore for FakeDocumentStore {
         self.with(id, |(d, _)| {
             if let Some(t) = &p.title {
                 d.title = t.clone();
-            }
-            if let Some(t) = &p.tags {
-                d.tags = t.clone();
             }
             if let Some(x) = p.pinned {
                 d.pinned = x;
@@ -384,7 +381,7 @@ impl SearchIndex for FakeSearchIndex {
     }
 }
 
-/// Canned summary and tags (no network).
+/// Canned summary (no network).
 #[derive(Default, Clone, Copy)]
 pub struct FakeLlmService;
 impl LlmService for FakeLlmService {
@@ -409,16 +406,6 @@ impl LlmService for FakeLlmService {
             model: "fake".into(),
             generated_at: "2026-01-01T00:00:00+00:00".into(),
         })
-    }
-    fn suggest_tags(&self, input: &TagInput) -> Result<Vec<TagSuggestion>> {
-        let mut v = vec![TagSuggestion {
-            tag: "sales".into(),
-            confidence: 0.8,
-            existing: input.vocabulary.iter().any(|t| t == "sales"),
-            reason: None,
-        }];
-        v.truncate(input.max.max(1) as usize);
-        Ok(v)
     }
 }
 

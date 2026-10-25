@@ -1,4 +1,4 @@
-// call summary, tag suggestions and the sources under AI answers. Keys: `summary.*`, `source.*`.
+// call summary and the sources under AI answers. Keys: `summary.*`, `source.*`.
 export const summary = {
   'summary.create': 'Create summary',
   'summary.empty.title': 'No summary yet',
@@ -13,15 +13,7 @@ export const summary = {
   'summary.by': 'Model: {model}',
   'summary.copied': 'Summary copied',
   'summary.copyFailed': 'Could not copy',
-  'summary.suggestTags': 'Suggest tags',
-  'summary.tags.title': 'Suggested tags',
-  'summary.tags.hint': 'Your own tags stay. Confirm the ones you want.',
-  'summary.tags.loading': 'Looking for tags…',
-  'summary.tags.none': 'No new tags.',
-  'summary.tags.inVault': 'in vault',
-  'summary.tags.accept': 'Add tag {tag}',
-  'summary.tags.reject': 'Reject tag {tag}',
-  'summary.settings.model': 'Model for summaries and tags',
+  'summary.settings.model': 'Model for summaries',
   'summary.settings.modelHint': 'A cloud model with a pinned version. Enter saves.',
   'summary.settings.pinned': 'Pinned provider',
   'summary.settings.pinnedHint': 'The OpenRouter server the model is pinned to. Empty: OpenRouter picks.',

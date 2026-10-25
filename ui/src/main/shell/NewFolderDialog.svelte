@@ -16,7 +16,7 @@
     const title = name.trim();
     if (!title) return;
     try {
-      const f = await api.folderCreate({ title, tags: [], allow_cloud: true, instructions: '' });
+      const f = await api.folderCreate({ title, allow_cloud: true, instructions: '' });
       await library.reload();
       ui.newFolderOpen = false;
       if (f.id.kind === 'user') router.go(hrefs.folder(f.id.id));

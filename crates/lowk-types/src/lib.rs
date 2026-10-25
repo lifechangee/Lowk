@@ -65,6 +65,7 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<FolderMeta>();
     types.register_mut::<CallMeta>();
     types.register_mut::<NewFolder>();
+    types.register_mut::<TrashedFolder>();
     types.register_mut::<NewCall>();
     types.register_mut::<CallEntry>();
     types.register_mut::<Tone>();
@@ -114,7 +115,6 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<LlmEvent>();
     types.register_mut::<Summary>();
     types.register_mut::<SummaryEvent>();
-    types.register_mut::<TagSuggestion>();
     types.register_mut::<LlmProviderStatus>();
     types.register_mut::<LocalServerKind>();
     types.register_mut::<LocalModel>();

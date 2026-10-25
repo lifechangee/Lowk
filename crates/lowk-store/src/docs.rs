@@ -329,7 +329,7 @@ impl VaultInner {
             &imported,
             &sha,
             n.pin,
-            n.tags.clone(),
+            vec![],
             &now(),
         );
         let md_path = dir.join(format!("{stem}.md"));
@@ -578,9 +578,6 @@ impl VaultInner {
         let (mut d, body) = self.load_doc(&rec)?;
         if let Some(t) = p.title.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
             d.title = t.to_string();
-        }
-        if let Some(t) = &p.tags {
-            d.tags = t.clone();
         }
         if let Some(x) = p.pinned {
             d.pinned = x;

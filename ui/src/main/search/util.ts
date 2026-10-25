@@ -66,14 +66,13 @@ export function pickLine(lines: { at_s: number; text: string }[], t: number, mat
 export function buildQuery(p: SearchParams, limit: number, offset = 0): SearchQuery {
   const filters: SearchFilters = {};
   if (p.folder) filters.folders = [folderRef(p.folder)];
-  if (p.tag) filters.tags = [p.tag];
   if (p.from) filters.from = `${p.from}T00:00:00Z`;
   if (p.to) filters.to = `${p.to}T23:59:59Z`;
   if (p.kind) filters.kinds = p.kind === 'call' ? ['speech', 'qa'] : p.kind === 'doc' ? ['doc'] : ['image'];
   return { text: p.q.trim(), filters, mode: 'hybrid', limit, offset };
 }
 
-export const hasFilters = (p: SearchParams): boolean => !!(p.folder || p.tag || p.from || p.to || p.kind);
+export const hasFilters = (p: SearchParams): boolean => !!(p.folder || p.from || p.to || p.kind);
 
 /** Why the result is keyword-only (shown next to the notice): no silent downgrade. */
 export function keywordReason(state: SemanticState | null | undefined): 'off' | 'model_missing' | 'building' | 'failed' | 'unknown' {

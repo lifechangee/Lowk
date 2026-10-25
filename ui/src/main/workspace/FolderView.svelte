@@ -6,7 +6,6 @@
   import Menu from '../../lib/components/Menu.svelte';
   import Modal from '../../lib/components/Modal.svelte';
   import Tabs from '../../lib/components/Tabs.svelte';
-  import TagEditor from '../../lib/components/TagEditor.svelte';
   import { tPlural } from '../../lib/i18n/locale.svelte';
   import { api, isSystemKey, SYS_TRASH, SYS_UNSORTED } from '../api';
   import DocumentsTab from '../docs/DocumentsTab.svelte';
@@ -38,11 +37,8 @@
     if (!isSystemKey(k)) void api.docList(k).then((d) => { if (k === folder) docCount = d.length; }).catch(() => undefined);
   });
 
-  async function restore(id: string) { await api.callRestore(id); await library.reload(); ui.notify(tm('m.restored')); }
+  async function restore(id: string) { try { await api.callRestore(id); await library.reload(); ui.notify(tm('m.restored')); } catch (e) { ui.notify(errText(e)); } }
   async function emptyTrash() { await api.trashEmpty(); await library.reload(); confirmEmpty = false; }
-  async function setTags(tags: string[]) {
-    try { await api.folderUpdate(folder, { tags }); await library.reload(); } catch (e) { ui.notify(errText(e)); }
-  }
   const micOptions: Array<{ value: MicPreset; label: string }> = $derived([
     { value: 'inherit', label: tm('m.folderMic.inherit') },
     { value: 'on', label: tm('m.folderMic.on') },
@@ -84,15 +80,16 @@
           <span>{tPlural('main.calls', calls.length)}</span>
           {#if meta}<span class="micsel" data-testid="folder-mic"><span class="micl">{tm('m.folderMic')}</span><Select label={tm('m.folderMic')} value={meta.mic ?? 'inherit'} options={micOptions} onchange={setMic} /></span>{/if}
           {#if meta && !system}<span class="micsel" data-testid="folder-retx"><span class="micl">{tm('m.folderRetx')}</span><Select label={tm('m.folderRetx')} value={meta.retx ?? 'inherit'} options={retxOptions} onchange={setRetx} /></span>{/if}
-          {#if meta}<TagEditor tags={meta.tags} addLabel={tm('main.addTag')} newLabel={tm('main.newTag')} removeLabel={(t) => tm('main.removeTag', { tag: t })} onchange={setTags} />{/if}
         </div>
       </div>
       {#if isTrash}
-        <Button variant="danger" icon="trash" disabled={calls.length === 0} onclick={() => (confirmEmpty = true)}>{tm('m.emptyTrash')}</Button>
+        <Button variant="danger" icon="trash" disabled={library.trashCount === 0} onclick={() => (confirmEmpty = true)}>{tm('m.emptyTrash')}</Button>
       {:else if !system}
         <Menu label={tm('main.folderActions')} testid="folder-menu" items={[
           { id: 'export', label: tm('main.exportFolder'), icon: 'download', onselect: exportFolder },
           { id: 'reveal', label: tm('main.revealFolder'), icon: 'external', onselect: () => meta && api.revealPath(meta.path) },
+          { sep: true },
+          { id: 'delete', label: tm('m.folderDelete'), icon: 'trash', danger: true, onselect: () => (ui.deleteFolderKey = folder) },
         ]} />
       {/if}
     </div>
@@ -107,6 +104,17 @@
     <div class="cin">
       {#if active === 'calls'}
         <div class="tbl">
+          {#if isTrash}
+            {#each library.trashedFolders as tf (tf.id)}
+              <div class="tr trash" data-testid="trash-folder">
+                <div class="c1">
+                  <b class="lbl"><Icon name="folder" size={14} /> {tf.title}</b>
+                  <small class="lbl">{tm('m.trashFolder', { contents: [tPlural('main.calls', tf.calls), tPlural('main.documents', tf.docs)].join(', ') })}</small>
+                </div>
+                <Button size="sm" icon="restore" onclick={() => library.restoreFolder(tf.id)}>{tm('m.restore')}</Button>
+              </div>
+            {/each}
+          {/if}
           {#each calls as c (c.id)}
             <div class="tr" class:trash={isTrash} use:callRow={() => ({ id: c.id, title: c.title, movable: !isTrash && c.ended !== null })}>
               <a class="c1" href={isTrash ? undefined : hrefs.call(c.id)} draggable="false">
@@ -123,6 +131,7 @@
               {/if}
             </div>
           {:else}
+            {#if !(isTrash && library.trashedFolders.length)}
             <div class="emptyrow" data-testid="calls-empty">
               <div class="eic"><Icon name={isTrash ? 'trash' : isUnsorted ? 'inbox' : 'folder'} size={20} /></div>
               <b>{isTrash ? tm('main.empty.trashTitle') : isUnsorted ? tm('main.empty.unsortedTitle') : tm('main.empty.folderTitle')}</b>
@@ -131,6 +140,7 @@
                 <span data-np-trigger style="display: contents"><Button variant="primary" onclick={() => { ui.newCallFolder = folder; ui.newCallOpen = true; }}>{tm('main.newCallHere')}</Button></span>
               {/if}
             </div>
+            {/if}
           {/each}
         </div>
       {:else if active === 'documents'}
@@ -143,7 +153,7 @@
 </div>
 
 <Modal open={confirmEmpty} title={tm('m.emptyTrash')} width={420} closeLabel={tm('common.close')} onclose={() => (confirmEmpty = false)}>
-  <p class="warn">{tm('m.emptyTrashConfirm', { n: calls.length })}</p>
+  <p class="warn">{tm('m.emptyTrashConfirm', { n: library.trashCount })}</p>
   {#snippet footer()}
     <Button onclick={() => (confirmEmpty = false)}>{tm('common.cancel')}</Button>
     <Button variant="danger" onclick={emptyTrash}>{tm('m.emptyTrash')}</Button>

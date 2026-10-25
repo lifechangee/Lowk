@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Full search results page: filters folder / tag / date / kind in the URL, grouped hits with highlights.
+  // Full search results page: filters folder / date / kind in the URL, grouped hits with highlights.
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';
   import Select from '../../lib/components/Select.svelte';
@@ -67,7 +67,6 @@
     ...library.folders.map((f) => ({ value: folderKey(f.id), label: withCounts && facet.has(folderKey(f.id)) ? `${f.title} (${facet.get(folderKey(f.id))})` : f.title })),
     { value: 'sys:unsorted', label: tm('main.unsorted') },
   ]);
-  const tagOptions = $derived([{ value: '', label: tm('search.filter.allTags') }, ...library.tags.map(([t, n]) => ({ value: t, label: `# ${t} (${n})` }))]);
   const kindLabel = (k: SearchKind | '') => (k === '' ? tm('search.filter.allKinds') : tm(`search.group.${k}` as 'search.group.call'));
 </script>
 
@@ -80,7 +79,6 @@
 
     <div class="filters" data-testid="search-filters" role="group" aria-label={tm('search.filters')}>
       <label><span>{tm('m.folder')}</span><Select label={tm('m.folder')} value={params.folder} options={folderOptions} onchange={(v) => go({ folder: v })} /></label>
-      <label><span>{tm('main.tags')}</span><Select label={tm('main.tags')} value={params.tag} options={tagOptions} onchange={(v) => go({ tag: v })} /></label>
       {#each [['from', 'search.filter.from'], ['to', 'search.filter.to']] as const as [k, label] (k)}
         <label><span>{tm(label)}</span>
           {#if params[k] || editing === k}

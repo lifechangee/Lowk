@@ -1,4 +1,4 @@
-//! Post-call summary and tag suggestions (`lowk-llm`), provider status, key test, and the one-time
+//! Post-call summary (`lowk-llm`), provider status, key test, and the one-time
 //! latency probe that pins the fastest upstream provider. A folder with `allow_cloud = false`
 //! is summarised by the local model or not at all (`LocalOnlyBlocked`), never by the cloud.
 use super::route::{self, Purpose};
@@ -138,43 +138,6 @@ impl Services {
         if let Some(f) = self.summaries.lock().get(id) {
             f.store(true, Ordering::SeqCst);
         }
-    }
-
-    /// Tags from the vault's own vocabulary first; the user confirms (`call_set_tags`).
-    pub fn suggest_tags(&self, id: &CallId) -> Result<Vec<TagSuggestion>> {
-        let call = self.vault.read_call(id)?;
-        let route = self.summary_route(&call.meta)?;
-        let doc = call_codec::parse(&call.md);
-        let mut excerpt = String::new();
-        for b in doc.blocks() {
-            if let Block::Turn { text, .. } = b {
-                excerpt.push_str(text);
-                excerpt.push('\n');
-                if excerpt.chars().count() > 3000 {
-                    break;
-                }
-            }
-        }
-        let mut vocab: Vec<String> = self
-            .vault
-            .calls(None)?
-            .into_iter()
-            .flat_map(|c| c.tags)
-            .chain(self.vault.folders()?.into_iter().flat_map(|f| f.tags))
-            .collect();
-        vocab.sort();
-        vocab.dedup();
-        let summary = doc.summary().trim().to_string();
-        let input = TagInput {
-            call: *id,
-            title: call.meta.title.clone(),
-            summary: (!summary.is_empty()).then_some(summary),
-            transcript_excerpt: excerpt.chars().take(3000).collect(),
-            vocabulary: vocab,
-            current_tags: call.meta.tags.clone(),
-            max: 5,
-        };
-        CloudLlm::new(route.cfg).suggest_tags(&input)
     }
 
     pub fn provider_status(&self) -> LlmProviderStatus {

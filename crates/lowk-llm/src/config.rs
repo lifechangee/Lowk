@@ -116,7 +116,7 @@ impl LlmConfig {
         c
     }
 
-    /// Summary and tags: the pinned-version summary model, reasoning off, provider pinned.
+    /// Summary: the pinned-version summary model, reasoning off, provider pinned.
     pub fn for_summary(s: &LlmSettings, key: Option<String>) -> Self {
         let mut c = Self::new(s.provider.into(), s.base_url.clone(), s.summary_model.clone()).with_key(key);
         c.data_collection_deny = s.data_collection_deny;

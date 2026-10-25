@@ -1,6 +1,6 @@
 //! Lowk LLM layer: OpenAI-compatible SSE client (OpenRouter, Ollama, LM Studio, llama-server),
-//! append-only `ChatLedger`, `PromptBuilder` (context pack in, source refs out), summary and
-//! tag suggestions (`LlmService`), latency probe. No OS code, no vault access, no keychain:
+//! append-only `ChatLedger`, `PromptBuilder` (context pack in, source refs out), summary
+//! (`LlmService`), latency probe. No OS code, no vault access, no keychain:
 //! the caller passes the API key in.
 mod client;
 mod compact;
@@ -13,7 +13,6 @@ mod probe;
 mod prompt;
 mod sse;
 mod summary;
-mod tags;
 
 pub use client::{ChatClient, FakeLlm, OpenAiClient, StreamOutcome};
 pub use compact::{compact_ledger, estimate_tokens, CompactNeed, CompactPlan, CompactPolicy};
@@ -27,9 +26,8 @@ pub use probe::{list_providers, probe_fastest_provider, ProbeOptions, ProbeResul
 pub use prompt::{BuildInput, BuiltTurn, ImagePart, PromptBuilder, SYSTEM_PROMPT};
 pub use sse::{SseEvent, SseParser};
 pub use summary::{parse_summary, part_range, pick_language, split_parts, split_parts_timed, Lang};
-pub use tags::{normalize_tag, parse_tags};
 
-use lowk_types::{LlmService, Result, SummarizeInput, Summary, TagInput, TagSuggestion};
+use lowk_types::{LlmService, Result, SummarizeInput, Summary};
 
 /// `LlmService` over any OpenAI-compatible backend (cloud: OpenRouter with the pinned model).
 pub struct CloudLlm {
@@ -81,9 +79,5 @@ impl LlmService for CloudLlm {
         should_continue: &dyn Fn() -> bool,
     ) -> Result<Summary> {
         summary::run(&self.client, input, on_delta, &mut |_, _| {}, should_continue)
-    }
-
-    fn suggest_tags(&self, input: &TagInput) -> Result<Vec<TagSuggestion>> {
-        tags::run(&self.client, input)
     }
 }

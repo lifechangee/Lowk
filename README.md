@@ -11,7 +11,7 @@ Lowk is an open-source (AGPL-3.0-or-later) desktop copilot for calls and intervi
 - **Live transcription** of your microphone ("Me") and of the call app you pick ("System"), local by default (Nemotron streaming, with a Whisper pass that corrects finished phrases). Cloud engines (Deepgram, Soniox) are optional.
 - **Stealth overlay** with subtitles and answers, excluded from screen sharing where the OS allows it.
 - **AI answers on a hotkey**, not automatically. Cloud: DeepSeek through OpenRouter (bring your own key). Local: Ollama or LM Studio.
-- **A Markdown vault** (Obsidian-compatible): folders, calls as `.md` files, documents, tags, hybrid search, post-call summary.
+- **A Markdown vault** (Obsidian-compatible): folders, calls as `.md` files, documents, hybrid search, post-call summary.
 - English and Russian interface, no telemetry.
 
 <p align="center"><img src="docs/images/en-home.png" alt="Library home" width="49%"> <img src="docs/images/en-folder-docs.png" alt="Folder documents tab" width="49%"></p>
@@ -41,7 +41,7 @@ Download the latest build from [Releases](https://github.com/lifechangee/Lowk/re
 |---|---|
 | macOS (Apple Silicon, macOS 14.4+) | Primary target. Live transcription, overlay, hotkeys, vault and AI hints work and have been tested by hand on a MacBook Air M4. Rough edges are expected. |
 | Windows 10/11 | Release builds exist but are **experimental**: see [docs/release.md](docs/release.md). Not verified on real hardware. |
-| Documents, search, summary, Ask with context | Implemented. Documents (PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, images with OCR), hybrid search, summary and tags, folder instructions, pinned documents, and AI answers that use folder context with source chips under the answer. Known limits: the embedding-model comparison and timing on Windows are unfinished. |
+| Documents, search, summary, Ask with context | Implemented. Documents (PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, images with OCR), hybrid search, summary, folder instructions, pinned documents, and AI answers that use folder context with source chips under the answer. Known limits: the embedding-model comparison and timing on Windows are unfinished. |
 | Builds | Unsigned or self-signed, not notarized; test builds come from GitHub Actions ([docs/release.md](docs/release.md)) or build from source. Auto-update ships with the first release. |
 
 **Known limitations:** unsigned installers (see above); no auto-update yet; Windows is not verified on real hardware; Windows 10 captures whole-system audio only; the overlay hides from common screen-share paths but this is not guaranteed; no speaker diarization; vault files are not encrypted.
@@ -65,7 +65,7 @@ Lowk has no telemetry and no account. The only automatic network request is a da
 | Model downloads | Model hosts | When you install local speech or search models |
 | Update check | GitHub | Daily, can be disabled |
 
-Folders marked **local only** never use any cloud model (answers, summaries, tags, embeddings); they use a local LLM if you connected one, otherwise those buttons are disabled. API keys are stored in the OS keychain. Vault encryption is planned, not implemented: files are plain Markdown.
+Folders marked **local only** never use any cloud model (answers, summaries, embeddings); they use a local LLM if you connected one, otherwise those buttons are disabled. API keys are stored in the OS keychain. Vault encryption is planned, not implemented: files are plain Markdown.
 
 ## Responsible use
 

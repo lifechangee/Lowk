@@ -3,7 +3,7 @@
 // File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
 import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AboutInfo, AppError, BindReport, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SelfTestReport, SessionState, Settings, SourceInfo, StartOpts, StealthStatus, SttDiagnostics, SttEvent, SummaryEvent, TagSuggestion, UpdateStatus } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SelfTestReport, SessionState, Settings, SourceInfo, StartOpts, StealthStatus, SttDiagnostics, SttEvent, SummaryEvent, TrashedFolder, UpdateStatus } from '../../lib/ipc';
 import { MockBackend } from './mock';
 import { CommandError, folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider } from './types';
 
@@ -61,10 +61,13 @@ export class TauriBackend extends MockBackend {
     try { return ok(await commands.callGet(id)) as CallDetail; } catch { return null; }
   }
   override async folderCreate(input: NewFolder): Promise<FolderMeta> { return ok(await commands.folderCreate(input)); }
-  override async folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
-    ok(await commands.folderUpdate(id, { title: null, tags: patch.tags ?? null, allow_cloud: patch.allow_cloud ?? null, default_template: null, mic: patch.mic ?? null, retx: patch.retx ?? null, instructions: patch.instructions ?? null }));
+  override async folderUpdate(id: string, patch: { instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
+    ok(await commands.folderUpdate(id, { title: null, allow_cloud: patch.allow_cloud ?? null, default_template: null, mic: patch.mic ?? null, retx: patch.retx ?? null, instructions: patch.instructions ?? null }));
   }
   override async callTrash(id: string): Promise<void> { ok(await commands.callDelete(id)); }
+  override async folderDelete(id: string): Promise<void> { ok(await commands.folderDelete(id)); }
+  override async folderRestore(id: string): Promise<void> { ok(await commands.folderRestore(id)); }
+  override async trashFolders(): Promise<TrashedFolder[]> { return ok(await commands.trashFolders()); }
   override async callRestore(id: string): Promise<void> { ok(await commands.callRestore(id)); }
   override async callMove(id: string, folder: FolderKey): Promise<void> { ok(await commands.callMove(id, folderRef(folder))); }
   override async callRename(id: string, title: string): Promise<void> { ok(await commands.callRename(id, title)); }
@@ -160,10 +163,10 @@ export class TauriBackend extends MockBackend {
     return () => { dead = true; off?.(); };
   }
   override async docImport(folder: FolderKey, files: PickedFile[], opts?: { pin?: boolean; onDuplicate?: 'copy' | 'replace' }): Promise<Document[]> {
-    return ok(await commands.docImport(files.map((f) => ({ folder: folderRef(folder), source_path: f.path, title: null, pin: !!opts?.pin, tags: [], on_duplicate: opts?.onDuplicate ?? 'reject' }))));
+    return ok(await commands.docImport(files.map((f) => ({ folder: folderRef(folder), source_path: f.path, title: null, pin: !!opts?.pin, on_duplicate: opts?.onDuplicate ?? 'reject' }))));
   }
   override async docFindDuplicates(folder: FolderKey, files: PickedFile[]): Promise<Array<{ index: number; existing: Document }>> {
-    return ok(await commands.docFindDuplicates(files.map((f) => ({ folder: folderRef(folder), source_path: f.path, title: null, pin: false, tags: [], on_duplicate: 'reject' as const }))));
+    return ok(await commands.docFindDuplicates(files.map((f) => ({ folder: folderRef(folder), source_path: f.path, title: null, pin: false, on_duplicate: 'reject' as const }))));
   }
   override async docGetMd(id: string): Promise<string> { return ok(await commands.docGetMd(id)); }
   override async docSaveMd(id: string, md: string): Promise<Document> { return ok(await commands.docSaveMd(id, md)); }
@@ -186,8 +189,6 @@ export class TauriBackend extends MockBackend {
   override async llmSummarize(call: string): Promise<void> { ok(await commands.llmSummarize(call)); }
   override async llmSummarizeCancel(call: string): Promise<void> { ok(await commands.llmSummarizeCancel(call)); }
   override onSummaryEvent(cb: (e: SummaryEvent) => void): () => void { return TauriBackend.#listen('summary://event', cb); }
-  override async llmSuggestTags(call: string): Promise<TagSuggestion[]> { return ok(await commands.llmSuggestTags(call)); }
-  override async callSetTags(id: string, tags: string[]): Promise<void> { ok(await commands.callSetTags(id, tags)); }
   override async llmProviderStatus(): Promise<LlmProviderStatus> { return ok(await commands.llmProviderStatus()); }
   override async llmKeyTest(): Promise<void> { ok(await commands.llmKeyTest()); }
   override async llmDetectLocal(): Promise<LocalServer[]> { return ok(await commands.llmDetectLocal()); }

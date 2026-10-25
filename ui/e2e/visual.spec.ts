@@ -72,7 +72,7 @@ async function act(page: Page, a: string | undefined) {
   if (a === 'call-menu') { await page.getByTestId('call-menu').click(); await page.waitForSelector('[role=menu]'); }
   if (a === 'call-props') { await page.getByTestId('call-menu').click(); await page.getByRole('menuitem').first().click(); await page.waitForSelector('[data-testid=call-props]'); }
   if (a === 'summary-stream') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=md] ul'); await page.waitForTimeout(500); }
-  if (a === 'summary-done') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=tag-suggestions] .sg', { timeout: 15000 }); }
+  if (a === 'summary-done') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.getByRole('button', { name: /Refresh summary|Обновить саммари/ }).waitFor({ timeout: 15000 }); }
   if (a === 'summary-error') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=summary-error]'); }
   if (a === 'embedder-install' || a === 'embedder-fail') {
     await page.getByRole('button', { name: /Download|Скачать/ }).click();

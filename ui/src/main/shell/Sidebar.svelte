@@ -5,6 +5,7 @@
   import Icon from '../../lib/components/Icon.svelte';
   import Kbd from '../../lib/components/Kbd.svelte';
   import Mark from '../../lib/components/Mark.svelte';
+  import Menu from '../../lib/components/Menu.svelte';
   import RecDot from '../../lib/components/RecDot.svelte';
   import { api, folderKey, SYS_TRASH, SYS_UNSORTED } from '../api';
   import { bindFor, triggerText } from '../binds';
@@ -55,15 +56,20 @@
   <nav class="tree" aria-label={tm('main.folders')} data-tour="folders">
     {#each library.folders as f (folderKey(f.id))}
       {@const key = folderKey(f.id)}
-      <a class="f" class:cur={folder === key} class:dropping={dnd.over === key} data-drop={key} href={hrefs.folder(key)}>
-        <Icon name="folder" /><span class="lbl">{f.title}</span><span class="n">{f.call_count}</span>
-      </a>
+      <div class="frow" data-testid="folder-row">
+        <a class="f" class:cur={folder === key} class:dropping={dnd.over === key} data-drop={key} href={hrefs.folder(key)}>
+          <Icon name="folder" /><span class="lbl">{f.title}</span><span class="n">{f.call_count}</span>
+        </a>
+        <span class="fm"><Menu label={tm('main.folderMenuOf', { title: f.title })} testid="folder-row-menu" items={[
+          { id: 'delete', label: tm('m.folderDelete'), icon: 'trash', danger: true, onselect: () => (ui.deleteFolderKey = key) },
+        ]} /></span>
+      </div>
     {:else}
       <p class="none">{tm('main.nav.noFolders')}</p>
     {/each}
     <div class="sysh"></div>
     <a class="f" class:cur={folder === SYS_UNSORTED} class:dropping={dnd.over === SYS_UNSORTED} data-drop={SYS_UNSORTED} href={hrefs.folder(SYS_UNSORTED)}><Icon name="inbox" /><span class="lbl">{tm('main.unsorted')}</span><span class="n">{library.unsorted.length}</span></a>
-    <a class="f" class:cur={folder === SYS_TRASH} href={hrefs.folder(SYS_TRASH)}><Icon name="trash" /><span class="lbl">{tm('main.trash')}</span><span class="n">{library.trashed.length}</span></a>
+    <a class="f" class:cur={folder === SYS_TRASH} href={hrefs.folder(SYS_TRASH)}><Icon name="trash" /><span class="lbl">{tm('main.trash')}</span><span class="n">{library.trashCount}</span></a>
   </nav>
 
   <StealthBadge />
@@ -97,6 +103,12 @@
   .plus { all: unset; cursor: pointer; width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--tx2); }
   .plus:hover, .plus:focus-visible { background: var(--hv); color: var(--tx); }
   .tree { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+  .frow { position: relative; flex: none; }
+  .frow .f { width: 100%; box-sizing: border-box; }
+  .fm { position: absolute; right: 0; top: 0; display: none; }
+  .fm :global(.mbtn) { width: 32px; height: 32px; background: var(--hv); }
+  .frow:hover .fm, .frow:focus-within .fm { display: block; }
+  .frow:hover .n, .frow:focus-within .n { visibility: hidden; }
   .f { display: flex; align-items: center; gap: var(--s2); height: 32px; padding: 0 var(--s2); border-radius: var(--r); font-size: 13px; font-weight: 500; color: var(--tx); text-decoration: none; flex: none; min-width: 0; }
   .f :global(svg) { color: var(--tx2); }
   .f .lbl { flex: 1; min-width: 0; }

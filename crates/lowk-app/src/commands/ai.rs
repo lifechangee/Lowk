@@ -1,4 +1,4 @@
-//! Cloud / local LLM helpers (M2): summary, tags, provider status. Glue over `m2::Services`.
+//! Cloud / local LLM helpers (M2): summary, provider status. Glue over `m2::Services`.
 //! Events: `summary://event` (`SummaryEvent`). Local-only folders are served by the local model or refused.
 use crate::state::Shared;
 use lowk_types::*;
@@ -17,13 +17,6 @@ pub fn llm_summarize(st: State<'_, Shared>, call: CallId) -> Result<()> {
 pub fn llm_summarize_cancel(st: State<'_, Shared>, call: CallId) -> Result<()> {
     st.svc()?.summarize_cancel(&call);
     Ok(())
-}
-
-/// AI tag suggestions for a call; the user confirms, then `call_set_tags`.
-#[tauri::command(async)]
-#[specta::specta]
-pub fn llm_suggest_tags(st: State<'_, Shared>, call: CallId) -> Result<Vec<TagSuggestion>> {
-    st.svc()?.suggest_tags(&call)
 }
 
 /// Provider, pinned model/provider and whether the BYOK key is present.

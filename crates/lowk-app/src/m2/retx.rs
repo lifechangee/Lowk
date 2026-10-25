@@ -659,7 +659,6 @@ mod tests {
             .vault
             .create_folder(NewFolder {
                 title: "Private".into(),
-                tags: vec![],
                 allow_cloud: false,
                 instructions: String::new(),
             })
@@ -719,7 +718,6 @@ mod tests {
             .vault
             .create_folder(NewFolder {
                 title: "Lectures".into(),
-                tags: vec![],
                 allow_cloud: true,
                 instructions: String::new(),
             })

@@ -1,6 +1,6 @@
 // Tiny hash router:
 //   #/  #/folder/:id[/calls|documents|instructions]  #/call/:id[?t=SEC]  #/doc/:id[?p=PAGE]
-//   #/search?q=..&folder=..&tag=..&from=..&to=..&kind=..  #/settings/:page  #/onboarding/:step
+//   #/search?q=..&folder=..&from=..&to=..&kind=..  #/settings/:page  #/onboarding/:step
 export type SettingsPage = 'general' | 'hotkeys' | 'templates' | 'appearance' | 'providers' | 'network' | 'knowledge' | 'storage' | 'permissions' | 'about';
 export const SETTINGS_PAGES: SettingsPage[] = ['general', 'hotkeys', 'templates', 'appearance', 'providers', 'network', 'knowledge', 'storage', 'permissions', 'about'];
 
@@ -10,8 +10,8 @@ export type SearchKind = 'call' | 'doc' | 'image';
 export const SEARCH_KINDS: SearchKind[] = ['call', 'doc', 'image'];
 
 /** The full results page: its query and filters live in the URL so that back/forward and links work. */
-export type SearchParams = { q: string; folder: string; tag: string; from: string; to: string; kind: SearchKind | '' };
-export const NO_SEARCH: SearchParams = { q: '', folder: '', tag: '', from: '', to: '', kind: '' };
+export type SearchParams = { q: string; folder: string; from: string; to: string; kind: SearchKind | '' };
+export const NO_SEARCH: SearchParams = { q: '', folder: '', from: '', to: '', kind: '' };
 
 export type Route =
   | { name: 'home' }
@@ -39,7 +39,7 @@ export function parse(hash: string): Route {
   if (a === 'doc' && b) return { name: 'doc', id: decodeURIComponent(b), page: num(query.get('p')) };
   if (a === 'search') {
     const kind = query.get('kind') as SearchKind | null;
-    return { name: 'search', q: query.get('q') ?? '', folder: query.get('folder') ?? '', tag: query.get('tag') ?? '', from: query.get('from') ?? '', to: query.get('to') ?? '', kind: kind && SEARCH_KINDS.includes(kind) ? kind : '' };
+    return { name: 'search', q: query.get('q') ?? '', folder: query.get('folder') ?? '', from: query.get('from') ?? '', to: query.get('to') ?? '', kind: kind && SEARCH_KINDS.includes(kind) ? kind : '' };
   }
   if (a === 'settings') return { name: 'settings', page: SETTINGS_PAGES.includes(b as SettingsPage) ? (b as SettingsPage) : 'general' };
   if (a === 'onboarding') return { name: 'onboarding', step: Math.min(8, Math.max(0, Number(b) || 0)) };

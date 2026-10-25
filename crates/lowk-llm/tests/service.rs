@@ -1,7 +1,7 @@
-//! Summary, tags and the latency probe through `LlmService` against the mock server.
+//! Summary and the latency probe through `LlmService` against the mock server.
 use lowk_llm::mock::{MockServer, Reply};
 use lowk_llm::{probe_fastest_provider, CloudLlm, LlmConfig, ProbeOptions, ProviderKind};
-use lowk_types::{CallId, ErrorCode, LlmService, QaDigest, SummarizeInput, TagInput};
+use lowk_types::{CallId, ErrorCode, LlmService, QaDigest, SummarizeInput};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -193,36 +193,6 @@ fn summary_cancel() {
         &|| !cancel.load(Ordering::SeqCst),
     );
     assert_eq!(r.unwrap_err().code, ErrorCode::LlmCancelled);
-}
-
-#[test]
-fn tags_vocabulary_first() {
-    let s = MockServer::scripted(vec![Reply::answer(&[
-        "{\"tags\":[{\"tag\":\"релиз\",\"confidence\":0.8},",
-        "{\"tag\":\"Платежи\",\"confidence\":0.7,\"reason\":\"провайдер\"},{\"tag\":\"новый\",\"confidence\":0.99}]}",
-    ])]);
-    let svc = CloudLlm::new(cfg(&s));
-    let t = svc
-        .suggest_tags(&TagInput {
-            call: CallId::new(),
-            title: "Релиз".into(),
-            summary: Some("## Главное\n- платежи".into()),
-            transcript_excerpt: String::new(),
-            vocabulary: vec!["платежи".into(), "релиз".into()],
-            current_tags: vec![],
-            max: 2,
-        })
-        .unwrap();
-    assert_eq!(t.len(), 2);
-    assert!(
-        t.iter().all(|x| x.existing),
-        "vocabulary beats a more confident new tag"
-    );
-    let user = s.chat_requests()[0].json()["messages"][1]["content"]
-        .as_str()
-        .unwrap()
-        .to_string();
-    assert!(user.contains("<vocabulary>\nплатежи, релиз") && user.contains("<summary>"));
 }
 
 #[test]

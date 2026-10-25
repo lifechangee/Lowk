@@ -104,10 +104,22 @@ pub struct FolderMeta {
     pub call_count: u32,
 }
 
+/// A folder that sits in the Trash with everything it contained (restorable as a whole).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct TrashedFolder {
+    pub id: Ulid,
+    pub title: String,
+    /// RFC 3339 (UTC).
+    pub deleted_at: String,
+    pub calls: u32,
+    pub docs: u32,
+    /// The calls inside; the Trash list shows them under the folder, not on their own.
+    pub call_ids: Vec<Ulid>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct NewFolder {
     pub title: String,
-    pub tags: Vec<String>,
     pub allow_cloud: bool,
     pub instructions: String,
 }

@@ -20,7 +20,6 @@ export const settings = {
   'settings.folder.instructions': 'Инструкции',
   'settings.folder.instructionsHint': 'Настройки папки. Применяются ко всем её созвонам.',
   'settings.folder.instructionsPlaceholder': 'Например: клиент — финтех, общение на «вы». Термины оставляй на английском.',
-  'settings.folder.tags': 'Теги папки',
   'settings.folder.documents': 'Документы',
   'settings.folder.documentsHint': 'Идут в нейронку по релевантности',
   'settings.hotkeys': 'Горячие клавиши',

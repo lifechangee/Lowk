@@ -114,10 +114,6 @@ fn filter_sql(f: &SearchFilters, skip_kinds: bool) -> (String, Vec<Value>) {
         ));
         p.extend(f.folders.iter().map(|x| Value::Text(folder_key(x))));
     }
-    for t in &f.tags {
-        sql.push_str(" AND EXISTS(SELECT 1 FROM file_tags t WHERE t.fid=f.fid AND t.tag=?)");
-        p.push(Value::Text(t.trim().to_lowercase()));
-    }
     if let Some(from) = f.from.as_deref().and_then(when_ms) {
         sql.push_str(" AND f.when_ms>=?");
         p.push(Value::Integer(from));

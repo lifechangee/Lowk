@@ -1,6 +1,6 @@
 //! Offline OpenAI-compatible stub for `just qa-bundle`: point `llm.base_url` at it.
 //! `lowk-llm-stub [--port N]` prints `LISTENING http://127.0.0.1:PORT/api/v1` and serves
-//! canned streamed answers (summary, tags, plain chat) until killed. QA tooling only.
+//! canned streamed answers (summary, plain chat) until killed. QA tooling only.
 use lowk_llm::mock::{MockServer, Reply};
 
 const SUMMARY_RU: &[&str] = &[
@@ -30,9 +30,7 @@ fn main() {
             );
         }
         let body = req.body.as_str();
-        if body.contains("You suggest tags") {
-            Reply::answer(&[r#"{"tags":[{"tag":"stub-tag","confidence":0.9,"reason":"stub"}]}"#])
-        } else if body.contains("post-call summaries") {
+        if body.contains("post-call summaries") {
             if body.contains("Russian") {
                 Reply::answer(SUMMARY_RU)
             } else {

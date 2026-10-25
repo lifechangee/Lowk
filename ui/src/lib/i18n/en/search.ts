@@ -16,7 +16,6 @@ export const search = {
   'search.count': '{n} found · {ms} ms',
   'search.filters': 'Search filters',
   'search.filter.allFolders': 'All folders',
-  'search.filter.allTags': 'All tags',
   'search.filter.allKinds': 'Everything',
   'search.filter.kind': 'What to search',
   'search.filter.anyDate': 'Any date',

@@ -83,7 +83,7 @@ The interface follows the system language (Russian or English) and can be switch
 
 ## Vault
 
-The vault is a folder of Markdown files, openable in Obsidian as is: **Folder** (a project or client) contains **calls** (`.md`) and **documents**. System folders: Unsorted (calls without a folder) and Trash (deleted items are restored from here and kept until you empty it).
+The vault is a folder of Markdown files, openable in Obsidian as is: **Folder** (a project or client) contains **calls** (`.md`) and **documents**. System folders: Unsorted (calls without a folder) and Trash (deleted items are restored from here and kept until you empty it). **Delete folder** (the folder's ⋯ menu in the sidebar or on its page) asks for confirmation with the counts and moves the folder with all its calls and documents to the Trash; Restore there brings everything back, Empty trash removes it for good with the saved audio. A folder with a recording in progress cannot be deleted. **Move to trash** is also in the ⋯ menu of every call row, with Undo. Older files may still carry `tags:` in their front matter: Lowk keeps them untouched but no longer shows, writes or suggests tags.
 
 Main window: one sidebar with New call, Home, Search, the folder tree, Unsorted, Trash and Settings. A folder has tabs **Calls / Documents / Instructions**; a call has **Transcript / Summary / Questions to AI / Screenshots / Sources**. A short tour runs on first launch and can be repeated from Settings.
 
@@ -93,8 +93,8 @@ Documents. Supported: PDF (text and scanned), DOCX, PPTX, XLSX, CSV, TXT, MD and
 
 - **Pin** a document with the star to always include it in AI requests (up to a token budget shown in the UI).
 - **Instructions** is a short text (about 500 tokens) always sent with requests for that folder.
-- **Search** (⌘K, and a full results page): one line over calls, documents and screenshot text; filters by folder, tag and date; a hit opens the call at the minute or the document at the page. Semantic search uses a local embedding model (about 310 MB, downloaded on demand). While it is missing or building, results say "keyword" mode.
-- **Summary** (button after a call): 3 to 5 key points, decisions, tasks and questions to you. It runs on a cloud model (DeepSeek via OpenRouter) with your key. The AI then suggests tags; you confirm them.
+- **Search** (⌘K, and a full results page): one line over calls, documents and screenshot text; filters by folder and date; a hit opens the call at the minute or the document at the page. Semantic search uses a local embedding model (about 310 MB, downloaded on demand). While it is missing or building, results say "keyword" mode.
+- **Summary** (button after a call): 3 to 5 key points, decisions, tasks and questions to you. It runs on a cloud model (DeepSeek via OpenRouter) with your key.
 - **Export and import** the whole vault or one folder as a zip. Import never overwrites.
 
 ![Search](../images/en-search.png)
@@ -105,7 +105,7 @@ Caveats: this is pre-alpha. The embedding-model comparison and Windows timing ar
 
 ## Local-only folders
 
-Mark a folder **local only** and Lowk will never send its content to a cloud model: no answers, summaries, tags or cloud embeddings. If you connected a local LLM (Settings, providers: a local base URL and model for Ollama or LM Studio) it is used instead; otherwise the cloud route is refused and those buttons are disabled with an explanation. The block is enforced in the backend for answers, summaries, tags, retrieval and the cloud embedder. Note that choosing a cloud transcription engine still sends call audio to that engine, so use local transcription for sensitive calls.
+Mark a folder **local only** and Lowk will never send its content to a cloud model: no answers, summaries or cloud embeddings. If you connected a local LLM (Settings, providers: a local base URL and model for Ollama or LM Studio) it is used instead; otherwise the cloud route is refused and those buttons are disabled with an explanation. The block is enforced in the backend for answers, summaries, retrieval and the cloud embedder. Note that choosing a cloud transcription engine still sends call audio to that engine, so use local transcription for sensitive calls.
 
 ## Stealth limits
 

@@ -10,7 +10,6 @@ pub struct RetrievalScope {
     /// The call being recorded: its own transcript is never retrieved (it is sent as the
     /// live delta). Other calls of the folder are.
     pub call: Option<CallId>,
-    pub tags: Vec<String>,
     /// Include other folders (soft boost for the same folder still applies).
     pub all_folders: bool,
 }
@@ -122,7 +121,7 @@ pub struct TranscriptLine {
     pub is_final: bool,
 }
 
-// --- summary, tags, provider (used by the Ask flow) ---------------
+// --- summary, provider (used by the Ask flow) ---------------
 
 /// A task from the call: who does what.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -174,28 +173,6 @@ pub struct SummarizeInput {
     /// Language of the summary; `None` = the dominant call language.
     pub output_language: Option<LangTag>,
     pub folder_instructions: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
-pub struct TagSuggestion {
-    pub tag: String,
-    pub confidence: f32,
-    /// Already used somewhere in the vault (preferred over inventing new tags).
-    pub existing: bool,
-    pub reason: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct TagInput {
-    pub call: CallId,
-    pub title: String,
-    pub summary: Option<String>,
-    /// Head of the transcript when there is no summary yet.
-    pub transcript_excerpt: String,
-    /// Tags already used in the vault (the model picks from them first).
-    pub vocabulary: Vec<String>,
-    pub current_tags: Vec<String>,
-    pub max: u32,
 }
 
 /// `summary://event` payload (separate from `llm://*`, which belongs to the overlay).
@@ -270,7 +247,6 @@ pub trait LlmService: Send + Sync {
         on_delta: &mut dyn FnMut(&str),
         should_continue: &dyn Fn() -> bool,
     ) -> crate::Result<Summary>;
-    fn suggest_tags(&self, input: &TagInput) -> crate::Result<Vec<TagSuggestion>>;
 }
 
 // --- screenshots going with an Ask ----------------------------------------

@@ -1,4 +1,4 @@
-// Main window: library, call workspace, folders, tags. Keys: `main.*`.
+// Main window: library, call workspace, folders. Keys: `main.*`.
 export const main = {
   'main.title': 'Библиотека',
   'main.newCall': 'Новый созвон',
@@ -30,9 +30,6 @@ export const main = {
   'main.screenshots': 'Скриншоты',
   'main.exportMd': 'Исходник .md',
   'main.export': 'Экспорт',
-  'main.tags': 'Теги',
-  'main.addTag': '+ тег',
-  'main.newTag': 'Новый тег',
   'main.speakerMe': 'Я',
   'main.speakerSystem': 'Система',
   'main.dropFiles': 'Перетащите PDF, DOCX, TXT или MD',
@@ -61,7 +58,7 @@ export const main = {
   'main.callMenu': 'Меню созвона',
   'main.showProps': 'Свойства созвона',
   'main.hideProps': 'Скрыть свойства',
-  'main.removeTag': 'Убрать тег {tag}',
+  'main.folderMenuOf': 'Действия с папкой «{title}»',
   'main.folderActions': 'Меню папки',
   'main.exportFolder': 'Экспорт папки (.zip)',
   'main.folderExported': 'Папка экспортирована, файлов: {n}',

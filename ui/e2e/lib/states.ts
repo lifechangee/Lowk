@@ -73,7 +73,7 @@ export const MAIN_STATES: MainState[] = [
   { id: 'call-props', title: 'call properties panel', hash: `#/call/${CALL1}`, act: 'call-props', mockup: 'mn' },
   { id: 'summary-empty', title: 'summary: not created yet', hash: `#/call/${CALL1}`, act: 'tab-summary', mockup: 'mn' },
   { id: 'summary-streaming', title: 'summary: streaming', hash: `#/call/${CALL1}`, q: '&summary=hold', act: 'summary-stream', mockup: 'mn' },
-  { id: 'summary-done', title: 'summary: done + tag suggestions', hash: `#/call/${CALL1}`, act: 'summary-done', mockup: 'mn' },
+  { id: 'summary-done', title: 'summary: done', hash: `#/call/${CALL1}`, act: 'summary-done', mockup: 'mn' },
   { id: 'summary-nokey', title: 'summary: no OpenRouter key', hash: `#/call/${CALL1}`, q: '&summary=nokey', act: 'summary-error', mockup: 'mn' },
   { id: 'summary-offline', title: 'summary: offline error', hash: `#/call/${CALL1}`, q: '&summary=offline', act: 'summary-error', mockup: 'mn' },
   { id: 'palette-results', title: 'palette with results', hash: '#/', act: 'palette-q:EBITDA', mockup: 'mn' },

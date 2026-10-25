@@ -2,12 +2,12 @@
 //! `LOWK_LLM_LIVE=1 OPENROUTER_API_KEY=... cargo test -p lowk-llm --test live -- --nocapture`.
 //! Costs a fraction of a cent. Never prints the key.
 use lowk_llm::{CloudLlm, LlmConfig, ProviderKind};
-use lowk_types::{CallId, LlmService, SummarizeInput, TagInput};
+use lowk_types::{CallId, LlmService, SummarizeInput};
 
 const SAMPLE_RU: &str = include_str!("../../../fixtures/llm/sample_call_ru.txt");
 
 #[test]
-fn live_summary_and_tags() {
+fn live_summary() {
     if std::env::var("LOWK_LLM_LIVE").ok().as_deref() != Some("1") {
         eprintln!("skipped: set LOWK_LLM_LIVE=1");
         return;
@@ -53,19 +53,6 @@ fn live_summary_and_tags() {
     println!("ttft {:?} total {:?} model {}", first, t0.elapsed(), s.model);
     println!("{}", s.md);
     assert!(!s.key_points.is_empty());
-    let tags = svc
-        .suggest_tags(&TagInput {
-            call: s.call,
-            title: input.title.clone(),
-            summary: Some(s.md.clone()),
-            transcript_excerpt: String::new(),
-            vocabulary: vec!["релиз".into(), "платежи".into(), "hiring".into()],
-            current_tags: vec![],
-            max: 4,
-        })
-        .expect("tags");
-    println!("{tags:?}");
-    assert!(!tags.is_empty());
 }
 
 #[test]

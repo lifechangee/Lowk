@@ -1,8 +1,8 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command the backend has not wired yet. Mutations are real within the page's life.
-import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TagSuggestion, UpdateStatus } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TrashedFolder, UpdateStatus } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
-import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds, TAG_SUGGESTIONS } from './fixtures';
+import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
 
 const delay = (ms = 30) => new Promise<void>((r) => setTimeout(r, ms));
@@ -34,6 +34,8 @@ export class MockBackend implements Backend {
   #os: Os = ((): Os => { const o = qp('os'); return o === 'windows' || o === 'macos' || o === 'linux' ? o : detectOs(); })();
   #now = Date.now();
   #folders: FolderMeta[] = makeFolders();
+  /** Folders in the Trash (their calls keep `deleted: true`, their documents too). */
+  #trashedFolders: Array<{ meta: FolderMeta; at: string; calls: string[]; docs: string[] }> = [];
   #calls: CallMeta[] = makeCalls(this.#now);
   #details = new Map<string, CallDetail>();
   #summaries = new Set<string>(summarizedIds(this.#calls));
@@ -175,16 +177,15 @@ export class MockBackend implements Backend {
   }
   async folderCreate(input: NewFolder): Promise<FolderMeta> {
     const id = '01JC8Z3K6Q9X2M4N7R5T0V' + String(900 + this.#folders.length).padStart(4, '0');
-    const meta: FolderMeta = { id: { kind: 'user', id }, title: input.title, tags: input.tags, allow_cloud: input.allow_cloud, default_template: null, mic: 'inherit', retx: 'inherit', path: input.title, call_count: 0 };
+    const meta: FolderMeta = { id: { kind: 'user', id }, title: input.title, tags: [], allow_cloud: input.allow_cloud, default_template: null, mic: 'inherit', retx: 'inherit', path: input.title, call_count: 0 };
     this.#folders.push(meta);
     this.#instructions.set(id, input.instructions);
     return meta;
   }
-  async folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
+  async folderUpdate(id: string, patch: { instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
     const f = this.#folders.find((x) => folderKey(x.id) === id);
     if (!f) return;
     if (patch.instructions !== undefined) this.#instructions.set(id, patch.instructions);
-    if (patch.tags) f.tags = patch.tags;
     if (patch.allow_cloud !== undefined) f.allow_cloud = patch.allow_cloud;
     if (patch.mic !== undefined) f.mic = patch.mic;
     if (patch.retx !== undefined) f.retx = patch.retx;
@@ -192,9 +193,33 @@ export class MockBackend implements Backend {
   #call(id: string): CallMeta | undefined { return this.#calls.find((c) => c.id === id); }
   async callTrash(id: string): Promise<void> { const c = this.#call(id); if (c) c.deleted = true; }
   async callRestore(id: string): Promise<void> { const c = this.#call(id); if (c) c.deleted = false; }
+  async folderDelete(id: string): Promise<void> {
+    const i = this.#folders.findIndex((f) => folderKey(f.id) === id);
+    if (i < 0) throw appErr('not_found');
+    if (this.#calls.some((c) => !c.deleted && c.ended === null && folderKey(c.folder) === id)) throw appErr('session_busy');
+    const meta = this.#folders.splice(i, 1)[0]!;
+    const calls = this.#calls.filter((c) => !c.deleted && folderKey(c.folder) === id);
+    const docs = this.#documents.filter((d) => !d.deleted && folderKey(d.folder) === id);
+    for (const c of calls) c.deleted = true;
+    for (const d of docs) d.deleted = true;
+    this.#trashedFolders.push({ meta, at: new Date().toISOString(), calls: calls.map((c) => c.id), docs: docs.map((d) => d.id) });
+    this.#emitIndex();
+  }
+  async folderRestore(id: string): Promise<void> {
+    const i = this.#trashedFolders.findIndex((t) => folderKey(t.meta.id) === id);
+    if (i < 0) throw appErr('not_found');
+    const t = this.#trashedFolders.splice(i, 1)[0]!;
+    this.#folders.push(t.meta);
+    for (const c of this.#calls) if (t.calls.includes(c.id)) c.deleted = false;
+    for (const d of this.#documents) if (t.docs.includes(d.id)) d.deleted = false;
+    this.#emitIndex();
+  }
+  async trashFolders(): Promise<TrashedFolder[]> {
+    return this.#trashedFolders.map((t) => ({ id: folderKey(t.meta.id), title: t.meta.title, deleted_at: t.at, calls: t.calls.length, docs: t.docs.length, call_ids: [...t.calls] }));
+  }
   async callMove(id: string, folder: FolderKey): Promise<void> { const c = this.#call(id); if (c) c.folder = folderRef(folder); }
   async callRename(id: string, title: string): Promise<void> { const c = this.#call(id); if (c) c.title = title; }
-  async trashEmpty(): Promise<void> { this.#calls = this.#calls.filter((c) => !c.deleted); }
+  async trashEmpty(): Promise<void> { this.#calls = this.#calls.filter((c) => !c.deleted); const gone = new Set(this.#trashedFolders.flatMap((t) => t.docs)); this.#documents = this.#documents.filter((d) => !gone.has(d.id)); this.#trashedFolders = []; }
   async exportMarkdown(id: string): Promise<string> {
     const d = await this.callGet(id);
     if (!d) return '';
@@ -459,7 +484,6 @@ export class MockBackend implements Backend {
   async docPatch(id: string, patch: DocPatch): Promise<Document> {
     const d = this.#doc(id);
     if (patch.title != null) d.title = patch.title;
-    if (patch.tags != null) d.tags = patch.tags;
     if (patch.pinned != null) d.pinned = patch.pinned;
     if (patch.folder != null) d.folder = patch.folder;
     this.#emitIndex();
@@ -553,7 +577,6 @@ export class MockBackend implements Backend {
       if (!terms.every((t) => low.includes(t))) continue;
       if (folders && !folders.has(folderKey(item.source.folder))) continue;
       if (kinds && !kinds.has(item.kind)) continue;
-      if (f.tags?.length && !f.tags.every((t) => item.tags.includes(t))) continue;
       if (f.from && item.when.slice(0, 10) < f.from.slice(0, 10)) continue;
       if (f.to && item.when.slice(0, 10) > f.to.slice(0, 10)) continue;
       if (item.kind === 'doc') {
@@ -670,7 +693,7 @@ export class MockBackend implements Backend {
     this.#retxRev.set(call, (this.#retxRev.get(call) ?? 1) + 1);
   }
 
-  // ================= summary, tags, provider =================
+  // ================= summary, provider =================
   #summaryFor(meta: CallMeta): string { return meta.languages[0] === 'en' ? SUMMARY_MD_EN : SUMMARY_MD; }
   #sumEmit(e: SummaryEvent): void { for (const f of this.#sumSubs) f(e); }
   onSummaryEvent(cb: (e: SummaryEvent) => void): () => void { this.#sumSubs.add(cb); return () => this.#sumSubs.delete(cb); }
@@ -712,16 +735,6 @@ export class MockBackend implements Backend {
   async llmSummarizeCancel(call: string): Promise<void> {
     clearTimeout(this.#sumTimers.get(call));
     this.#sumEmit({ type: 'error', call, error: { code: 'llm_cancelled', params: {}, detail: null } });
-  }
-  async llmSuggestTags(call: string): Promise<TagSuggestion[]> {
-    await delay(300);
-    if (qp('tags') === 'fail') throw appErr('network');
-    const have = new Set(this.#call(call)?.tags ?? []);
-    return TAG_SUGGESTIONS.filter((t) => !have.has(t.tag)).map((t) => ({ tag: t.tag, confidence: t.confidence, existing: t.existing, reason: t.reason }));
-  }
-  async callSetTags(id: string, tags: string[]): Promise<void> {
-    const c = this.#call(id);
-    if (c) c.tags = [...new Set(tags.map((t) => t.trim()).filter(Boolean))];
   }
   async llmProviderStatus(): Promise<LlmProviderStatus> {
     return { provider: 'openrouter', model: this.#settings.llm?.summary_model ?? '', pinned_provider: this.#settings.llm?.pinned_provider ?? null, key_present: this.#secrets.has('openrouter') };

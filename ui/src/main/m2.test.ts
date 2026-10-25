@@ -68,10 +68,10 @@ describe('search helpers', () => {
     expect(groupHits([hit('image'), hit('doc'), hit('call')]).map((g) => g.kind)).toEqual(['call', 'doc', 'image']);
   });
   it('builds the query with filters', () => {
-    const q = buildQuery({ q: ' EBITDA ', folder: 'F1', tag: 'sales', from: '2026-10-01', to: '2026-10-20', kind: 'call' }, 8);
+    const q = buildQuery({ q: ' EBITDA ', folder: 'F1', from: '2026-10-01', to: '2026-10-20', kind: 'call' }, 8);
     expect(q.text).toBe('EBITDA');
     expect(q.filters.folders).toEqual([{ kind: 'user', id: 'F1' }]);
-    expect(q.filters.tags).toEqual(['sales']);
+    expect('tags' in q.filters).toBe(false);
     expect(q.filters.from).toBe('2026-10-01T00:00:00Z');
     expect(q.filters.kinds).toEqual(['speech', 'qa']);
     expect(q.limit).toBe(8);

@@ -45,7 +45,6 @@ pub struct TrashItem {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FolderPatch {
     pub title: Option<String>,
-    pub tags: Option<Vec<String>>,
     pub allow_cloud: Option<bool>,
     /// `Some(None)` clears the default template.
     pub default_template: Option<Option<String>>,
@@ -575,7 +574,6 @@ impl VaultInner {
         let dir = unique_path(&self.root, &sanitize_name(&f.title), "");
         let id = Ulid::new();
         let mut doc = FolderDoc::new(&id.to_string(), f.title.trim());
-        doc.tags = f.tags;
         doc.allow_cloud = f.allow_cloud;
         doc.set_instructions(&f.instructions);
         fs::create_dir_all(dir.join(CALLS_SUBDIR))?;
@@ -609,9 +607,6 @@ impl VaultInner {
                 fs::rename(&dir, &dst)?;
                 dir = dst;
             }
-        }
-        if let Some(t) = p.tags {
-            doc.tags = t;
         }
         if let Some(c) = p.allow_cloud {
             doc.allow_cloud = c;
@@ -721,10 +716,6 @@ impl VaultInner {
             let _ = path;
             r.meta.ok_or_else(|| err(ErrorCode::NotFound, "call"))
         })
-    }
-
-    pub fn set_call_tags(&self, id: &Ulid, tags: Vec<String>) -> Result<CallMeta> {
-        self.update_call(id, |d| d.fm.tags = tags)
     }
 
     pub fn set_call_summary(&self, id: &Ulid, summary: &str) -> Result<CallMeta> {
@@ -857,6 +848,20 @@ impl VaultInner {
             }
             (f.kind, f.title.clone(), f.rel.clone(), names, moves)
         } else if let Some(fo) = sc.folders.iter().find(|f| f.fref == FolderRef::User(*id)) {
+            // a recording in this folder must finish first (its writer holds files inside the directory)
+            {
+                let live = self.live.lock();
+                if sc
+                    .files
+                    .iter()
+                    .any(|f| f.folder == FolderRef::User(*id) && live.contains(&f.id))
+                {
+                    return Err(err(
+                        ErrorCode::SessionBusy,
+                        "a call is being recorded in this folder",
+                    ));
+                }
+            }
             let t = fo.doc.as_ref().map(|d| d.title.clone()).unwrap_or_default();
             (
                 ItemKind::Folder,
@@ -883,6 +888,68 @@ impl VaultInner {
         let json = serde_json::to_vec_pretty(&item).map_err(|e| err(ErrorCode::Io, e.to_string()))?;
         atomic_write(&self.trash_root().join(format!("{id}.trash.json")), &json)?;
         self.resync()
+    }
+
+    /// `(calls, documents)` inside a user folder (active items only): the numbers the delete-folder
+    /// confirmation shows.
+    pub fn folder_counts(&self, id: &Ulid) -> Result<(u32, u32)> {
+        let sc = self.scan()?;
+        let f = FolderRef::User(*id);
+        let mut n = (0u32, 0u32);
+        for r in sc.files.iter().filter(|r| r.folder == f && !r.deleted) {
+            match r.kind {
+                ItemKind::Call => n.0 += 1,
+                ItemKind::Doc => n.1 += 1,
+                ItemKind::Folder => {}
+            }
+        }
+        Ok(n)
+    }
+
+    /// Ids of the calls and documents inside a user folder (active items): the app re-indexes them
+    /// after the folder moved to the trash or came back.
+    pub fn folder_item_ids(&self, id: &Ulid) -> Result<Vec<Ulid>> {
+        let sc = self.scan()?;
+        let f = FolderRef::User(*id);
+        Ok(sc.files.iter().filter(|r| r.folder == f).map(|r| r.id).collect())
+    }
+
+    /// Folders sitting in the Trash, with what they hold.
+    pub fn trashed_folders(&self) -> Result<Vec<TrashedFolder>> {
+        let items: Vec<TrashItem> = self
+            .trash_items()?
+            .into_iter()
+            .filter(|i| i.kind == ItemKind::Folder)
+            .collect();
+        if items.is_empty() {
+            return Ok(vec![]);
+        }
+        let sc = self.scan()?;
+        Ok(items
+            .into_iter()
+            .map(|i| {
+                let prefix = format!("{TRASH_DIR}/{}/", i.id);
+                let mut t = TrashedFolder {
+                    id: i.id,
+                    title: i.title.clone(),
+                    deleted_at: i.deleted_at.clone(),
+                    calls: 0,
+                    docs: 0,
+                    call_ids: vec![],
+                };
+                for r in sc.files.iter().filter(|r| r.rel.starts_with(&prefix)) {
+                    match r.kind {
+                        ItemKind::Call => {
+                            t.calls += 1;
+                            t.call_ids.push(r.id);
+                        }
+                        ItemKind::Doc => t.docs += 1,
+                        ItemKind::Folder => {}
+                    }
+                }
+                t
+            })
+            .collect())
     }
 
     pub fn trash_items(&self) -> Result<Vec<TrashItem>> {

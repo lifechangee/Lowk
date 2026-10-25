@@ -97,7 +97,6 @@ fn folder_and_call_lifecycle() {
     let fm = v
         .create_folder(NewFolder {
             title: "Клиент Альфа".into(),
-            tags: vec!["client".into()],
             allow_cloud: true,
             instructions: "be brief".into(),
         })
@@ -146,9 +145,6 @@ fn folder_and_call_lifecycle() {
             &edited.replace(&meta.id.to_string(), &Ulid::new().to_string())
         )
         .is_err());
-
-    v.set_call_tags(&meta.id, vec!["a".into()]).unwrap();
-    assert_eq!(v.read_call(&meta.id).unwrap().meta.tags, vec!["a"]);
 
     let moved = v.move_call(&meta.id, &FolderRef::Unsorted).unwrap();
     assert!(moved.path.starts_with("Unsorted/Calls/"));
@@ -219,7 +215,6 @@ fn trash_folder_with_calls_and_restore() {
     let fm = v
         .create_folder(NewFolder {
             title: "P".into(),
-            tags: vec![],
             allow_cloud: true,
             instructions: String::new(),
         })
@@ -426,7 +421,6 @@ fn trash_purge_removes_saved_audio_and_revisions_only_on_permanent_delete() {
     let folder = v
         .create_folder(NewFolder {
             title: "Lectures".into(),
-            tags: vec![],
             allow_cloud: true,
             instructions: String::new(),
         })
@@ -472,7 +466,6 @@ fn empty_trash_purges_calls_inside_a_trashed_folder() {
     let folder = v
         .create_folder(NewFolder {
             title: "L".into(),
-            tags: vec![],
             allow_cloud: true,
             instructions: String::new(),
         })
@@ -615,4 +608,108 @@ fn library_list_never_marks_active_or_recording_calls_deleted() {
     assert_eq!(all.iter().filter(|c| c.deleted).count(), 1);
     assert_eq!(v.calls(None).unwrap().len(), 1);
     drop(w);
+}
+
+fn user_folder(v: &Vault, title: &str) -> (Ulid, FolderRef) {
+    let m = v
+        .create_folder(NewFolder {
+            title: title.into(),
+            allow_cloud: true,
+            instructions: String::new(),
+        })
+        .unwrap();
+    let FolderRef::User(id) = m.id.clone() else {
+        panic!()
+    };
+    (id, m.id)
+}
+
+#[test]
+fn folder_delete_moves_calls_and_documents_to_the_trash_and_restore_brings_them_back() {
+    let (d, v) = open();
+    let (fid, f) = user_folder(&v, "Проект");
+    let c1 = record(&v, f.clone());
+    let c2 = record(&v, f.clone());
+    let src = d.path().join("brief.txt");
+    fs::write(&src, b"hello").unwrap();
+    let doc = v
+        .add_doc(&NewDocument {
+            folder: f.clone(),
+            source_path: src.to_string_lossy().into(),
+            title: None,
+            pin: false,
+            on_duplicate: Default::default(),
+        })
+        .unwrap();
+    assert_eq!(v.folder_counts(&fid).unwrap(), (2, 1));
+    assert_eq!(v.folder_item_ids(&fid).unwrap().len(), 3);
+
+    v.delete(&fid).unwrap();
+    // gone from the folder list, everything inside is in the trash (restorable)
+    assert!(v.folders().unwrap().iter().all(|m| m.id != f));
+    let in_trash = v.calls_in(&FolderRef::Trash).unwrap();
+    assert!(in_trash.iter().any(|c| c.id == c1.id) && in_trash.iter().any(|c| c.id == c2.id));
+    assert!(in_trash.iter().all(|c| c.deleted));
+    let tf = v.trashed_folders().unwrap();
+    assert_eq!(tf.len(), 1);
+    assert_eq!((tf[0].id, tf[0].calls, tf[0].docs), (fid, 2, 1));
+    assert_eq!(tf[0].title, "Проект");
+    assert_eq!(tf[0].call_ids.len(), 2);
+    assert!(v.get_doc(&doc.id).unwrap().deleted);
+
+    v.restore(&fid).unwrap();
+    assert!(v.trashed_folders().unwrap().is_empty());
+    assert_eq!(v.calls(Some(&fid)).unwrap().len(), 2);
+    assert_eq!(v.folder_counts(&fid).unwrap(), (2, 1));
+    assert!(!v.get_doc(&doc.id).unwrap().deleted);
+    assert!(v.calls_in(&FolderRef::Trash).unwrap().is_empty());
+}
+
+#[test]
+fn folder_delete_is_refused_while_a_call_is_recording_in_it() {
+    let (_d, v) = open();
+    let (fid, f) = user_folder(&v, "Live");
+    let mut w = v.begin_call_with_clock(new_call(f.clone()), clock()).unwrap();
+    w.push(fin(Stream::Me, 3, "идёт запись")).unwrap();
+    let e = v.delete(&fid).unwrap_err();
+    assert_eq!(e.code, ErrorCode::SessionBusy);
+    assert!(v.folders().unwrap().iter().any(|m| m.id == f), "folder untouched");
+    assert!(v.trashed_folders().unwrap().is_empty());
+    // after the recording ends the folder can go
+    w.finish_at("2026-10-19T10:31:12+03:00".into()).unwrap();
+    v.delete(&fid).unwrap();
+    assert_eq!(v.trashed_folders().unwrap().len(), 1);
+}
+
+#[test]
+fn folder_delete_forever_purges_audio_and_revisions_of_its_calls() {
+    let (d, v) = open();
+    let (fid, f) = user_folder(&v, "P");
+    let c = record(&v, f);
+    fake_saved_files(d.path(), &c.id);
+    v.delete(&fid).unwrap();
+    assert_eq!(saved(d.path(), &c.id), (true, true), "kept while in the trash");
+    v.delete_forever(&fid).unwrap();
+    assert_eq!(saved(d.path(), &c.id), (false, false));
+    assert!(v.trashed_folders().unwrap().is_empty());
+}
+
+#[test]
+fn tags_in_existing_files_are_kept_on_edit_and_never_added() {
+    let (d, v) = open();
+    let c = record(&v, FolderRef::Unsorted);
+    let path = d.path().join(&c.path);
+    let md = fs::read_to_string(&path).unwrap();
+    assert!(
+        !md.contains("tags: [") || md.contains("tags: []"),
+        "no tags written for new calls"
+    );
+    let with = md.replacen("tags: []", "tags: [sales, weekly]", 1);
+    assert_ne!(with, md, "front matter has a tags line");
+    fs::write(&path, with).unwrap();
+    v.rescan().unwrap();
+    v.update_call(&c.id, |doc| doc.fm.title = "Renamed".into())
+        .unwrap();
+    let after = fs::read_to_string(d.path().join(&v.read_call(&c.id).unwrap().meta.path)).unwrap();
+    assert!(after.contains("tags: [sales, weekly]"), "{after}");
 }

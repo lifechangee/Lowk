@@ -117,7 +117,6 @@ pub struct NewDocument {
     pub source_path: String,
     pub title: Option<String>,
     pub pin: bool,
-    pub tags: Vec<String>,
     /// What to do when the same content (SHA-256 of the original) is already in the folder.
     #[serde(default)]
     pub on_duplicate: DupAction,
@@ -149,7 +148,6 @@ pub struct DuplicateHit {
 #[serde(default)]
 pub struct DocPatch {
     pub title: Option<String>,
-    pub tags: Option<Vec<String>>,
     pub pinned: Option<bool>,
     pub folder: Option<FolderRef>,
 }

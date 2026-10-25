@@ -1,13 +1,12 @@
 <script lang="ts">
   // A finished call: tabs Transcript / Summary / Questions to AI / Screenshots / Sources; page actions in the ⋯ menu.
   import { onMount, tick } from 'svelte';
-  import type { AppError, SourceRef, TagSuggestion, LlmProviderStatus, RetxStatus } from '../../lib/ipc';
+  import type { AppError, SourceRef, LlmProviderStatus, RetxStatus } from '../../lib/ipc';
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';
   import Menu from '../../lib/components/Menu.svelte';
   import SourceLabel from '../../lib/components/SourceLabel.svelte';
   import Tabs from '../../lib/components/Tabs.svelte';
-  import TagEditor from '../../lib/components/TagEditor.svelte';
   import Tag from '../../lib/components/Tag.svelte';
   import { tPlural } from '../../lib/i18n/locale.svelte';
   import { api, CommandError, folderKey, type CallDetail } from '../api';
@@ -32,14 +31,11 @@
   let sum = $state<{ phase: 'idle' | 'streaming' | 'error'; text: string; error: AppError | null; step?: number; total?: number }>({ phase: 'idle', text: '', error: null });
   // ---- re-transcription of the saved audio ----
   let retx = $state<RetxStatus | null>(null);
-  // ---- tag suggestions ----
-  let sug = $state<{ phase: 'idle' | 'loading' | 'ready' | 'error'; list: TagSuggestion[]; error: string }>({ phase: 'idle', list: [], error: '' });
 
   $effect(() => {
     const cid = id;
     detail = null;
     sum = { phase: 'idle', text: '', error: null };
-    sug = { phase: 'idle', list: [], error: '' };
     retx = null;
     api.retxStatus(cid).then((s) => { if (cid === id) retx = s; }).catch(() => (retx = null));
     api.callGet(cid).then((d) => { if (cid === id) detail = d; });
@@ -71,7 +67,6 @@
         sum = { phase: 'idle', text: '', error: null };
         if (detail) detail.summary = e.summary.md;
         void library.reload();
-        void suggest();
       } else if (e.error.code === 'llm_cancelled') sum = { phase: 'idle', text: '', error: null };
       else sum = { phase: 'error', text: '', error: e.error };
     }),
@@ -135,29 +130,6 @@
     try { await api.llmSummarize(detail.meta.id); } catch (e) { sum = { phase: 'error', text: '', error: e instanceof Error && 'app' in e ? (e as { app: AppError }).app : { code: 'unknown' } }; }
   }
   const cancelSummary = () => detail && void api.llmSummarizeCancel(detail.meta.id);
-
-  async function suggest() {
-    if (!detail) return;
-    sug = { phase: 'loading', list: [], error: '' };
-    try {
-      const list = await api.llmSuggestTags(detail.meta.id);
-      sug = { phase: 'ready', list, error: '' };
-    } catch (e) { sug = { phase: 'error', list: [], error: errText(e) }; }
-  }
-  async function setTags(tags: string[]) {
-    if (!detail) return;
-    try {
-      await api.callSetTags(detail.meta.id, tags);
-      detail.meta.tags = tags;
-      await library.reload();
-    } catch (e) { ui.notify(errText(e)); }
-  }
-  async function accept(s: TagSuggestion) {
-    if (!detail) return;
-    sug.list = sug.list.filter((x) => x.tag !== s.tag);
-    if (!detail.meta.tags.includes(s.tag)) await setTags([...detail.meta.tags, s.tag]);
-  }
-  const reject = (s: TagSuggestion) => (sug.list = sug.list.filter((x) => x.tag !== s.tag));
 
   async function doExport() {
     if (detail) download(`${detail.meta.title}.md`, await api.exportMarkdown(detail.meta.id));
@@ -225,7 +197,6 @@
             <span>{fullDate(detail.meta.started)}</span><i class="d"></i><span>{duration(detail.meta.duration_s)}</span>
             {#if detail.meta.sources.system}<i class="d"></i><span class="lbl mx">{detail.meta.sources.system}</span>{/if}
             <i class="d"></i><span>{langTag(detail.meta.languages)}</span>
-            <TagEditor tags={detail.meta.tags} addLabel={tm('main.addTag')} newLabel={tm('main.newTag')} removeLabel={(t) => tm('main.removeTag', { tag: t })} onchange={setTags} />
           </div>
         </div>
         <Menu label={tm('main.callMenu')} testid="call-menu" items={[
@@ -305,7 +276,6 @@
                 <div class="sh"><span class="lbl muted">{tm('summary.by', { model: provider?.model ?? detail.model })}</span>
                   <span class="acts"><Button size="sm" icon="copy" onclick={copySummary}>{tm('common.copy')}</Button><Button size="sm" icon="refresh" onclick={summarize}>{tm('m.regenerate')}</Button></span></div>
                 <Md md={detail.summary} />
-                {#if sug.phase === 'idle'}<div class="sugcta"><Button size="sm" icon="tag" onclick={suggest}>{tm('summary.suggestTags')}</Button></div>{/if}
               {:else if sum.phase !== 'error'}
                 <div class="start" data-testid="summary-empty">
                   <div class="eic"><Icon name="sparkle" size={20} /></div>
@@ -316,25 +286,6 @@
                   {#if provider && !provider.key_present}<small class="note warnl" data-testid="summary-nokey"><Icon name="key" size={12} />{tm('summary.noKey')} <a class="lk" href={hrefs.settings('providers')}>{tm('summary.openSettings')}</a></small>{/if}
                   <Button variant="primary" icon="sparkle" onclick={summarize}>{tm('summary.create')}</Button>
                 </div>
-              {/if}
-              {#if sug.phase !== 'idle'}
-                <section class="sug" data-testid="tag-suggestions">
-                  <div class="sugh"><b>{tm('summary.tags.title')}</b><small class="lbl">{tm('summary.tags.hint')}</small></div>
-                  {#if sug.phase === 'loading'}<p class="muted">{tm('summary.tags.loading')}</p>
-                  {:else if sug.phase === 'error'}<p class="errl" role="alert">{sug.error} <Button size="sm" icon="refresh" onclick={suggest}>{tm('common.retry')}</Button></p>
-                  {:else if sug.list.length === 0}<p class="muted">{tm('summary.tags.none')}</p>
-                  {:else}
-                    <div class="chips">
-                      {#each sug.list as s (s.tag)}
-                        <span class="sg" class:new={!s.existing} title={s.reason ?? ''}>
-                          <span class="sgt lbl"># {s.tag}{#if s.existing}<em>{tm('summary.tags.inVault')}</em>{/if}</span>
-                          <button class="ok" aria-label={tm('summary.tags.accept', { tag: s.tag })} title={tm('summary.tags.accept', { tag: s.tag })} onclick={() => accept(s)}><Icon name="check" size={12} /></button>
-                          <button class="no" aria-label={tm('summary.tags.reject', { tag: s.tag })} title={tm('summary.tags.reject', { tag: s.tag })} onclick={() => reject(s)}><Icon name="close" size={12} /></button>
-                        </span>
-                      {/each}
-                    </div>
-                  {/if}
-                </section>
               {/if}
             {/if}
           </div>
@@ -439,19 +390,7 @@
   .lk { color: var(--ac); }
   .err { display: flex; align-items: center; gap: var(--s3); border: 1px solid rgba(255, 77, 79, 0.4); border-radius: var(--r); padding: var(--s3); color: #ff8f90; font-size: 13px; }
   .err span { flex: 1; min-width: 0; }
-  .sugcta { margin-top: var(--s2); }
-  .sug { border-top: 1px solid var(--line); padding-top: var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
-  .sugh { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
-  .sugh small { color: var(--tx3); font-size: 12px; }
   .chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
-  .sg { display: inline-flex; align-items: center; height: 28px; border: 1px solid var(--line); border-radius: 99px; background: var(--hv); padding: 0 var(--s1) 0 var(--s3); gap: var(--s1); max-width: 100%; }
-  .sg.new { border-style: dashed; }
-  .sgt { font-size: 12px; color: var(--tx); display: inline-flex; align-items: center; gap: var(--s2); }
-  .sgt em { font-style: normal; color: var(--tx3); font-size: 11px; }
-  .sg button { all: unset; cursor: pointer; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; color: var(--tx3); }
-  .sg .ok:hover, .sg .ok:focus-visible { background: var(--acbg); color: var(--ac); }
-  .sg .no:hover, .sg .no:focus-visible { background: var(--sel); color: var(--tx); }
-  .errl { margin: 0; color: #ff8f90; font-size: 13px; display: flex; align-items: center; gap: var(--s3); }
   .srctab .lead { margin: 0 0 var(--s4); color: var(--tx2); }
   .grp { margin-bottom: var(--s4); }
   .h6 { margin: 0 0 var(--s2); font: 600 var(--fs-xs) var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx3); }

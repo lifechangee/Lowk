@@ -3,7 +3,6 @@
   import Icon from '../../lib/components/Icon.svelte';
   import RecDot from '../../lib/components/RecDot.svelte';
   import Section from '../../lib/components/Section.svelte';
-  import Tag from '../../lib/components/Tag.svelte';
   import { locale, tPlural } from '../../lib/i18n/locale.svelte';
   import { api, folderKey } from '../api';
   import { bindFor, triggerText } from '../binds';
@@ -57,7 +56,7 @@
       {/if}
       {#each library.recent.filter((c) => c.ended !== null).slice(0, 6) as c (c.id)}
         <div class="tr" class:fresh={ui.justFinished === c.id} use:callRow={() => ({ id: c.id, title: c.title })}>
-          <div class="c1"><a class="lk" href={hrefs.call(c.id)} draggable="false"><b class="lbl">{c.title}</b></a><small class="lbl">{folderName(c)}{c.tags.length ? ' · ' + c.tags.map((t) => '#' + t).join(' ') : ''}</small></div>
+          <div class="c1"><a class="lk" href={hrefs.call(c.id)} draggable="false"><b class="lbl">{c.title}</b></a><small class="lbl">{folderName(c)}</small></div>
           <span class="lbl">{when(c.started)}</span><span class="lbl">{duration(c.duration_s)}</span>
           <span class="st lbl" class:ok={library.summarized.includes(c.id)}>{library.summarized.includes(c.id) ? tm('main.summaryReady') : tm('main.noSummary')}</span>
           <button class="more" aria-haspopup="menu" aria-label={tm('m.callActions')} title={tm('m.moveMenu')} onclick={(e) => { const r = e.currentTarget.getBoundingClientRect(); ui.openMove(c.id, r.right, r.bottom); }}><Icon name="more" size={14} /></button>
@@ -73,7 +72,6 @@
           <h4 class="lbl">{f.title}</h4>
           <small class="lbl">{tPlural('main.calls', f.call_count)}</small>
           <small class="lbl">{#if library.lastActivity(key)}{tm('m.lastCall', { when: when(library.lastActivity(key)!, new Date(), false).toLocaleLowerCase(locale.lang) })}{:else}{tm('m.noCallsYet')}{/if}</small>
-          <div class="tgs">{#each f.tags.slice(0, 2) as t (t)}<Tag text={'# ' + t} />{/each}</div>
         </a>
       {/each}
       <button class="fc new" onclick={() => (ui.newFolderOpen = true)}><Icon name="plus" size={14} /><span class="lbl">{tm('main.newFolder')}</span></button>
@@ -99,7 +97,6 @@
   .ic { width: 32px; height: 32px; border-radius: var(--r); background: var(--hv); border: 1px solid var(--line); display: grid; place-items: center; font-weight: 650; font-size: 13px; color: var(--tx2); margin-bottom: var(--s1); }
   h4 { margin: 0; font: 600 var(--fs) var(--font); }
   small { color: var(--tx2); font: var(--fs-sm) var(--font); }
-  .tgs { margin-top: auto; display: flex; gap: var(--s1); flex-wrap: wrap; min-width: 0; }
   .fc.new { border-style: dashed; background: transparent; flex-direction: row; align-items: center; justify-content: center; gap: var(--s2); color: var(--tx3); }
   .tbl { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; margin-bottom: var(--s8); }
   .tr { display: grid; grid-template-columns: minmax(0, 1fr) 112px 96px 128px 32px; gap: var(--s4); align-items: center; padding: var(--s3) var(--s4); border-top: 1px solid var(--line); cursor: pointer; color: inherit; text-decoration: none; position: relative; }

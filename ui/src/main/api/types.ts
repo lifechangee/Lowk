@@ -46,11 +46,11 @@ import type {
   StartOpts,
   Stream,
   SummaryEvent,
-  TagSuggestion,
+  TrashedFolder,
 } from '../../lib/ipc';
 
 export type { RetxEvent, RetxPreset, RetxStatus, RetxRevision } from '../../lib/ipc';
-export type { SearchResults, SearchHit, Document, IngestProgress, PinnedUsage, IndexStatus, EmbedderInfo, TagSuggestion, SummaryEvent, ImportSummary, SourceRef, LlmProviderStatus, LocalServer, LocalModel } from '../../lib/ipc';
+export type { SearchResults, SearchHit, Document, IngestProgress, PinnedUsage, IndexStatus, EmbedderInfo, TrashedFolder, SummaryEvent, ImportSummary, SourceRef, LlmProviderStatus, LocalServer, LocalModel } from '../../lib/ipc';
 
 export const SYS_UNSORTED = 'sys:unsorted';
 export const SYS_TRASH = 'sys:trash';
@@ -144,8 +144,14 @@ export interface Backend {
   folderGet(key: FolderKey): Promise<FolderDetail | null>;
   callGet(id: string): Promise<CallDetail | null>;
   folderCreate(input: NewFolder): Promise<FolderMeta>;
-  folderUpdate(id: string, patch: { instructions?: string; tags?: string[]; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void>;
+  folderUpdate(id: string, patch: { instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void>;
   callTrash(id: string): Promise<void>;
+  /** Moves the folder with ALL its calls and documents to the Trash (restorable). Rejects with `session_busy` while a call is recording in it. */
+  folderDelete(id: string): Promise<void>;
+  /** Brings a trashed folder back with its calls and documents. */
+  folderRestore(id: string): Promise<void>;
+  /** Folders sitting in the Trash with what they hold. */
+  trashFolders(): Promise<TrashedFolder[]>;
   callRestore(id: string): Promise<void>;
   callMove(id: string, folder: FolderKey): Promise<void>;
   callRename(id: string, title: string): Promise<void>;
@@ -185,14 +191,12 @@ export interface Backend {
   embedderInstall(): Promise<void>;
   embedderInstallCancel(): Promise<void>;
 
-  // ---- summary, tags, provider ----
+  // ---- summary, provider ----
   /** Starts the stream; the events arrive through `onSummaryEvent`. */
   llmSummarize(call: string): Promise<void>;
   llmSummarizeCancel(call: string): Promise<void>;
   /** `summary://event` */
   onSummaryEvent(cb: (e: SummaryEvent) => void): () => void;
-  llmSuggestTags(call: string): Promise<TagSuggestion[]>;
-  callSetTags(id: string, tags: string[]): Promise<void>;
   llmProviderStatus(): Promise<LlmProviderStatus>;
   /** Probes 127.0.0.1:11434 / :1234 / :8080 (<= 300 ms, no prompts); empty = nothing running. */
   llmDetectLocal(): Promise<LocalServer[]>;

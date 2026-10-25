@@ -15,7 +15,6 @@ fn folder(v: &Vault, title: &str) -> (Ulid, FolderRef) {
     let m = v
         .create_folder(NewFolder {
             title: title.into(),
-            tags: vec![],
             allow_cloud: true,
             instructions: String::new(),
         })
@@ -38,7 +37,6 @@ fn new(f: &FolderRef, p: &Path) -> NewDocument {
         source_path: p.to_string_lossy().into(),
         title: None,
         pin: false,
-        tags: vec![],
         on_duplicate: Default::default(),
     }
 }
@@ -78,14 +76,13 @@ fn import_keeps_original_and_writes_a_queued_placeholder() {
         .add_doc(&NewDocument {
             title: Some("Договор: поставки?".into()),
             pin: true,
-            tags: vec!["x".into()],
             ..new(&f, &p)
         })
         .unwrap();
     assert_eq!(doc.status, IngestStatus::Queued);
     assert_eq!(doc.kind, DocKind::Pdf);
     assert_eq!(doc.file_name, "spec_v3.pdf");
-    assert!(doc.pinned && doc.tags == vec!["x"]);
+    assert!(doc.pinned);
     assert_eq!(doc.size_bytes, 13);
     assert_eq!(doc.source_sha256.len(), 64);
     assert_eq!(doc.folder, f);
@@ -244,16 +241,12 @@ fn patch_pin_tags_title_and_move() {
             &d.id,
             &DocPatch {
                 title: Some("Новое имя".into()),
-                tags: Some(vec!["t".into()]),
                 pinned: Some(true),
                 folder: None,
             },
         )
         .unwrap();
-    assert_eq!(
-        (d.title.as_str(), d.pinned, d.tags.clone()),
-        ("Новое имя", true, vec!["t".to_string()])
-    );
+    assert_eq!((d.title.as_str(), d.pinned), ("Новое имя", true));
     let moved = v
         .patch_doc(
             &d.id,

@@ -1,6 +1,6 @@
 [package]
 name = "lowk-llm"
-description = "Lowk LLM: OpenAI-compatible streaming client (OpenRouter, Ollama, LM Studio), chat ledger, prompt builder, summary and tags"
+description = "Lowk LLM: OpenAI-compatible streaming client (OpenRouter, Ollama, LM Studio), chat ledger, prompt builder, summary"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

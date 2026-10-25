@@ -98,7 +98,6 @@ impl Index {
                 (Some(f), false) => vec![FolderRef::User(*f)],
                 _ => vec![],
             },
-            tags: q.scope.tags.clone(),
             ..SearchFilters::default()
         };
         let (mut cands, _) = self.inner.candidates(

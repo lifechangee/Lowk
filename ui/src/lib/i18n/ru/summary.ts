@@ -1,4 +1,4 @@
-// call summary, tag suggestions and the sources under AI answers. Keys: `summary.*`, `source.*`.
+// call summary and the sources under AI answers. Keys: `summary.*`, `source.*`.
 export const summary = {
   'summary.create': 'Создать саммари',
   'summary.empty.title': 'Саммари ещё нет',
@@ -13,15 +13,7 @@ export const summary = {
   'summary.by': 'Модель: {model}',
   'summary.copied': 'Саммари скопировано',
   'summary.copyFailed': 'Не удалось скопировать',
-  'summary.suggestTags': 'Предложить теги',
-  'summary.tags.title': 'Предложенные теги',
-  'summary.tags.hint': 'Ваши теги остаются. Подтвердите нужные.',
-  'summary.tags.loading': 'Подбираю теги…',
-  'summary.tags.none': 'Новых тегов нет.',
-  'summary.tags.inVault': 'уже есть',
-  'summary.tags.accept': 'Добавить тег {tag}',
-  'summary.tags.reject': 'Отклонить тег {tag}',
-  'summary.settings.model': 'Модель для саммари и тегов',
+  'summary.settings.model': 'Модель для саммари',
   'summary.settings.modelHint': 'Облачная модель с зафиксированной версией. Enter — сохранить.',
   'summary.settings.pinned': 'Закреплённый провайдер',
   'summary.settings.pinnedHint': 'Сервер OpenRouter, на который закреплена модель. Пусто — выберет OpenRouter.',

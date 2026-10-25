@@ -48,8 +48,6 @@ pub enum SearchMode {
 #[serde(default)]
 pub struct SearchFilters {
     pub folders: Vec<FolderRef>,
-    /// All listed tags must match.
-    pub tags: Vec<String>,
     /// RFC 3339 dates (inclusive); apply to call start / document added.
     pub from: Option<String>,
     pub to: Option<String>,

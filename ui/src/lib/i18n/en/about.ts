@@ -18,7 +18,7 @@ export const about = {
   'about.privacy': 'Privacy',
   'about.privacyLead': 'Lowk collects no telemetry and sends no analytics or crash reports. Audio, call text and documents stay on your computer. The app uses the network only in these cases:',
   'about.net.models': 'Model downloads. When you install a speech or search engine, the file is fetched from Hugging Face and verified by checksum. Only the file request is sent.',
-  'about.net.cloud': 'Cloud services you choose yourself, with your own key: OpenRouter for answers, summaries and tags, Soniox or Deepgram for cloud speech recognition. Only the data of the feature you use is sent, and nothing leaves a local-only folder.',
+  'about.net.cloud': 'Cloud services you choose yourself, with your own key: OpenRouter for answers and summaries, Soniox or Deepgram for cloud speech recognition. Only the data of the feature you use is sent, and nothing leaves a local-only folder.',
   'about.net.local': 'A local server on your computer (Ollama, LM Studio, llama.cpp) is called on localhost and sends nothing further.',
   'about.net.updates': 'Update checks. They are not active yet. When they arrive they will ask only for the latest version number, without any of your data.',
   'about.diag': 'Diagnostics',

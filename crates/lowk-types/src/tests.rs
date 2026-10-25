@@ -294,7 +294,6 @@ fn main_thread_run_sync_and_fakes() {
             scope: RetrievalScope {
                 folder: None,
                 call: None,
-                tags: vec![],
                 all_folders: true
             },
             budget_tokens: 100,
@@ -447,7 +446,6 @@ fn m2_contracts_roundtrip() {
             source_path: "/tmp/a.pdf".into(),
             title: None,
             pin: true,
-            tags: vec![],
             on_duplicate: Default::default(),
         })
         .unwrap();
@@ -479,7 +477,6 @@ fn m2_contracts_roundtrip() {
                 source_path: "x.rs".into(),
                 title: None,
                 pin: false,
-                tags: vec![],
                 on_duplicate: Default::default(),
             })
             .unwrap_err()
@@ -503,7 +500,6 @@ fn m2_contracts_roundtrip() {
             scope: RetrievalScope {
                 folder: None,
                 call: None,
-                tags: vec![],
                 all_folders: false,
             },
             budget_tokens: 100,
