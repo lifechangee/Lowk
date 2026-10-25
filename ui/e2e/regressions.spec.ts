@@ -78,10 +78,10 @@ test('New call popover always opens with the whole system, whatever settings or 
   }
 });
 
-test('onboarding capture step stores no sticky app default; the popover stays on the whole system', async ({ page }) => {
+test('onboarding capture step: whatever is picked is saved, yet the New call popover still starts with the whole system', async ({ page }) => {
   await page.goto('/main.html?lang=en&fresh&ack#/onboarding/2');
   await page.waitForSelector('.win');
-  await expect(page.getByTestId('capture-app-note')).toBeVisible();
+  await page.locator('.opt', { hasText: 'One app' }).click();
   await page.locator('.nav button.primary').click();
   await page.waitForTimeout(300);
   await page.evaluate(() => (location.hash = '#/'));

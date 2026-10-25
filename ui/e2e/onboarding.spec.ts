@@ -133,3 +133,69 @@ test('onboarding resumes at the stored step after a restart, and the legal notic
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Запись разговоров и закон/);
   expect(await stepNo(page)).toBe(1);
 });
+
+for (const os of ['macos', 'windows'] as Os[]) {
+  test(`onboarding step 3 (${os}): both capture options, whole system preselected, the app picker is back, the choice is kept`, async ({ page }) => {
+    await page.goto(`/main.html?lang=en&os=${os}&fresh&ack#/onboarding/2`);
+    await page.waitForSelector('.win');
+    const system = page.locator('.opt', { hasText: 'Whole system audio' });
+    const app = page.locator('.opt', { hasText: 'One app' });
+    await expect(system).toHaveAttribute('aria-checked', 'true');
+    await expect(app).toHaveAttribute('aria-checked', 'false');
+    await expect(page.locator('.apps [data-source-value]')).toHaveCount(1);
+    const note = page.getByTestId('capture-win-note');
+    if (os === 'windows') await expect(note).toBeVisible(); else await expect(note).toHaveCount(0);
+    await lint(page, `capture ${os}`);
+    await app.click();
+    await expect(app).toHaveAttribute('aria-checked', 'true');
+    await expect(system).toHaveAttribute('aria-checked', 'false');
+    expect(await page.locator('.apps [data-source-value]').getAttribute('data-source-value')).toMatch(/^app:.+/);
+    await system.click();
+    await expect(system).toHaveAttribute('aria-checked', 'true');
+    await app.click();
+    await page.locator('.nav').getByRole('button', { name: 'Continue', exact: true }).click();
+    expect(await stepNo(page)).toBe(3);
+    await page.evaluate(() => (location.hash = '#/onboarding/8'));
+    await expect(page.locator('.sum')).not.toContainText('Whole system');
+    // the New call popover still starts with the whole system
+    await page.getByRole('button', { name: 'Get started' }).click();
+    await page.locator('.side .nc button.btn.primary').click();
+    await expect(page.locator('.np [data-source-value]')).toHaveAttribute('data-source-value', 'system');
+  });
+
+  for (const width of [1000, 1280]) {
+    for (const lang of ['en', 'ru'] as Lang[]) {
+      test(`onboarding step 8 hotkeys (${os}/${lang}/${width}px): layout lint, chips aligned with labels, no wrapping`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 800 });
+        await page.goto(`/main.html?lang=${lang}&os=${os}&fresh&ack#/onboarding/7`);
+        await page.waitForSelector('.win');
+        await lint(page, `hotkeys ${os}/${lang}/${width}`);
+        const rows = page.locator('.be .hk');
+        expect(await rows.count()).toBe(8);
+        const geo = await rows.evaluateAll((els) => els.map((el) => {
+          const r = (e: Element) => e.getBoundingClientRect();
+          const l = el.querySelector('.l')!, k = el.querySelector('.key')!;
+          const kbds = [...k.querySelectorAll('kbd')].map((x) => r(x));
+          const key = r(k);
+          return {
+            dy: Math.abs(r(l).top + r(l).height / 2 - (key.top + key.height / 2)),
+            keyLeft: Math.round(key.left), keyW: Math.round(key.width),
+            oneLine: kbds.every((b) => Math.abs(b.top - kbds[0]!.top) < 2 && b.height <= 18),
+            inside: kbds.every((b) => b.left >= key.left - 0.5 && b.right <= key.right + 0.5),
+            labelFits: (l as HTMLElement).scrollWidth <= (l as HTMLElement).clientWidth + 1,
+          };
+        }));
+        for (const g of geo) {
+          expect(g.dy, 'chip vertical centre vs its label').toBeLessThanOrEqual(2);
+          expect(g.oneLine, 'chip parts stay on one line').toBe(true);
+          expect(g.inside, 'chip parts stay inside the chip').toBe(true);
+          expect(g.labelFits, 'label is not truncated').toBe(true);
+        }
+        expect(new Set(geo.map((g) => g.keyLeft)).size, 'all chips share one left edge').toBe(1);
+        expect(new Set(geo.map((g) => g.keyW)).size, 'all chips share one width').toBe(1);
+        await expect(page.locator('.be .hk[data-slot=ask_brief] .key')).toContainText(os === 'macos' ? '⌘' : 'Ctrl');
+        if (os === 'windows') await expect(page.locator('.be .key').filter({ hasText: '⌘' })).toHaveCount(0);
+      });
+    }
+  }
+}

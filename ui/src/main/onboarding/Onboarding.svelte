@@ -14,10 +14,12 @@
   import { mouseNames } from '../names';
   import { PERM_ORDER, perms } from '../permissions.svelte';
   import { hrefs, router } from '../router.svelte';
-  import { callLangs, prefs } from '../state.svelte';
+  import { callLangs, prefs, sources } from '../state.svelte';
   import { tour } from '../tour/tour.svelte';
   import LangPicker from '../LangPicker.svelte';
   import { resolve as resolveLangs, systemDefault } from '../langs';
+  import { nameFromId, presetInfo, presetsFor } from '../source';
+  import SourcePicker from '../SourcePicker.svelte';
   import KeyCard from '../settings/KeyCard.svelte';
   import BindEditor from '../settings/BindEditor.svelte';
   import PermRow from '../settings/PermRow.svelte';
@@ -32,6 +34,9 @@
   let skipped = $state<Set<number>>(new Set());
   let hw = $state<HwInfo | null>(null);
   let scanned = $state(false);
+  /** Whole system is preselected; the choice made here is what onboarding saves (the New call popover ignores it and starts with the whole system). */
+  let captureMode = $state<'app' | 'system'>('system');
+  let appId = $state('');
   let engineMode = $state<'local' | 'cloud'>('local');
   /** Call languages, pre-filled: what is stored once onboarding was done before, else the system language + English. */
   let callLangsChoice = $state<string[]>(['ru', 'en']);
@@ -40,6 +45,7 @@
   let cloudName = $state('Soniox');
 
   onMount(async () => {
+    void sources.refresh();
     perms.refresh();
     await callLangs.load();
     const sys = systemDefault(await api.localeGet().catch(() => 'en'), callLangs.supported);
@@ -82,9 +88,7 @@
     if (step === 4) await prefs.patch({ stt: await chosenEngine() });
     if (step < TOTAL - 1) await go(step + 1);
   }
-  // Only the call languages are stored here. The audio source is NOT a sticky setting: every new call starts with
-  // whole system audio and the user picks an app per call in the «New call» popover.
-  const persistCapture = () => prefs.patch({ stt: { languages: callLangsChoice, last_languages: [] } });
+  const persistCapture = () => prefs.patch({ stt: { languages: callLangsChoice, last_languages: [] }, capture: { default_source: captureMode === 'app' && appId ? 'one_app' : 'whole_system' }, audio: { default_source: captureMode === 'app' && appId ? { kind: 'app', id: appId } : { kind: 'whole_system' } } });
   /** The REAL registered engine id (an invented placeholder here meant no call ever found an engine). */
   async function chosenEngine(): Promise<{ engine: string; cloud_vendor?: string }> {
     const all = await api.engines();
@@ -156,8 +160,10 @@
       {:else if step === 2}
         <h1>{tm('onboarding.capture.title')}</h1>
         <p class="lead">{tm('onboarding.capture.hint')}</p>
-        <OptionCard selected={true} title={tm('m.sourceSystem')} hint={tm('onboarding.capture.systemHint')} onselect={() => {}} />
-        <p class="note" data-testid="capture-app-note">{tm('onboarding.capture.appHint')}</p>
+        <OptionCard selected={captureMode === 'system'} title={tm('m.sourceSystem')} hint={tm('onboarding.capture.systemHint')} badge={tm('onboarding.capture.recommended')} onselect={() => (captureMode = 'system')} />
+        <OptionCard selected={captureMode === 'app'} title={tm('onboarding.capture.app')} hint={tm('onboarding.capture.appHint')} onselect={() => { captureMode = 'app'; if (!appId) appId = presetInfo(presetsFor(os)[0]!, os, sources.pool).id; }} />
+        <div class="apps"><SourcePicker allowSystem={false} label={tm('m.audioSource')} value={appId ? `app:${appId}` : 'app:'} onchange={(v) => { captureMode = 'app'; appId = v.slice(4); }} /></div>
+        {#if os === 'windows'}<p class="note" data-testid="capture-win-note">{tm('onboarding.capture.windowsNote')}</p>{/if}
         <p class="note">{tm('onboarding.capture.micNote')}</p>
         <div class="card langs"><b class="lbl">{tm('m.callLangsOnb')}</b><p>{tm('m.callLangsOnbHint')}</p><LangPicker value={callLangsChoice} supported={callLangs.supported} label={tm('m.callLangs')} onchange={(v) => (callLangsChoice = v)} /></div>
 
@@ -214,7 +220,7 @@
           <p class="lead centered">{tm('onboarding.done.body', { key: recKey })}</p>
           <div class="sum card">
             <div><span>{tm('settings.language')}</span><span class="lbl">{tm(lang === 'auto' ? 'settings.language.auto' : lang === 'ru' ? 'settings.language.ru' : 'settings.language.en')}</span></div>
-            <div><span>{tm('m.ob.capture')}</span><span class="lbl">{skippedLabel(2) ?? tm('m.sourceSystemShort')}</span></div>
+            <div><span>{tm('m.ob.capture')}</span><span class="lbl">{skippedLabel(2) ?? (captureMode === 'app' && appId ? (sources.find(appId)?.name ?? nameFromId(appId)) : tm('m.sourceSystemShort'))}</span></div>
             <div><span>{tm('settings.stt')}</span><span class="lbl">{skippedLabel(4) ?? (engineMode === 'local' ? tm('settings.stt.local') : 'Soniox')}</span></div>
             <div><span>{tm('settings.answers')}</span><span class="lbl">{skippedLabel(5) ?? 'DeepSeek V4.1 Flash'}</span></div>
             <div><span>{tm('settings.apiKey')}</span><span class="lbl">{skippedLabel(5) ?? keyStoredText()}</span></div>
