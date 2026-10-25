@@ -70,7 +70,9 @@ for (const lang of ['ru', 'en'] as Lang[]) {
         }
         await page.goto(`/main.html?lang=${lang}&os=${os}#/settings/storage`);
         const reveal = page.locator('.set main').getByRole('button', { name: os === 'windows' ? (lang === 'ru' ? 'Показать в Проводнике' : 'Show in File Explorer') : (lang === 'ru' ? 'Показать в Finder' : 'Show in Finder') });
-        await expect(reveal).toBeVisible();
+        // the vault folder and the models folder each have a reveal button, both worded for the OS
+        await expect(reveal.first()).toBeVisible();
+        expect(await reveal.count()).toBeGreaterThanOrEqual(1);
         await page.goto(`/main.html?lang=${lang}&os=${os}#/settings/templates`);
         await page.locator('.set main').getByRole('button').filter({ hasText: /./ }).first().waitFor();
       }
