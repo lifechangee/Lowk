@@ -174,7 +174,8 @@ const crash = existsSync(join(homedir(), 'Library/Logs/DiagnosticReports'))
   : [];
 check(crash.length === 0, 'no crash report written during the run', crash.join(', '));
 
-const logPath = join(data, 'lowk.log');
+// The app writes `<data root>/logs/lowk.log`; older builds wrote it at the data root.
+const logPath = [join(data, 'logs', 'lowk.log'), join(data, 'lowk.log')].find(existsSync) ?? join(data, 'logs', 'lowk.log');
 const log = existsSync(logPath) ? readFileSync(logPath, 'utf8') : '';
 check(log.length > 0, 'the bundle writes lowk.log (diagnostics for a Finder-launched app)', logPath);
 
