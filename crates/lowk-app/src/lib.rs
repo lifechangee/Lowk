@@ -145,41 +145,6 @@ fn init_tracing() {
         .try_init();
 }
 
-#[cfg(test)]
-mod log_time_tests {
-    use super::*;
-
-    #[test]
-    fn stamp_has_milliseconds_and_an_explicit_offset() {
-        let s =
-            local_stamp(time::OffsetDateTime::from_unix_timestamp_nanos(1_792_959_915_898_000_000).unwrap());
-        // 2026-10-25T20:25:15.898 UTC, written in this machine's zone with its offset
-        let re_ok = s.len() == 29
-            && s.as_bytes()[10] == b'T'
-            && s.as_bytes()[19] == b'.'
-            && (s.as_bytes()[23] == b'+' || s.as_bytes()[23] == b'-')
-            && s.as_bytes()[26] == b':';
-        assert!(re_ok, "{s}");
-        assert!(!s.ends_with('Z'), "{s}");
-        assert_eq!(&s[20..23], "898");
-    }
-
-    #[test]
-    fn a_fixed_offset_shifts_the_clock_and_prints_it() {
-        // the owner's case: UTC+3
-        let now = time::OffsetDateTime::from_unix_timestamp_nanos(1_792_959_915_898_000_000).unwrap();
-        let off = time::UtcOffset::from_hms(3, 0, 0).unwrap();
-        let fmt = time::format_description::parse_borrowed::<2>(
-            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3][offset_hour sign:mandatory]:[offset_minute]",
-        )
-        .unwrap();
-        assert_eq!(
-            now.to_offset(off).format(&fmt).unwrap(),
-            "2026-10-25T23:25:15.898+03:00"
-        );
-    }
-}
-
 pub fn run() {
     datadir::startup();
     init_tracing();
@@ -234,4 +199,39 @@ pub fn run() {
             let _ = handle;
         }
     });
+}
+
+#[cfg(test)]
+mod log_time_tests {
+    use super::*;
+
+    #[test]
+    fn stamp_has_milliseconds_and_an_explicit_offset() {
+        let s =
+            local_stamp(time::OffsetDateTime::from_unix_timestamp_nanos(1_792_959_915_898_000_000).unwrap());
+        // 2026-10-25T20:25:15.898 UTC, written in this machine's zone with its offset
+        let re_ok = s.len() == 29
+            && s.as_bytes()[10] == b'T'
+            && s.as_bytes()[19] == b'.'
+            && (s.as_bytes()[23] == b'+' || s.as_bytes()[23] == b'-')
+            && s.as_bytes()[26] == b':';
+        assert!(re_ok, "{s}");
+        assert!(!s.ends_with('Z'), "{s}");
+        assert_eq!(&s[20..23], "898");
+    }
+
+    #[test]
+    fn a_fixed_offset_shifts_the_clock_and_prints_it() {
+        // the owner's case: UTC+3
+        let now = time::OffsetDateTime::from_unix_timestamp_nanos(1_792_959_915_898_000_000).unwrap();
+        let off = time::UtcOffset::from_hms(3, 0, 0).unwrap();
+        let fmt = time::format_description::parse_borrowed::<2>(
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3][offset_hour sign:mandatory]:[offset_minute]",
+        )
+        .unwrap();
+        assert_eq!(
+            now.to_offset(off).format(&fmt).unwrap(),
+            "2026-10-25T23:25:15.898+03:00"
+        );
+    }
 }
