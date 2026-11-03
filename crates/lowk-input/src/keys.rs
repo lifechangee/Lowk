@@ -179,6 +179,8 @@ mod tests {
     fn lookup_and_describe() {
         assert_eq!(from_mac_vk(36), "Enter");
         assert_eq!(from_win_vk(0xDC), "Backslash");
+        assert_eq!(to_win_vk("Backslash"), Some(0xDC));
+        assert_eq!(to_win_vk("NoSuchKey"), None);
         assert_eq!(from_mac_vk(999), "Unknown");
         let t = Trigger::Combo {
             mods: Mods::META_SHIFT,
