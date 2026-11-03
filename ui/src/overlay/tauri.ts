@@ -7,6 +7,7 @@ import { resolveOverlayLang } from './i18n';
 import type { OverlayStore } from './store.svelte';
 import type { OverlaySource } from './source';
 import type { ToneEvent } from './tone';
+import { copyPlainAnswer } from './clipboard';
 
 /** Commands answer with `{status:'error'}` instead of throwing; the overlay only needs to not crash. */
 const quiet = (p: Promise<unknown>) => void p.catch(() => {});
@@ -51,6 +52,7 @@ export class TauriSource implements OverlaySource {
     }));
     const holdOff = (r: BindReport) => (store.holdDegraded = r.entries.some((e) => (e.action === 'move_hold' || e.action === 'click_hold') && e.status.state !== 'active'));
     add(on<BindReport>('binds://report', holdOff));
+    add(on('binds://copy-answer', () => this.copyAnswer()));
     void commands.bindsGet().then((b) => holdOff(b.report)).catch(() => {});
     add(on<{ perm: string }>('binds://failed', (e) => {
       const ru = store.lang === 'ru';
@@ -121,6 +123,12 @@ export class TauriSource implements OverlaySource {
   }
 
   ask = () => quiet(commands.llmAsk(null));
+  copyAnswer = () => {
+    const store = this.#store;
+    if (!store?.hasAnswered || !store.answer) return;
+    void copyPlainAnswer(store.answer).then(() => store.markCopied()).catch(() => store.flash(store.lang === 'ru' ? 'Не удалось скопировать' : 'Could not copy'));
+  };
+  cancelAnswer = () => quiet(commands.llmCancel());
   screenshot = () => {
     // G7: the queue arrives through `queue://changed`; only a refusal (e.g. no Screen Recording) needs a word.
     void commands.captureScreenshot().then((r) => {

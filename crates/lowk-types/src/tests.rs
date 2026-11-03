@@ -49,6 +49,8 @@ fn default_binds_per_os() {
     let mac = default_binds(Os::Macos);
     let win = default_binds(Os::Windows);
     assert_eq!(mac.len(), 9);
+    assert!(mac.iter().all(|b| b.action != ActionId::CopyAnswer));
+    assert!(win.iter().all(|b| b.action != ActionId::CopyAnswer));
     assert_eq!(
         find(&mac, ActionId::AskBrief),
         Trigger::Combo {

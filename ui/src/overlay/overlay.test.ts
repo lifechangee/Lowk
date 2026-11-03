@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BAND_PX, GRID_COLS, GRID_ROWS, PRESETS, blockTone, scrimRowGradient, scrimRowStyle, textGradient, kFromTransparency, menuRgb, normalizeRgb, parseGrid, toneToVars, varsToStyle, type ToneEvent } from './tone';
 import { OverlayStore, formatElapsed, splitBold } from './store.svelte';
+import { plainAnswer } from './clipboard';
 
 describe('tone', () => {
   it('normalizes colour formats', () => {
@@ -47,6 +48,19 @@ describe('store', () => {
   it('formats time and bold', () => {
     expect(formatElapsed((47 * 60 + 12) * 1000)).toBe('00:47:12');
     expect(splitBold('a **b** c')).toEqual([{ text: 'a ', bold: false }, { text: 'b', bold: true }, { text: ' c', bold: false }]);
+  });
+  it('marks a cancelled partial answer while retaining its text', () => {
+    const s = new OverlayStore();
+    s.applyLlm({ type: 'start', req_id: 'r', qa_id: 'q' });
+    s.applyLlm({ type: 'delta', req_id: 'r', text: 'Часть ответа' });
+    s.applyLlm({ type: 'error', req_id: 'r', error: { code: 'llm_cancelled', params: {}, detail: null } });
+    expect(s.streaming).toBe(false);
+    expect(s.cancelled).toBe(true);
+    expect(s.answer).toBe('Часть ответа');
+    expect(s.answerError).toBe(false);
+  });
+  it('converts formatted answers to plain text for copying', () => {
+    expect(plainAnswer('**Bold** and **strong**')).toBe('Bold and strong');
   });
 });
 

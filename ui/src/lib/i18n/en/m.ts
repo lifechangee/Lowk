@@ -299,6 +299,7 @@ export const m = {
   'm.act.next_template.hint': 'e.g. a mouse side button',
   'm.act.prev_template': 'Previous answer template',
   'm.act.cancel_answer': 'Cancel answer',
+  'm.act.copy_answer': 'Copy answer',
   'm.act.clear_shots': 'Clear screenshot queue',
   'm.act.toggle_main': 'Show main window',
   'm.warn.global_enter': 'This combo is taken from every other app while Lowk runs (e.g. “send” in chat apps).',

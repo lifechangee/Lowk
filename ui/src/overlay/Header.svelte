@@ -45,12 +45,13 @@
   {#if store.phase === 'recording' || store.phase === 'paused'}
     <!-- F8: one click, no confirmation. Click-through in passive mode; the record bind keeps working. -->
     <button class="stop" data-blk type="button" title={ot('overlay.action.stop', lang)} aria-label={ot('overlay.action.stop', lang)} onclick={() => source.stopRecording?.()}>
-      <svg width="10" height="10" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" rx="1.5" fill="currentColor" /></svg>
+      <span class="lbl">{ot('overlay.action.stop', lang)}</span>
     </button>
   {/if}
   {#if store.phase === 'recording'}
     <button class="stop mic" class:muted={!store.micOn} data-blk type="button" data-testid="ov-mic" aria-pressed={store.micOn} title={ot(store.micAuto ? (store.micOn ? 'overlay.mic.autoOn' : 'overlay.mic.autoOff') : store.micOn ? 'overlay.mic.off' : 'overlay.mic.on', lang)} aria-label={ot(store.micAuto ? (store.micOn ? 'overlay.mic.autoOn' : 'overlay.mic.autoOff') : store.micOn ? 'overlay.mic.off' : 'overlay.mic.on', lang)} onclick={() => source.setMic?.(!store.micOn)}>
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2" width="4" height="7" rx="2" /><path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2" />{#if !store.micOn}<path d="M2.5 2.5l11 11" />{/if}{#if store.micAuto}<path d="M10.5 15l2-5 2 5M11.3 13.2h3.4" stroke-width="1.2" />{/if}</svg>
+      <span class="lbl">{ot('overlay.mic.label', lang)}</span>
     </button>
   {/if}
   <span class="div"></span>
