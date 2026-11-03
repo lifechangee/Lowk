@@ -9,6 +9,8 @@ bad() { echo "QA GUARD: $1"; FAIL=1; }
 
 # 1a. never a default feature
 grep -nE '^default *=.*qa' crates/*/Cargo.toml Cargo.toml && bad "qa must not be a default feature"
+# 1c. users' input hooks ignore injected input; only a qa build with LOWK_QA_ACCEPT_INJECTED=1 accepts it.
+grep -q 'kb.flags.0 & LLKHF_INJECTED' crates/lowk-input/src/platform/win.rs || bad "keyboard injected-input filter missing"
 # 1b. tauri build/release recipes and CI must not enable it
 for f in justfile .github/workflows/*.yml; do
   [ -f "$f" ] || continue

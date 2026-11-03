@@ -11,7 +11,7 @@ use crate::matcher::Raw;
 use lowk_types::{Mods, MouseBtn};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex, OnceLock};
 use std::time::Duration;
 use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -26,6 +26,22 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 const LLKHF_INJECTED: u32 = 0x10;
 const LLMHF_INJECTED: u32 = 0x01;
+
+/// Injected input (SendInput, remote tools) is ignored for users. A qa build accepts it only when the run
+/// opts in with `LOWK_QA_ACCEPT_INJECTED=1`, so scripts can drive modifier-only binds; read once.
+fn injected_setting(feature_on: bool, env: Option<&str>) -> bool {
+    feature_on && env == Some("1")
+}
+
+fn accept_injected() -> bool {
+    static ACCEPT: OnceLock<bool> = OnceLock::new();
+    *ACCEPT.get_or_init(|| {
+        injected_setting(
+            cfg!(feature = "qa"),
+            std::env::var("LOWK_QA_ACCEPT_INJECTED").ok().as_deref(),
+        )
+    })
+}
 
 #[derive(Default)]
 struct State {
@@ -247,7 +263,7 @@ fn os_mods() -> [bool; 8] {
 }
 
 fn on_key(msg: u32, kb: &KBDLLHOOKSTRUCT) -> bool {
-    if kb.flags.0 & LLKHF_INJECTED != 0 {
+    if kb.flags.0 & LLKHF_INJECTED != 0 && !accept_injected() {
         return false;
     }
     let down = matches!(msg, WM_KEYDOWN | WM_SYSKEYDOWN);
@@ -304,7 +320,7 @@ fn on_key(msg: u32, kb: &KBDLLHOOKSTRUCT) -> bool {
 }
 
 fn on_mouse(msg: u32, ms: &MSLLHOOKSTRUCT) -> bool {
-    if ms.flags & LLMHF_INJECTED != 0 {
+    if ms.flags & LLMHF_INJECTED != 0 && !accept_injected() {
         return false;
     }
     let (button, down) = match msg {
@@ -381,6 +397,10 @@ fn hook_thread(engine: Arc<Engine>, tx: mpsc::Sender<Result<u32, String>>) {
             }
         };
         let install = || -> Result<(HHOOK, HHOOK), String> {
+            static WARNED: OnceLock<()> = OnceLock::new();
+            if accept_injected() && WARNED.set(()).is_ok() {
+                tracing::warn!("QA: the input hook accepts injected input");
+            }
             let kb =
                 SetWindowsHookExW(WH_KEYBOARD_LL, Some(kb_proc), Some(hmod), 0).map_err(|e| e.to_string())?;
             match SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), Some(hmod), 0) {
@@ -536,6 +556,24 @@ pub fn cursor_position() -> (f64, f64) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn injected_setting_requires_qa_and_exact_opt_in() {
+        assert!(!super::injected_setting(false, Some("1")));
+        assert!(!super::injected_setting(true, None));
+        assert!(!super::injected_setting(true, Some("0")));
+        assert!(super::injected_setting(true, Some("1")));
+    }
+
+    #[cfg(not(feature = "qa"))]
+    #[test]
+    fn injected_input_stays_disabled_without_qa_feature() {
+        // SAFETY: this test is the only code changing this process environment.
+        unsafe { std::env::set_var("LOWK_QA_ACCEPT_INJECTED", "1") };
+        assert!(!super::accept_injected());
+        // SAFETY: restore the process environment after the assertion.
+        unsafe { std::env::remove_var("LOWK_QA_ACCEPT_INJECTED") };
+    }
+
     #[test]
     fn swallowed_holds_are_never_released_from_async_key_state_absence() {
         let tracked = [1u16, 2];
