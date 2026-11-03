@@ -53,6 +53,7 @@ const COMMANDS: &[&str] = &[
     "pill_drag_end",
     "overlay_input_submit",
     "overlay_tone",
+    "stealth_capture_applied",
     "binds_get",
     "binds_set",
     "binds_record_start",

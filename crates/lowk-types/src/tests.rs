@@ -577,6 +577,39 @@ fn retranscribe_defaults_are_off_and_the_folder_preset_resolves_like_the_mic_one
 }
 
 #[test]
+fn overlay_capture_visibility_default_is_hidden_and_old_files_read_as_hidden() {
+    for os in [Os::Macos, Os::Windows] {
+        let s = Settings::defaults_for(os);
+        assert!(
+            !s.stealth.overlay_capture_visible,
+            "default = invisible to capture (today's behaviour)"
+        );
+        assert!(
+            default_binds(os)
+                .iter()
+                .all(|b| b.action != ActionId::ToggleCaptureVisible),
+            "the capture-visibility bind is unbound by default"
+        );
+    }
+    // a file written before the key existed (`[stealth]` with only the old keys, or no section at all)
+    let old: Settings = serde_json::from_value(
+        serde_json::json!({ "stealth": { "hide_main": true, "verify_interval_ms": 500 } }),
+    )
+    .unwrap();
+    assert!(
+        !old.stealth.overlay_capture_visible
+            && old.stealth.hide_main
+            && old.stealth.verify_interval_ms == 500
+    );
+    let none: Settings = serde_json::from_value(serde_json::json!({})).unwrap();
+    assert!(!none.stealth.overlay_capture_visible);
+    let on: Settings =
+        serde_json::from_value(serde_json::json!({ "stealth": { "overlay_capture_visible": true } }))
+            .unwrap();
+    assert!(on.stealth.overlay_capture_visible && !on.stealth.hide_main);
+}
+
+#[test]
 fn mic_and_adaptive_scrim_defaults() {
     let s = Settings::defaults_for(Os::Macos);
     assert_eq!(s.audio.record_mic, MicMode::On, "global default: microphone on");

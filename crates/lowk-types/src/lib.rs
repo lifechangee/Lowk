@@ -153,6 +153,8 @@ pub mod events {
     pub const RETX_EVENT: &str = "retx://event";
     pub const OVERLAY_MODE: &str = "overlay://mode";
     pub const OVERLAY_TONE: &str = "overlay://tone";
+    /// bool: the overlay and pill are APPLIED as visible to capture (not just saved); drives the badge and the pill dot.
+    pub const STEALTH_CAPTURE: &str = "stealth://capture";
     pub const STEALTH_STATUS: &str = "stealth://status";
     pub const QUEUE_CHANGED: &str = "queue://changed";
     pub const PERM_CHANGED: &str = "perm://changed";

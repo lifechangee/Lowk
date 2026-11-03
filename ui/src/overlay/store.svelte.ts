@@ -60,6 +60,8 @@ export class OverlayStore {
   serverMyAnswer = false;
   /** Self-test sentinel: the overlay paints a magenta block while the app grabs the screen. */
   sentinel = $state(false);
+  /** `settings.stealth.overlay_capture_visible`: the overlay and pill are visible to screen capture (badge + pill dot). */
+  captureVisible = $state(false);
   /** Hold / modifier-only binds are off because Input Monitoring is missing (hook could not start). */
   holdDegraded = $state(false);
 

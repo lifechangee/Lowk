@@ -371,3 +371,44 @@ fn template_patch_validation() {
     assert_eq!(s.get().templates.len(), 3, "nothing was written");
     with(mine("n", "Новый", "New")).unwrap();
 }
+
+/// B8: a real legacy settings file has no `overlay_capture_visible`: it opens as «hidden», is not rewritten
+/// with the key unasked, the patch persists, and the capture bind is not added by the migration.
+#[test]
+fn legacy_settings_read_overlay_capture_as_hidden_and_the_switch_persists() {
+    let d = tempfile::tempdir().unwrap();
+    fs::copy(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/legacy-settings.toml"),
+        d.path().join("settings.toml"),
+    )
+    .unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    let cur = s.get();
+    assert!(!cur.stealth.overlay_capture_visible);
+    assert!(cur
+        .binds
+        .iter()
+        .all(|b| b.action != ActionId::ToggleCaptureVisible));
+    s.patch(SettingsPatch(
+        serde_json::json!({ "stealth": { "overlay_capture_visible": true } }),
+    ))
+    .unwrap();
+    assert!(
+        FileSettingsStore::open(d.path())
+            .unwrap()
+            .get()
+            .stealth
+            .overlay_capture_visible
+    );
+    s.patch(SettingsPatch(
+        serde_json::json!({ "stealth": { "overlay_capture_visible": false } }),
+    ))
+    .unwrap();
+    assert!(
+        !FileSettingsStore::open(d.path())
+            .unwrap()
+            .get()
+            .stealth
+            .overlay_capture_visible
+    );
+}

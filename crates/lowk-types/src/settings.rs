@@ -649,12 +649,17 @@ impl Default for CaptureSettings {
 pub struct StealthSettings {
     /// Also exclude the main window from capture (off by default).
     pub hide_main: bool,
+    /// The overlay and the pill are VISIBLE to screen capture / sharing (off by default = excluded from
+    /// capture). Applies to those two windows only; `hide_main` is separate. Old settings files lack the
+    /// key and read as `false` (`#[serde(default)]`), so no schema bump is needed.
+    pub overlay_capture_visible: bool,
     pub verify_interval_ms: u32,
 }
 impl Default for StealthSettings {
     fn default() -> Self {
         Self {
             hide_main: false,
+            overlay_capture_visible: false,
             verify_interval_ms: 1000,
         }
     }

@@ -128,5 +128,7 @@ export const OVERLAY_STATES: OverlayState[] = [
   { id: 'pill', title: 'Pill', q: { still: '1', view: 'pill' }, pill: true, full: false },
   { id: 'adaptive', title: 'Adaptive tone grid (dark left, light right, bright bottom)', q: { still: '1' }, full: false, bgs: ['split'] },
   { id: 'adaptive-moving', title: 'Adaptive grid + moving badge', q: { still: '1', mode: 'moving' }, full: false, bgs: ['split'] },
+  { id: 'capture-visible', title: 'B8: overlay visible to capture (amber badge in the header)', q: { still: '1', capvis: '1' }, full: false },
+  { id: 'pill-capture-visible', title: 'B8: pill visible to capture (amber dot)', q: { still: '1', view: 'pill', capvis: '1' }, pill: true, full: false },
   { id: 'toast', title: 'Toast (screenshot added)', q: { still: '1' }, keys: ['s'], full: false },
 ];

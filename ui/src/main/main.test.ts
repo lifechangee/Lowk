@@ -171,6 +171,19 @@ describe('template binds', () => {
   });
 });
 
+describe('B8 overlay capture visibility', () => {
+  it('the bind is assignable but unbound by default; strings exist in both languages', () => {
+    expect(ACTIONS_PRIMARY).toContain('toggle_capture_visible');
+    for (const os of ['macos', 'windows'] as const) expect(defaultBinds(os).some((x) => x.action === 'toggle_capture_visible')).toBe(false);
+    for (const k of ['m.overlayVisible', 'm.overlayVisibleHint', 'm.act.toggle_capture_visible', 'm.act.toggle_capture_visible.hint', 'overlay.captureVisible'] as const) {
+      expect(ru[k], k).toBeTruthy();
+      expect(en[k], k).toBeTruthy();
+    }
+    expect(ru['m.overlayVisible']).toBe('Показывать оверлей на записи экрана');
+    expect(ru['overlay.captureVisible']).toBe('Виден на записи');
+  });
+});
+
 describe('microphone toggle and adaptive scrim', () => {
   it('the mic bind is assignable in the editor but unbound by default', () => {
     expect(ACTIONS_PRIMARY).toContain('toggle_mic');

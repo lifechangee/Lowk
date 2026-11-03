@@ -98,10 +98,6 @@ export const commands = {
 	exportVault: (dest: string, includeService: boolean) => typedError<number, AppError>(__TAURI_INVOKE("export_vault", { dest, includeService })),
 	importVault: (src: string) => typedError<ImportSummary, AppError>(__TAURI_INVOKE("import_vault", { src })),
 	stealthStatus: () => __TAURI_INVOKE<StealthStatus>("stealth_status"),
-	/**
-	 *  Paints the overlay sentinel, grabs the screen like a normal capturer and
-	 *  checks the sentinel is absent (needs Screen Recording on macOS).
-	 */
 	stealthSelftest: () => typedError<SelfTestReport, AppError>(__TAURI_INVOKE("stealth_selftest")),
 	overlaySetMode: (mode: OverlayMode) => typedError<null, AppError>(__TAURI_INVOKE("overlay_set_mode", { mode })),
 	overlayShow: () => typedError<null, AppError>(__TAURI_INVOKE("overlay_show")),
@@ -123,6 +119,12 @@ export const commands = {
 	overlayInputSubmit: (text: string) => typedError<Ulid, AppError>(__TAURI_INVOKE("overlay_input_submit", { text })),
 	/**  Current adaptive tone (a window that loads late missed the events). */
 	overlayTone: () => typedError<Tone, AppError>(__TAURI_INVOKE("overlay_tone")),
+	/**
+	 *  Paints the overlay sentinel, grabs the screen like a normal capturer and
+	 *  checks the sentinel is absent (needs Screen Recording on macOS).
+	 *  The APPLIED capture visibility of the overlay and pill (a window that loads late missed the event).
+	 */
+	stealthCaptureApplied: () => __TAURI_INVOKE<boolean>("stealth_capture_applied"),
 	bindsGet: () => __TAURI_INVOKE<BindsState_Serialize>("binds_get"),
 	bindsSet: (binds: BindSpec_Deserialize[]) => typedError<BindsState_Serialize, AppError>(__TAURI_INVOKE("binds_set", { binds })),
 	/**
@@ -284,6 +286,8 @@ export type AboutInfo = {
 export type ActionId = "toggle_record" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | "clear_shots" | 
 /**  Microphone on/off during a recording (default unbound; roadmap «auto» mode: docs/ROADMAP.md). */
 "toggle_mic" | 
+/**  Toggle `stealth.overlay_capture_visible` (overlay and pill visible / invisible to screen capture). Default unbound. */
+"toggle_capture_visible" | 
 /**  G6: hold = the overlay is clickable without taking focus (default Ctrl). */
 "click_hold" | 
 /**  G6: ask with a fixed template, no overlay mode switch needed. */
@@ -1576,6 +1580,12 @@ export type StartOpts = {
 export type StealthSettings = {
 	/**  Also exclude the main window from capture (off by default). */
 	hide_main?: boolean,
+	/**
+	 *  The overlay and the pill are VISIBLE to screen capture / sharing (off by default = excluded from
+	 *  capture). Applies to those two windows only; `hide_main` is separate. Old settings files lack the
+	 *  key and read as `false` (`#[serde(default)]`), so no schema bump is needed.
+	 */
+	overlay_capture_visible?: boolean,
 	verify_interval_ms?: number,
 };
 

@@ -44,6 +44,9 @@
 <SettingRow label={tm('m.captureMonitors')} hint={tm('m.captureMonitorsHint')}>
   <Select label={tm('m.captureMonitors')} value={s.capture?.monitors ?? 'all'} options={[{ value: 'all', label: tm('m.mon.all') }, { value: 'primary', label: tm('m.mon.primary') }, { value: 'active', label: tm('m.mon.active') }]} onchange={(v) => prefs.patch({ capture: { monitors: v as CaptureMonitors } })} />
 </SettingRow>
+<SettingRow label={tm('m.overlayVisible')} hint={tm('m.overlayVisibleHint')}>
+  <Toggle checked={s.stealth?.overlay_capture_visible ?? false} label={tm('m.overlayVisible')} onchange={(v) => prefs.patch({ stealth: { overlay_capture_visible: v } })} />
+</SettingRow>
 <SettingRow label={tm('m.hideMain')} hint={tm('m.hideMainHint')}>
   <Toggle checked={s.stealth?.hide_main ?? false} label={tm('m.hideMain')} onchange={(v) => prefs.patch({ stealth: { hide_main: v } })} />
 </SettingRow>

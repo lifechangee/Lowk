@@ -311,6 +311,10 @@ impl OverlayController for OverlayCtl {
         let ov = self.guard.verify(OVERLAY);
         let mut overlay_hidden = ov == StealthStatus::Verified;
         details.push_str(&format!("overlay flag: {ov:?}; "));
+        if self.guard.capture_excluded(OVERLAY) == Some(false) {
+            overlay_hidden = false;
+            details.push_str("overlay is set visible to capture (user setting); ");
+        }
         let mut main_visible = false;
         if let Some(mb) = self.main_backend.lock().clone() {
             main_visible = run_main_sync(&self.main, move || mb.is_visible());

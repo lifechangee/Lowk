@@ -15,6 +15,13 @@ pub fn stealth_status(st: State<'_, Shared>) -> StealthStatus {
 
 /// Paints the overlay sentinel, grabs the screen like a normal capturer and
 /// checks the sentinel is absent (needs Screen Recording on macOS).
+/// The APPLIED capture visibility of the overlay and pill (a window that loads late missed the event).
+#[tauri::command(async)]
+#[specta::specta]
+pub fn stealth_capture_applied(st: State<'_, Shared>) -> bool {
+    st.stealth().map(|s| s.capture.applied()).unwrap_or(false)
+}
+
 #[tauri::command(async)]
 #[specta::specta]
 pub async fn stealth_selftest(st: State<'_, Shared>) -> Result<SelfTestReport> {

@@ -81,7 +81,7 @@ export class MockBackend implements Backend {
       overlay: { opacity: 60, font_px: 14, display: 'primary', visibility: 'recording_only', pill_edge: 'right', tone_mode: 'auto' },
       capture: { monitors: 'active' },
       binds: defaultBinds(this.#os),
-      stealth: { hide_main: false, verify_interval_ms: 5000 },
+      stealth: { hide_main: false, overlay_capture_visible: false, verify_interval_ms: 5000 },
       network: { proxy: '' },
       updates: { check_daily: true, last_checked: new Date(this.#now - 3 * 3600_000).toISOString(), skipped_version: null, auto_install: false },
       templates: [
