@@ -8,6 +8,7 @@
 //! `Noop*` helpers live in [`fakes`] so dependents can merge independently.
 
 pub mod bind;
+pub mod clock;
 pub mod docs;
 pub mod error;
 pub mod event;

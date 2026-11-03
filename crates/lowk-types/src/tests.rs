@@ -693,3 +693,19 @@ fn remembering_the_source_survives_switching_between_app_and_system() {
         Some(Target::App("zoom".into()))
     );
 }
+
+#[test]
+fn whole_system_target_ignores_a_stray_app_id_but_serializes_canonically() {
+    let target: Target = serde_json::from_str(r#"{"kind":"whole_system","id":"com.google.Chrome"}"#).unwrap();
+    assert_eq!(target, Target::WholeSystem);
+    assert_eq!(
+        serde_json::to_value(target).unwrap(),
+        serde_json::json!({"kind":"whole_system"})
+    );
+}
+
+#[test]
+fn the_startup_offset_is_shared_once_recorded() {
+    crate::clock::set_local_offset_secs(3 * 3600);
+    assert_eq!(crate::clock::local_offset_secs(), Some(3 * 3600));
+}

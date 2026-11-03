@@ -779,10 +779,10 @@ impl Inner {
         if settings.audio.last_source.as_ref() == Some(used) {
             return;
         }
-        let Ok(v) = serde_json::to_value(used) else { return };
-        if let Err(e) = self.deps.settings.patch(SettingsPatch(
-            serde_json::json!({ "audio": { "last_source": v } }),
-        )) {
+        let Some(patch) = last_source_patch(used) else {
+            return;
+        };
+        if let Err(e) = self.deps.settings.patch(patch) {
             tracing::warn!(%e, "could not remember the last call source");
         }
     }
@@ -1444,6 +1444,20 @@ impl Inner {
     }
 }
 
+fn last_source_patch(used: &Target) -> Option<SettingsPatch> {
+    let mut value = serde_json::to_value(used).ok()?;
+    if matches!(used, Target::WholeSystem) {
+        // Merge-patch treats null as deletion, preventing a former App id
+        // from surviving when the selected source is WholeSystem.
+        value
+            .as_object_mut()?
+            .insert("id".into(), serde_json::Value::Null);
+    }
+    Some(SettingsPatch(
+        serde_json::json!({ "audio": { "last_source": value } }),
+    ))
+}
+
 /// Diagnostics for measuring AEC alone: `LOWK_ECHO_GUARD=off` bypasses the transcript-level guard.
 fn echo_guard_off() -> bool {
     static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
@@ -1465,11 +1479,52 @@ fn rfc3339(wall_ms: i64) -> String {
 }
 
 fn default_title(wall_ms: i64, demo: bool) -> String {
-    let d = rfc3339(wall_ms);
-    let d = d.get(..16).unwrap_or(&d).replace('T', " ");
+    let utc = ::time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(wall_ms) * 1_000_000)
+        .unwrap_or(::time::OffsetDateTime::UNIX_EPOCH);
+    // the offset measured at startup: macOS/Linux refuse to report it once the process has threads
+    let offset = lowk_types::clock::local_offset_secs()
+        .and_then(|s| ::time::UtcOffset::from_whole_seconds(s).ok())
+        .or_else(|| ::time::UtcOffset::local_offset_at(utc).ok())
+        .unwrap_or(::time::UtcOffset::UTC);
+    default_title_at(wall_ms, demo, offset)
+}
+
+fn default_title_at(wall_ms: i64, demo: bool, offset: ::time::UtcOffset) -> String {
+    let format = ::time::format_description::parse_borrowed::<2>("[year]-[month]-[day] [hour]:[minute]")
+        .expect("valid title format");
+    let d = ::time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(wall_ms) * 1_000_000)
+        .unwrap_or(::time::OffsetDateTime::UNIX_EPOCH)
+        .to_offset(offset)
+        .format(&format)
+        .unwrap_or_else(|_| "1970-01-01 00:00".into());
     if demo {
         format!("Demo {d}")
     } else {
         format!("Call {d}")
+    }
+}
+
+#[cfg(test)]
+mod targeted_tests {
+    use super::*;
+
+    #[test]
+    fn remembering_whole_system_removes_a_previous_app_id() {
+        let settings = Settings::default();
+        let app = settings
+            .apply_patch(&last_source_patch(&Target::App("com.google.Chrome".into())).unwrap())
+            .unwrap();
+        let system = app
+            .apply_patch(&last_source_patch(&Target::WholeSystem).unwrap())
+            .unwrap();
+        assert_eq!(system.audio.last_source, Some(Target::WholeSystem));
+    }
+
+    #[test]
+    fn default_title_uses_the_supplied_local_offset() {
+        let wall_ms = 1_793_730_180_000; // 2026-11-03 18:23 UTC
+        let offset = ::time::UtcOffset::from_hms(3, 0, 0).unwrap();
+        assert_eq!(default_title_at(wall_ms, false, offset), "Call 2026-11-03 21:23");
+        assert_eq!(default_title_at(wall_ms, true, offset), "Demo 2026-11-03 21:23");
     }
 }
