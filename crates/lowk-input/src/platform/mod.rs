@@ -40,15 +40,62 @@ pub struct PermSnapshot {
     pub accessibility: Option<bool>,
 }
 
+/// What the running hook can do RIGHT NOW. The macOS supervisor re-creates the tap on its own and the
+/// new tap may be listen-only (Accessibility lost) or absent (Input Monitoring revoked); it publishes
+/// that here so status and reports do not keep claiming what was true at start.
+#[derive(Debug)]
+pub struct LiveInfo {
+    running: std::sync::atomic::AtomicBool,
+    swallow: std::sync::atomic::AtomicBool,
+}
+
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+impl LiveInfo {
+    pub(crate) fn new(running: bool, swallow: bool) -> Self {
+        use std::sync::atomic::AtomicBool;
+        Self {
+            running: AtomicBool::new(running),
+            swallow: AtomicBool::new(swallow),
+        }
+    }
+    pub(crate) fn publish(&self, running: bool, swallow: bool) {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.running.store(running, SeqCst);
+        self.swallow.store(swallow, SeqCst);
+    }
+    /// `None`: the hook thread is alive but has no working tap at the moment.
+    pub fn current(&self) -> Option<HookInfo> {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.running.load(SeqCst).then(|| HookInfo {
+            swallow_capable: self.swallow.load(SeqCst),
+        })
+    }
+}
+
 /// Owns a hook thread; dropping it stops the thread.
 pub struct HookHandle {
     stop: Option<Box<dyn FnOnce() + Send>>,
+    live: Option<std::sync::Arc<LiveInfo>>,
 }
 
 impl HookHandle {
     #[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
     pub(crate) fn new(stop: Box<dyn FnOnce() + Send>) -> Self {
-        Self { stop: Some(stop) }
+        Self {
+            stop: Some(stop),
+            live: None,
+        }
+    }
+
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub(crate) fn with_live(mut self, live: std::sync::Arc<LiveInfo>) -> Self {
+        self.live = Some(live);
+        self
+    }
+
+    /// Live capability, when the backend publishes it.
+    pub fn live(&self) -> Option<std::sync::Arc<LiveInfo>> {
+        self.live.clone()
     }
 }
 
@@ -117,7 +164,7 @@ pub(crate) fn hook_dropped(tracked: &[bool; 8], actual: &[bool; 8]) -> bool {
 /// `suspects` carries the candidates of the previous check: unless `immediate`, a key must look released
 /// on two checks in a row (a key pressed this very instant may not be in the OS state yet). Returns the
 /// ones to release now.
-#[cfg_attr(not(windows), allow(dead_code))]
+#[cfg_attr(not(any(windows, target_os = "macos", test)), allow(dead_code))]
 pub(crate) fn confirm_stale<T: Copy + PartialEq>(
     suspects: &mut Vec<T>,
     tracked: &[T],
@@ -162,7 +209,7 @@ pub fn request_resync() {
     imp::wake();
 }
 
-#[cfg_attr(not(windows), allow(dead_code))]
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
 pub(crate) fn take_resync() -> bool {
     RESYNC_REQ.swap(false, std::sync::atomic::Ordering::SeqCst)
 }

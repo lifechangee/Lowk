@@ -418,7 +418,7 @@ impl Session {
             Ok(id) => id,
             Err(e) => {
                 let mut out = Out::default();
-                inner.teardown();
+                inner.teardown(std::time::Instant::now());
                 let rec = inner.core().recorder.take();
                 if let Some(r) = rec {
                     let _ = r.finish();
@@ -480,6 +480,9 @@ impl Session {
 
     pub fn stop(&self) -> Result<()> {
         let inner = &self.inner;
+        let t0 = std::time::Instant::now();
+        let ms = |t: std::time::Instant| t.elapsed().as_millis() as u64;
+        tracing::info!("call stop: pressed");
         let mut out = Out::default();
         {
             let mut c = inner.core();
@@ -492,10 +495,16 @@ impl Session {
             }
         }
         inner.flush(out);
+        // The Stopping event is what hides the overlay (see `visibility::apply`): everything below is
+        // finalization that must never keep the window on screen.
+        tracing::info!(
+            ms = ms(t0),
+            "call stop: Stopping announced (the overlay hides now)"
+        );
 
         // Stop sources first (engines flush their open utterance -> finals).
         inner.cancel.store(true, Ordering::SeqCst);
-        inner.teardown();
+        inner.teardown(t0);
         let (demo, threads) = {
             let mut c = inner.core();
             (c.demo_thread.take(), std::mem::take(&mut c.threads))
@@ -503,6 +512,7 @@ impl Session {
         for h in demo.into_iter().chain(threads) {
             let _ = h.join();
         }
+        tracing::info!(ms = ms(t0), "call stop: worker threads joined");
         // Screenshots queued during this call must not leak into the next one.
         inner.deps.shots.clear();
 
@@ -517,6 +527,7 @@ impl Session {
             Some(r) => r.finish(),
             None => Ok(None),
         };
+        tracing::info!(ms = ms(t0), ok = res.is_ok(), "call stop: call file written");
         {
             let mut c = inner.core();
             if let Ok(m) = &res {
@@ -527,6 +538,7 @@ impl Session {
             c.set_phase(SessionPhase::Idle, &mut out);
         }
         inner.flush(out);
+        tracing::info!(ms = ms(t0), "call stop: done (Idle)");
         res.map(|_| ())
     }
 
@@ -1129,24 +1141,29 @@ impl Inner {
         }
     }
 
-    fn teardown(&self) {
+    fn teardown(&self, t0: std::time::Instant) {
+        let ms = || t0.elapsed().as_millis() as u64;
         let (capture, engines) = {
             let mut c = self.core();
             (c.capture.take(), c.engines.take())
         };
         drop(capture);
+        tracing::info!(ms = ms(), "call stop: audio capture stopped");
         if let Some(engines) = &engines {
             self.snapshot_diag(engines);
-            for e in engines.values() {
+            for (stream, e) in engines.iter() {
                 let mut e = e.lock().unwrap();
                 let _ = e.flush();
+                tracing::info!(ms = ms(), ?stream, "call stop: STT stream flushed");
                 let _ = e.stop();
+                tracing::info!(ms = ms(), ?stream, "call stop: STT worker stopped");
             }
         }
         // Give outstanding corrections a moment, then keep whatever live text is left.
         let corr = self.core().corrector.take();
         if let Some(corr) = corr {
             corr.stop(CORRECTION_GRACE);
+            tracing::info!(ms = ms(), "call stop: background corrections settled");
             let (corrected, skipped, lag) = corr.stats();
             if let Some(d) = self.core().last_diag.as_mut() {
                 d.corrected = corrected;

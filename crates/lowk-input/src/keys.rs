@@ -97,6 +97,12 @@ pub(crate) fn from_mac_vk(vk: u16) -> &'static str {
     KEYS.iter().find(|k| k.1 == vk).map_or("Unknown", |k| k.0)
 }
 
+/// Physical macOS key code of a W3C key name (the inverse of [`from_mac_vk`]).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub(crate) fn to_mac_vk(code: &str) -> Option<u16> {
+    KEYS.iter().find(|k| k.0 == code).map(|k| k.1)
+}
+
 #[cfg_attr(not(any(windows, test)), allow(dead_code))]
 pub(crate) fn from_win_vk(vk: u16) -> &'static str {
     KEYS.iter().find(|k| k.2 == vk).map_or("Unknown", |k| k.0)

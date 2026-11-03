@@ -1436,3 +1436,122 @@ fn image_ask_without_question_text_still_writes_the_qa() {
         .any(|e| matches!(e, CallEntry::Image { source, caption, .. } if *source == format!("ask:{}", qa.0) && caption == "(скриншот)")));
     r.session.stop().unwrap();
 }
+
+/// Fake STT engine whose `stop()` blocks until the test opens the gate: the slow worker flush that kept
+/// the macOS overlay on screen for 5-10 s after «Завершить».
+struct SlowStop {
+    inner: lowk_stt::FakeEngine,
+    gate: Arc<(Mutex<bool>, std::sync::Condvar)>,
+    sink: Option<Arc<dyn SttSink>>,
+}
+
+/// Opens the gate when dropped, so a failing assertion cannot leave `stop()` blocked forever.
+struct OpenGate(Arc<(Mutex<bool>, std::sync::Condvar)>);
+impl Drop for OpenGate {
+    fn drop(&mut self) {
+        *self.0 .0.lock().unwrap() = true;
+        self.0 .1.notify_all();
+    }
+}
+const TAIL_FINAL: &str = "хвостовая реплика после нажатия Завершить";
+impl lowk_stt::SttEngine for SlowStop {
+    fn descriptor(&self) -> &EngineDescriptor {
+        self.inner.descriptor()
+    }
+    fn start(&mut self, cfg: &lowk_stt::SttConfig, sink: Arc<dyn SttSink>) -> Result<()> {
+        self.sink = Some(sink.clone());
+        self.inner.start(cfg, sink)
+    }
+    fn push(&mut self, frame: &Frame16k) -> Result<()> {
+        self.inner.push(frame)
+    }
+    fn flush(&mut self) -> Result<()> {
+        self.inner.flush()
+    }
+    fn stop(&mut self) -> Result<()> {
+        {
+            let (m, cv) = &*self.gate;
+            let mut open = m.lock().unwrap();
+            while !*open {
+                open = cv.wait(open).unwrap();
+            }
+        }
+        // The worker delivers what it still owed while stopping.
+        if let Some(s) = &self.sink {
+            s.emit(ev(Stream::Me, 99, 5, 6, TAIL_FINAL));
+        }
+        self.inner.stop()
+    }
+    fn backlog_ms(&self) -> u32 {
+        0
+    }
+}
+struct SlowStopFactory(Arc<(Mutex<bool>, std::sync::Condvar)>);
+impl lowk_stt::SttEngineFactory for SlowStopFactory {
+    fn descriptor(&self) -> EngineDescriptor {
+        lowk_stt::FakeEngineFactory.descriptor()
+    }
+    fn fitness(&self, hw: &HwInfo) -> Fitness {
+        lowk_stt::FakeEngineFactory.fitness(hw)
+    }
+    fn create(&self, stream: Stream) -> Result<Box<dyn lowk_stt::SttEngine>> {
+        Ok(Box::new(SlowStop {
+            inner: lowk_stt::FakeEngine::new(stream),
+            gate: self.0.clone(),
+            sink: None,
+        }))
+    }
+    fn assets(&self) -> Vec<lowk_stt::DownloadSpec> {
+        vec![]
+    }
+}
+
+/// Regression (macOS «overlay hangs 5-10 s after Завершить»): the `Stopping` phase, which hides the
+/// overlay, is announced BEFORE the slow STT worker has finished, and the final transcript still lands
+/// in the call once the worker is done.
+#[test]
+fn stopping_is_announced_before_a_slow_stt_worker_finishes_and_nothing_is_lost() {
+    let gate = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
+    let g2 = gate.clone();
+    let _open = OpenGate(gate.clone());
+    let r = rig(move |d| {
+        let mut reg = lowk_stt::EngineRegistry::default();
+        reg.register(Box::new(SlowStopFactory(g2)));
+        d.stt = Arc::new(reg);
+    });
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    for i in 0..3 {
+        r.audio.push_frame(frame(Stream::Me, i * 20_000_000));
+    }
+    let _ = phases(&rx);
+    std::thread::scope(|sc| {
+        let stopper = sc.spawn(|| r.session.stop());
+        // `Stopping` is delivered while the worker is still blocked.
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let mut seen = vec![];
+        while !seen.contains(&SessionPhase::Stopping) {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Stopping never announced: {seen:?}"
+            );
+            seen.extend(phases(&rx));
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(!stopper.is_finished(), "finalization must still be running");
+        assert_eq!(r.session.state().phase, SessionPhase::Stopping);
+        assert!(!seen.contains(&SessionPhase::Idle));
+        // The worker finishes: the call completes and Idle follows.
+        drop(OpenGate(gate.clone()));
+        stopper.join().unwrap().unwrap();
+    });
+    assert_eq!(r.session.state().phase, SessionPhase::Idle);
+    assert_eq!(*r.store.finished.lock().unwrap(), 1, "the call file was written");
+    let saved = r.store.entries.lock().unwrap();
+    assert!(
+        saved
+            .iter()
+            .any(|e| matches!(e, CallEntry::Final { event } if event.text == TAIL_FINAL)),
+        "the final delivered while the worker stopped is in the call: {saved:?}"
+    );
+}

@@ -57,7 +57,10 @@ impl LowLevelBackend {
 
     /// Capability of the running hook, if any.
     pub fn hook_info(&self) -> Option<HookInfo> {
-        self.hook.as_ref().map(|h| h.1)
+        self.hook.as_ref().and_then(|(h, info)| match h.live() {
+            Some(live) => live.current(),
+            None => Some(*info),
+        })
     }
 
     pub fn last_error(&self) -> Option<&HookError> {
@@ -69,11 +72,14 @@ impl LowLevelBackend {
     }
 
     fn ensure_hook(&mut self, want_swallow: bool) -> std::result::Result<HookInfo, HookError> {
-        if let Some((_, info)) = &self.hook {
+        if self.hook.is_some() {
+            let info = self.hook_info().unwrap_or(HookInfo {
+                swallow_capable: false,
+            });
             let upgradable =
                 want_swallow && !info.swallow_capable && platform::permissions().accessibility == Some(true);
             if !upgradable {
-                return Ok(*info);
+                return Ok(info);
             }
             self.hook = None; // restart as an active tap
         }

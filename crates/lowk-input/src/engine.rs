@@ -87,6 +87,33 @@ impl Engine {
         self.lock().recorder.is_some()
     }
 
+    /// What the matcher believes is held: (non-modifier keys, mouse buttons). Health check input.
+    pub fn held(&self) -> (Vec<&'static str>, u32) {
+        let g = self.lock();
+        (g.matcher.held_keys(), g.matcher.mouse_held())
+    }
+
+    /// Release keys whose key-up never reached the hook (each gets a normal `Up` through the matcher),
+    /// and, when `mouse`, the mouse buttons too. A stuck key silences every modifier-only bind.
+    pub fn release_stale(&self, keys: &[&'static str], mouse: bool) {
+        for &code in keys {
+            self.on_raw(Raw::Key {
+                code,
+                down: false,
+                repeat: false,
+            });
+        }
+        if mouse {
+            let evs = self.lock().matcher.release_stale_mouse();
+            self.emit(evs);
+        }
+    }
+
+    /// See [`Matcher::set_baseline_mods`].
+    pub fn baseline_mods(&self, m: Mods) {
+        self.lock().matcher.set_baseline_mods(m);
+    }
+
     /// Feed one native event. Returns true when the native event must be swallowed.
     pub fn on_raw(&self, raw: Raw) -> bool {
         let mut guard = self.lock();
@@ -295,5 +322,56 @@ mod tests {
             repeat: false,
         });
         assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn releasing_a_key_whose_up_was_lost_revives_modifier_only_binds() {
+        // The macOS regression: one lost key-up left a key «down» in the matcher for good, so Control /
+        // Option alone never fired again while OS-registered combos kept working.
+        let (e, rx) = engine();
+        e.set_binds(vec![BindSpec {
+            action: ActionId::ClickHold,
+            trigger: Trigger::ModifierOnly { mods: Mods::CTRL },
+            swallow: false,
+            template: None,
+        }]);
+        e.on_raw(Raw::Key {
+            code: "Tab",
+            down: true,
+            repeat: false,
+        }); // its up never arrives
+        e.on_raw(Raw::Mods(Mods::CTRL));
+        e.on_raw(Raw::Mods(Mods::NONE));
+        assert!(rx.try_recv().is_err(), "silenced by the phantom key");
+        assert_eq!(e.held(), (vec!["Tab"], 0));
+        e.release_stale(&["Tab"], false);
+        assert_eq!(e.held(), (vec![], 0));
+        e.on_raw(Raw::Mods(Mods::CTRL));
+        e.on_raw(Raw::Mods(Mods::NONE));
+        assert_eq!(rx.try_recv().unwrap().phase, Phase::Down);
+        assert_eq!(rx.try_recv().unwrap().phase, Phase::Up);
+    }
+
+    #[test]
+    fn releasing_a_lost_mouse_up_ends_the_hold_it_started() {
+        let (e, rx) = engine();
+        e.set_binds(vec![BindSpec {
+            action: ActionId::Ask,
+            trigger: Trigger::Mouse {
+                button: MouseBtn::Forward,
+                mods: Mods::NONE,
+            },
+            swallow: false,
+            template: None,
+        }]);
+        e.on_raw(Raw::Mouse {
+            button: MouseBtn::Forward,
+            down: true,
+        });
+        assert_eq!(rx.try_recv().unwrap().phase, Phase::Down);
+        assert_eq!(e.held().1, 1);
+        e.release_stale(&[], true);
+        assert_eq!(e.held().1, 0);
+        assert_eq!(rx.try_recv().unwrap().phase, Phase::Up);
     }
 }

@@ -7,13 +7,15 @@ Unit tests alone do not catch visual and overlay bugs, so Lowk has several layer
 1. Local `just ci` passes, including `just ci-cross` (clippy `-D warnings` for `x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc`; one-time setup: `rustup target add x86_64-unknown-linux-gnu x86_64-pc-windows-msvc`, the recipe creates the dummy `llvm-rc` itself).
 2. The GitHub Actions run for your pushed commit is green (lint, test-macos, test-windows). Check with `gh run watch`.
 
+Tests that start a **real OS input hook** (a CGEventTap on macOS: `lowk-input` `manager::tests`) are opt-in: they run only with `LOWK_REAL_HOOK_TESTS=1`. From an unbundled test binary a real tap can raise the Input Monitoring prompt, and it traps on a headless runner. Without the variable they return early (they do not count as a check of the hook). The tap's recovery logic (`crates/lowk-input/src/health.rs`: sleep/wake, invalidated port, lost key-ups, back-off) is tested headless against a fake OS.
+
 macOS-only `just ci` is not enough: Linux/Windows cfg-gated dead code and CRLF issues only show up in the cross-target lint.
 
 ## Layers
 
 | Layer | Command | What it checks |
 |---|---|---|
-| Rust and UI unit tests | `just ci` | `cargo test --workspace`, vitest, lint, dependency rules, licenses, UI type check and build, bundle size. |
+| Rust and UI unit tests | `just ci` | `cargo test --workspace` (tests that start a real OS input hook are skipped, see below), vitest, lint, dependency rules, licenses, UI type check and build, bundle size. |
 | UI visual + layout suite | `just test-ui-visual` | Playwright, **chromium and webkit** (the app runs in WKWebView), against the mock IPC (`vite` on port 1431, never 1420). Every main-window route and state, every settings page, all onboarding steps, search palette, overlay states, 3 backgrounds x opacity 0/60/90, RU and EN, 2 sizes. Per state: pixel baseline + layout lint. |
 | Regression tests | `ui/e2e/regressions.spec.ts` (part of the above) | One test per previously reported UI bug that the browser can observe. |
 | Real-app QA | `just qa-app` (macOS) | A `qa` build of the real app driven over a localhost token channel. Lints the real WKWebView DOM, captures the real windows (including the overlay) through ScreenCaptureKit, samples the overlay at >=100 Hz across mode switches, checks streamed answers for duplicated words. |
