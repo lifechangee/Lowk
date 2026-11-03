@@ -275,6 +275,8 @@ pub type OnProgress<'a> = &'a mut dyn FnMut(u32, u32);
 
 fn note_call(
     client: &OpenAiClient,
+    kind: &str,
+    chunks: usize,
     system: &str,
     user: &str,
     should_continue: &dyn Fn() -> bool,
@@ -287,7 +289,9 @@ fn note_call(
         temperature: Some(0.1),
         session_id: None,
     };
-    Ok(client.complete(&l, &opts, &mut |_| {}, should_continue)?.text)
+    Ok(client
+        .complete_kind_chunks(kind, chunks, &l, &opts, &mut |_| {}, should_continue)?
+        .text)
 }
 
 pub(crate) fn run(
@@ -323,6 +327,8 @@ Keep product names and English terms exactly as spoken. Output only bullets.",
             );
             let t = note_call(
                 client,
+                "summary_chunk",
+                1,
                 &sys,
                 &format!("<transcript_part>\n{part}\n</transcript_part>"),
                 should_continue,
@@ -371,6 +377,8 @@ keeping the \"Kind:\" line, chronology, every distinct topic, definition, decisi
                 let joined = g.iter().map(|x| x.1.as_str()).collect::<Vec<_>>().join("\n");
                 let t = note_call(
                     client,
+                    "summary_reduce",
+                    g.len(),
                     &sys,
                     &format!("<notes>\n{joined}\n</notes>"),
                     should_continue,
@@ -416,7 +424,14 @@ keeping the \"Kind:\" line, chronology, every distinct topic, definition, decisi
         temperature: Some(0.2),
         session_id: None,
     };
-    let out = client.complete(&l, &opts, on_delta, should_continue)?;
+    let out = client.complete_kind_chunks(
+        "summary_reduce",
+        parts.len(),
+        &l,
+        &opts,
+        on_delta,
+        should_continue,
+    )?;
     let model = if out.model.is_empty() {
         client.config().model.clone()
     } else {
