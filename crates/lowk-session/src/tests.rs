@@ -425,6 +425,46 @@ fn live_ask_streams_hint_and_collects_my_answer() {
         .any(|e| matches!(e, CallEntry::MyAnswer { text, .. } if text == "Это прибыль до налогов.")));
 }
 
+struct WaitForAskCancel;
+impl HintGenerator for WaitForAskCancel {
+    fn generate(&self, req: &HintRequest, on_delta: &mut dyn FnMut(&str)) -> Result<String> {
+        on_delta("Часть ответа");
+        while !req.cancelled.load(std::sync::atomic::Ordering::SeqCst) {
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        Ok("Часть ответа".into())
+    }
+}
+
+#[test]
+fn cancelling_a_stream_keeps_the_partial_answer_and_emits_cancelled() {
+    let r = rig(|d| d.hints = Arc::new(WaitForAskCancel));
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    r.session.ask(brief(Some("вопрос"))).unwrap();
+    loop {
+        if matches!(
+            rx.recv_timeout(Duration::from_secs(5)).expect("first delta"),
+            AppEvent::Llm(LlmEvent::Delta { .. })
+        ) {
+            break;
+        }
+    }
+    r.session.cancel_ask();
+    loop {
+        match rx.recv_timeout(Duration::from_secs(5)).expect("cancel event") {
+            AppEvent::Llm(LlmEvent::Error { error, .. }) => {
+                assert_eq!(error.code, ErrorCode::LlmCancelled);
+                break;
+            }
+            AppEvent::Llm(LlmEvent::Done { .. }) => panic!("cancelled answer must not be marked complete"),
+            _ => {}
+        }
+    }
+    assert_eq!(r.session.qa_records()[0].hint, "Часть ответа");
+    r.session.stop().unwrap();
+}
+
 struct FailingHints;
 impl HintGenerator for FailingHints {
     fn generate(&self, _r: &HintRequest, _d: &mut dyn FnMut(&str)) -> Result<String> {

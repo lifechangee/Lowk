@@ -92,8 +92,8 @@
 .head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 6px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--ln);
   min-width: 0;
   flex: none;
@@ -101,19 +101,21 @@
 .head .sp { flex: 1 1 0; min-width: 0; }
 .div { width: 1px; height: 16px; background: var(--ln); flex: none; }
 .ov.interactive .head { cursor: grab; }
-.rec { display: flex; align-items: center; gap: 8px; font: 600 12px/16px var(--mono); flex: none; }
+.rec { display: flex; align-items: center; gap: 6px; font: 600 12px/16px var(--mono); flex: none; }
 .rec i { width: 8px; height: 8px; border-radius: 50%; background: var(--recc); animation: pulse 1.6s infinite; flex: none; }
 .rec.off i { animation: none; background: transparent; border: 1.5px dashed var(--tx2); }
 .stop {
-  all: unset; box-sizing: border-box; width: 24px; height: 24px; border-radius: 8px; flex: none; display: inline-flex; align-items: center; justify-content: center;
-  background: var(--chip); border: 1px solid var(--chipbd); color: var(--recs); text-shadow: none; cursor: inherit;
+  /* `all: unset` drops the data-blk `position: relative`; without it the button paints UNDER the scrim and looks dim */
+  all: unset; position: relative; box-sizing: border-box; min-height: 26px; padding: 4px 7px; border-radius: 8px; flex: none; display: inline-flex; gap: 5px; align-items: center; justify-content: center;
+  background: var(--chip); border: 1px solid var(--chipbd); color: var(--tx); font: 550 12px/16px var(--font); white-space: nowrap; text-shadow: none; cursor: inherit;
 }
 .ov.interactive .stop, .ov.hover .stop { cursor: pointer; }
 .stop:hover, .stop:focus-visible { background: var(--hov); }
 .stop:focus-visible { outline: 2px solid var(--intc); outline-offset: 1px; }
-/* microphone switch: sits next to the stop button, same chip; a muted mic is drawn in the record colour */
+/* microphone switch: same chip as stop; off = crossed icon, struck-through label, dashed border */
 .stop.mic { color: var(--tx); }
-.stop.mic.muted { color: var(--recs); }
+.stop.mic.muted { color: var(--tx2); border-style: dashed; }
+.stop.mic.muted .lbl { text-decoration: line-through; }
 .rec.off { color: var(--tx2); font-family: var(--font); font-weight: 500; }
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.5); }
@@ -121,7 +123,7 @@
   100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
 }
 .chip {
-  display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
   background: var(--chip); border: 1px solid var(--chipbd); font-size: 12px; line-height: 16px;
   color: var(--tx); min-width: 0; flex: 0 1 auto; text-shadow: none;
 }
@@ -142,7 +144,7 @@
 .tpl .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shots-wrap { display: flex; gap: 4px; align-items: center; flex: none; }
 .thumb {
-  width: 28px; height: 20px; border-radius: 4px; border: 1px solid var(--chipbd);
+  width: 22px; height: 18px; border-radius: 4px; border: 1px solid var(--chipbd);
   background: linear-gradient(135deg, rgba(var(--fg), 0.55), rgba(var(--fg), 0.2));
   opacity: calc(0.5 + var(--k) * 0.5);
 }
@@ -160,7 +162,7 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 .tpl-wrap .tpl .lbl { flex: 0 1 auto; }
 .tpl {
   all: unset; box-sizing: border-box; cursor: inherit;
-  display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 4px 8px 4px 12px; border-radius: 8px;
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 7px 4px 10px; border-radius: 8px;
   background: var(--chip); border: 1px solid var(--chipbd); font-size: 12px; line-height: 16px; font-weight: 550; color: var(--tx);
   text-shadow: none;
 }
@@ -224,6 +226,13 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 .ans .body b { font-weight: 650; }
 .ans .empty { color: var(--tx2); }
 .ans .err { color: var(--tx); font-style: italic; }
+.answer-actions { display: flex; gap: 6px; margin-top: 6px; flex: none; }
+/* position: `all: unset` drops the data-blk stacking, see .stop */
+.answer-action { all: unset; position: relative; box-sizing: border-box; display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 8px; background: var(--chip); border: 1px solid var(--chipbd); color: var(--tx); font: 550 12px/16px var(--font); text-shadow: none; cursor: inherit; pointer-events: auto; }
+.ov.interactive .answer-action, .ov.hover .answer-action { cursor: pointer; }
+.answer-action:hover, .answer-action:focus-visible { background: var(--hov); }
+.answer-action:focus-visible { outline: 2px solid var(--intc); outline-offset: 1px; }
+.answer-status { display: block; margin-top: 4px; color: var(--tx2); font-size: 11px; line-height: 14px; }
 
 /* ---- "My answer" line ---- */
 .my {

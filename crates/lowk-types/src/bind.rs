@@ -18,6 +18,8 @@ pub enum ActionId {
     NextTemplate,
     PrevTemplate,
     CancelAnswer,
+    /// Copy the current AI answer from the overlay (default unbound).
+    CopyAnswer,
     ClearShots,
     /// Microphone on/off during a recording (default unbound; roadmap «auto» mode: docs/ROADMAP.md).
     ToggleMic,

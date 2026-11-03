@@ -3,7 +3,7 @@ import type { ActionId, BindSpec, MouseBtn, Mods, Os, Trigger } from '../lib/ipc
 
 export const ACTIONS_PRIMARY: ActionId[] = ['ask_brief', 'ask_complement', 'screenshot', 'screenshot_area', 'click_hold', 'toggle_interactive', 'toggle_overlay', 'panic_hide', 'toggle_capture_visible', 'toggle_record', 'toggle_mic', 'move_hold'];
 /** G6: one bind per template; `ask` (the template picked in the overlay chip) stays assignable. */
-export const ACTIONS_EXTRA: ActionId[] = ['ask', 'next_template', 'prev_template', 'cancel_answer', 'clear_shots', 'toggle_main'];
+export const ACTIONS_EXTRA: ActionId[] = ['ask', 'next_template', 'prev_template', 'cancel_answer', 'copy_answer', 'clear_shots', 'toggle_main'];
 export const ALL_ACTIONS: ActionId[] = [...ACTIONS_PRIMARY, ...ACTIONS_EXTRA];
 
 const combo = (key: string, mods: Mods): Trigger => ({ kind: 'combo', mods, key });

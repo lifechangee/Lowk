@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { en, ru } from '../lib/i18n';
 import { mergePatch } from './api/mock';
-import { ACTIONS_PRIMARY, bindFor, bindWarnings, defaultBinds, formatTrigger, orphanTemplateBinds, templateSlot, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
+import { ACTIONS_EXTRA, ACTIONS_PRIMARY, bindFor, bindWarnings, defaultBinds, formatTrigger, orphanTemplateBinds, templateSlot, triggerEquals, triggerFromKeyEvent, triggerFromMouse, withBind } from './binds';
 import { parse } from './router.svelte';
 import { greeting } from './fmt';
 import type { SourceInfo } from '../lib/ipc';
@@ -199,6 +199,17 @@ describe('microphone toggle and adaptive scrim', () => {
     expect(en['m.adaptiveScrim']).toBe('Adaptive scrim colour (for smart glasses)');
     expect(en['m.adaptiveScrimHint']).toContain('Screen Recording');
     expect(ru['m.adaptiveScrimHint']).toContain('Запись экрана');
+  });
+});
+
+describe('copy-answer bind', () => {
+  it('is assignable, unbound by default, and translated in both locales', () => {
+    expect(ACTIONS_EXTRA).toContain('copy_answer');
+    for (const os of ['macos', 'windows'] as const) expect(defaultBinds(os).some((x) => x.action === 'copy_answer')).toBe(false);
+    expect(ru['m.act.copy_answer']).toBe('Копировать ответ');
+    expect(en['m.act.copy_answer']).toBe('Copy answer');
+    expect(ru['overlay.answer.copy']).toBe('Копировать');
+    expect(en['overlay.answer.copy']).toBe('Copy');
   });
 });
 

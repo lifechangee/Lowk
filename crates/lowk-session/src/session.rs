@@ -725,6 +725,7 @@ impl Session {
                             out.usage,
                             images,
                             now_mono_ns(),
+                            hint_req.cancelled.load(Ordering::SeqCst),
                         )
                     }
                     Err(error) => fail(error),
@@ -1365,6 +1366,7 @@ impl Inner {
         usage: Option<LlmUsage>,
         images: Vec<SentImage>,
         armed_at: MonoNs,
+        cancelled: bool,
     ) {
         let mut out = Out::default();
         {
@@ -1391,11 +1393,18 @@ impl Inner {
             }
             c.qa.set_hint(&qa_id, answer);
         }
-        out.events.push(AppEvent::Llm(LlmEvent::Done {
-            req_id,
-            truncated,
-            usage,
-        }));
+        if cancelled {
+            out.events.push(AppEvent::Llm(LlmEvent::Error {
+                req_id,
+                error: AppError::new(ErrorCode::LlmCancelled),
+            }));
+        } else {
+            out.events.push(AppEvent::Llm(LlmEvent::Done {
+                req_id,
+                truncated,
+                usage,
+            }));
+        }
         self.flush(out);
     }
 
@@ -1435,6 +1444,7 @@ impl Inner {
                     None,
                     vec![],
                     t0 + item.at_ms * NS_PER_MS,
+                    false,
                 );
             }
         });

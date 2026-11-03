@@ -80,6 +80,8 @@ export class OverlayStore {
   audioLost = $state(false);
   answer = $state('');
   streaming = $state(false);
+  cancelled = $state(false);
+  copied = $state(false);
   answerError = $state(false);
   /** `error.code` of the failed ask (`api_key_missing`, `local_only_blocked`, ...); null = generic. */
   errorCode = $state<string | null>(null);
@@ -108,6 +110,7 @@ export class OverlayStore {
   showPill = $derived(this.pillWindow ?? (this.visibility === 'pill' && this.phase !== 'recording' && this.phase !== 'paused'));
 
   #toastTimer: ReturnType<typeof setTimeout> | undefined;
+  #copyTimer: ReturnType<typeof setTimeout> | undefined;
   /** Request being streamed + last delta seq applied: events can arrive twice (F10 defence in depth). */
   #req: string | null = null;
   #seq = -1;
@@ -156,6 +159,8 @@ export class OverlayStore {
       this.#seq = -1;
       this.answer = '';
       this.answerError = false;
+      this.cancelled = false;
+      this.copied = false;
       this.errorCode = null;
       this.sources = [];
       this.withheld = 0;
@@ -188,8 +193,11 @@ export class OverlayStore {
     } else {
       if (this.#req !== null && this.#req !== e.req_id) return;
       this.streaming = false;
-      // a cancelled ask is not an error; a refused one says why (no key, local-only folder)
-      if (e.error.code === 'llm_cancelled') return;
+      // Keep partial text visible and label it; a refusal still explains why it failed.
+      if (e.error.code === 'llm_cancelled') {
+        this.cancelled = true;
+        return;
+      }
       this.answerError = true;
       this.errorCode = e.error.code;
     }
@@ -226,6 +234,12 @@ export class OverlayStore {
     this.#toastTimer = setTimeout(() => (this.toast = null), 1600);
   }
 
+  markCopied(): void {
+    this.copied = true;
+    clearTimeout(this.#copyTimer);
+    this.#copyTimer = setTimeout(() => (this.copied = false), 1500);
+  }
+
   selectTemplate(id: string): void {
     this.templateId = id;
     this.menuOpen = false;
@@ -237,6 +251,8 @@ export class OverlayStore {
     this.answer = '';
     this.streaming = false;
     this.answerError = false;
+    this.cancelled = false;
+    this.copied = false;
     this.errorCode = null;
     this.sources = [];
     this.withheld = 0;

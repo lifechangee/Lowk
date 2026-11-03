@@ -53,6 +53,7 @@ export class MockSource implements OverlaySource {
   #gen = 0;
   #utt = 1;
   #scenario = 0;
+  #answerReq: string | null = null;
   #tick: ReturnType<typeof setInterval> | undefined;
   #autoplay: boolean;
 
@@ -102,6 +103,7 @@ export class MockSource implements OverlaySource {
       if (this.#dup) s.applyLlm(e);
     };
     emit({ type: 'start', req_id: 'r' + g, qa_id: 'q' + g });
+    this.#answerReq = 'r' + g;
     const chunks = text.match(/.{1,6}/gs) ?? [];
     let seq = 0;
     for (const c of chunks) {
@@ -147,6 +149,19 @@ export class MockSource implements OverlaySource {
     if (this.#store.streaming) return;
     const sc = SCENARIOS[this.#scenario++ % SCENARIOS.length]!;
     void this.#answer(sc.answer, ++this.#gen).then(() => this.#store.setQueue(0));
+  }
+
+  copyAnswer(): void {
+    this.#store.markCopied();
+  }
+
+  cancelAnswer(): void {
+    if (!this.#store.streaming) return;
+    const req = this.#answerReq;
+    if (!req) return;
+    this.#gen++;
+    this.#store.applyLlm({ type: 'error', req_id: req, error: { code: 'llm_cancelled', params: {}, detail: null } });
+    this.#answerReq = null;
   }
 
   screenshot(): void {

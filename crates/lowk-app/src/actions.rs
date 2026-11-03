@@ -160,7 +160,8 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
                 cycle_template(st, ev.action == ActionId::NextTemplate)
             }
             ActionId::ClearShots => crate::commands::capture::clear_queue(st),
-            ActionId::CancelAnswer => {}
+            ActionId::CancelAnswer => st.session.cancel_ask(),
+            ActionId::CopyAnswer => st.emitter.broadcast("binds://copy-answer", serde_json::json!({})),
         }
         Ok(())
     })();

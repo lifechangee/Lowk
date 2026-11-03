@@ -4,6 +4,7 @@
   import type { SourceRef } from '../lib/ipc/bindings';
   import { splitBold } from './store.svelte';
   import { ot } from './i18n';
+  import { copyPlainAnswer } from './clipboard';
   import { follow } from './follow';
 
   let { store, source }: { store: OverlayStore; source?: OverlaySource } = $props();
@@ -30,6 +31,14 @@
   let more = $state(false);
   // Follows the stream; the person can scroll up (hold ⌃ / ⌘⇧I) and it then stays put until they scroll back to the end.
   const opts = { idleMs: Infinity, onState: (s: { overflow: boolean; atEnd: boolean }) => (more = s.overflow && !s.atEnd) };
+  async function copy() {
+    try {
+      await copyPlainAnswer(store.answer);
+      store.markCopied();
+    } catch {
+      store.flash(ot('overlay.answer.copyFailed', lang));
+    }
+  }
 </script>
 
 <div class="ans" data-blk>
@@ -51,8 +60,18 @@
         {#each parts as p, i (i)}{#if p.bold}<b>{p.text}</b>{:else}{p.text}{/if}{/each}{#if store.streaming}<span class="caret"></span>{/if}
       {/if}
     </div></div>
+    {#if store.streaming}
+      <button class="answer-action cancel" type="button" data-testid="ans-cancel" onclick={() => source?.cancelAnswer?.()}>{ot('overlay.answer.cancel', lang)}</button>
+    {:else if store.cancelled}
+      <span class="answer-status" role="status">{ot('overlay.answer.cancelled', lang)}</span>
+    {/if}
     {#if more}<button class="more" tabindex="-1" data-testid="ans-more" onwheel={(e) => body?.scrollBy(0, e.deltaY)} onclick={() => body?.dispatchEvent(new Event('lowk-jump'))}>{ot('overlay.more.ans', lang)}</button>{/if}
   </div>
+  {#if store.hasAnswered && !store.streaming && !store.answerError}
+    <div class="answer-actions">
+      <button class="answer-action" type="button" data-testid="ans-copy" onclick={copy}>{ot(store.copied ? 'overlay.answer.copied' : 'overlay.answer.copy', lang)}</button>
+    </div>
+  {/if}
   {#if store.imagesSent > 0 && !store.answerError}
     <div class="srcs"><span class="chip held" data-testid="ans-images">{ot('overlay.answer.imagesSent', lang, { n: store.imagesSent })}</span></div>
   {/if}

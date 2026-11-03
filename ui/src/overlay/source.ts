@@ -7,6 +7,10 @@ export interface OverlaySource {
   stop(): void;
   /** Ask bind or header action. */
   ask(): void;
+  /** Copy the current plain answer to the clipboard. */
+  copyAnswer?(): void;
+  /** Stop the current answer stream. */
+  cancelAnswer?(): void;
   screenshot(): void;
   /** G7: empty the screenshot queue (header chip). */
   clearQueue?(): void;
