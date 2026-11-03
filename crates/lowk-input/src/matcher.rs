@@ -125,6 +125,30 @@ impl Matcher {
         out
     }
 
+    /// Adopt the OS modifier state without firing anything: a modifier already held when the hook was
+    /// (re)created is not a press. The next release and fresh press behave normally.
+    pub fn set_baseline_mods(&mut self, m: Mods) {
+        self.mods = m;
+    }
+
+    /// Keys the matcher believes are down (for the health check; never logged).
+    pub fn held_keys(&self) -> Vec<&'static str> {
+        self.keys_down.iter().copied().collect()
+    }
+
+    /// Count of mouse buttons believed down.
+    pub fn mouse_held(&self) -> u32 {
+        self.mouse_down
+    }
+
+    /// A mouse-up never reached us: forget the count and end binds held by a button.
+    pub fn release_stale_mouse(&mut self) -> Vec<Fire> {
+        let mut out = Outcome::default();
+        self.mouse_down = 0;
+        self.end(&mut out, false, |_, h| matches!(h, Held::Mouse(_)));
+        out.events
+    }
+
     fn is_active(&self, idx: usize) -> bool {
         self.active.iter().any(|(i, _)| *i == idx)
     }

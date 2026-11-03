@@ -53,7 +53,14 @@ impl EventSink for PhaseWatcher {
             // F8: a recording that just ended (stop button, bind or end of call) brings the
             // main window to the front on the library home.
             let ended = s.phase == SessionPhase::Idle && prev != SessionPhase::Idle;
+            let queued = std::time::Instant::now();
             st.driver.run(move || {
+                if s.phase == SessionPhase::Stopping {
+                    tracing::info!(
+                        waited_ms = queued.elapsed().as_millis() as u64,
+                        "call stop: UI driver picked up Stopping"
+                    );
+                }
                 visibility::apply(&st2, s.phase);
                 if ended {
                     visibility::session_ended(&st2);

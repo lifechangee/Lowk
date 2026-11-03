@@ -11,6 +11,8 @@ pub mod combo;
 pub mod conflicts;
 pub mod cursor;
 mod engine;
+#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
+mod health;
 pub mod keys;
 pub mod lowlevel;
 pub mod manager;

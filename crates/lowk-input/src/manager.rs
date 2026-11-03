@@ -69,8 +69,14 @@ impl InputManager {
         self.low.reset_holds();
     }
 
-    pub fn status(&self) -> &InputStatus {
-        &self.status
+    /// The status computed at the last `set_binds`, with the hook's current state (the macOS tap may have
+    /// been re-created as listen-only, or be waiting for a permission, since then).
+    pub fn status(&self) -> InputStatus {
+        let mut st = self.status.clone();
+        let info = self.low.hook_info();
+        st.hook_running = info.is_some();
+        st.can_swallow = info.is_some_and(|i| i.swallow_capable);
+        st
     }
 
     pub fn cursor(&self) -> Arc<dyn CursorSource> {
@@ -190,10 +196,11 @@ mod tests {
     use crate::combo::fake::FakeRegistrar;
     use lowk_types::{default_binds, Phase};
 
-    /// These tests start the real OS input hook (CGEventTap on macOS), which
-    /// traps on a headless CI runner with no desktop session.
+    /// These tests start the real OS input hook (CGEventTap on macOS). From an unbundled test binary
+    /// that can raise the Input Monitoring prompt, and it traps on a headless runner, so they run only
+    /// on request: `LOWK_REAL_HOOK_TESTS=1`. Elsewhere the hook is harmless and they always run.
     fn no_desktop() -> bool {
-        cfg!(target_os = "macos") && std::env::var_os("CI").is_some()
+        cfg!(target_os = "macos") && std::env::var("LOWK_REAL_HOOK_TESTS").as_deref() != Ok("1")
     }
 
     #[test]
