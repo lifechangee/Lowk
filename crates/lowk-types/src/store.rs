@@ -223,3 +223,12 @@ pub struct VaultInfo {
     /// Absolute path of the open vault.
     pub path: String,
 }
+
+/// A call that a crash or kill left unfinished and the next launch finished (`recovered_take`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RecoveredCall {
+    pub id: Ulid,
+    pub title: String,
+    /// How much of the call was saved, in seconds (up to its last saved line).
+    pub duration_s: u64,
+}

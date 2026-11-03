@@ -116,6 +116,7 @@
     "allow-update-skip",
     "allow-update-status",
     "allow-vault-info",
+    "allow-recovered-take",
     "allow-vault-open"
   ]
 }

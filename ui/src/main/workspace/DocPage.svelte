@@ -89,6 +89,14 @@
     editing = !editing;
   }
   function discardNow() { md = saved; discard = false; editing = false; }
+  // Unsaved edits: leaving the document by any route asks Save / Discard / Stay first.
+  $effect(() => router.guard({ doc: id, dirty: () => dirty }));
+  const leaving = $derived(router.pending !== null);
+  async function saveAndLeave() {
+    await save();
+    if (md === saved) router.proceed();
+  }
+  function discardAndLeave() { md = saved; editing = false; router.proceed(); }
   async function pin() {
     if (!doc) return;
     try { doc = await api.docPatch(id, { pinned: !doc.pinned }); } catch (e) { ui.notify(errText(e)); }
@@ -187,6 +195,15 @@
     </div>
   </div>
 {/if}
+
+<Modal open={leaving} title={tm('m.unsaved.title')} width={420} closeLabel={tm('common.close')} onclose={() => router.stay()}>
+  <p class="dp" data-testid="leave-body">{tm('m.unsaved.body')}</p>
+  {#snippet footer()}
+    <Button onclick={() => router.stay()}>{tm('m.unsaved.stay')}</Button>
+    <Button variant="danger" onclick={discardAndLeave}>{tm('m.unsaved.discard')}</Button>
+    <Button variant="primary" disabled={saving} onclick={saveAndLeave}>{tm('m.unsaved.save')}</Button>
+  {/snippet}
+</Modal>
 
 <Modal open={discard} title={tm('docs.discard.title')} width={420} closeLabel={tm('common.close')} onclose={() => (discard = false)}>
   <p class="dp">{tm('docs.discard.body')}</p>

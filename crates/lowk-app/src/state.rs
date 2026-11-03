@@ -80,6 +80,8 @@ pub struct AppState {
     pub index_slot: Arc<RwLock<Option<lowk_index::Index>>>,
     watcher_stop: Mutex<Option<Arc<AtomicBool>>>,
     open_vault_lock: Mutex<()>,
+    /// Calls finished after a crash that the user has not been told about yet (`recovered_take`).
+    recovered: Mutex<Vec<RecoveredCall>>,
 }
 
 impl AppState {
@@ -124,6 +126,7 @@ impl AppState {
             index_slot,
             watcher_stop: Mutex::new(None),
             open_vault_lock: Mutex::new(()),
+            recovered: Mutex::new(vec![]),
         }
     }
 
@@ -171,6 +174,11 @@ impl AppState {
             .ok_or_else(|| AppError::new(ErrorCode::VaultNotOpen))
     }
 
+    /// The calls recovered after a crash, once: the next call returns nothing until another recovery.
+    pub fn recovered_take(&self) -> Vec<RecoveredCall> {
+        std::mem::take(&mut *self.recovered.lock())
+    }
+
     pub fn emit(&self, ev: AppEvent) {
         use lowk_types::EventSink;
         self.emitter.emit(ev);
@@ -197,9 +205,10 @@ impl AppState {
         // A call left in the recording state by a crash / kill must not stay «идёт запись» forever.
         // Never while a session is running: a re-open of the same vault would finish the live call.
         if self.session.state().phase == SessionPhase::Idle {
-            match vault.reconcile_stale_recordings() {
-                Ok(ids) if !ids.is_empty() => {
-                    tracing::info!(calls = ids.len(), "finished calls left recording")
+            match vault.reconcile_recordings() {
+                Ok(done) if !done.is_empty() => {
+                    tracing::info!(calls = done.len(), "finished calls left recording");
+                    queue_recovered(&mut self.recovered.lock(), done);
                 }
                 Ok(_) => {}
                 Err(e) => tracing::warn!(?e, "stale recordings could not be reconciled"),
@@ -258,6 +267,15 @@ impl AppState {
     }
 }
 
+/// Add recovered calls to the not-yet-announced list (a call is announced once, also when the vault is re-opened).
+pub(crate) fn queue_recovered(queue: &mut Vec<RecoveredCall>, new: Vec<RecoveredCall>) {
+    for r in new {
+        if !queue.iter().any(|q| q.id == r.id) {
+            queue.push(r);
+        }
+    }
+}
+
 /// Settings store the commands see (read-only filtered view for the overlay is
 /// not needed: the overlay capability only grants `settings_get`).
 pub fn data_dir() -> Result<PathBuf> {
@@ -283,5 +301,27 @@ pub fn resolve_vault_path(p: &str) -> Result<PathBuf> {
         Ok(path)
     } else {
         Err(bad())
+    }
+}
+
+#[cfg(test)]
+mod recovered_tests {
+    use super::*;
+
+    fn rc(n: u8, secs: u64) -> RecoveredCall {
+        RecoveredCall {
+            id: Ulid::from_parts(1, u128::from(n)),
+            title: format!("c{n}"),
+            duration_s: secs,
+        }
+    }
+
+    #[test]
+    fn a_recovered_call_is_queued_once_even_if_the_vault_is_reopened() {
+        let mut q = vec![];
+        queue_recovered(&mut q, vec![rc(1, 60), rc(2, 5)]);
+        queue_recovered(&mut q, vec![rc(1, 60)]);
+        assert_eq!(q.len(), 2);
+        assert_eq!(q[0].duration_s, 60);
     }
 }

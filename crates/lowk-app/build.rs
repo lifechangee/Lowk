@@ -20,6 +20,7 @@ const COMMANDS: &[&str] = &[
     "data_dir_move",
     "vault_open",
     "vault_info",
+    "recovered_take",
     "folder_list",
     "folder_get",
     "folder_create",

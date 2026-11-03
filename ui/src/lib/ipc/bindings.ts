@@ -58,6 +58,8 @@ export const commands = {
 	/**  Absolute path of the open vault. */
 	path: string,
 } | null>("vault_info"),
+	/**  Calls a crash or kill left unfinished and this launch finished; returned once, then the list is empty. */
+	recoveredTake: () => __TAURI_INVOKE<RecoveredCall[]>("recovered_take"),
 	folderList: () => typedError<FolderMeta[], AppError>(__TAURI_INVOKE("folder_list")),
 	folderGet: (id: FolderRef) => typedError<FolderDetail, AppError>(__TAURI_INVOKE("folder_get", { id })),
 	folderCreate: (folder: NewFolder) => typedError<FolderMeta, AppError>(__TAURI_INVOKE("folder_create", { folder })),
@@ -1282,6 +1284,14 @@ export type RecReason = "apple_silicon_capable" | "apple_silicon_limited" | "int
 export type Recommendation = {
 	tier: SttTier,
 	reason: RecReason,
+};
+
+/**  A call that a crash or kill left unfinished and the next launch finished (`recovered_take`). */
+export type RecoveredCall = {
+	id: Ulid,
+	title: string,
+	/**  How much of the call was saved, in seconds (up to its last saved line). */
+	duration_s: number,
 };
 
 /**  Rectangle in global top-left-origin points. */
