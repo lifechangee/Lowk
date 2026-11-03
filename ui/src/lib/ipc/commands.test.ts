@@ -3,9 +3,10 @@
 // in the bundle because its command was missing there; the Rust test covers the capability files, this one the UI.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const here = new URL('.', import.meta.url).pathname;
+const here = fileURLToPath(new URL('.', import.meta.url));
 const src = join(here, '..', '..');
 const buildRs = readFileSync(join(src, '..', '..', 'crates', 'lowk-app', 'build.rs'), 'utf8');
 const registered = new Set([...buildRs.slice(buildRs.indexOf('const COMMANDS'), buildRs.indexOf('];')).matchAll(/"([a-z0-9_]+)"/g)].map((m) => m[1]!));

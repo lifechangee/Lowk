@@ -135,11 +135,17 @@ qa:
 # Crates with C sources (rusqlite's bundled SQLite in lowk-index) cannot be compiled for a foreign target
 # from this host; clippy never links, so a no-op compiler (`true`) and an archiver that only creates the
 # output file (fake-ar: `ar cq OUT ...` or `lib /OUT:OUT ...`) satisfy their build scripts.
+# Unix hosts only: Windows cannot exec the sh fakes, and `lint` already runs clippy natively for the Windows target there.
+[unix]
 ci-cross:
     mkdir -p target/fakebin && printf '#!/bin/sh\nexit 0\n' > target/fakebin/llvm-rc && chmod +x target/fakebin/llvm-rc
     printf '#!/bin/sh\nfor a in "$@"; do case "$a" in -out:*|-OUT:*|/out:*|/OUT:*) : > "${a#*:}"; exit 0;; esac; done\n: > "$2"\n' > target/fakebin/fake-ar && chmod +x target/fakebin/fake-ar
     CC_x86_64_unknown_linux_gnu=true AR_x86_64_unknown_linux_gnu="$PWD/target/fakebin/fake-ar" cargo clippy --workspace --exclude lowk-app --all-targets --target x86_64-unknown-linux-gnu -- -D warnings
     CC_x86_64_pc_windows_msvc=true AR_x86_64_pc_windows_msvc="$PWD/target/fakebin/fake-ar" PATH="$PWD/target/fakebin:$PATH" cargo clippy --workspace --all-targets --target x86_64-pc-windows-msvc -- -D warnings
+
+[windows]
+ci-cross:
+    @echo "ci-cross: skipped on Windows (lint runs clippy natively for x86_64-pc-windows-msvc)"
 
 # Everything CI runs, incl. Linux and Windows cross-target clippy.
 ci: lint ci-cross
