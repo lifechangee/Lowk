@@ -88,6 +88,8 @@ export class MockBackend implements Backend {
         { id: 'brief', names: { ru: 'Кратко', en: 'Brief' }, instruction: 'Кратко ответь на вопрос, заданный в системе/приложении.', needs_my_answer: false, vision: false, reasoning: null },
         { id: 'complement', names: { ru: 'Дополни мой ответ', en: 'Complement my answer' }, instruction: 'Я уже ответил. Добавь недостающие детали, не повторяя сказанное.', needs_my_answer: true, vision: false, reasoning: null },
         { id: 'summary', names: { ru: 'Резюме', en: 'Summary' }, instruction: 'Сделай краткое резюме созвона: ключевые темы, решения, договорённости и следующие шаги. Отвечай на языке разговора.', needs_my_answer: false, vision: false, reasoning: null },
+        { id: 'say', names: { ru: 'Что сказать?', en: 'What to say?' }, instruction: 'Кратко предложи, что сказать дальше по контексту созвона. Ответь одной-двумя короткими фразами на языке разговора.', needs_my_answer: false, vision: false, reasoning: null },
+        { id: 'recap', names: { ru: 'Рекап', en: 'Recap' }, instruction: 'Кратко перескажи главные мысли последних пяти минут разговора. Ответь не более чем в трёх коротких пунктах на языке разговора.', needs_my_answer: false, vision: false, reasoning: null },
         { id: 'objection', names: { ru: 'Возражение клиента', en: 'Client objection' }, instruction: 'Предложи вежливый ответ на возражение клиента: признай сомнение, приведи один аргумент и задай уточняющий вопрос.', needs_my_answer: false, vision: false, reasoning: true },
       ],
     };

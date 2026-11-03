@@ -7,9 +7,17 @@ const ids = (l: { id: string }[]) => l.map((t) => t.id);
 
 describe('templates page logic', () => {
   it('hides the summary template and falls back to brief for a missing default', () => {
-    expect(ids(visible(base()))).toEqual(['brief', 'complement', 'obj']);
+    expect(ids(visible(base()))).toEqual(['brief', 'complement', 'say', 'recap', 'obj']);
     expect(defaultId(base(), 'obj')).toBe('obj');
     expect(defaultId(base(), 'gone')).toBe('brief');
+  });
+  it('provides real short «What to say?» and «Recap» built-ins without phantom templates', () => {
+    expect(ids(BUILTIN_TEMPLATES)).toContain('say');
+    expect(ids(BUILTIN_TEMPLATES)).toContain('recap');
+    expect(ids(BUILTIN_TEMPLATES)).not.toContain('factcheck');
+    expect(ids(BUILTIN_TEMPLATES)).not.toContain('followup');
+    expect(BUILTIN_TEMPLATES.find((t) => t.id === 'say')!.instruction).toMatch(/Кратко/);
+    expect(BUILTIN_TEMPLATES.find((t) => t.id === 'recap')!.instruction).toMatch(/не более чем в трёх/);
   });
   it('the default template owns the ask_brief bind; brief gets ask_template when not default', () => {
     expect(bindSlot('brief', 'brief')).toEqual({ action: 'ask_brief' });
@@ -24,16 +32,16 @@ describe('templates page logic', () => {
     expect(validate(d({ en: 'New', instruction: 'x' }), base(), 'en')).toEqual([]);
     expect(validate(d({ en: ' brief ', instruction: 'x' }), base(), 'en')).toEqual(['nameTaken']);
     expect(validate(d({ ru: 'КРАТКО', instruction: 'x' }), base(), 'ru')).toEqual(['nameTaken']);
-    const own = draftOf(base()[3]!);
+    const own = draftOf(base().find((t) => t.id === 'obj')!);
     expect(validate(own, base(), 'en')).toEqual([]);
     expect(fillNames(d({ ru: 'Только' }), 'ru')).toMatchObject({ ru: 'Только', en: 'Только' });
   });
   it('duplicates after the original with a free name, moves among visible ones, restores built-ins', () => {
     const dup = duplicate(base(), 'obj', 'c1');
-    expect(ids(dup)).toEqual(['brief', 'complement', 'summary', 'obj', 'c1']);
-    expect(dup[4]!.names).toEqual({ ru: 'Возражение (копия)', en: 'Objection (copy)' });
-    expect(duplicate(dup, 'obj', 'c2')[4]!.names.en).toBe('Objection (copy)+');
-    expect(ids(move(base(), 'obj', -1))).toEqual(['brief', 'obj', 'summary', 'complement']);
+    expect(ids(dup)).toEqual(['brief', 'complement', 'summary', 'say', 'recap', 'obj', 'c1']);
+    expect(dup.find((t) => t.id === 'c1')!.names).toEqual({ ru: 'Возражение (копия)', en: 'Objection (copy)' });
+    expect(duplicate(dup, 'obj', 'c2').find((t) => t.id === 'c2')!.names.en).toBe('Objection (copy)+');
+    expect(ids(move(base(), 'obj', -1))).toEqual(['brief', 'complement', 'summary', 'say', 'obj', 'recap']);
     expect(ids(move(base(), 'brief', -1))).toEqual(ids(base()));
     const edited = base().map((t) => (t.id === 'brief' ? { ...t, instruction: 'x' } : t)).filter((t) => t.id !== 'complement');
     const r = restoreBuiltins(edited);

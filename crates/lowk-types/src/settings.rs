@@ -30,6 +30,8 @@ pub const DEFAULT_EMBEDDER_ID: &str = "embeddinggemma-2-q8_0";
 pub const TEMPLATE_BRIEF: &str = "brief";
 pub const TEMPLATE_COMPLEMENT: &str = "complement";
 pub const TEMPLATE_SUMMARY: &str = "summary";
+pub const TEMPLATE_SAY: &str = "say";
+pub const TEMPLATE_RECAP: &str = "recap";
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 #[serde(default)]
@@ -85,13 +87,21 @@ impl Settings {
     /// A pre-2 `false` becomes `None` (follow the global setting); `true` stays a forced on.
     /// Returns true when something changed.
     pub fn migrate_templates(&mut self) -> bool {
-        if self.schema_version >= 2 {
-            return false;
-        }
         let mut changed = false;
-        for t in &mut self.templates {
-            if t.reasoning == Some(false) {
-                t.reasoning = None;
+        if self.schema_version < 2 {
+            for t in &mut self.templates {
+                if t.reasoning == Some(false) {
+                    t.reasoning = None;
+                    changed = true;
+                }
+            }
+        }
+        // Add newer built-ins without replacing existing user edits or templates.
+        for builtin in default_templates() {
+            if [TEMPLATE_SAY, TEMPLATE_RECAP].contains(&builtin.id.as_str())
+                && !self.templates.iter().any(|t| t.id == builtin.id)
+            {
+                self.templates.push(builtin);
                 changed = true;
             }
         }
@@ -99,7 +109,7 @@ impl Settings {
     }
 
     /// The prompt-template list must stay usable: every template has an id, non-empty names and instruction;
-    /// ids and names are unique; the built-ins (brief, complement, summary) cannot be deleted.
+    /// ids and names are unique; built-ins cannot be deleted.
     pub fn validate_templates(&self) -> crate::Result<()> {
         let bad = |d: String| crate::AppError::new(crate::ErrorCode::InvalidArgument).with_detail(d);
         let mut ids = std::collections::BTreeSet::new();
@@ -125,7 +135,13 @@ impl Settings {
                 return Err(bad(format!("duplicate template name of {:?}", t.id)));
             }
         }
-        for id in [TEMPLATE_BRIEF, TEMPLATE_COMPLEMENT, TEMPLATE_SUMMARY] {
+        for id in [
+            TEMPLATE_BRIEF,
+            TEMPLATE_COMPLEMENT,
+            TEMPLATE_SUMMARY,
+            TEMPLATE_SAY,
+            TEMPLATE_RECAP,
+        ] {
             if !ids.contains(id) {
                 return Err(bad(format!("built-in template {id:?} cannot be deleted")));
             }
@@ -775,7 +791,23 @@ pub fn default_templates() -> Vec<Template> {
             reasoning: None,
         },
         summary_template(),
+        short_template(TEMPLATE_SAY, "Что сказать?", "What to say?", "Кратко предложи, что сказать дальше по контексту созвона. Ответь одной-двумя короткими фразами на языке разговора."),
+        short_template(TEMPLATE_RECAP, "Рекап", "Recap", "Кратко перескажи главные мысли последних пяти минут разговора. Ответь не более чем в трёх коротких пунктах на языке разговора."),
     ]
+}
+
+fn short_template(id: &str, ru: &str, en: &str, instruction: &str) -> Template {
+    Template {
+        id: id.into(),
+        names: LocalizedName {
+            ru: ru.into(),
+            en: en.into(),
+        },
+        instruction: instruction.into(),
+        needs_my_answer: false,
+        vision: false,
+        reasoning: None,
+    }
 }
 
 /// «Резюме»: used by `llm_summarize`; not offered in the overlay chip by default.
@@ -833,4 +865,58 @@ pub fn default_binds(os: Os) -> Vec<BindSpec> {
             template: None,
         },
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn migration_adds_new_builtin_templates_without_replacing_user_settings() {
+        let mut settings = Settings::defaults_for(Os::Macos);
+        settings
+            .templates
+            .retain(|t| t.id != TEMPLATE_SAY && t.id != TEMPLATE_RECAP);
+        settings.templates[0].instruction = "My edited brief prompt".into();
+        settings.templates[0].reasoning = Some(false);
+        settings.schema_version = 1;
+        settings.templates.push(Template {
+            id: "my-template".into(),
+            names: LocalizedName {
+                ru: "Мой шаблон".into(),
+                en: "My template".into(),
+            },
+            instruction: "Keep this prompt".into(),
+            needs_my_answer: false,
+            vision: false,
+            reasoning: Some(true),
+        });
+        let original_binds = settings.binds.clone();
+
+        assert!(settings.migrate_templates());
+        assert!(!settings.migrate_templates());
+        assert_eq!(
+            settings
+                .templates
+                .iter()
+                .find(|t| t.id == TEMPLATE_BRIEF)
+                .unwrap()
+                .instruction,
+            "My edited brief prompt"
+        );
+        assert_eq!(
+            settings
+                .templates
+                .iter()
+                .find(|t| t.id == "my-template")
+                .unwrap()
+                .instruction,
+            "Keep this prompt"
+        );
+        assert_eq!(settings.binds, original_binds);
+        assert_eq!(settings.templates[0].reasoning, None);
+        assert!(settings.templates.iter().any(|t| t.id == TEMPLATE_SAY));
+        assert!(settings.templates.iter().any(|t| t.id == TEMPLATE_RECAP));
+        settings.validate_templates().unwrap();
+    }
 }

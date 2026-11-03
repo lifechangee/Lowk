@@ -38,6 +38,8 @@ export const m = {
   'm.moreActions': 'Дополнительные действия',
   'm.folder': 'Папка',
   'm.folderName': 'Название папки',
+  'm.folderLocalOnly': 'Только локально',
+  'm.folderLocalOnlyHint': 'Текст созвонов и запросы к ИИ не будут отправляться в облако.',
   'm.fontSize': 'Размер текста оверлея',
   'm.uiFontSize': 'Размер текста интерфейса',
   'm.uiFontSizeHint': 'Применяется к главному окну сразу',

@@ -11,7 +11,7 @@
   // «Brief» and «Complement my answer» sit in the main list; every other template (built-in or created
   // by the user) gets its own row here, bound through `ask_template` + the template id.
   /** Built-in templates the overlay offers even when settings.toml does not list them. */
-  const BUILTIN_EXTRA = ['say', 'factcheck', 'followup', 'recap'];
+  const BUILTIN_EXTRA = ['say', 'recap'];
   const templates = $derived<Template[]>(prefs.value.templates ?? []);
   const rows = $derived.by(() => {
     const out: { slot: Slot; label: string }[] = [];
