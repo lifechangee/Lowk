@@ -1,6 +1,6 @@
 // In-memory backend used in a plain browser (vite dev, tests) and as the stand-in
 // for every command the backend has not wired yet. Mutations are real within the page's life.
-import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DataDirInfo, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, Os, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TrashedFolder, UpdateStatus } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, CallMeta, ChunkKind, DataDirInfo, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, Os, PermKind, PermState, PinnedUsage, RecoveredCall, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchHit, SearchQuery, SearchResults, SelfTestReport, SemanticState, SessionState, Settings, SourceInfo, SourceRef, StartOpts, StealthStatus, SttDiagnostics, Summary, SummaryEvent, TrashedFolder, UpdateStatus } from '../../lib/ipc';
 import { defaultBinds } from '../binds';
 import { docMd, kindOfFile, LIVE_LINES, makeCalls, makeDetail, makeDocuments, makeFolderDetail, makeFolders, SUMMARY_MD, SUMMARY_MD_EN, summarizedIds } from './fixtures';
 import { CommandError, folderKey, folderRef, SYS_TRASH, SYS_UNSORTED, type Backend, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider, type EngineNeeded } from './types';
@@ -169,6 +169,14 @@ export class MockBackend implements Backend {
     const meta = this.#counts().find((f) => folderKey(f.id) === key);
     if (!meta) return null;
     return { meta, instructions: this.#instructions.get(key) ?? '' };
+  }
+  /** QA hook: `?recovered=1` simulates a call finished after a crash (announced once). */
+  #recoveredShown = false;
+  async recoveredTake(): Promise<RecoveredCall[]> {
+    if (this.#recoveredShown || qp('recovered') === null) return [];
+    this.#recoveredShown = true;
+    const c = this.#calls.find((x) => x.ended !== null);
+    return c ? [{ id: c.id, title: c.title, duration_s: 754 }] : [];
   }
   async callGet(id: string): Promise<CallDetail | null> {
     const meta = this.#calls.find((c) => c.id === id);
@@ -831,6 +839,7 @@ export class MockBackend implements Backend {
     this.#liveTimer = setInterval(() => { const l = LIVE_LINES[i++ % LIVE_LINES.length]!; this.#live.forEach((cb) => cb(l)); }, 2600);
     return this.#session;
   }
+  async sessionState(): Promise<SessionState> { return structuredClone(this.#session); }
   async sessionStop(): Promise<void> {
     if (this.#liveTimer) clearInterval(this.#liveTimer);
     this.#liveTimer = null;

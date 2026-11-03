@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-recovered-take"
+description = "Enables the recovered_take command without any pre-configured scope."
+commands.allow = ["recovered_take"]
+
+[[permission]]
+identifier = "deny-recovered-take"
+description = "Denies the recovered_take command without any pre-configured scope."
+commands.deny = ["recovered_take"]

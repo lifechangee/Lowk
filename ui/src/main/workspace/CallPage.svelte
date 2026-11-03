@@ -15,6 +15,7 @@
   import { clock, download, duration, fullDate, langTag } from '../fmt';
   import { tm } from '../i18n';
   import Md from '../Md.svelte';
+  import CallMissing from './CallMissing.svelte';
   import { hrefs, router } from '../router.svelte';
   import { pickLine } from '../search/util';
   import { summaryRoute } from './summary-route';
@@ -23,6 +24,9 @@
   let { id, at = null, match = null }: { id: string; at?: number | null; match?: string | null } = $props();
 
   let detail = $state<CallDetail | null>(null);
+  /** The load finished: no such call (`missing`) or a read error (`loadError`). */
+  let missing = $state(false);
+  let loadError = $state('');
   let md = $state('');
   let showProps = $state(false);
   let renaming = $state(false);
@@ -40,10 +44,12 @@
   $effect(() => {
     const cid = id;
     detail = null;
+    missing = false;
+    loadError = '';
     sum = { phase: 'idle', text: '', error: null };
     retx = null;
     api.retxStatus(cid).then((s) => { if (cid === id) retx = s; }).catch(() => (retx = null));
-    api.callGet(cid).then((d) => { if (cid === id) detail = d; });
+    api.callGet(cid).then((d) => { if (cid !== id) return; detail = d; missing = d === null; }).catch((e) => { if (cid === id) loadError = errText(e); });
     api.llmProviderStatus().then((p) => (provider = p)).catch(() => (provider = null));
     api.settingsGet().then((s) => (llmSettings = s.llm)).catch(() => (llmSettings = null));
   });
@@ -336,6 +342,8 @@
       </div>
     </div>
   </div>
+{:else if missing || loadError}
+  <CallMissing error={loadError} />
 {:else}
   <p class="empty pad">{tm('common.loading')}</p>
 {/if}

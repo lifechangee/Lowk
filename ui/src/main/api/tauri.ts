@@ -3,7 +3,7 @@
 // File dialogs go through tauri-plugin-dialog (invoked directly, capability dialog:allow-open / allow-save).
 import { invoke } from '@tauri-apps/api/core';
 import { commands, EVENTS, on } from '../../lib/ipc';
-import type { AboutInfo, AppError, BindReport, DataDirInfo, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, PermKind, PermState, PinnedUsage, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SelfTestReport, SessionState, Settings, SourceInfo, StartOpts, StealthStatus, SttDiagnostics, SttEvent, SummaryEvent, TrashedFolder, UpdateStatus } from '../../lib/ipc';
+import type { AboutInfo, AppError, BindReport, DataDirInfo, DiagnosticsSaved, DocPatch, Document, EmbedderInfo, EngineDescriptor, EngineInfo, EngineProgress, FolderMeta, HwInfo, ImportSummary, IndexStatus, IngestProgress, LlmProviderStatus, LocalServer, MicMode, MicPreset, NetworkCheck, NetworkStatus, NewFolder, PermKind, PermState, PinnedUsage, RecoveredCall, ReindexScope, RetxEvent, RetxPreset, RetxStatus, SearchQuery, SearchResults, SelfTestReport, SessionState, Settings, SourceInfo, StartOpts, StealthStatus, SttDiagnostics, SttEvent, SummaryEvent, TrashedFolder, UpdateStatus } from '../../lib/ipc';
 import { MockBackend } from './mock';
 import { CommandError, folderKey, folderRef, type EngineNeeded, type CallDetail, type FolderDetail, type FolderKey, type LibrarySnapshot, type LiveLine, type PickedFile, type SecretProvider } from './types';
 
@@ -68,8 +68,12 @@ export class TauriBackend extends MockBackend {
     } catch { return null; }
   }
   override async callGet(id: string): Promise<CallDetail | null> {
-    try { return ok(await commands.callGet(id)) as CallDetail; } catch { return null; }
+    try { return ok(await commands.callGet(id)) as CallDetail; } catch (e) {
+      if (e instanceof CommandError && e.app.code === 'not_found') return null;
+      throw e;
+    }
   }
+  override async recoveredTake(): Promise<RecoveredCall[]> { return commands.recoveredTake(); }
   override async folderCreate(input: NewFolder): Promise<FolderMeta> { return ok(await commands.folderCreate(input)); }
   override async folderUpdate(id: string, patch: { title?: string; instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
     ok(await commands.folderUpdate(id, { title: patch.title ?? null, allow_cloud: patch.allow_cloud ?? null, default_template: null, mic: patch.mic ?? null, retx: patch.retx ?? null, instructions: patch.instructions ?? null }));
@@ -143,6 +147,7 @@ export class TauriBackend extends MockBackend {
 
   override async sessionStart(opts: StartOpts): Promise<SessionState> { return ok(await commands.sessionStart(opts)); }
   override async sessionStop(): Promise<void> { ok(await commands.sessionStop()); }
+  override async sessionState(): Promise<SessionState> { return commands.sessionState(); }
   override async sessionSetMic(on: boolean): Promise<SessionState> { return ok(await commands.sessionSetMic(on)); }
   override async sessionSetMicMode(mode: MicMode): Promise<SessionState> { return ok(await commands.sessionSetMicMode(mode)); }
   override onLiveLine(cb: (line: LiveLine) => void): () => void {

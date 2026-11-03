@@ -28,6 +28,7 @@ import type {
   NewFolder,
   Os,
   PermKind,
+  RecoveredCall,
   PermState,
   PinnedUsage,
   ReindexScope,
@@ -143,7 +144,10 @@ export interface Backend {
 
   libraryList(): Promise<LibrarySnapshot>;
   folderGet(key: FolderKey): Promise<FolderDetail | null>;
+  /** `null` = no such call (deleted outside the app, vault moved); other failures throw. */
   callGet(id: string): Promise<CallDetail | null>;
+  /** Calls a crash left unfinished and this launch finished; returned once. */
+  recoveredTake(): Promise<RecoveredCall[]>;
   folderCreate(input: NewFolder): Promise<FolderMeta>;
   folderUpdate(id: string, patch: { title?: string; instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void>;
   callTrash(id: string): Promise<void>;
@@ -277,6 +281,8 @@ export interface Backend {
 
   sessionStart(opts: StartOpts): Promise<SessionState>;
   sessionStop(): Promise<void>;
+  /** The running session as the backend sees it (a window opened mid-call hydrates from it). */
+  sessionState(): Promise<SessionState>;
   /** Microphone on/off during a recording (the recording and the system audio keep going). */
   sessionSetMic(on: boolean): Promise<SessionState>;
   /** Microphone mode during a recording: on, off or auto (only while the call app holds the microphone). */

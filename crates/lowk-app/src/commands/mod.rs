@@ -40,6 +40,7 @@ macro_rules! all_commands {
             crate::commands::settings::data_dir_move,
             crate::commands::vault::vault_open,
             crate::commands::vault::vault_info,
+            crate::commands::vault::recovered_take,
             crate::commands::vault::folder_list,
             crate::commands::vault::folder_get,
             crate::commands::vault::folder_create,

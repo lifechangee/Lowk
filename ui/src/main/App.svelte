@@ -6,6 +6,7 @@
   import { api, folderKey } from './api';
   import { tm } from './i18n';
   import Onboarding from './onboarding/Onboarding.svelte';
+  import { recoveryNotice } from './recovery';
   import { hrefs, router } from './router.svelte';
   import SearchPalette from './search/SearchPalette.svelte';
   import SearchPage from './search/SearchPage.svelte';
@@ -22,6 +23,7 @@
   import UpdateNotice from './UpdateNotice.svelte';
   import { updates } from './updates.svelte';
   import Home from './home/Home.svelte';
+  import CallMissing from './workspace/CallMissing.svelte';
   import CallPage from './workspace/CallPage.svelte';
   import DocPage from './workspace/DocPage.svelte';
   import FolderView from './workspace/FolderView.svelte';
@@ -45,6 +47,11 @@
     void (async () => {
       locale.init(await api.localeGet().catch(() => 'en'));
       await Promise.all([prefs.load(), library.reload()]);
+      void session.hydrate();
+      void api.recoveredTake().then((list) => {
+        const n = recoveryNotice(list);
+        if (n) ui.notify(n.text, { label: tm('m.recovered.open'), run: () => router.go(n.href) }, 20000);
+      }).catch(() => undefined);
       void callLangs.load();
       void index.refresh();
       if (!prefs.value.onboarding?.done && router.route.name !== 'onboarding') router.go(hrefs.onboarding(prefs.value.onboarding?.step ?? 0));
@@ -129,7 +136,7 @@
           {:else}
             <main class="ctr">
               {#if route.name === 'call'}
-                {#if call && call.ended === null}<LivePage />{:else if call || !library.loaded}{#key route.id}<CallPage id={route.id} at={route.at} match={route.match ?? null} />{/key}{/if}
+                {#if call && call.ended === null}<LivePage />{:else if call || !library.loaded}{#key route.id}<CallPage id={route.id} at={route.at} match={route.match ?? null} />{/key}{:else}<CallMissing />{/if}
               {:else if route.name === 'doc'}{#key route.id}<DocPage id={route.id} page={route.page} />{/key}
               {:else if route.name === 'folder'}<FolderView folder={route.id} tab={route.tab} />{/if}
             </main>

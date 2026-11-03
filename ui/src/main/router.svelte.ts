@@ -63,15 +63,58 @@ export const hrefs = {
   onboarding: (step = 0) => `#/onboarding/${step}`,
 };
 
+/** A page with unsaved work registers one: leaving it (by any link, the palette, back/forward) asks first. */
+export type NavGuard = { doc: string; dirty: () => boolean };
+
+/** Would going to `nextHash` leave the guarded page with unsaved work? (`?p=` on the same document is not leaving.) */
+export function blocksNav(guard: NavGuard | null, nextHash: string): boolean {
+  if (!guard || !guard.dirty()) return false;
+  const next = parse(nextHash);
+  return !(next.name === 'doc' && next.id === guard.doc);
+}
+
 class Router {
   hash = $state(typeof location === 'undefined' ? '' : location.hash);
   route: Route = $derived(parse(this.hash));
+  #guard: NavGuard | null = null;
+  /** Where the user wanted to go while the guard held them back; the page shows Save / Discard / Stay for it. */
+  pending = $state<string | null>(null);
   constructor() {
-    if (typeof window !== 'undefined') window.addEventListener('hashchange', () => (this.hash = location.hash));
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hashchange', () => {
+        const next = location.hash;
+        if (blocksNav(this.#guard, next)) {
+          // the page stays (route unchanged) while the question is open; `stay` puts the address back
+          this.pending = next;
+          return;
+        }
+        this.hash = next;
+      });
+    }
+  }
+  /** Register a guard; returns its remover. */
+  guard(g: NavGuard): () => void {
+    this.#guard = g;
+    return () => { if (this.#guard === g) { this.#guard = null; this.pending = null; } };
   }
   go(href: string): void {
     if (location.hash === href || (href === '#/' && location.hash === '')) return;
+    if (blocksNav(this.#guard, href)) { this.pending = href; return; }
     location.hash = href;
+  }
+  /** The user chose to leave (after saving or discarding): follow the held-back navigation. */
+  proceed(): void {
+    const href = this.pending;
+    this.pending = null;
+    this.#guard = null;
+    if (!href) return;
+    if (location.hash === href) this.hash = href; // back/forward or a link: the address already moved
+    else location.hash = href;
+  }
+  /** The user chose to stay. */
+  stay(): void {
+    this.pending = null;
+    if (location.hash !== this.hash && !(this.hash === '' && location.hash === '#/')) history.replaceState(null, '', this.hash || '#/');
   }
   /** Same page, new address (filters, query): no history entry per keystroke. */
   replace(href: string): void {

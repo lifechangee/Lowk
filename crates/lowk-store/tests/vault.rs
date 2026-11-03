@@ -562,6 +562,46 @@ fn startup_reconcile_finishes_calls_left_recording() {
     assert!(v.reconcile_stale_recordings().unwrap().is_empty(), "idempotent");
 }
 
+/// The recovery notice needs the title and the saved length of every finished call (journal and journal-less).
+#[test]
+fn reconcile_recordings_reports_title_and_saved_length() {
+    let d = tempfile::tempdir().unwrap();
+    let (a, b);
+    {
+        let v = Vault::open(d.path()).unwrap();
+        let mut w = v
+            .begin_call_with_clock(new_call(FolderRef::Unsorted), clock())
+            .unwrap();
+        a = w.id();
+        w.push(fin(Stream::Me, 3, "Привет")).unwrap();
+        w.push(fin(Stream::System, 95, "Да")).unwrap();
+        w.materialize().unwrap();
+        std::mem::forget(w);
+        let mut w = v
+            .begin_call_with_clock(new_call(FolderRef::Unsorted), clock())
+            .unwrap();
+        b = w.id();
+        w.push(fin(Stream::Me, 40, "Ещё")).unwrap();
+        w.materialize().unwrap();
+        std::mem::forget(w);
+        // the second call lost its journal: only the .md is left
+        let live = d.path().join(".lowk/state/live");
+        for e in fs::read_dir(live).unwrap().flatten() {
+            if !e.file_name().to_string_lossy().starts_with(&a.to_string()) {
+                fs::remove_file(e.path()).unwrap();
+            }
+        }
+    }
+    let v = Vault::open(d.path()).unwrap();
+    let got = v.reconcile_recordings().unwrap();
+    assert_eq!(got.len(), 2, "{got:?}");
+    let ra = got.iter().find(|r| r.id == a).unwrap();
+    assert!(ra.duration_s >= 95 && !ra.title.is_empty(), "{ra:?}");
+    let rb = got.iter().find(|r| r.id == b).unwrap();
+    assert!(rb.duration_s >= 40, "{rb:?}");
+    assert!(v.reconcile_recordings().unwrap().is_empty(), "announced once");
+}
+
 /// Same, when the journal is gone and only the unfinished `.md` is left.
 #[test]
 fn startup_reconcile_finishes_a_journalless_unfinished_md() {

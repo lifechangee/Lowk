@@ -276,6 +276,18 @@ class Session {
       void this.#finished(done);
     }
   }
+  /** A main window opened (or reopened after being closed) while a call is being recorded: take the running state. */
+  async hydrate(): Promise<void> {
+    if (this.phase !== 'idle') return;
+    const s = await api.sessionState().catch(() => null);
+    if (!s || s.phase !== 'recording' || this.phase !== 'idle') return;
+    this.sync(s);
+    const c = s.call ? library.call(s.call) : undefined;
+    if (!c) return;
+    this.folder = folderKey(c.folder);
+    const t = Date.parse(c.started);
+    if (Number.isFinite(t)) { this.startedAt = t; this.now = Date.now(); }
+  }
   /** F8: a recording ended (stop button, bind, overlay): library home, window in front, new call on top. */
   async #finished(call: string | null): Promise<void> {
     await library.reload().catch(() => undefined);

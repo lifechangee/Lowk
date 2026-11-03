@@ -26,6 +26,13 @@ pub fn vault_open(st: State<'_, Shared>, path: Option<String>) -> Result<VaultIn
     st.open_vault(path)
 }
 
+/// Calls a crash or kill left unfinished and this launch finished; returned once, then the list is empty.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn recovered_take(st: State<'_, Shared>) -> Vec<RecoveredCall> {
+    st.recovered_take()
+}
+
 #[tauri::command(async)]
 #[specta::specta]
 pub fn vault_info(st: State<'_, Shared>) -> Option<VaultInfo> {

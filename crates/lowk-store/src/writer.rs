@@ -611,10 +611,21 @@ impl Vault {
     /// (the app crashed or was killed) is finished. A leftover journal is replayed (`recover_call`);
     /// without one the end is the last timestamp found in the file. Returns the ids that were finished.
     pub fn reconcile_stale_recordings(&self) -> Result<Vec<Ulid>> {
+        Ok(self.reconcile_recordings()?.into_iter().map(|r| r.id).collect())
+    }
+
+    /// Same as `reconcile_stale_recordings`, with what the user needs to be told about each call:
+    /// its title and how much was saved.
+    pub fn reconcile_recordings(&self) -> Result<Vec<RecoveredCall>> {
         let mut done = vec![];
+        let note = |m: &CallMeta| RecoveredCall {
+            id: m.id,
+            title: m.title.clone(),
+            duration_s: m.duration_s.unwrap_or(0),
+        };
         for r in self.recoverable_calls()? {
-            if self.recover_call(&r.id).is_ok() {
-                done.push(r.id);
+            if let Ok(m) = self.recover_call(&r.id) {
+                done.push(note(&m));
             }
         }
         for c in self.calls(None)? {
@@ -636,8 +647,8 @@ impl Vault {
                 d.fm.ended = Some(add_secs(&d.fm.started, u64::from(last)));
                 d.fm.duration_s = Some(u64::from(last));
             });
-            if upd.is_ok() {
-                done.push(c.id);
+            if let Ok(m) = upd {
+                done.push(note(&m));
             }
         }
         Ok(done)
