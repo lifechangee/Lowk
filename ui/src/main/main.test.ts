@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { en, ru } from '../lib/i18n';
 import { mergePatch } from './api/mock';
@@ -21,7 +22,7 @@ describe('main i18n keys', () => {
     const all = new Set(Object.keys(ru));
     const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
     const missing: string[] = [];
-    for (const f of walk(new URL('.', import.meta.url).pathname).filter((x) => /\.(svelte|ts)$/.test(x) && !x.endsWith('.test.ts'))) {
+    for (const f of walk(fileURLToPath(new URL('.', import.meta.url))).filter((x) => /\.(svelte|ts)$/.test(x) && !x.endsWith('.test.ts'))) {
       for (const m of readFileSync(f, 'utf8').matchAll(/\btm\('([\w.]+)'/g)) if (!all.has(m[1]!)) missing.push(`${f}: ${m[1]}`);
     }
     expect(missing).toEqual([]);
