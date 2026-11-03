@@ -270,6 +270,8 @@ pub fn request_accessibility() -> bool {
     unsafe { AXIsProcessTrusted() }
 }
 
+/// The event tap re-enables itself when macOS disables it (see `handle`); nothing to wake.
+pub fn wake() {}
 pub fn cursor_position() -> (f64, f64) {
     // SAFETY: a null-source event carries the current mouse location (top-left origin).
     unsafe {

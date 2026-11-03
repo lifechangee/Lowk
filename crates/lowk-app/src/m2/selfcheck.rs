@@ -751,9 +751,13 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
                 Some(Ok(s)) => {
                     let md = vault.read_call(&call.id).map(|c| c.md).unwrap_or_default();
                     r.add(
-                        md.contains("Обсудили договор поставки") && !s.key_points.is_empty(),
-                        "summary is written into ## Summary",
-                        format!("{} key points", s.key_points.len()),
+                        md.contains("Обсудили договор поставки")
+                            && !s.key_points.is_empty()
+                            && s.sections.len() == 4
+                            && s.tasks.len() == 1
+                            && s.questions.len() == 1,
+                        "summary is written into ## Summary (sections, tasks and questions read by heading)",
+                        format!("{} key points, {} sections", s.key_points.len(), s.sections.len()),
                     );
                 }
                 other => r.add(false, "summary is written into ## Summary", format!("{other:?}")),

@@ -19,11 +19,14 @@ struct EngineNeeded {
     engine: String,
     kind: &'static str,
     size_mb: u32,
+    /// The download of this engine is already running: the prompt shows its progress.
+    downloading: bool,
 }
 
 fn announce_engine_needed(st: &AppState) {
     let id = st.effective_engine().unwrap_or_default();
-    tracing::info!(engine = %id, "record refused: no speech engine ready; showing the download / cloud prompt");
+    let downloading = st.install_progress(&id).is_some();
+    tracing::info!(engine = %id, downloading, "record refused: no speech engine ready; showing the {} prompt", if downloading { "download progress" } else { "download / cloud" });
     let (kind, size_mb) = st
         .engines
         .available()
@@ -45,6 +48,7 @@ fn announce_engine_needed(st: &AppState) {
             engine: id,
             kind,
             size_mb,
+            downloading,
         })
         .unwrap_or_default(),
     );
@@ -246,6 +250,9 @@ pub fn engine_status(st: State<'_, Shared>) -> Vec<EngineInfo> {
             }
         }
     }
+    for i in &mut infos {
+        i.installing = st.install_progress(&i.descriptor.id);
+    }
     infos
 }
 
@@ -253,8 +260,9 @@ pub fn engine_status(st: State<'_, Shared>) -> Vec<EngineInfo> {
 /// `engine://progress`. Returns when the engine is ready or the download failed / was cancelled.
 #[tauri::command(async)]
 #[specta::specta]
-pub fn engine_install(st: State<'_, Shared>, id: String) -> Result<()> {
-    st.install_engine(&id)
+pub async fn engine_install(st: State<'_, Shared>, id: String) -> Result<()> {
+    let st = st.inner().clone();
+    blocking(move || st.install_engine(&id)).await
 }
 
 #[tauri::command(async)]
@@ -268,6 +276,18 @@ pub fn engine_install_cancel(st: State<'_, Shared>) {
 #[specta::specta]
 pub fn stt_diagnostics(st: State<'_, Shared>) -> Option<SttDiagnostics> {
     st.session.stt_diagnostics()
+}
+
+#[cfg(test)]
+mod install_dispatch_tests {
+    use super::*;
+
+    #[test]
+    fn engine_install_work_runs_on_a_blocking_thread() {
+        let caller = std::thread::current().id();
+        let worker = tauri::async_runtime::block_on(blocking(|| Ok(std::thread::current().id()))).unwrap();
+        assert_ne!(caller, worker);
+    }
 }
 
 // ---- overlay entry points (LLM / screenshots are M3) ------------------------

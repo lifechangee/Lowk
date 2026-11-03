@@ -94,7 +94,7 @@ Documents. Supported: PDF (text and scanned), DOCX, PPTX, XLSX, CSV, TXT, MD and
 - **Pin** a document with the star to always include it in AI requests (up to a token budget shown in the UI).
 - **Instructions** is a short text (about 500 tokens) always sent with requests for that folder.
 - **Search** (⌘K, and a full results page): one line over calls, documents and screenshot text; filters by folder and date; a hit opens the call at the minute or the document at the page. Semantic search uses a local embedding model (about 310 MB, downloaded on demand). While it is missing or building, results say "keyword" mode.
-- **Summary** (button after a call): 3 to 5 key points, decisions, tasks and questions to you. It runs on a cloud model (DeepSeek via OpenRouter) with your key.
+- **Summary** (button after a call): the model works out what kind of recording it was and writes the sections that fit it: main points, decisions and tasks for a meeting; questions to you and your answers for an interview; topics, key ideas, terms, what was asked and what to learn for a lecture; just the gist for a broadcast or a casual talk. Empty sections are left out. Text in the folder's Instructions that asks for a structure overrides the automatic choice. It runs on a cloud model (DeepSeek via OpenRouter) with your key.
 - **Export and import** the whole vault or one folder as a zip. Import never overwrites.
 
 ![Search](../images/en-search.png)

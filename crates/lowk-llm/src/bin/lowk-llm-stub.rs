@@ -14,6 +14,13 @@ const SUMMARY_EN: &[&str] = &[
     "## Questions to me\n- **When is the release?** → My answer: Friday\n",
 ];
 
+/// A lecture gets its own sections instead of a meeting's (the transcript of the QA clip says «лекция» / «lecture»).
+const SUMMARY_LECTURE_RU: &[&str] = &[
+    "## Темы\n- Бюджет\n- Сроки релиза\n",
+    "## Ключевые мысли\n- Релиз сдвигается на неделю\n## Термины и определения\n- **Релиз** — выпуск версии\n",
+    "## Что спрашивали\n- Когда релиз?\n## Домашка / что выучить\n- Прочитать план релиза\n",
+];
+
 fn main() {
     let mut port = 0u16;
     let mut args = std::env::args().skip(1);
@@ -31,7 +38,14 @@ fn main() {
         }
         let body = req.body.as_str();
         if body.contains("post-call summaries") {
-            if body.contains("Russian") {
+            // the user message (not the instructions, which name every kind of call) tells what was recorded
+            let user = req.json()["messages"][1]["content"]
+                .as_str()
+                .unwrap_or("")
+                .to_lowercase();
+            if body.contains("Russian") && (user.contains("лекци") || user.contains("lecture")) {
+                Reply::answer(SUMMARY_LECTURE_RU)
+            } else if body.contains("Russian") {
                 Reply::answer(SUMMARY_RU)
             } else {
                 Reply::answer(SUMMARY_EN)

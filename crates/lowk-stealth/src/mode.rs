@@ -21,6 +21,15 @@ pub enum Interaction {
     Hover,
 }
 
+impl Interaction {
+    /// Whether the native window must carry the no-activate style. Not while typing mode is on: a
+    /// click into the overlay has to give it the keyboard focus, also after another app took the
+    /// foreground. (The stealth re-apply used to force the bit back every second.)
+    pub const fn no_activate(self) -> bool {
+        !matches!(self, Interaction::Interactive)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModeInput {
     /// `Passive` / `Interactive`; `Moving` is treated as [`ModeInput::MoveDown`].
@@ -30,8 +39,6 @@ pub enum ModeInput {
     /// G6: the click-hold key went down / up.
     HoverDown,
     HoverUp,
-    /// The overlay lost key/foreground status while interactive.
-    Blur,
     /// Escape pressed in the interactive overlay.
     Escape,
     /// The overlay was hidden (interactive cannot survive hiding).
@@ -108,7 +115,7 @@ impl ModeMachine {
             ModeInput::Set(OverlayMode::Hover) | ModeInput::HoverDown => self.hover = true,
             ModeInput::MoveUp => self.moving = false,
             ModeInput::HoverUp => self.hover = false,
-            ModeInput::Blur | ModeInput::Escape => self.base = Interaction::Passive,
+            ModeInput::Escape => self.base = Interaction::Passive,
             ModeInput::Hidden => {
                 self.base = Interaction::Passive;
                 self.hover = false;
@@ -138,6 +145,12 @@ impl ModeMachine {
 mod tests {
     use super::*;
     use OverlayMode::*;
+
+    #[test]
+    fn only_typing_mode_may_activate() {
+        assert!(Interaction::Passive.no_activate() && Interaction::Hover.no_activate());
+        assert!(!Interaction::Interactive.no_activate());
+    }
 
     #[test]
     fn default_is_passive() {
@@ -196,8 +209,8 @@ mod tests {
     }
 
     #[test]
-    fn blur_escape_hidden_leave_interactive() {
-        for i in [ModeInput::Blur, ModeInput::Escape, ModeInput::Hidden] {
+    fn escape_and_hidden_leave_interactive() {
+        for i in [ModeInput::Escape, ModeInput::Hidden] {
             let mut m = ModeMachine::new();
             m.apply(ModeInput::Set(Interactive));
             let c = m.apply(i).unwrap();
@@ -242,23 +255,23 @@ mod tests {
     }
 
     #[test]
-    fn blur_while_moving_defers_visible_change() {
+    fn escape_while_moving_defers_visible_change() {
         let mut m = ModeMachine::new();
         m.apply(ModeInput::Set(Interactive));
         m.apply(ModeInput::MoveDown);
-        let c = m.apply(ModeInput::Blur).unwrap();
+        let c = m.apply(ModeInput::Escape).unwrap();
         assert_eq!((c.prev, c.now, c.style_changed), (Moving, Moving, true));
         assert_eq!(m.apply(ModeInput::MoveUp).unwrap().now, Passive);
     }
 
-    /// The main window taking focus (Blur) must not drop a running hover hold, and the hold
+    /// Escape (only meaningful in typing mode) must not drop a running hover hold, and the hold
     /// keeps the overlay in the Hover style (clickable, not click-through).
     #[test]
-    fn hover_survives_main_window_focus_changes() {
+    fn hover_survives_escape() {
         let mut m = ModeMachine::new();
         m.apply(ModeInput::HoverDown);
         assert_eq!(m.style(), Interaction::Hover);
-        assert!(m.apply(ModeInput::Blur).is_none());
+        assert!(m.apply(ModeInput::Escape).is_none());
         assert_eq!(m.style(), Interaction::Hover);
         assert_eq!(m.effective(), Hover);
         assert!(m.apply(ModeInput::HoverUp).is_some());

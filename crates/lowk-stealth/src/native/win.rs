@@ -30,6 +30,8 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 struct Win {
     hwnd: isize,
     prev_fg: Mutex<isize>,
+    /// The interaction style last applied (the stealth re-apply must not undo it).
+    style: Mutex<Interaction>,
 }
 
 fn h(v: isize) -> HWND {
@@ -41,6 +43,7 @@ pub fn make_backend(w: &RawWindow) -> Result<Arc<dyn WindowBackend>> {
         RawWindowHandle::Win32(hh) => Ok(Arc::new(Win {
             hwnd: hh.hwnd.get(),
             prev_fg: Mutex::new(0),
+            style: Mutex::new(Interaction::Passive),
         })),
         _ => Err(unavailable("not a Win32 window handle")),
     }
@@ -185,9 +188,16 @@ impl WindowBackend for Win {
         // SAFETY: valid HWND. The return value is checked (tao ignores it).
         let set = unsafe { SetWindowDisplayAffinity(self.hwnd(), want) };
         if policy.hidden_from_switchers {
+            // Typing mode keeps the window activatable: forcing WS_EX_NOACTIVATE back here (every
+            // watchdog tick) made a click into the overlay unable to focus it once another app was in front.
+            let need = if self.style.lock().no_activate() {
+                STEALTH_EX
+            } else {
+                WS_EX_TOOLWINDOW.0 as isize
+            };
             let ex = self.ex();
-            if ex & STEALTH_EX != STEALTH_EX || ex & WS_EX_APPWINDOW.0 as isize != 0 {
-                self.set_ex((ex | STEALTH_EX) & !(WS_EX_APPWINDOW.0 as isize));
+            if ex & need != need || ex & WS_EX_APPWINDOW.0 as isize != 0 {
+                self.set_ex((ex | need) & !(WS_EX_APPWINDOW.0 as isize));
             }
             self.topmost();
         }
@@ -238,6 +248,7 @@ impl WindowBackend for Win {
     fn set_interaction(&self, i: Interaction) -> Result<()> {
         let before = self.ex();
         let r = self.set_interaction_inner(i);
+        *self.style.lock() = if r.is_ok() { i } else { Interaction::Passive };
         let after = self.ex();
         tracing::info!(
             ?i,

@@ -7,7 +7,8 @@ use specta::Type;
 pub enum OverlayMode {
     /// Click-through, no focus. Default.
     Passive,
-    /// Takes clicks and keyboard; auto-exits on blur or Esc.
+    /// Takes clicks and keyboard. Stays on until the user toggles it or presses Esc: losing focus
+    /// (a call app, a notification, a click elsewhere) does not end it.
     Interactive,
     /// Hold-to-move magnet; returns to the prior mode on release.
     Moving,

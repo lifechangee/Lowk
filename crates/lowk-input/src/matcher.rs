@@ -421,6 +421,55 @@ mod tests {
         assert_eq!(x.set_binds(vec![]), vec![fire(ActionId::MoveHold, Phase::Up)]);
     }
 
+    /// Owner's Windows test: after the overlay was toggled the hold binds (Ctrl = click-hold) were dead until
+    /// the toggle combo was pressed again. A key whose key-up never arrived stays «down» in the matcher, and
+    /// a modifier-only bind fires only while no other key is down. The platform layer now releases such a
+    /// key (it compares with the OS), which is just a normal key-up for the matcher.
+    #[test]
+    fn a_lost_key_up_blocks_modifier_only_binds_until_it_is_released() {
+        let mut x = m(vec![ctrl_hold(), alt_hold()]);
+        // Ctrl+Shift+I toggles the overlay; the key-up of I is lost
+        x.handle(Raw::Mods(Mods::CTRL));
+        x.handle(Raw::Mods(Mods {
+            ctrl: true,
+            shift: true,
+            ..Mods::NONE
+        }));
+        x.handle(kd("KeyI"));
+        x.handle(Raw::Mods(Mods::NONE));
+        // the stuck state: no hold binds fire
+        let o = x.handle(Raw::Mods(Mods::CTRL));
+        assert!(o.events.is_empty(), "stuck: {o:?}");
+        x.handle(Raw::Mods(Mods::NONE));
+        assert!(x.handle(Raw::Mods(Mods::ALT)).events.is_empty());
+        x.handle(Raw::Mods(Mods::NONE));
+        // the made-up key-up repairs it
+        x.handle(ku("KeyI"));
+        let o = x.handle(Raw::Mods(Mods::CTRL));
+        assert_eq!(o.events, vec![fire(ActionId::ClickHold, Phase::Down)]);
+        x.handle(Raw::Mods(Mods::NONE));
+        let o = x.handle(Raw::Mods(Mods::ALT));
+        assert_eq!(o.events, vec![fire(ActionId::MoveHold, Phase::Down)]);
+    }
+
+    /// Same for a mouse button whose release was lost (side buttons).
+    #[test]
+    fn a_lost_mouse_up_blocks_modifier_only_binds_until_it_is_released() {
+        let mut x = m(vec![ctrl_hold()]);
+        x.handle(Raw::Mouse {
+            button: MouseBtn::Back,
+            down: true,
+        });
+        assert!(x.handle(Raw::Mods(Mods::CTRL)).events.is_empty());
+        x.handle(Raw::Mods(Mods::NONE));
+        x.handle(Raw::Mouse {
+            button: MouseBtn::Back,
+            down: false,
+        });
+        let o = x.handle(Raw::Mods(Mods::CTRL));
+        assert_eq!(o.events, vec![fire(ActionId::ClickHold, Phase::Down)]);
+    }
+
     #[test]
     fn template_binds_fire_with_their_template_id() {
         let mut a = combo(ActionId::AskTemplate, Mods::META, "KeyJ", false);

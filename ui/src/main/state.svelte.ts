@@ -8,6 +8,7 @@ import type { SessionState } from '../lib/ipc';
 import { mergePatch } from './api/mock';
 import { hrefs, router } from './router.svelte';
 import { errText } from './errors';
+import { installs } from './installs.svelte';
 import { tm } from './i18n';
 import { ALL_LANGS, resolve as resolveLangs, supportedBy } from './langs';
 
@@ -339,12 +340,13 @@ export async function focusMainWindow(): Promise<void> {
 
 /** Backend events that change main-window state (no-op in a plain browser). */
 export function attachEvents(): void {
+  installs.ensure(); // follow model downloads from the start, also with no card open
+  api.onEngineNeeded((e) => { ui.engineNeeded = e; });
   if (!hasTauri) return;
   let t: ReturnType<typeof setTimeout> | undefined;
   void on(EVENTS.storeChanged, () => { clearTimeout(t); t = setTimeout(() => void library.reload(), 300); });
   void on<Settings>(EVENTS.settingsChanged, (s) => { prefs.value = s; locale.setSetting((s.ui?.language ?? 'auto') as LangSetting); });
   void on<SessionState>(EVENTS.sessionState, (s) => { if (s.phase === 'idle') session.sttLoading = false; session.sync(s); });
-  api.onEngineNeeded((e) => (ui.engineNeeded = e));
   void on<{ action: string; shots?: number }>('binds://fired', (e) => ui.notify(tm('m.bindShot', { n: e.shots ?? 1 })));
   void on<{ perm: string }>('binds://failed', (e) => ui.notify(tm('m.bindFailedPerm', { perm: tm(`m.perm.${e.perm}` as Key) })));
   // A worker that cannot start (unsupported CPU, model never ready) ends the «loading» state with a named cause.

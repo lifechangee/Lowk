@@ -3,7 +3,7 @@
   import type { EngineInfo } from '../../lib/ipc';
   import Button from '../../lib/components/Button.svelte';
   import { api } from '../api';
-  import { Dl } from '../dl.svelte';
+  import { installs } from '../installs.svelte';
   import { tm } from '../i18n';
   import ModelChip, { type ModelState } from './ModelChip.svelte';
   import ModelProgress from './ModelProgress.svelte';
@@ -11,45 +11,34 @@
   let { engine }: { engine: string } = $props();
 
   let info = $state<EngineInfo | null>(null);
-  let busy = $state(false);
-  const dl = new Dl();
-  let error = $state<string | null>(null);
-  let cancelled = false;
   let cpu = $state(false);
+  // The download state is the app's, not this card's: a card opened while a download runs (the prompt of a call that
+  // could not start) shows that download, it never offers a second one.
+  const dl = $derived(installs.dl(engine));
+  const busy = $derived(installs.active[engine] ?? false);
+  const error = $derived(installs.failed[engine] ?? null);
 
   const refresh = async () => {
     info = (await api.engineStatus()).find((i) => i.descriptor.id === engine) ?? null;
+    if (info?.installing) installs.adopt(engine, info.installing);
     cpu = !!(await api.sttDiagnostics().catch(() => null))?.cpu_fallback;
   };
-  onMount(() => {
-    void refresh();
-    return api.onEngineProgress((p) => {
-      if (p.engine !== engine) return;
-      dl.feed(p);
-      if (p.phase === 'failed' && !cancelled) error = p.message ?? '';
-    });
-  });
-  $effect(() => { engine; dl.reset(); error = null; void refresh(); });
+  onMount(() => { installs.ensure(); });
+  $effect(() => { engine; installs.ended; void refresh(); });
 
   /** Real total of this install: the live model plus the Whisper correction model while it is on and missing. */
   const extra = $derived(info?.extra_mb ?? 0);
   const totalGb = $derived((((info?.descriptor.size_mb ?? 0) + extra) / 1000).toFixed(1));
+  const needsInstall = $derived(!!info && needsEngineInstall(info.installed, extra, error !== null));
   const mst = $derived<ModelState>(busy ? (dl.view.phase === 'verifying' ? 'verifying' : 'downloading') : error !== null ? 'error' : info?.installed ? 'ready' : 'missing');
   const reason = (m: string) => (m.includes('checksum') ? tm('m.engine.errChecksum') : m.includes('network') || m.includes('Network') ? tm('m.engine.errNetwork') : tm('m.engine.errGeneric'));
 
-  async function install() {
-    busy = true;
-    cancelled = false;
-    error = null;
-    dl.reset();
-    try {
-      await api.engineInstall(engine);
-    } catch (e) {
-      if (!error && !cancelled) error = e instanceof Error ? e.message : String(e);
-      if (cancelled) error = null;
-    }
-    busy = false;
-    await refresh();
+  const install = () => installs.start(engine);
+</script>
+
+<script module lang="ts">
+  export function needsEngineInstall(installed: boolean, missingExtraMb: number, failed: boolean): boolean {
+    return !installed || missingExtraMb > 0 || failed;
   }
 </script>
 
@@ -63,9 +52,9 @@
     {#if busy}
       <div class="acts">
         <span></span>
-        <Button size="sm" onclick={() => { cancelled = true; void api.engineInstallCancel(); }}>{tm('common.cancel')}</Button>
+        <Button size="sm" onclick={() => installs.cancel(engine)}>{tm('common.cancel')}</Button>
       </div>
-    {:else if !info.installed}
+    {:else if needsInstall}
       <p class="note" data-testid="engine-total">{extra > 0 ? tm('m.engine.needsDownloadBoth', { size: totalGb, live: (info.descriptor.size_mb / 1000).toFixed(1), corr: (extra / 1000).toFixed(1) }) : tm('m.engine.needsDownload', { size: totalGb })}</p>
       <div class="acts">
         <Button variant="primary" size="sm" onclick={install}>{error ? tm('m.engine.retry') : tm('m.engine.install', { size: totalGb })}</Button>

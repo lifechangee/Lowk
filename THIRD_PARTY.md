@@ -53,7 +53,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | style-mod | 4.1.4 | MIT | <https://code.haverbeke.berlin/marijn/style-mod> |
 | w3c-keyname | 2.2.8 | MIT | <https://github.com/marijnh/w3c-keyname#readme> |
 
-## Rust crates in the app (700)
+## Rust crates in the app (701)
 
 | Crate | Version | Licence | Repository |
 |---|---|---|---|
@@ -118,7 +118,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | bytes | 1.12.1 | MIT | <https://github.com/tokio-rs/bytes> |
 | cairo-rs | 0.18.5 | MIT | <https://github.com/gtk-rs/gtk-rs-core> |
 | cairo-sys-rs | 0.18.2 | MIT | <https://github.com/gtk-rs/gtk-rs-core> |
-| calamine | 0.37.0 | MIT | <https://github.com/tafia/calamine> |
+| calamine | 0.38.0 | MIT | <https://github.com/tafia/calamine> |
 | camino | 1.2.6 | MIT OR Apache-2.0 | <https://github.com/camino-rs/camino> |
 | cargo-platform | 0.1.9 | MIT OR Apache-2.0 | <https://github.com/rust-lang/cargo> |
 | cargo_metadata | 0.19.2 | MIT | <https://github.com/oli-obk/cargo_metadata> |
@@ -374,6 +374,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | num-traits | 0.2.19 | MIT OR Apache-2.0 | <https://github.com/rust-num/num-traits> |
 | num_enum | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 | <https://github.com/illicitonion/num_enum> |
 | num_enum_derive | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 | <https://github.com/illicitonion/num_enum> |
+| num_threads | 0.1.8 | MIT OR Apache-2.0 | <https://github.com/jhpratt/num_threads> |
 | objc2 | 0.6.5 | MIT | <https://github.com/madsmtm/objc2> |
 | objc2-app-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT | <https://github.com/madsmtm/objc2> |
 | objc2-av-foundation | 0.3.2 | Zlib OR Apache-2.0 OR MIT | <https://github.com/madsmtm/objc2> |
