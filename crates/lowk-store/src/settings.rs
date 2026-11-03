@@ -41,6 +41,12 @@ fn strip_nulls(v: &mut Value) {
 fn keep_unknown(typed: &mut Value, raw: &Value) {
     if let (Value::Object(t), Value::Object(r)) = (typed, raw) {
         for (k, rv) in r {
+            // `id` belongs to Target::App. Preserve unknown settings fields,
+            // but do not resurrect a stale app id from raw TOML for the unit
+            // `whole_system` variant.
+            if k == "id" && t.get("kind").and_then(Value::as_str) == Some("whole_system") {
+                continue;
+            }
             match t.get_mut(k) {
                 Some(tv) => keep_unknown(tv, rv),
                 None => {
@@ -59,17 +65,22 @@ impl FileSettingsStore {
         fs::create_dir_all(config_dir)?;
         let path = config_dir.join(SETTINGS_FILE);
         let mut warning = None;
-        let (settings, raw, fresh) = match fs::read_to_string(&path) {
+        let (settings, raw, fresh, parse_warning) = match fs::read_to_string(&path) {
             Ok(t) => match Self::parse(&t) {
-                Ok((s, raw)) => (s, raw, false),
+                Ok((s, raw, parse_warning)) => (s, raw, false, parse_warning),
                 Err(e) => {
                     let _ = fs::copy(&path, config_dir.join("settings.toml.bad"));
                     warning = e.detail.clone();
-                    (Settings::default(), Value::Null, true)
+                    (Settings::default(), Value::Null, true, None)
                 }
             },
-            Err(_) => (Settings::default(), Value::Null, true),
+            Err(_) => (Settings::default(), Value::Null, true, None),
         };
+        if let Some(w) = parse_warning {
+            tracing::warn!(warning = %w, "ignored malformed settings field");
+            warning = Some(w);
+        }
+        let recovered_field = warning.is_some();
         let mut settings = settings;
         let migrated = !fresh && settings.migrate_binds(Os::current());
         let migrated = (!fresh && settings.migrate_templates()) || migrated;
@@ -83,7 +94,10 @@ impl FileSettingsStore {
             subs: Mutex::new(vec![]),
             warning: Mutex::new(warning),
         };
-        let needs_write = fresh || migrated || store.cur.lock().schema_version != SETTINGS_SCHEMA_VERSION;
+        let needs_write = fresh
+            || migrated
+            || recovered_field
+            || store.cur.lock().schema_version != SETTINGS_SCHEMA_VERSION;
         if needs_write {
             store.cur.lock().schema_version = SETTINGS_SCHEMA_VERSION;
             store.write()?;
@@ -91,12 +105,27 @@ impl FileSettingsStore {
         Ok(store)
     }
 
-    fn parse(text: &str) -> Result<(Settings, Value)> {
+    fn parse(text: &str) -> Result<(Settings, Value, Option<String>)> {
         let bad = |e: String| err(ErrorCode::SettingsInvalid, e);
         let t: toml::Value = toml::from_str(text).map_err(|e| bad(e.to_string()))?;
-        let raw = serde_json::to_value(&t).map_err(|e| bad(e.to_string()))?;
-        let s: Settings = serde_json::from_value(raw.clone()).map_err(|e| bad(e.to_string()))?;
-        Ok((s, raw))
+        let mut raw = serde_json::to_value(&t).map_err(|e| bad(e.to_string()))?;
+        match serde_json::from_value::<Settings>(raw.clone()) {
+            Ok(s) => Ok((s, raw, None)),
+            Err(original) => {
+                // Settings are a single typed struct, so recover the known
+                // optional source field independently and preserve all others.
+                let source = raw
+                    .get_mut("audio")
+                    .and_then(Value::as_object_mut)
+                    .and_then(|audio| audio.remove("last_source"));
+                let Some(source) = source else {
+                    return Err(bad(original.to_string()));
+                };
+                let s =
+                    serde_json::from_value::<Settings>(raw.clone()).map_err(|_| bad(original.to_string()))?;
+                Ok((s, raw, Some(format!("audio.last_source ignored: {source}"))))
+            }
+        }
     }
 
     fn render(&self, s: &Settings) -> Result<String> {
@@ -114,7 +143,7 @@ impl FileSettingsStore {
         let s = self.cur.lock().clone();
         let text = self.render(&s)?;
         atomic_write(&self.path, text.as_bytes())?;
-        if let Ok((_, raw)) = Self::parse(&text) {
+        if let Ok((_, raw, _)) = Self::parse(&text) {
             *self.raw.lock() = raw;
         }
         Ok(())
@@ -132,7 +161,11 @@ impl FileSettingsStore {
     /// Re-read the file after an external edit; notifies subscribers on change.
     pub fn reload(&self) -> Result<Settings> {
         let text = fs::read_to_string(&self.path)?;
-        let (mut s, raw) = Self::parse(&text)?;
+        let (mut s, raw, parse_warning) = Self::parse(&text)?;
+        if let Some(w) = &parse_warning {
+            tracing::warn!(warning = %w, "ignored malformed settings field");
+            *self.warning.lock() = Some(w.clone());
+        }
         *self.raw.lock() = raw;
         // S2: an externally restored old file (swapped screenshot binds) is repaired like on open.
         let migrated = s.migrate_binds(Os::current());
@@ -142,7 +175,7 @@ impl FileSettingsStore {
             *cur = s.clone();
             changed
         };
-        if migrated {
+        if migrated || parse_warning.is_some() {
             self.write()?;
         }
         if changed {

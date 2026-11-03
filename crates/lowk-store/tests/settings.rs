@@ -174,6 +174,66 @@ fn capture_default_source_defaults_to_one_app_and_persists() {
 }
 
 #[test]
+fn last_source_switch_from_app_to_system_persists_without_an_id() {
+    let d = tempfile::tempdir().unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    s.patch(SettingsPatch(serde_json::json!({
+        "audio": { "last_source": { "kind": "app", "id": "com.google.Chrome" } }
+    })))
+    .unwrap();
+    s.patch(SettingsPatch(serde_json::json!({
+        "audio": { "last_source": { "kind": "whole_system", "id": null } }
+    })))
+    .unwrap();
+
+    let text = fs::read_to_string(s.path()).unwrap();
+    let last_source = text
+        .split("[audio.last_source]")
+        .nth(1)
+        .unwrap()
+        .split("\n[")
+        .next()
+        .unwrap();
+    assert!(last_source.contains("kind = \"whole_system\""), "{text}");
+    assert!(!last_source.contains("id ="), "{text}");
+    assert_eq!(
+        FileSettingsStore::open(d.path()).unwrap().get().audio.last_source,
+        Some(Target::WholeSystem)
+    );
+}
+
+#[test]
+fn malformed_last_source_is_dropped_without_resetting_other_settings() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("settings.toml");
+    fs::write(
+        &p,
+        "[ui]\nfont_px = 19\n[audio.last_source]\nkind = \"not_a_target\"\nid = \"com.google.Chrome\"\n",
+    )
+    .unwrap();
+
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    assert_eq!(s.get().ui.font_px, 19);
+    assert_eq!(s.get().audio.last_source, None);
+    assert!(s.load_warning().unwrap().contains("audio.last_source ignored"));
+    assert!(!fs::read_to_string(&p).unwrap().contains("not_a_target"));
+}
+
+#[test]
+fn reported_stale_whole_system_toml_loads_as_whole_system() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("settings.toml");
+    fs::write(
+        &p,
+        "[ui]\nfont_px = 19\n[audio.last_source]\nid = \"com.google.Chrome\"\nkind = \"whole_system\"\n",
+    )
+    .unwrap();
+    let s = FileSettingsStore::open(d.path()).unwrap();
+    assert_eq!(s.get().ui.font_px, 19);
+    assert_eq!(s.get().audio.last_source, Some(Target::WholeSystem));
+}
+
+#[test]
 fn s2_open_migrates_swapped_screenshot_binds_on_disk() {
     let d = tempfile::tempdir().unwrap();
     let mut s = Settings::default();

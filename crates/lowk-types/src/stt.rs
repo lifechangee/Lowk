@@ -102,12 +102,37 @@ pub enum Fitness {
 }
 
 /// Audio source selection types shared by audio, session and UI.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
 #[serde(tag = "kind", content = "id", rename_all = "snake_case")]
 pub enum Target {
     /// Bundle id (macOS) or exe path (Windows).
     App(String),
     WholeSystem,
+}
+
+impl<'de> Deserialize<'de> for Target {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct Repr {
+            kind: String,
+            #[serde(default)]
+            id: Option<String>,
+        }
+
+        let repr = Repr::deserialize(deserializer)?;
+        match repr.kind.as_str() {
+            "app" => repr
+                .id
+                .map(Target::App)
+                .ok_or_else(|| serde::de::Error::missing_field("id")),
+            // A prior merge-patch writer could leave an app id next to this kind.
+            "whole_system" => Ok(Target::WholeSystem),
+            kind => Err(serde::de::Error::unknown_variant(kind, &["app", "whole_system"])),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]

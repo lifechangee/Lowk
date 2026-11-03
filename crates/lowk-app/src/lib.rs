@@ -132,11 +132,18 @@ impl tracing_subscriber::fmt::time::FormatTime for LocalTime {
     }
 }
 
-fn init_tracing() {
-    use tracing_subscriber::EnvFilter;
+/// Measures the local UTC offset while the process is still single-threaded (macOS / Linux refuse later) and
+/// shares it with the crates that show times to the user (call titles).
+fn capture_local_offset() {
     if let Ok(o) = time::UtcOffset::current_local_offset() {
         let _ = START_OFFSET.set(o);
+        lowk_types::clock::set_local_offset_secs(o.whole_seconds());
     }
+}
+
+fn init_tracing() {
+    use tracing_subscriber::EnvFilter;
+    capture_local_offset();
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with_ansi(false)
@@ -146,6 +153,8 @@ fn init_tracing() {
 }
 
 pub fn run() {
+    // first, before datadir::startup spawns threads
+    capture_local_offset();
     datadir::startup();
     init_tracing();
     diagnostics::install_panic_hook();

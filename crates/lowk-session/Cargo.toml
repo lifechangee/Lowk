@@ -13,7 +13,7 @@ lowk-types.workspace = true
 lowk-audio.workspace = true
 lowk-stt.workspace = true
 serde.workspace = true
-time = { workspace = true, features = ["formatting"] }
+time = { workspace = true, features = ["formatting", "local-offset"] }
 tracing.workspace = true
 
 [lints]
