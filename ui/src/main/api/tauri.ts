@@ -27,6 +27,7 @@ const PERMS: PermKind[] = ['microphone', 'system_audio', 'screen_recording', 'in
 export class TauriBackend extends MockBackend {
   override readonly isMock: boolean = false;
   #vaultOpen = false;
+  #vaultOpening: Promise<void> | null = null;
 
   override async localeGet(): Promise<string> { return commands.localeGet(); }
   override async settingsGet(): Promise<Settings> { return commands.settingsGet(); }
@@ -40,8 +41,17 @@ export class TauriBackend extends MockBackend {
 
   async #ensureVault(): Promise<void> {
     if (this.#vaultOpen) return;
-    ok(await commands.vaultOpen(null));
-    this.#vaultOpen = true;
+    if (!this.#vaultOpening) {
+      const opening = (async () => {
+        ok(await commands.vaultOpen(null));
+        this.#vaultOpen = true;
+      })();
+      this.#vaultOpening = opening;
+      void opening.catch(() => {
+        if (this.#vaultOpening === opening) this.#vaultOpening = null;
+      });
+    }
+    return this.#vaultOpening;
   }
 
   override async libraryList(): Promise<LibrarySnapshot> {

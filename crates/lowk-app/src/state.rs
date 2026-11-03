@@ -79,6 +79,7 @@ pub struct AppState {
     /// The open vault's index, shared with the session's retriever.
     pub index_slot: Arc<RwLock<Option<lowk_index::Index>>>,
     watcher_stop: Mutex<Option<Arc<AtomicBool>>>,
+    open_vault_lock: Mutex<()>,
 }
 
 impl AppState {
@@ -122,6 +123,7 @@ impl AppState {
             m2: RwLock::new(None),
             index_slot,
             watcher_stop: Mutex::new(None),
+            open_vault_lock: Mutex::new(()),
         }
     }
 
@@ -179,6 +181,18 @@ impl AppState {
     pub fn open_vault(&self, path: Option<String>) -> Result<VaultInfo> {
         let want = path.unwrap_or_else(|| self.settings.get().vault.path);
         let dir = resolve_vault_path(&want)?;
+        let _open_guard = self.open_vault_lock.lock();
+        let current_path = self.vault.read().as_ref().map(|vault| vault.root().to_path_buf());
+        if let Some(current_path) = current_path.as_ref().filter(|p| p.as_path() == dir) {
+            if want != self.settings.get().vault.path {
+                let _ = self
+                    .settings
+                    .patch(SettingsPatch(serde_json::json!({ "vault": { "path": want } })));
+            }
+            return Ok(VaultInfo {
+                path: current_path.display().to_string(),
+            });
+        }
         let vault = Vault::open(&dir)?;
         // A call left in the recording state by a crash / kill must not stay «идёт запись» forever.
         // Never while a session is running: a re-open of the same vault would finish the live call.
