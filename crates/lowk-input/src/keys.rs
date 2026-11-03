@@ -108,6 +108,12 @@ pub(crate) fn from_win_vk(vk: u16) -> &'static str {
     KEYS.iter().find(|k| k.2 == vk).map_or("Unknown", |k| k.0)
 }
 
+/// Windows virtual-key of a W3C key name (the inverse of [`from_win_vk`]).
+#[cfg_attr(not(any(windows, test)), allow(dead_code))]
+pub(crate) fn to_win_vk(code: &str) -> Option<u16> {
+    KEYS.iter().find(|k| k.0 == code).map(|k| k.2)
+}
+
 /// Human label for UI/logs, e.g. `Cmd+Shift+S`, `Option`, `Mouse Back`.
 pub fn describe(os: Os, t: &Trigger) -> String {
     let mac = os == Os::Macos;

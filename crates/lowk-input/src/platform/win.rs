@@ -6,7 +6,7 @@ use super::{
     take_resync, HookError, HookHandle, HookInfo, PermSnapshot,
 };
 use crate::engine::Engine;
-use crate::keys::from_win_vk;
+use crate::keys::{from_win_vk, to_win_vk};
 use crate::matcher::Raw;
 use lowk_types::{Mods, MouseBtn};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -79,6 +79,21 @@ fn button_vk(b: MouseBtn) -> u16 {
     }
 }
 
+/// Keys to check against the OS: the hook's own list plus what the matcher believes is held. The matcher
+/// is what blocks modifier-only binds (they fire only with no key held), and its set can outlive the
+/// hook's (a key-up handled while the two disagreed): checking only the hook's list then left a key held
+/// in the matcher for good, silently (field report: Ctrl / Alt holds dead after Ctrl+\, combos fine, until
+/// `\` was pressed again). macOS checks the matcher's set too.
+fn tracked_keys(hook_down: &[u16], matcher_held: &[&str]) -> Vec<u16> {
+    let mut out = hook_down.to_vec();
+    for vk in matcher_held.iter().filter_map(|c| to_win_vk(c)) {
+        if !out.contains(&vk) {
+            out.push(vk);
+        }
+    }
+    out
+}
+
 fn repairable<T: Copy + PartialEq>(tracked: &[T], swallowed: &[T]) -> Vec<T> {
     tracked
         .iter()
@@ -87,16 +102,72 @@ fn repairable<T: Copy + PartialEq>(tracked: &[T], swallowed: &[T]) -> Vec<T> {
         .collect()
 }
 
+/// A modifier held while the matcher believes a key is down (so modifier-only binds cannot fire) for this
+/// long is reported, once per episode.
+const BLOCKED_REPORT_AFTER: Duration = Duration::from_secs(2);
+
+/// One «modifier-only binds blocked by a held key» episode: when it started, whether it was reported.
+#[derive(Default)]
+struct BlockedEpisode {
+    since: Option<std::time::Instant>,
+    reported: bool,
+}
+
+impl BlockedEpisode {
+    /// True exactly once per episode, when it has lasted `BLOCKED_REPORT_AFTER`.
+    fn tick(&mut self, blocked: bool, now: std::time::Instant) -> bool {
+        if !blocked {
+            *self = Self::default();
+            return false;
+        }
+        let since = *self.since.get_or_insert(now);
+        if self.reported || now.duration_since(since) < BLOCKED_REPORT_AFTER {
+            return false;
+        }
+        self.reported = true;
+        true
+    }
+}
+
 /// Releases keys / buttons whose key-up never reached the hook (see `confirm_stale`), telling the engine so
 /// the held binds end. Returns how many were released.
-fn heal_stuck_input(sus_keys: &mut Vec<u16>, sus_btns: &mut Vec<u16>, immediate: bool) -> usize {
-    let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
-    let Some(engine) = st.engine.clone() else {
+fn heal_stuck_input(
+    sus_keys: &mut Vec<u16>,
+    sus_btns: &mut Vec<u16>,
+    blocked: &mut BlockedEpisode,
+    immediate: bool,
+) -> usize {
+    let Some(engine) = STATE.lock().unwrap_or_else(|e| e.into_inner()).engine.clone() else {
         return 0;
     };
-    let candidates = repairable(&st.down, &st.swallowed_keys);
+    // The engine lock is released before STATE is taken: no nesting here.
+    let (matcher_held, _) = engine.held();
+    let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
+    let tracked = tracked_keys(&st.down, &matcher_held);
+    let matcher_only: Vec<u16> = tracked.iter().copied().filter(|k| !st.down.contains(k)).collect();
+    // Counts only, never which keys: nothing here may read like a keystroke log.
+    let held = matcher_held.len();
+    if blocked.tick(
+        held > 0 && os_mods().iter().any(|m| *m),
+        std::time::Instant::now(),
+    ) {
+        tracing::warn!(
+            held,
+            matcher_only = matcher_only.len(),
+            os_down = tracked.iter().filter(|k| key_is_down(**k)).count(),
+            "input hook: a modifier is held but a key the matcher believes down blocks modifier-only binds"
+        );
+    }
+    let candidates = repairable(&tracked, &st.swallowed_keys);
     let keys = confirm_stale(sus_keys, &candidates, key_is_down, immediate);
     st.down.retain(|k| !keys.contains(k));
+    let released_matcher_only = keys.iter().filter(|k| matcher_only.contains(k)).count();
+    if released_matcher_only > 0 {
+        tracing::info!(
+            keys = released_matcher_only,
+            "input hook: released a key held only in the matcher (the hook had already seen it go up)"
+        );
+    }
     let btn_vks: Vec<u16> = st.btns.iter().map(|(vk, _)| *vk).collect();
     let candidates = repairable(&btn_vks, &st.swallowed_btns);
     let vks = confirm_stale(sus_btns, &candidates, key_is_down, immediate);
@@ -337,6 +408,7 @@ fn hook_thread(engine: Arc<Engine>, tx: mpsc::Sender<Result<u32, String>>) {
         let mut last_rehook = std::time::Instant::now();
         let mut last_mod_rehook = std::time::Instant::now() - Duration::from_secs(60);
         let (mut sus_keys, mut sus_btns): (Vec<u16>, Vec<u16>) = (vec![], vec![]);
+        let mut blocked = BlockedEpisode::default();
         let reinstall = |hooks: &mut Option<(HHOOK, HHOOK)>| {
             if let Some((k, m)) = hooks.take() {
                 let _ = UnhookWindowsHookEx(k);
@@ -366,7 +438,7 @@ fn hook_thread(engine: Arc<Engine>, tx: mpsc::Sender<Result<u32, String>>) {
                 reinstall(&mut hooks);
                 last_rehook = std::time::Instant::now();
             }
-            heal_stuck_input(&mut sus_keys, &mut sus_btns, immediate);
+            heal_stuck_input(&mut sus_keys, &mut sus_btns, &mut blocked, immediate);
             let actual = os_mods();
             let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
             if hook_dropped(&st.mods, &actual) {
@@ -473,5 +545,30 @@ mod tests {
         let release = crate::platform::confirm_stale(&mut suspects, &candidates, |_| false, true);
         assert_eq!(release, [2]);
         assert!(tracked.contains(&1));
+    }
+
+    #[test]
+    fn a_blocked_episode_is_reported_once_after_two_seconds() {
+        let t0 = std::time::Instant::now();
+        let at = |ms| t0 + std::time::Duration::from_millis(ms);
+        let mut e = super::BlockedEpisode::default();
+        assert!(!e.tick(true, at(0)));
+        assert!(!e.tick(true, at(1999)));
+        assert!(e.tick(true, at(2000)));
+        assert!(!e.tick(true, at(2750)), "once per episode");
+        assert!(!e.tick(false, at(3500)));
+        assert!(!e.tick(true, at(4000)), "a new episode starts its own clock");
+        assert!(e.tick(true, at(6000)));
+    }
+
+    #[test]
+    fn a_key_held_only_in_the_matcher_is_checked_against_the_os() {
+        // The hook's list lost `\` but the matcher still holds it: it must be a repair candidate, or
+        // every modifier-only bind stays blocked (field report, Ctrl+\).
+        let tracked = super::tracked_keys(&[0x41], &["Backslash", "KeyA"]);
+        assert_eq!(tracked, [0x41, 0xDC]);
+        let mut suspects = vec![];
+        let release = crate::platform::confirm_stale(&mut suspects, &tracked, |_| false, true);
+        assert_eq!(release, [0x41, 0xDC]);
     }
 }
