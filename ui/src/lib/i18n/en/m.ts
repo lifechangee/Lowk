@@ -39,7 +39,7 @@ export const m = {
   'm.folder': 'Folder',
   'm.folderName': 'Folder name',
   'm.folderLocalOnly': 'Local only',
-  'm.folderLocalOnlyHint': 'Call text and AI requests will not be sent to the cloud.',
+  'm.folderLocalOnlyHint': "When on, this folder's call text and AI questions never go to the cloud: only local models are used.",
   'm.fontSize': 'Overlay text size',
   'm.uiFontSize': 'Interface text size',
   'm.uiFontSizeHint': 'Applies to the main window immediately',
