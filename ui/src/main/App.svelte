@@ -15,6 +15,7 @@
   import SettingsView from './settings/SettingsView.svelte';
   import NewFolderDialog from './shell/NewFolderDialog.svelte';
   import DeleteFolderDialog from './shell/DeleteFolderDialog.svelte';
+  import RenameDialog from './shell/RenameDialog.svelte';
   import Sidebar from './shell/Sidebar.svelte';
   import { attachEvents, callLangs, index, library, prefs, session, ui } from './state.svelte';
   import TourCoach from './tour/TourCoach.svelte';
@@ -142,6 +143,7 @@
   <MoveMenu />
   <NewFolderDialog />
   <DeleteFolderDialog />
+  <RenameDialog />
   <TourCoach />
   {#if route.name !== 'onboarding'}<UpdateNotice />{/if}
   {#if dnd.call}

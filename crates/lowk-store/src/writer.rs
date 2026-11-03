@@ -417,9 +417,12 @@ impl CallWriter {
     }
 
     fn write_md(&mut self) -> Result<()> {
+        // a title typed during the recording: the file already carries it (written by the vault)
+        let pending = self.v.pending_titles.lock().get(&self.id).cloned();
         // external edit detection: the file changed since our last write
         if let (Some(h), Ok(cur)) = (&self.written_hash, fs::read(&self.path)) {
-            if hash_bytes(&cur) != *h {
+            let ours = pending.as_ref().is_some_and(|(_, ph)| *ph == hash_bytes(&cur));
+            if !ours && hash_bytes(&cur) != *h {
                 let ext = call_codec::parse(&String::from_utf8_lossy(&cur));
                 if ext.fm.id == self.id.to_string() {
                     let mine = std::mem::take(self.m.doc.blocks_mut());
@@ -433,6 +436,10 @@ impl CallWriter {
                     self.notice = Some(WriterNotice::ExternalEditMerged);
                 }
             }
+        }
+        if let Some((t, _)) = pending {
+            self.m.doc.fm.title = t.clone();
+            self.m.doc.heading = t;
         }
         let text = call_codec::render(&self.m.doc);
         atomic_write(&self.path, text.as_bytes())?;
@@ -470,6 +477,10 @@ impl CallWriter {
         let _ = fs::remove_file(&self.journal_path);
         self.v.live.lock().remove(&self.id);
         self.v.resync()?;
+        if self.v.pending_titles.lock().contains_key(&self.id) {
+            self.v.rename_finished(&self.id)?;
+            self.v.resync()?;
+        }
         self.meta_now()
     }
 }

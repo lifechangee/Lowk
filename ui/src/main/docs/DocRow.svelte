@@ -19,9 +19,12 @@
     onretry: () => void;
     ondelete: () => void;
     onreveal: () => void;
+    onrename: () => void;
+    onmove: (x: number, y: number) => void;
   };
-  let { doc, progress, overflow = false, onpin, oncancel, onretry, ondelete, onreveal }: Props = $props();
+  let { doc, progress, overflow = false, onpin, oncancel, onretry, ondelete, onreveal, onrename, onmove }: Props = $props();
 
+  let rowEl: HTMLElement | undefined = $state();
   const busy = $derived(doc.status === 'queued' || doc.status === 'converting' || doc.status === 'indexing');
   const total = $derived(progress?.total ?? 0);
   const done = $derived(progress?.done ?? 0);
@@ -32,7 +35,7 @@
   );
 </script>
 
-<div class="row" class:failed={doc.status === 'failed'} data-doc={doc.id} data-status={doc.status}>
+<div class="row" bind:this={rowEl} class:failed={doc.status === 'failed'} data-doc={doc.id} data-status={doc.status}>
   <span class="ext" aria-hidden="true">{KIND_LABEL[doc.kind]}</span>
   <div class="main">
     <div class="t1">
@@ -68,8 +71,10 @@
       <Button size="sm" icon="refresh" onclick={onretry}>{tm('common.retry')}</Button>
     {/if}
     <span class="chip lbl" class:ok={doc.status === 'ready'} class:bad={doc.status === 'failed'}>{tm(statusKey)}</span>
-    <Menu label={tm('docs.actions')} items={[
+    <Menu label={tm('docs.actions')} testid="doc-row-menu" items={[
       { id: 'open', label: tm('common.open'), icon: 'doc', onselect: () => router.go(hrefs.doc(doc.id)) },
+      { id: 'rename', label: tm('m.rename'), icon: 'pencil', onselect: onrename },
+      { id: 'move', label: tm('m.moveTo'), icon: 'folder', onselect: () => { const r = rowEl?.querySelector('[data-testid=doc-row-menu]')?.getBoundingClientRect(); onmove(r?.right ?? 600, r?.bottom ?? 120); } },
       { id: 'reveal', label: tm('docs.revealOriginal'), icon: 'external', onselect: onreveal },
       { sep: true },
       { id: 'delete', label: tm('docs.delete'), icon: 'trash', danger: true, onselect: ondelete },

@@ -2,18 +2,21 @@
   // «Переместить в…»: the keyboard / context-menu alternative to drag & drop (F9).
   import { tick } from 'svelte';
   import Icon from '../lib/components/Icon.svelte';
-  import { folderKey, SYS_UNSORTED } from './api';
+  import { api, folderKey, folderRef, SYS_UNSORTED } from './api';
+  import { errText } from './errors';
   import { tm } from './i18n';
   import { library, ui } from './state.svelte';
 
   const m = $derived(ui.moveMenu);
-  const call = $derived(m ? library.call(m.id) : undefined);
+  const call = $derived(m && !m.doc ? library.call(m.id) : undefined);
+  /** Where the call / document is now (it is not offered as a target). */
+  const from = $derived(m?.doc ? m.doc.folder : call ? folderKey(call.folder) : null);
   const items = $derived(
-    call
+    m && (call || m.doc)
       ? [
           ...library.folders.map((f) => ({ key: folderKey(f.id), label: f.title, icon: 'folder' as const })),
           { key: SYS_UNSORTED, label: tm('main.unsorted'), icon: 'inbox' as const },
-        ].filter((i) => i.key !== folderKey(call.folder))
+        ].filter((i) => i.key !== from)
       : [],
   );
   let el = $state<HTMLElement | null>(null);
@@ -34,8 +37,20 @@
   function close() { ui.moveMenu = null; }
   async function pick(key: string) {
     const id = m!.id;
+    const isDoc = !!m!.doc;
     close();
-    await library.move(id, key);
+    if (!isDoc) return void (await library.move(id, key));
+    try {
+      await api.docPatch(id, { folder: folderRef(key) });
+      ui.docsRev++;
+      await library.reload();
+      ui.notify(tm('m.movedToFolder', { folder: key === SYS_UNSORTED ? tm('main.unsorted') : (library.folder(key)?.title ?? '') }));
+    } catch (e) { ui.notify(errText(e)); }
+  }
+  function rename() {
+    const c = call!;
+    close();
+    ui.renameTarget = { kind: 'call', id: c.id, title: c.title };
   }
   async function trash() {
     const id = m!.id;
@@ -56,14 +71,20 @@
 
 <svelte:window onkeydown={onkey} onpointerdowncapture={onpointerdown} onblur={close} />
 
-{#if m && call}
+{#if m && (call || m.doc)}
   <div class="mm" role="menu" aria-label={tm('m.moveMenu')} bind:this={el} style:left="{pos.x}px" style:top="{pos.y}px">
+    {#if call}
+      <button role="menuitem" class="it" data-testid="call-row-rename" onclick={rename}><Icon name="pencil" size={14} /><span class="lbl">{tm('m.rename')}</span></button>
+      <div class="sep" role="separator"></div>
+    {/if}
     <div class="h">{tm('m.moveMenu')}</div>
     {#each items as i (i.key)}
       <button role="menuitem" class="it" onclick={() => pick(i.key)}><Icon name={i.icon} size={14} /><span class="lbl">{i.label}</span></button>
     {/each}
-    <div class="sep" role="separator"></div>
-    <button role="menuitem" class="it danger" data-testid="call-row-trash" onclick={trash}><Icon name="trash" size={14} /><span class="lbl">{tm('m.moveToTrash')}</span></button>
+    {#if call}
+      <div class="sep" role="separator"></div>
+      <button role="menuitem" class="it danger" data-testid="call-row-trash" onclick={trash}><Icon name="trash" size={14} /><span class="lbl">{tm('m.moveToTrash')}</span></button>
+    {/if}
   </div>
 {/if}
 

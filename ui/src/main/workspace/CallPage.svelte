@@ -8,6 +8,7 @@
   import SourceLabel from '../../lib/components/SourceLabel.svelte';
   import Tabs from '../../lib/components/Tabs.svelte';
   import Tag from '../../lib/components/Tag.svelte';
+  import InlineTitle from '../shell/InlineTitle.svelte';
   import { tPlural } from '../../lib/i18n/locale.svelte';
   import { api, CommandError, folderKey, type CallDetail } from '../api';
   import { appErrorText, errText } from '../errors';
@@ -23,6 +24,8 @@
   let detail = $state<CallDetail | null>(null);
   let md = $state('');
   let showProps = $state(false);
+  let renaming = $state(false);
+  const title = $derived(library.call(id)?.title ?? detail?.meta.title ?? '');
   let provider = $state<LlmProviderStatus | null>(null);
   let body: HTMLElement | undefined = $state();
   let hitIdx = $state<number | null>(null);
@@ -192,7 +195,7 @@
     <div class="cin chead">
       <div class="row1">
         <div class="hd">
-          <h1 class="lbl" title={detail.meta.title}>{detail.meta.title}</h1>
+          <InlineTitle value={title} bind:editing={renaming} testid="call-title" onsave={async (t) => { const ok = await library.rename('call', id, t); if (ok && detail) detail.meta.title = t; return ok; }} />
           <div class="meta">
             <span>{fullDate(detail.meta.started)}</span><i class="d"></i><span>{duration(detail.meta.duration_s)}</span>
             {#if detail.meta.sources.system}<i class="d"></i><span class="lbl mx">{detail.meta.sources.system}</span>{/if}
@@ -205,6 +208,7 @@
           { id: 'export', label: tm('main.export'), icon: 'download', onselect: doExport },
           ...(retx?.has_audio && !retx.running ? [{ id: 'retx', label: tm('m.retx.title'), icon: 'refresh' as const, onselect: retxStart }] : []),
           { sep: true },
+          { id: 'rename', label: tm('m.rename'), icon: 'pencil', onselect: () => (renaming = true) },
           { id: 'move', label: tm('m.moveTo'), icon: 'folder', onselect: moveCall },
           { id: 'trash', label: tm('m.moveToTrash'), icon: 'trash', danger: true, onselect: trashCall },
         ]} />
@@ -334,7 +338,6 @@
   .chead { padding-top: var(--s6); padding-bottom: var(--s4); }
   .row1 { display: flex; justify-content: space-between; gap: var(--s4); align-items: flex-start; }
   .hd { min-width: 0; flex: 1; }
-  h1 { font-size: 24px; line-height: 32px; letter-spacing: -0.025em; margin: 0; font-weight: 650; }
   .meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); align-items: center; color: var(--tx2); font-size: 12px; line-height: 20px; margin-top: var(--s1); }
   .mx { max-width: 200px; }
   .d { width: 3px; height: 3px; border-radius: 50%; background: var(--tx3); }

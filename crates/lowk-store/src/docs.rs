@@ -241,6 +241,10 @@ impl VaultInner {
             if !want_deleted && rec.folder != *folder {
                 continue;
             }
+            // the Trash lists documents trashed on their own; those inside a trashed folder come back with it
+            if want_deleted && !rec.rel.starts_with(&format!("{TRASH_DIR}/{}/", rec.id)) {
+                continue;
+            }
             if let Ok((d, _)) = self.load_doc(&rec) {
                 out.push(self.to_document(&rec, &d)?);
             }
@@ -576,7 +580,10 @@ impl VaultInner {
         // the move changed the path: look the record up again
         let rec = self.doc_rec(id)?;
         let (mut d, body) = self.load_doc(&rec)?;
-        if let Some(t) = p.title.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+        if let Some(t) = p.title.as_deref().map(str::trim) {
+            if t.is_empty() {
+                return Err(err(ErrorCode::InvalidArgument, "empty title"));
+            }
             d.title = t.to_string();
         }
         if let Some(x) = p.pinned {

@@ -182,9 +182,14 @@ export class MockBackend implements Backend {
     this.#instructions.set(id, input.instructions);
     return meta;
   }
-  async folderUpdate(id: string, patch: { instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
+  async folderUpdate(id: string, patch: { title?: string; instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
     const f = this.#folders.find((x) => folderKey(x.id) === id);
     if (!f) return;
+    if (patch.title !== undefined) {
+      const t = patch.title.trim();
+      if (!t) throw appErr('invalid_argument');
+      f.title = t;
+    }
     if (patch.instructions !== undefined) this.#instructions.set(id, patch.instructions);
     if (patch.allow_cloud !== undefined) f.allow_cloud = patch.allow_cloud;
     if (patch.mic !== undefined) f.mic = patch.mic;
@@ -218,8 +223,13 @@ export class MockBackend implements Backend {
     return this.#trashedFolders.map((t) => ({ id: folderKey(t.meta.id), title: t.meta.title, deleted_at: t.at, calls: t.calls.length, docs: t.docs.length, call_ids: [...t.calls] }));
   }
   async callMove(id: string, folder: FolderKey): Promise<void> { const c = this.#call(id); if (c) c.folder = folderRef(folder); }
-  async callRename(id: string, title: string): Promise<void> { const c = this.#call(id); if (c) c.title = title; }
-  async trashEmpty(): Promise<void> { this.#calls = this.#calls.filter((c) => !c.deleted); const gone = new Set(this.#trashedFolders.flatMap((t) => t.docs)); this.#documents = this.#documents.filter((d) => !gone.has(d.id)); this.#trashedFolders = []; }
+  async callRename(id: string, title: string): Promise<void> {
+    const t = title.trim();
+    if (!t) throw appErr('invalid_argument');
+    const c = this.#call(id);
+    if (c) c.title = t;
+  }
+  async trashEmpty(): Promise<void> { this.#calls = this.#calls.filter((c) => !c.deleted); const gone = new Set(this.#trashedFolders.flatMap((t) => t.docs)); this.#documents = this.#documents.filter((d) => !gone.has(d.id) && !d.deleted); this.#trashedFolders = []; }
   async exportMarkdown(id: string): Promise<string> {
     const d = await this.callGet(id);
     if (!d) return '';
@@ -405,6 +415,11 @@ export class MockBackend implements Backend {
   }
   async docList(folder: FolderKey): Promise<Document[]> {
     await delay();
+    if (folder === SYS_TRASH) {
+      // documents trashed on their own; those of a trashed folder come back with it
+      const withFolder = new Set(this.#trashedFolders.flatMap((t) => t.docs));
+      return structuredClone(this.#documents.filter((d) => d.deleted && !withFolder.has(d.id)).sort((a, b) => b.added.localeCompare(a.added)));
+    }
     return structuredClone(this.#documents.filter((d) => !d.deleted && folderKey(d.folder) === folder).sort((a, b) => b.added.localeCompare(a.added)));
   }
   async docGet(id: string): Promise<Document | null> {
@@ -506,7 +521,11 @@ export class MockBackend implements Backend {
   }
   async docPatch(id: string, patch: DocPatch): Promise<Document> {
     const d = this.#doc(id);
-    if (patch.title != null) d.title = patch.title;
+    if (patch.title != null) {
+      const t = patch.title.trim();
+      if (!t) throw appErr('invalid_argument');
+      d.title = t;
+    }
     if (patch.pinned != null) d.pinned = patch.pinned;
     if (patch.folder != null) d.folder = patch.folder;
     this.#emitIndex();
