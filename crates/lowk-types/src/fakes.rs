@@ -402,6 +402,7 @@ impl LlmService for FakeLlmService {
                 what: "Send the offer".into(),
             }],
             questions: vec![],
+            sections: vec![],
             md,
             model: "fake".into(),
             generated_at: "2026-01-01T00:00:00+00:00".into(),

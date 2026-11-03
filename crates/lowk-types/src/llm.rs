@@ -137,7 +137,17 @@ pub struct SummaryQuestion {
     pub my_answer: Option<String>,
 }
 
-/// Post-call summary: 3-5 key points, decisions, tasks, questions to me and my answers.
+/// One section of a summary as the model chose it for this kind of call (a lecture has topics, key ideas,
+/// terms; a meeting has the main points, decisions, tasks ...).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SummarySection {
+    pub heading: String,
+    pub items: Vec<String>,
+}
+
+/// Post-call summary. The model picks the sections that fit the call (meeting, lecture, interview,
+/// broadcast, casual talk): they are all in `sections` and in `md`. `tasks` and `questions` (and
+/// `decisions`, `key_points`) are read from the sections of those names and are empty when the call had none.
 /// `md` is what is written into `## Summary` of the call file.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Summary {
@@ -146,6 +156,9 @@ pub struct Summary {
     pub decisions: Vec<String>,
     pub tasks: Vec<SummaryTask>,
     pub questions: Vec<SummaryQuestion>,
+    /// Every section in order, whatever its heading.
+    #[serde(default)]
+    pub sections: Vec<SummarySection>,
     pub md: String,
     pub model: String,
     /// RFC 3339.

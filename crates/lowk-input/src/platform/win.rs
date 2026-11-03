@@ -1,12 +1,16 @@
 //! Windows: WH_KEYBOARD_LL + WH_MOUSE_LL on one message-loop thread. Callbacks
 //! only normalise the event and call the engine (hook timeout); swallowing is
 //! `return 1`. No permission is needed.
-use super::{hook_dropped, reconcile_mods, HookError, HookHandle, HookInfo, PermSnapshot};
+use super::{
+    clear_rehook_request, confirm_stale, hook_dropped, reconcile_mods, rehook_due, rehook_requested,
+    take_resync, HookError, HookHandle, HookInfo, PermSnapshot,
+};
 use crate::engine::Engine;
 use crate::keys::from_win_vk;
 use crate::matcher::Raw;
 use lowk_types::{Mods, MouseBtn};
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, POINT, WPARAM};
@@ -29,13 +33,113 @@ struct State {
     /// lshift, rshift, lctrl, rctrl, lalt, ralt, lwin, rwin
     mods: [bool; 8],
     down: Vec<u16>,
+    /// Inputs whose down was swallowed. Windows does not expose their physical state through
+    /// GetAsyncKeyState, so the watchdog must not infer a release from that API.
+    swallowed_keys: Vec<u16>,
+    /// Mouse buttons (virtual-key, button) believed down.
+    btns: Vec<(u16, MouseBtn)>,
+    swallowed_btns: Vec<u16>,
 }
 
 static STATE: Mutex<State> = Mutex::new(State {
     engine: None,
     mods: [false; 8],
     down: Vec::new(),
+    swallowed_keys: Vec::new(),
+    btns: Vec::new(),
+    swallowed_btns: Vec::new(),
 });
+
+/// Thread id of the hook thread (0 = not running), so a mode change can wake it.
+static HOOK_TID: AtomicU32 = AtomicU32::new(0);
+const WM_RESYNC: u32 = WM_USER + 1;
+
+/// Wakes the hook thread to re-check its key state against the OS now (overlay mode changed).
+pub fn wake() {
+    let tid = HOOK_TID.load(Ordering::SeqCst);
+    if tid != 0 {
+        // SAFETY: plain thread message; a stale id only fails.
+        unsafe {
+            let _ = PostThreadMessageW(tid, WM_RESYNC, WPARAM(0), LPARAM(0));
+        }
+    }
+}
+
+fn key_is_down(vk: u16) -> bool {
+    // SAFETY: plain query.
+    let state = unsafe { GetAsyncKeyState(vk as i32) };
+    state as u16 & 0x8000 != 0
+}
+
+fn button_vk(b: MouseBtn) -> u16 {
+    match b {
+        MouseBtn::Back => 0x05,
+        MouseBtn::Forward => 0x06,
+        _ => 0x04,
+    }
+}
+
+fn repairable<T: Copy + PartialEq>(tracked: &[T], swallowed: &[T]) -> Vec<T> {
+    tracked
+        .iter()
+        .copied()
+        .filter(|k| !swallowed.contains(k))
+        .collect()
+}
+
+/// Releases keys / buttons whose key-up never reached the hook (see `confirm_stale`), telling the engine so
+/// the held binds end. Returns how many were released.
+fn heal_stuck_input(sus_keys: &mut Vec<u16>, sus_btns: &mut Vec<u16>, immediate: bool) -> usize {
+    let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(engine) = st.engine.clone() else {
+        return 0;
+    };
+    let candidates = repairable(&st.down, &st.swallowed_keys);
+    let keys = confirm_stale(sus_keys, &candidates, key_is_down, immediate);
+    st.down.retain(|k| !keys.contains(k));
+    let btn_vks: Vec<u16> = st.btns.iter().map(|(vk, _)| *vk).collect();
+    let candidates = repairable(&btn_vks, &st.swallowed_btns);
+    let vks = confirm_stale(sus_btns, &candidates, key_is_down, immediate);
+    let mut btns = vec![];
+    st.btns.retain(|(vk, b)| {
+        let stale = vks.contains(vk);
+        if stale {
+            btns.push(*b);
+        }
+        !stale
+    });
+    st.swallowed_btns.retain(|vk| !vks.contains(vk));
+    drop(st);
+    for vk in &keys {
+        engine.on_raw(Raw::Key {
+            code: from_win_vk(*vk),
+            down: false,
+            repeat: false,
+        });
+    }
+    for b in &btns {
+        engine.on_raw(Raw::Mouse {
+            button: *b,
+            down: false,
+        });
+    }
+    let n = keys.len() + btns.len();
+    if n > 0 {
+        // Names no key: only that a key-up went missing and was made up.
+        tracing::warn!(
+            keys = keys.len(),
+            buttons = btns.len(),
+            "input hook: a key-up never arrived; released the stuck input (modifier-only binds were blocked by it)"
+        );
+    }
+    n
+}
+
+/// Nothing is held: the hooks can be re-registered without losing a key-up.
+fn input_idle() -> bool {
+    let st = STATE.lock().unwrap_or_else(|e| e.into_inner());
+    !st.mods.iter().any(|m| *m) && st.down.is_empty() && st.btns.is_empty()
+}
 
 fn mods_of(m: &[bool; 8]) -> Mods {
     Mods {
@@ -115,11 +219,17 @@ fn on_key(msg: u32, kb: &KBDLLHOOKSTRUCT) -> bool {
         (false, None) => false,
     };
     drop(st);
-    engine.on_raw(Raw::Key {
+    let swallowed = engine.on_raw(Raw::Key {
         code: from_win_vk(vk),
         down,
         repeat,
-    })
+    });
+    let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
+    st.swallowed_keys.retain(|k| *k != vk);
+    if down && swallowed {
+        st.swallowed_keys.push(vk);
+    }
+    swallowed
 }
 
 fn on_mouse(msg: u32, ms: &MSLLHOOKSTRUCT) -> bool {
@@ -139,8 +249,26 @@ fn on_mouse(msg: u32, ms: &MSLLHOOKSTRUCT) -> bool {
         }
         _ => return false,
     };
-    let engine = STATE.lock().unwrap_or_else(|e| e.into_inner()).engine.clone();
-    engine.is_some_and(|e| e.on_raw(Raw::Mouse { button, down }))
+    let engine = {
+        let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        let vk = button_vk(button);
+        if down {
+            if !st.btns.iter().any(|(k, _)| *k == vk) {
+                st.btns.push((vk, button));
+            }
+        } else {
+            st.btns.retain(|(k, _)| *k != vk);
+        }
+        st.engine.clone()
+    };
+    let swallowed = engine.is_some_and(|e| e.on_raw(Raw::Mouse { button, down }));
+    let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
+    let vk = button_vk(button);
+    st.swallowed_btns.retain(|k| *k != vk);
+    if down && swallowed {
+        st.swallowed_btns.push(vk);
+    }
+    swallowed
 }
 
 unsafe extern "system" fn kb_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
@@ -192,60 +320,96 @@ fn hook_thread(engine: Arc<Engine>, tx: mpsc::Sender<Result<u32, String>>) {
                 }
             }
         };
-        let (mut kb, mut ms) = match install() {
-            Ok(h) => h,
+        let mut hooks: Option<(HHOOK, HHOOK)> = match install() {
+            Ok(h) => Some(h),
             Err(e) => {
                 let _ = tx.send(Err(e));
                 return;
             }
         };
-        // Health check: Windows removes a low-level hook silently when a callback is too slow. Modifier
-        // state polled from the OS must agree with what the hook delivered; if not, re-install the hooks.
+        // Watchdog. Windows removes a low-level hook silently when a callback was too slow, and a
+        // non-modifier key whose key-up never arrives silences every modifier-only bind. So, every tick:
+        //  * modifier state polled from the OS must agree with what the hook delivered, else the hooks are
+        //    re-installed (a modifier is held, so only every 10 s);
+        //  * keys / buttons believed down while the OS says they are up are released;
+        //  * the hooks are re-registered every 30 s while nothing is held, and after an overlay mode change.
         const HEALTH_TIMER: usize = 0x4c6b;
-        // Injected modifiers (remote tools) legitimately disagree with the hook: re-install at most every 10 s.
-        let mut last_rehook = std::time::Instant::now() - Duration::from_secs(60);
+        let mut last_rehook = std::time::Instant::now();
+        let mut last_mod_rehook = std::time::Instant::now() - Duration::from_secs(60);
+        let (mut sus_keys, mut sus_btns): (Vec<u16>, Vec<u16>) = (vec![], vec![]);
+        let reinstall = |hooks: &mut Option<(HHOOK, HHOOK)>| {
+            if let Some((k, m)) = hooks.take() {
+                let _ = UnhookWindowsHookEx(k);
+                let _ = UnhookWindowsHookEx(m);
+            }
+            match install() {
+                Ok(h) => *hooks = Some(h),
+                // Not fatal: the next tick tries again (the thread used to end here, for good).
+                Err(e) => tracing::error!(%e, "could not re-install the input hooks; will retry"),
+            }
+        };
         SetTimer(None, HEALTH_TIMER, 750, None);
         // Force creation of this thread's message queue before announcing the id.
         let mut msg = MSG::default();
         let _ = PeekMessageW(&mut msg, None, WM_USER, WM_USER, PM_NOREMOVE);
-        let _ = tx.send(Ok(GetCurrentThreadId()));
+        let tid = GetCurrentThreadId();
+        HOOK_TID.store(tid, Ordering::SeqCst);
+        let _ = tx.send(Ok(tid));
         while GetMessageW(&mut msg, None, 0, 0).0 > 0 {
-            if msg.message == WM_TIMER && msg.wParam.0 == HEALTH_TIMER {
-                let actual = os_mods();
-                let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
-                if hook_dropped(&st.mods, &actual) {
-                    let before = mods_of(&st.mods);
-                    reconcile_mods(&mut st.mods, actual, None);
-                    let now = mods_of(&st.mods);
-                    let engine = st.engine.clone();
-                    drop(st);
-                    tracing::warn!(
-                        ?before,
-                        ?now,
-                        "keyboard hook missed events: modifier state resynced, hooks re-installed"
-                    );
-                    if let Some(e) = engine {
-                        e.on_raw(Raw::Mods(now));
-                    }
-                    if last_rehook.elapsed() < Duration::from_secs(10) {
-                        continue;
-                    }
+            let tick = msg.message == WM_TIMER && msg.wParam.0 == HEALTH_TIMER;
+            if !tick && msg.message != WM_RESYNC {
+                continue;
+            }
+            // A mode change: compare with the OS at once (what the user holds right now is true).
+            let immediate = !tick && take_resync();
+            if hooks.is_none() {
+                reinstall(&mut hooks);
+                last_rehook = std::time::Instant::now();
+            }
+            heal_stuck_input(&mut sus_keys, &mut sus_btns, immediate);
+            let actual = os_mods();
+            let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
+            if hook_dropped(&st.mods, &actual) {
+                let before = mods_of(&st.mods);
+                reconcile_mods(&mut st.mods, actual, None);
+                let now = mods_of(&st.mods);
+                let engine = st.engine.clone();
+                drop(st);
+                tracing::warn!(
+                    ?before,
+                    ?now,
+                    "keyboard hook missed events: modifier state resynced, hooks re-installed"
+                );
+                if let Some(e) = engine {
+                    e.on_raw(Raw::Mods(now));
+                }
+                // Injected modifiers (remote tools) legitimately disagree with the hook: at most every 10 s.
+                if last_mod_rehook.elapsed() >= Duration::from_secs(10) {
+                    last_mod_rehook = std::time::Instant::now();
                     last_rehook = std::time::Instant::now();
-                    let _ = UnhookWindowsHookEx(kb);
-                    let _ = UnhookWindowsHookEx(ms);
-                    match install() {
-                        Ok((k, m)) => (kb, ms) = (k, m),
-                        Err(e) => {
-                            tracing::error!(%e, "could not re-install the keyboard hook");
-                            break;
-                        }
-                    }
+                    reinstall(&mut hooks);
+                }
+                continue;
+            }
+            drop(st);
+            let requested = rehook_requested();
+            if rehook_due(last_rehook.elapsed(), input_idle(), requested) {
+                clear_rehook_request();
+                last_rehook = std::time::Instant::now();
+                reinstall(&mut hooks);
+                if requested {
+                    tracing::info!("input hooks re-registered after an overlay mode change");
+                } else {
+                    tracing::debug!("input hooks re-registered (periodic)");
                 }
             }
         }
+        HOOK_TID.store(0, Ordering::SeqCst);
         let _ = KillTimer(None, HEALTH_TIMER);
-        let _ = UnhookWindowsHookEx(kb);
-        let _ = UnhookWindowsHookEx(ms);
+        if let Some((k, m)) = hooks.take() {
+            let _ = UnhookWindowsHookEx(k);
+            let _ = UnhookWindowsHookEx(m);
+        }
     }
     let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
     st.engine = None;
@@ -295,5 +459,19 @@ pub fn cursor_position() -> (f64, f64) {
         (p.x as f64, p.y as f64)
     } else {
         (0.0, 0.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn swallowed_holds_are_never_released_from_async_key_state_absence() {
+        let tracked = [1u16, 2];
+        let swallowed = [1u16];
+        let candidates = super::repairable(&tracked, &swallowed);
+        let mut suspects = vec![];
+        let release = crate::platform::confirm_stale(&mut suspects, &candidates, |_| false, true);
+        assert_eq!(release, [2]);
+        assert!(tracked.contains(&1));
     }
 }

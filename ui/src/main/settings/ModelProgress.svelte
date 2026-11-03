@@ -7,19 +7,28 @@
   import type { ModelState } from './ModelChip.svelte';
 
   let { state, view, reason = '', sizeMb = 0 }: { state: ModelState; view: DlView; reason?: string; sizeMb?: number } = $props();
+  // Why the bar stands still: a dropped connection (resumes by itself) or a damaged part being fetched again.
+  const note = $derived(view.phase === 'retrying' ? tm('m.model.retrying') : view.phase === 'repairing' ? tm('m.model.repairing') : '');
 </script>
 
 {#if state === 'downloading' || state === 'verifying'}
-  <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={state === 'verifying' ? 100 : view.pct} aria-label={tm('m.engine.downloading')}><i style:width="{state === 'verifying' ? 100 : view.pct}%"></i></div>
+  <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progressPercent(view.pct)} aria-label={tm('m.engine.downloading')}><i style:width="{progressPercent(view.pct)}%"></i></div>
   <div class="line" data-testid="model-progress">
     <span class="lbl main">{state === 'verifying' ? tm('m.model.verifying') : tm('m.model.downloading', { done: fmtMbBytes(view.doneBytes), total: fmtMbBytes(view.totalBytes) })}</span>
-    {#if state === 'downloading' && view.speed > 0}<span class="lbl sub" data-testid="model-speed">{fmtSpeed(view.speed)}{#if view.eta !== null} · {tm('m.model.eta', { eta: fmtEta(view.eta) })}{/if}</span>{/if}
+    {#if state === 'downloading' && note}<span class="lbl sub" data-testid="model-note" role="status">{note}</span>
+    {:else if state === 'downloading' && view.speed > 0}<span class="lbl sub" data-testid="model-speed">{fmtSpeed(view.speed)}{#if view.eta !== null} · {tm('m.model.eta', { eta: fmtEta(view.eta) })}{/if}</span>{/if}
   </div>
 {:else if state === 'error'}
   <p class="err" role="alert" data-testid="model-error">{tm('m.model.error', { reason })}</p>
 {:else if state === 'missing' && sizeMb > 0}
   <p class="note" data-testid="model-estimate">{tm('m.model.estimate', { size: fmtMbBytes(sizeMb * 1048576), eta: fmtEta(estimateSeconds(sizeMb)) })}</p>
 {/if}
+
+<script module lang="ts">
+  export function progressPercent(aggregatePct: number): number {
+    return aggregatePct;
+  }
+</script>
 
 <style>
   .bar { height: 8px; border-radius: 99px; background: var(--hv); overflow: hidden; }

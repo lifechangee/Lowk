@@ -68,7 +68,9 @@ pub struct AppState {
     pub overlay_user_hidden: AtomicBool,
     /// Speech engines (local sidecar + cloud) and the running model download, if any.
     pub engines: Arc<lowk_stt::EngineRegistry>,
-    pub install_cancel: Mutex<Option<Arc<AtomicBool>>>,
+    /// The model download in flight (one at a time) and the signal that it ended.
+    pub install: Mutex<Option<crate::engines::ActiveInstall>>,
+    pub install_ended: parking_lot::Condvar,
     /// G7: screenshots waiting for the next Ask (in memory only).
     pub shots: Arc<crate::commands::capture::ShotQueue>,
     /// Documents environment (settings, event sink, keys, model store) and the per-vault services.
@@ -113,7 +115,8 @@ impl AppState {
             template: Mutex::new(template),
             overlay_user_hidden: AtomicBool::new(false),
             engines,
-            install_cancel: Mutex::new(None),
+            install: Mutex::new(None),
+            install_ended: parking_lot::Condvar::new(),
             shots,
             env,
             m2: RwLock::new(None),

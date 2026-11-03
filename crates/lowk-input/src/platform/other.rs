@@ -15,6 +15,8 @@ pub fn request_input_monitoring() -> bool {
 pub fn request_accessibility() -> bool {
     true
 }
+/// Nothing to wake: there is no hook thread.
+pub fn wake() {}
 pub fn cursor_position() -> (f64, f64) {
     (0.0, 0.0)
 }
