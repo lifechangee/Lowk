@@ -20,7 +20,7 @@ for (const lang of ['en', 'ru'] as const) {
   test.describe(`templates ${lang}`, () => {
     test('list: summary hidden, default marker, my-answer note', async ({ page }) => {
       await open(page, lang);
-      expect(await order(page)).toEqual(['brief', 'complement', 'objection']);
+      expect(await order(page)).toEqual(['brief', 'complement', 'say', 'recap', 'objection']);
       await expect(page.locator('[data-tpl=brief] .nm')).toContainText(t.def);
       await page.locator('[data-tpl=complement] .main').click();
       await expect(page.getByTestId('tpl-myanswer')).toBeVisible();
@@ -39,7 +39,7 @@ for (const lang of ['en', 'ru'] as const) {
       await page.getByLabel(t.nm, { exact: true }).fill('Mine');
       await page.getByLabel(t.ru, { exact: true }).fill('Моё');
       await page.getByTestId('tpl-editor').getByRole('button', { name: t.save }).click();
-      expect(await order(page)).toHaveLength(4);
+      expect(await order(page)).toHaveLength(6);
       await expect(page.locator('[data-testid=tpl-list] > li').last()).toContainText(lang === 'ru' ? 'Моё' : 'Mine');
       await expect(page.locator('[data-testid=tpl-list] > li').last().locator('[data-testid=tpl-bind]')).toBeVisible();
     });
@@ -49,13 +49,13 @@ for (const lang of ['en', 'ru'] as const) {
       await page.locator('[data-tpl=objection] .main').click();
       await page.getByTestId('tpl-editor').getByRole('button', { name: t.dup }).click();
       const o = await order(page);
-      expect(o).toHaveLength(4);
-      expect(o[2]).toBe('objection');
-      const copy = o[3]!;
+      expect(o).toHaveLength(6);
+      expect(o[4]).toBe('objection');
+      const copy = o[5]!;
       expect(await name(page, copy)).toContain(lang === 'ru' ? '(копия)' : '(copy)');
       // up/down
       await page.locator(`[data-tpl=${copy}] .mv button`).first().click();
-      expect(await order(page)).toEqual(['brief', 'complement', copy, 'objection']);
+      expect(await order(page)).toEqual(['brief', 'complement', 'say', 'recap', copy, 'objection']);
       // default moves the marker
       await page.getByTestId('tpl-editor').getByRole('button', { name: t.mkdef }).click();
       await expect(page.locator(`[data-tpl=${copy}] .nm`)).toContainText(t.def);
@@ -63,7 +63,7 @@ for (const lang of ['en', 'ru'] as const) {
       // delete asks first; default falls back to brief
       await page.getByTestId('tpl-editor').getByRole('button', { name: t.del }).click();
       await page.locator('.modal').getByRole('button', { name: t.del }).click();
-      expect(await order(page)).toEqual(['brief', 'complement', 'objection']);
+      expect(await order(page)).toEqual(['brief', 'complement', 'say', 'recap', 'objection']);
       await expect(page.locator('[data-tpl=brief] .nm')).toContainText(t.def);
     });
 

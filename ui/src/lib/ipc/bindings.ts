@@ -285,7 +285,9 @@ export type AboutInfo = {
 	source_url: string,
 };
 
-export type ActionId = "toggle_record" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | "copy_answer" | "clear_shots" |
+export type ActionId = "toggle_record" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | 
+/**  Copy the current AI answer from the overlay (default unbound). */
+"copy_answer" | "clear_shots" | 
 /**  Microphone on/off during a recording (default unbound; roadmap «auto» mode: docs/ROADMAP.md). */
 "toggle_mic" | 
 /**  Toggle `stealth.overlay_capture_visible` (overlay and pill visible / invisible to screen capture). Default unbound. */
