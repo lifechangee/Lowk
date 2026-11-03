@@ -21,6 +21,8 @@ pub struct StreamOutcome {
     pub usage: Option<LlmUsage>,
     /// Model that actually answered (the fallback when the primary failed).
     pub model: String,
+    pub connection_ms: Option<u64>,
+    pub ttft_ms: Option<u64>,
 }
 
 pub trait ChatClient: Send + Sync {
@@ -161,8 +163,41 @@ impl OpenAiClient {
         on_delta: &mut dyn FnMut(&str),
         should_continue: &dyn Fn() -> bool,
     ) -> Result<StreamOutcome> {
+        self.complete_kind("completion", ledger, opts, on_delta, should_continue)
+    }
+
+    /// Completion with a privacy-safe operation label for its structured timing record.
+    pub fn complete_kind(
+        &self,
+        kind: &str,
+        ledger: &ChatLedger,
+        opts: &ChatOptions,
+        on_delta: &mut dyn FnMut(&str),
+        should_continue: &dyn Fn() -> bool,
+    ) -> Result<StreamOutcome> {
+        self.complete_kind_chunks(kind, 0, ledger, opts, on_delta, should_continue)
+    }
+
+    pub fn complete_kind_chunks(
+        &self,
+        kind: &str,
+        chunks: usize,
+        ledger: &ChatLedger,
+        opts: &ChatOptions,
+        on_delta: &mut dyn FnMut(&str),
+        should_continue: &dyn Fn() -> bool,
+    ) -> Result<StreamOutcome> {
+        let total = Instant::now();
+        let prompt_chars = ledger.to_json_array().chars().count();
+        let mut first_token = None;
+        let mut timed_delta = |d: &str| {
+            first_token.get_or_insert_with(|| total.elapsed());
+            on_delta(d);
+        };
         if self.cfg.needs_key() && self.cfg.api_key.is_none() {
-            return Err(AppError::new(ErrorCode::ApiKeyMissing));
+            let e = AppError::new(ErrorCode::ApiKeyMissing);
+            tracing::info!(kind, model = %self.cfg.model, provider = ?self.cfg.kind, attempt = 0, fallback = false, prompt_chars, chunks, connect_ms = 0u64, ttft_ms = 0u64, total_ms = total.elapsed().as_millis() as u64, output_chars = 0, outcome = ?e.code, "llm request finished");
+            return Err(e);
         }
         if ledger.is_empty() {
             return Err(AppError::new(ErrorCode::InvalidArgument).with_detail("empty ledger"));
@@ -174,20 +209,34 @@ impl OpenAiClient {
                 );
             }
         }
-        let primary = self.run_model(&self.cfg.model, ledger, opts, on_delta, should_continue);
+        let primary = self.run_model(&self.cfg.model, ledger, opts, &mut timed_delta, should_continue);
         match primary {
-            Ok(o) => Ok(o),
+            Ok(mut o) => {
+                o.ttft_ms = first_token.map(|d| d.as_millis() as u64);
+                tracing::info!(kind, model = %o.model, provider = ?self.cfg.kind, attempt = 1, fallback = false, prompt_chars, chunks, connect_ms = o.connection_ms.unwrap_or(0), ttft_ms = o.ttft_ms.unwrap_or(0), total_ms = total.elapsed().as_millis() as u64, output_chars = o.text.chars().count(), outcome = "ok", "llm request finished");
+                Ok(o)
+            }
             Err(f) => {
                 if f.fallback {
                     if let Some(fb) = self.cfg.fallback_model.as_deref() {
                         if fb != self.cfg.model {
                             tracing::warn!(model = %self.cfg.model, fallback = %fb, "primary model failed, trying fallback");
-                            return self
-                                .run_model(fb, ledger, opts, on_delta, should_continue)
-                                .map_err(|f2| f2.err);
+                            let result = self.run_model(fb, ledger, opts, &mut timed_delta, should_continue);
+                            return match result {
+                                Ok(mut o) => {
+                                    o.ttft_ms = first_token.map(|d| d.as_millis() as u64);
+                                    tracing::info!(kind, model = %o.model, provider = ?self.cfg.kind, attempt = 2, fallback = true, prompt_chars, chunks, connect_ms = o.connection_ms.unwrap_or(0), ttft_ms = o.ttft_ms.unwrap_or(0), total_ms = total.elapsed().as_millis() as u64, output_chars = o.text.chars().count(), outcome = "ok", "llm request finished");
+                                    Ok(o)
+                                }
+                                Err(f2) => {
+                                    tracing::info!(kind, model = %fb, provider = ?self.cfg.kind, attempt = 2, fallback = true, prompt_chars, chunks, connect_ms = 0u64, ttft_ms = first_token.map_or(0, |d| d.as_millis() as u64), total_ms = total.elapsed().as_millis() as u64, output_chars = 0, outcome = ?f2.err.code, "llm request finished");
+                                    Err(f2.err)
+                                }
+                            };
                         }
                     }
                 }
+                tracing::info!(kind, model = %self.cfg.model, provider = ?self.cfg.kind, attempt = 1, fallback = false, prompt_chars, chunks, connect_ms = 0u64, ttft_ms = first_token.map_or(0, |d| d.as_millis() as u64), total_ms = total.elapsed().as_millis() as u64, output_chars = 0, outcome = ?f.err.code, "llm request finished");
                 Err(f.err)
             }
         }
@@ -208,9 +257,11 @@ impl OpenAiClient {
                 return Err(Fail::fatal(AppError::new(ErrorCode::LlmCancelled)));
             }
             let mut emitted = false;
+            let attempt_started = Instant::now();
             match self.attempt(model, &body, opts, on_delta, should_continue, &mut emitted) {
                 Ok(o) => return Ok(o),
                 Err(f) => {
+                    tracing::info!(attempt = attempt + 1, model, code = ?f.err.code, elapsed_ms = attempt_started.elapsed().as_millis() as u64, "llm attempt failed");
                     if emitted || !f.retry || attempt >= self.cfg.max_retries {
                         return Err(f);
                     }
@@ -357,6 +408,7 @@ impl OpenAiClient {
         let mut resp = self
             .request(false, &url, Some(body), opts)
             .map_err(Fail::transient)?;
+        let connection_ms = started.elapsed().as_millis() as u64;
         let status = resp.status().as_u16();
         if status >= 400 {
             let retry_after = resp
@@ -374,6 +426,7 @@ impl OpenAiClient {
             .and_then(|v| v.to_str().ok())
             .is_some_and(|v| v.contains("application/json"));
         let mut state = StreamState::new(model);
+        state.connection_ms = Some(connection_ms);
 
         if is_json {
             // A server that ignored `stream:true`.
@@ -483,6 +536,8 @@ impl OpenAiClient {
             truncated,
             usage: state.usage,
             model: state.model,
+            connection_ms: state.connection_ms,
+            ttft_ms: None,
         })
     }
 
@@ -570,6 +625,7 @@ struct StreamState {
     model: String,
     saw_done: bool,
     bad_chunks: u32,
+    connection_ms: Option<u64>,
 }
 impl StreamState {
     fn new(model: &str) -> Self {
@@ -580,6 +636,7 @@ impl StreamState {
             model: model.to_string(),
             saw_done: false,
             bad_chunks: 0,
+            connection_ms: None,
         }
     }
 }

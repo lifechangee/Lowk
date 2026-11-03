@@ -322,7 +322,14 @@ impl HintGenerator for LlmHints {
         let (out, ledger) = loop {
             let mut ledger = conv.ledger.clone();
             ledger.append(built.message.clone());
-            match client.complete(&ledger, &opts, on_delta, &|| !cancelled.load(Ordering::SeqCst)) {
+            let kind = if req.my_answer.is_some() {
+                "complement"
+            } else {
+                "ask"
+            };
+            match client.complete_kind_chunks(kind, built.chunk_ids.len(), &ledger, &opts, on_delta, &|| {
+                !cancelled.load(Ordering::SeqCst)
+            }) {
                 Err(e) if has_images && e.params.get("status").map(String::as_str) == Some("413") => {
                     attempt += 1;
                     if attempt >= edges.len() {

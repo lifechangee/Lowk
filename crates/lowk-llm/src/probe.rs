@@ -67,6 +67,7 @@ pub fn probe_fastest_provider(
     opts: &ProbeOptions,
     should_continue: &dyn Fn() -> bool,
 ) -> Result<ProbeResult> {
+    let probe_started = Instant::now();
     if cfg.kind != ProviderKind::OpenRouter {
         return Err(AppError::new(ErrorCode::Unsupported).with_detail("provider pinning is OpenRouter only"));
     }
@@ -125,6 +126,7 @@ pub fn probe_fastest_provider(
                 (Err(e), _) => error = Some(e.to_string()),
             }
         }
+        tracing::info!(provider = %p, ttft_ms = ?best, error = ?error, "provider pin candidate measured");
         samples.push(ProbeSample {
             provider: p,
             ttft_ms: best,
@@ -137,6 +139,7 @@ pub fn probe_fastest_provider(
         .min()
         .map(|(_, p)| p.clone())
         .ok_or_else(|| AppError::new(ErrorCode::LlmProvider).with_detail("no provider answered"))?;
+    tracing::info!(model, provider = %best, duration_ms = probe_started.elapsed().as_millis() as u64, candidates = samples.len(), "provider pin probe finished");
     Ok(ProbeResult {
         model: model.to_string(),
         best,
