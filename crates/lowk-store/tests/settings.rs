@@ -59,7 +59,7 @@ fn defaults_written_patch_persists_and_notifies() {
     let d = tempfile::tempdir().unwrap();
     let s = FileSettingsStore::open(d.path()).unwrap();
     assert!(d.path().join("settings.toml").exists());
-    assert_eq!(s.get().templates.len(), 3);
+    assert_eq!(s.get().templates.len(), 5);
     let rx = s.subscribe();
     let out = s
         .patch(SettingsPatch(
@@ -113,7 +113,7 @@ fn external_edit_reload_notifies() {
 #[test]
 fn templates() {
     let mut t = TemplateSet::defaults();
-    assert_eq!(t.all().len(), 3);
+    assert_eq!(t.all().len(), 5);
     assert!(t.get("brief").unwrap().instruction.contains("Кратко ответь"));
     assert!(t.get("complement").unwrap().needs_my_answer);
     assert_eq!(t.get(TEMPLATE_SUMMARY).unwrap().names.ru, "Резюме");
@@ -150,10 +150,10 @@ fn templates() {
     })
     .unwrap();
     let out = s.set_templates(&t).unwrap();
-    assert_eq!(out.templates.len(), 4);
+    assert_eq!(out.templates.len(), 6);
     assert_eq!(
         FileSettingsStore::open(d.path()).unwrap().get().templates.len(),
-        4
+        6
     );
 }
 
@@ -373,7 +373,10 @@ fn template_crud_persists_and_keeps_order() {
     t.upsert(mine("a", "Первый", "First")).unwrap();
     t.duplicate("a", "a2").unwrap();
     s.set_templates(&t).unwrap();
-    assert_eq!(ids(&s), ["brief", "complement", "summary", "a", "a2"]);
+    assert_eq!(
+        ids(&s),
+        ["brief", "complement", "summary", "say", "recap", "a", "a2"]
+    );
     let copy = s.get().templates.into_iter().find(|t| t.id == "a2").unwrap();
     assert_eq!(copy.names.en, "First (copy)");
     assert_eq!(copy.instruction, "Do it");
@@ -382,7 +385,7 @@ fn template_crud_persists_and_keeps_order() {
     s.set_templates(&t).unwrap();
     assert_eq!(
         ids(&FileSettingsStore::open(d.path()).unwrap()),
-        ["a2", "brief", "complement", "summary", "a"]
+        ["a2", "brief", "complement", "summary", "say", "recap", "a"]
     );
 
     // edit a built-in, then restore: the shipped text returns, user templates stay
@@ -396,7 +399,7 @@ fn template_crud_persists_and_keeps_order() {
         TemplateSet::defaults().get("brief").unwrap().instruction
     );
     s.set_templates(&t).unwrap();
-    assert_eq!(ids(&s), ["a2", "brief", "complement", "summary"]);
+    assert_eq!(ids(&s), ["a2", "brief", "complement", "summary", "say", "recap"]);
     assert!(t.remove("complement").is_err());
 }
 
@@ -428,7 +431,7 @@ fn template_patch_validation() {
         s.patch(SettingsPatch(only_custom)).is_err(),
         "built-ins cannot be deleted"
     );
-    assert_eq!(s.get().templates.len(), 3, "nothing was written");
+    assert_eq!(s.get().templates.len(), 5, "nothing was written");
     with(mine("n", "Новый", "New")).unwrap();
 }
 

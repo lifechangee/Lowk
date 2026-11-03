@@ -58,6 +58,9 @@
   async function setRetx(retx: RetxPreset) {
     try { await api.folderUpdate(folder, { retx }); await library.reload(); } catch (e) { ui.notify(errText(e)); }
   }
+  async function setLocalOnly(localOnly: boolean) {
+    try { await api.folderUpdate(folder, { allow_cloud: !localOnly }); await library.reload(); } catch (e) { ui.notify(errText(e)); }
+  }
   async function exportFolder() {
     try {
       const dest = await api.pickSavePath(`${title}.zip`);
@@ -81,6 +84,7 @@
         <div class="meta">
           <span>{tPlural('main.calls', calls.length)}</span>
           {#if meta}<span class="micsel" data-testid="folder-mic"><span class="micl">{tm('m.folderMic')}</span><Select label={tm('m.folderMic')} value={meta.mic ?? 'inherit'} options={micOptions} onchange={setMic} /></span>{/if}
+          {#if meta && !system}<label class="privacy" data-testid="folder-local-only"><input type="checkbox" checked={!meta.allow_cloud} onchange={(e) => setLocalOnly(e.currentTarget.checked)} /><span>{tm('m.folderLocalOnly')}</span></label>{/if}
           {#if meta && !system}<span class="micsel" data-testid="folder-retx"><span class="micl">{tm('m.folderRetx')}</span><Select label={tm('m.folderRetx')} value={meta.retx ?? 'inherit'} options={retxOptions} onchange={setRetx} /></span>{/if}
         </div>
       </div>
@@ -96,7 +100,7 @@
         ]} />
       {/if}
     </div>
-    {#if isTrash}<p class="note">{tm('m.trashNote')}</p>{:else if isUnsorted}<p class="note">{tm('m.unsortedNote')}</p>{/if}
+    {#if isTrash}<p class="note">{tm('m.trashNote')}</p>{:else if isUnsorted}<p class="note">{tm('m.unsortedNote')}</p>{:else if meta && !system}<p class="note">{tm('m.folderLocalOnlyHint')}</p>{/if}
   </div>
 
   {#if !system}
@@ -200,6 +204,8 @@
   .rt { display: flex; align-items: center; gap: var(--s2); }
   .more { all: unset; box-sizing: border-box; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r); color: var(--tx3); cursor: pointer; }
   .more:hover, .more:focus-visible { background: var(--sel); color: var(--tx); }
+  .privacy { display: inline-flex; align-items: center; gap: var(--s1); color: var(--tx2); font-size: 12px; cursor: pointer; }
+  .privacy input { margin: 0; accent-color: var(--ac); }
   .emptyrow { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--s2); padding: var(--s10) var(--s8); color: var(--tx2); }
   .emptyrow b { color: var(--tx); font-weight: 600; font-size: 16px; line-height: 24px; }
   .emptyrow p { margin: 0 0 var(--s2); max-width: 420px; }

@@ -92,6 +92,8 @@ test('hotkeys: every template, including a user-created one, can get its own key
   await expect(row).toContainText('Ask: Client objection');
   await expect(list.locator('[data-slot=ask_say]')).toBeVisible();
   await expect(list.locator('[data-slot=ask_recap]')).toBeVisible();
+  await expect(list.locator('[data-slot=ask_factcheck]')).toHaveCount(0);
+  await expect(list.locator('[data-slot=ask_followup]')).toHaveCount(0);
   await row.getByRole('button', { name: /Client objection/ }).click();
   await page.keyboard.press('Meta+KeyJ');
   await expect(row.locator('kbd').last()).toHaveText('J');

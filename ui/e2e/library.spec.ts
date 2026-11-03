@@ -11,11 +11,13 @@ const CALL1 = '01JC8Z3K6Q9X2M4N7R5T0V0101';
 
 const T = {
   en: {
+    newFolder: 'New folder', folderName: 'Folder name', create: 'Create', localOnly: 'Local only',
     del: 'Delete folder', confirm: /Folder “Acme Corp”: 4 calls(, \d+ documents?)? will be moved to the trash/, trash: 'Trash',
     toTrash: 'Move to trash', moved: 'Moved to trash', undo: 'Undo', restore: 'Restore', actions: 'Call actions',
     deleted: 'Folder “Acme Corp” moved to trash', restored: 'Folder “Acme Corp” restored',
   },
   ru: {
+    newFolder: 'Новая папка', folderName: 'Название папки', create: 'Создать', localOnly: 'Только локально',
     del: 'Удалить папку', confirm: /Папка «Acme Corp»: 4 созвона(, \d+ документ\S*)? будут перемещены в корзину/, trash: 'Корзина',
     toTrash: 'В корзину', moved: 'Перемещено в корзину', undo: 'Отменить', restore: 'Восстановить', actions: 'Действия со звонком',
     deleted: 'Папка «Acme Corp» перемещена в корзину', restored: 'Папка «Acme Corp» восстановлена',
@@ -28,6 +30,20 @@ for (const lang of ['en', 'ru'] as const) {
   const t = T[lang];
 
   test.describe(`library ${lang}`, () => {
+    test('local-only folder privacy can be set at creation and edited later', async ({ page }) => {
+      await page.goto(`/main.html?lang=${lang}#/`);
+      await page.getByRole('button', { name: t.newFolder }).first().click();
+      const dlg = page.locator('.modal');
+      await dlg.getByLabel(t.folderName).fill(`Private ${lang}`);
+      const createPrivacy = page.getByTestId('new-folder-local-only').locator('input');
+      await createPrivacy.check();
+      await dlg.getByRole('button', { name: t.create }).click();
+      const editPrivacy = page.getByTestId('folder-local-only').locator('input');
+      await expect(editPrivacy).toBeChecked();
+      await editPrivacy.uncheck();
+      await expect(editPrivacy).not.toBeChecked();
+    });
+
     test('folder delete -> Trash -> restore brings the folder and its calls back', async ({ page }) => {
       await page.goto(`/main.html?lang=${lang}#/folder/${ACME}`);
       await expect(folderRow(page, 'Acme Corp')).toBeVisible();

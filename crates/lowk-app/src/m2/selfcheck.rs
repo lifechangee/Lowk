@@ -563,6 +563,8 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
                 { "id": "brief", "names": { "ru": "Кратко", "en": "Brief" }, "instruction": "Ответь кратко." },
                 { "id": "complement", "names": { "ru": "Дополни мой ответ", "en": "Complement my answer" }, "instruction": "Дополни.", "needs_my_answer": true },
                 { "id": "summary", "names": { "ru": "Резюме", "en": "Summary" }, "instruction": "Резюме." },
+                { "id": "say", "names": { "ru": "Что сказать?", "en": "What to say?" }, "instruction": "Подскажи, что сказать." },
+                { "id": "recap", "names": { "ru": "Рекап", "en": "Recap" }, "instruction": "Перескажи кратко." },
                 { "id": "pirate", "names": { "ru": "Пират", "en": "Pirate" }, "instruction": "Отвечай как пират, одним предложением." }
             ]
         }),

@@ -4,7 +4,7 @@ import type { Template } from '../lib/ipc';
 import { HIDDEN_TEMPLATES, TEMPLATE_ACTIONS, type Slot } from './binds';
 
 export type Lang = 'ru' | 'en';
-export const BUILTIN_IDS = ['brief', 'complement', 'summary'] as const;
+export const BUILTIN_IDS = ['brief', 'complement', 'summary', 'say', 'recap'] as const;
 /** Cannot be deleted (their text can be edited; «Reset» restores the shipped text). */
 export const isBuiltin = (id: string): boolean => (BUILTIN_IDS as readonly string[]).includes(id);
 
@@ -13,6 +13,8 @@ export const BUILTIN_TEMPLATES: Template[] = [
   { id: 'brief', names: { ru: 'Кратко', en: 'Brief' }, instruction: 'Кратко ответь на вопрос, заданный в системе/приложении.', needs_my_answer: false, vision: false, reasoning: null },
   { id: 'complement', names: { ru: 'Дополни мой ответ', en: 'Complement my answer' }, instruction: 'Я уже ответил. Добавь недостающие детали, не повторяя сказанное.', needs_my_answer: true, vision: false, reasoning: null },
   { id: 'summary', names: { ru: 'Резюме', en: 'Summary' }, instruction: 'Сделай краткое резюме созвона: ключевые темы, решения, договорённости и следующие шаги. Отвечай на языке разговора.', needs_my_answer: false, vision: false, reasoning: null },
+  { id: 'say', names: { ru: 'Что сказать?', en: 'What to say?' }, instruction: 'Кратко предложи, что сказать дальше по контексту созвона. Ответь одной-двумя короткими фразами на языке разговора.', needs_my_answer: false, vision: false, reasoning: null },
+  { id: 'recap', names: { ru: 'Рекап', en: 'Recap' }, instruction: 'Кратко перескажи главные мысли последних пяти минут разговора. Ответь не более чем в трёх коротких пунктах на языке разговора.', needs_my_answer: false, vision: false, reasoning: null },
 ];
 
 /** Templates the page manages, in cycle order. */

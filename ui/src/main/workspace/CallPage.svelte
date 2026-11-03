@@ -1,7 +1,7 @@
 <script lang="ts">
   // A finished call: tabs Transcript / Summary / Questions to AI / Screenshots / Sources; page actions in the ⋯ menu.
   import { onMount, tick } from 'svelte';
-  import type { AppError, SourceRef, LlmProviderStatus, RetxStatus } from '../../lib/ipc';
+  import type { AppError, SourceRef, LlmProviderStatus, RetxStatus, Settings } from '../../lib/ipc';
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';
   import Menu from '../../lib/components/Menu.svelte';
@@ -17,6 +17,7 @@
   import Md from '../Md.svelte';
   import { hrefs, router } from '../router.svelte';
   import { pickLine } from '../search/util';
+  import { summaryRoute } from './summary-route';
   import { library, ui } from '../state.svelte';
 
   let { id, at = null, match = null }: { id: string; at?: number | null; match?: string | null } = $props();
@@ -27,6 +28,7 @@
   let renaming = $state(false);
   const title = $derived(library.call(id)?.title ?? detail?.meta.title ?? '');
   let provider = $state<LlmProviderStatus | null>(null);
+  let llmSettings = $state<Settings['llm'] | null>(null);
   let body: HTMLElement | undefined = $state();
   let hitIdx = $state<number | null>(null);
 
@@ -43,6 +45,12 @@
     api.retxStatus(cid).then((s) => { if (cid === id) retx = s; }).catch(() => (retx = null));
     api.callGet(cid).then((d) => { if (cid === id) detail = d; });
     api.llmProviderStatus().then((p) => (provider = p)).catch(() => (provider = null));
+    api.settingsGet().then((s) => (llmSettings = s.llm)).catch(() => (llmSettings = null));
+  });
+  const summaryNotice = $derived.by(() => {
+    if (!detail || !llmSettings) return null;
+    const folder = library.folder(folderKey(detail.meta.folder));
+    return summaryRoute(llmSettings, folder?.allow_cloud ?? true, provider?.pinned_provider);
   });
   $effect(() => {
     if (ui.callTab === 'md' && detail) api.exportMarkdown(detail.meta.id).then((t) => (md = t));
@@ -175,7 +183,6 @@
     { id: 'shots' as const, label: tm('main.screenshots'), count: detail?.shots.length ?? 0 },
     { id: 'sources' as const, label: tm('main.sources'), count: sources.length },
   ]);
-  const cloudFolder = $derived(detail && detail.meta.folder.kind === 'user' ? (library.folder(folderKey(detail.meta.folder))?.allow_cloud ?? true) : true);
   const bold = (s: string): { b: boolean; t: string }[] => s.split(/\*\*(.+?)\*\*/g).map((t, i) => ({ b: i % 2 === 1, t })).filter((x) => x.t);
 </script>
 
@@ -267,6 +274,9 @@
           {#if timeline.length === 0}<p class="empty">{tm('m.emptyTranscript')}</p>{/if}
         {:else if ui.callTab === 'summary'}
           <div class="sumbox" data-testid="summary-tab">
+            {#if summaryNotice?.kind === 'cloud'}<small class="note">{tm('summary.route.cloud', { model: summaryNotice.model, provider: summaryNotice.provider === 'custom' ? tm('summary.provider.custom') : summaryNotice.provider })}</small>
+            {:else if summaryNotice?.kind === 'local'}<small class="note">{tm('summary.route.local', { model: summaryNotice.model })}</small>
+            {:else if summaryNotice?.kind === 'blocked'}<small class="note warnl"><Icon name="alert" size={12} />{tm('summary.route.blocked')}</small>{/if}
             {#if sum.phase === 'streaming'}
               <div class="sh" role="status"><span class="lbl"><i class="spin"></i>{tm('summary.building')}</span><Button size="sm" onclick={cancelSummary}>{tm('common.cancel')}</Button></div>
               {#if sum.text}<Md md={sum.text} cursor />{:else}<p class="muted">{sum.total && sum.total > 2 ? tm('summary.progress', { step: sum.step ?? 1, total: sum.total }) : tm('summary.waiting')}</p>{/if}
@@ -274,21 +284,19 @@
               {#if sum.phase === 'error' && sum.error}
                 <div class="err" role="alert" data-testid="summary-error"><Icon name="alert" size={16} /><span>{appErrorText(sum.error)}</span>
                   {#if sum.error.code === 'api_key_missing' || sum.error.code === 'llm_provider'}<a class="lk" href={hrefs.settings('providers')}>{tm('summary.openSettings')}</a>{/if}
-                  <Button size="sm" icon="refresh" onclick={summarize}>{tm('common.retry')}</Button></div>
+                  <Button size="sm" icon="refresh" disabled={summaryNotice?.kind === 'blocked'} onclick={summarize}>{tm('common.retry')}</Button></div>
               {/if}
               {#if detail.summary}
                 <div class="sh"><span class="lbl muted">{tm('summary.by', { model: provider?.model ?? detail.model })}</span>
-                  <span class="acts"><Button size="sm" icon="copy" onclick={copySummary}>{tm('common.copy')}</Button><Button size="sm" icon="refresh" onclick={summarize}>{tm('m.regenerate')}</Button></span></div>
+                  <span class="acts"><Button size="sm" icon="copy" onclick={copySummary}>{tm('common.copy')}</Button><Button size="sm" icon="refresh" disabled={summaryNotice?.kind === 'blocked'} onclick={summarize}>{tm('m.regenerate')}</Button></span></div>
                 <Md md={detail.summary} />
               {:else if sum.phase !== 'error'}
                 <div class="start" data-testid="summary-empty">
                   <div class="eic"><Icon name="sparkle" size={20} /></div>
                   <h2>{tm('summary.empty.title')}</h2>
                   <p>{tm('summary.empty.body')}</p>
-                  <small class="note">{tm('summary.cloudNote', { model: provider?.model ?? 'DeepSeek' })}</small>
-                  {#if !cloudFolder}<small class="note warnl"><Icon name="alert" size={12} />{tm('summary.localFolderNote')}</small>{/if}
                   {#if provider && !provider.key_present}<small class="note warnl" data-testid="summary-nokey"><Icon name="key" size={12} />{tm('summary.noKey')} <a class="lk" href={hrefs.settings('providers')}>{tm('summary.openSettings')}</a></small>{/if}
-                  <Button variant="primary" icon="sparkle" onclick={summarize}>{tm('summary.create')}</Button>
+                  <Button variant="primary" icon="sparkle" disabled={summaryNotice?.kind === 'blocked'} onclick={summarize}>{tm('summary.create')}</Button>
                 </div>
               {/if}
             {/if}
