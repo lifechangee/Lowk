@@ -71,8 +71,8 @@ export class TauriBackend extends MockBackend {
     try { return ok(await commands.callGet(id)) as CallDetail; } catch { return null; }
   }
   override async folderCreate(input: NewFolder): Promise<FolderMeta> { return ok(await commands.folderCreate(input)); }
-  override async folderUpdate(id: string, patch: { instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
-    ok(await commands.folderUpdate(id, { title: null, allow_cloud: patch.allow_cloud ?? null, default_template: null, mic: patch.mic ?? null, retx: patch.retx ?? null, instructions: patch.instructions ?? null }));
+  override async folderUpdate(id: string, patch: { title?: string; instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {
+    ok(await commands.folderUpdate(id, { title: patch.title ?? null, allow_cloud: patch.allow_cloud ?? null, default_template: null, mic: patch.mic ?? null, retx: patch.retx ?? null, instructions: patch.instructions ?? null }));
   }
   override async callTrash(id: string): Promise<void> { ok(await commands.callDelete(id)); }
   override async folderDelete(id: string): Promise<void> { ok(await commands.folderDelete(id)); }

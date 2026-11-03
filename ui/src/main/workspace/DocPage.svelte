@@ -1,6 +1,6 @@
 <script lang="ts">
   // Document viewer + Markdown editor. Opens at a page when a search hit or a source label points there (`#/doc/ID?p=N`).
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import type { Document, IngestProgress } from '../../lib/ipc';
   import Button from '../../lib/components/Button.svelte';
   import Icon from '../../lib/components/Icon.svelte';
@@ -9,6 +9,7 @@
   import { api } from '../api';
   import { fmtSize, fmtTokens, KIND_LABEL, splitFrontmatter, splitPages, unitCount, unitOf, warningText } from '../docs/util';
   import MdEditor from '../docs/MdEditor.svelte';
+  import InlineTitle from '../shell/InlineTitle.svelte';
   import { appErrorText, errText } from '../errors';
   import { when } from '../fmt';
   import { tm } from '../i18n';
@@ -42,7 +43,15 @@
       if (doc && doc.status === 'ready') { md = saved = await api.docGetMd(id); await tick(); jump(); }
     } catch (e) { loadError = errText(e); }
   }
-  $effect(() => { id; void load(); });
+  $effect(() => { id; ui.docsRev; if (!untrack(() => dirty)) void load(); });
+  let renaming = $state(false);
+  async function renameDoc(title: string): Promise<boolean> {
+    try { doc = await api.docPatch(id, { title }); return true; } catch (e) { ui.notify(errText(e)); return false; }
+  }
+  function moveDoc() {
+    const r = document.querySelector('[data-testid=doc-menu]')?.getBoundingClientRect();
+    if (doc) ui.openMoveDoc(doc.id, doc.folder.kind === 'user' ? doc.folder.id : 'sys:unsorted', r?.right ?? 600, r?.bottom ?? 120);
+  }
   $effect(() => { page; if (!editing) void tick().then(jump); });
 
   function jump() {
@@ -114,7 +123,7 @@
       <a class="back" href={back}><Icon name="chevron-left" size={14} /><span class="lbl">{folderTitle}</span></a>
       <div class="row1">
         <div class="hd">
-          <h1 class="lbl" title={doc.file_name}>{doc.title}</h1>
+          <InlineTitle value={doc.title} bind:editing={renaming} testid="doc-title" readonly={doc.deleted} onsave={renameDoc} />
           <div class="meta">
             <span class="ext">{KIND_LABEL[doc.kind]}</span>
             {#if doc.pages}<span>{unitCount(doc.kind, doc.pages)}</span><i class="d"></i>{/if}
@@ -129,7 +138,9 @@
             <Button size="sm" icon={doc.pinned ? 'star-fill' : 'star'} pressed={doc.pinned || undefined} onclick={pin}>{doc.pinned ? tm('docs.pinned.on') : tm('docs.pin')}</Button>
             <Button size="sm" icon="pencil" pressed={editing || undefined} onclick={toggleEdit}>{editing ? tm('docs.view') : tm('docs.edit')}</Button>
           {/if}
-          <Menu label={tm('docs.actions')} items={[
+          <Menu label={tm('docs.actions')} testid="doc-menu" items={[
+            { id: 'rename', label: tm('m.rename'), icon: 'pencil', onselect: () => (renaming = true) },
+            { id: 'move', label: tm('m.moveTo'), icon: 'folder', onselect: moveDoc },
             { id: 'reveal', label: tm('docs.revealOriginal'), icon: 'external', onselect: () => api.revealPath(doc!.original_path) },
             { sep: true },
             { id: 'delete', label: tm('docs.delete'), icon: 'trash', danger: true, onselect: remove },
@@ -194,7 +205,6 @@
   .back:hover { color: var(--tx); }
   .row1 { display: flex; justify-content: space-between; gap: var(--s4); align-items: flex-start; }
   .hd { min-width: 0; flex: 1; }
-  h1 { font-size: 24px; line-height: 32px; letter-spacing: -0.025em; margin: 0; font-weight: 650; }
   .meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); align-items: center; color: var(--tx2); font-size: 12px; line-height: 20px; margin-top: var(--s1); }
   .d { width: 3px; height: 3px; border-radius: 50%; background: var(--tx3); }
   .ext { font: 700 10px/16px var(--font); padding: 0 var(--s1); border-radius: var(--s1); background: var(--hv); border: 1px solid var(--line); letter-spacing: 0.04em; }

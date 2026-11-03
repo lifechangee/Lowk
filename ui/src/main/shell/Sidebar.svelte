@@ -61,6 +61,7 @@
           <Icon name="folder" /><span class="lbl">{f.title}</span><span class="n">{f.call_count}</span>
         </a>
         <span class="fm"><Menu label={tm('main.folderMenuOf', { title: f.title })} testid="folder-row-menu" items={[
+          { id: 'rename', label: tm('m.rename'), icon: 'pencil', onselect: () => { ui.renameTarget = { kind: 'folder', id: key, title: f.title }; } },
           { id: 'delete', label: tm('m.folderDelete'), icon: 'trash', danger: true, onselect: () => (ui.deleteFolderKey = key) },
         ]} /></span>
       </div>

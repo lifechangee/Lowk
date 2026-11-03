@@ -1,7 +1,7 @@
 // View state for the main window. No business logic: everything goes through `api`.
 import { locale } from '../lib/i18n/locale.svelte';
 import type { Key, LangSetting } from '../lib/i18n';
-import type { CallMeta, FolderMeta, IndexStatus, MicMode, Settings, SourceInfo, Target, TrashedFolder } from '../lib/ipc';
+import type { CallMeta, Document, FolderMeta, IndexStatus, MicMode, Settings, SourceInfo, Target, TrashedFolder } from '../lib/ipc';
 import { api, CommandError, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type EngineNeeded, type FolderKey, type LiveLine } from './api';
 import { EVENTS, on } from '../lib/ipc';
 import type { SessionState } from '../lib/ipc';
@@ -28,10 +28,17 @@ class Library {
   summarized = $state<string[]>([]);
   /** Folders sitting in the Trash (restorable together with their calls and documents). */
   trashedFolders = $state<TrashedFolder[]>([]);
+  /** Documents sitting in the Trash on their own (those of a trashed folder come back with it). */
+  trashedDocs = $state<Document[]>([]);
   loaded = $state(false);
 
   async reload(): Promise<void> {
-    const [s, tf] = await Promise.all([api.libraryList(), api.trashFolders().catch(() => [] as TrashedFolder[])]);
+    const [s, tf, td] = await Promise.all([
+      api.libraryList(),
+      api.trashFolders().catch(() => [] as TrashedFolder[]),
+      api.docList(SYS_TRASH).catch(() => [] as Document[]),
+    ]);
+    this.trashedDocs = td;
     this.folders = s.folders;
     this.calls = dedupe(s.calls);
     this.summarized = s.summarized;
@@ -48,8 +55,8 @@ class Library {
     const inFolders = new Set(this.trashedFolders.flatMap((f) => f.call_ids));
     return this.trashed.filter((c) => !inFolders.has(c.id));
   });
-  /** Trash badge: lone calls plus trashed folders. */
-  trashCount = $derived(this.trashedAlone.length + this.trashedFolders.length);
+  /** Trash badge: lone calls, lone documents and trashed folders. */
+  trashCount = $derived(this.trashedAlone.length + this.trashedDocs.length + this.trashedFolders.length);
   callsIn(key: FolderKey): CallMeta[] {
     if (key === SYS_TRASH) return this.trashedAlone;
     return this.active.filter((c) => folderKey(c.folder) === key).sort((a, b) => b.started.localeCompare(a.started));
@@ -99,6 +106,31 @@ class Library {
       ui.notify(e instanceof CommandError && e.app.code === 'session_busy' ? tm('m.folderDelete.recording') : errText(e));
       return false;
     }
+  }
+
+  /** «Переименовать» a call or a folder: trimmed, never empty; the lists and open pages follow at once. */
+  async rename(kind: 'call' | 'folder', key: string, title: string): Promise<boolean> {
+    const t = title.trim();
+    if (!t) { ui.notify(tm('m.rename.empty')); return false; }
+    try {
+      if (kind === 'call') await api.callRename(key, t);
+      else await api.folderUpdate(key, { title: t });
+      await this.reload();
+      return true;
+    } catch (e) {
+      ui.notify(e instanceof CommandError && e.app.code === 'session_busy' ? tm('m.rename.folderRecording') : errText(e));
+      return false;
+    }
+  }
+
+  /** Brings a document back from the Trash. */
+  async restoreDoc(id: string): Promise<void> {
+    try {
+      await api.docRestore(id);
+      await this.reload();
+      ui.docsRev++;
+      ui.notify(tm('m.restored'));
+    } catch (e) { ui.notify(errText(e)); }
   }
 
   async restoreFolder(key: FolderKey, announce = true): Promise<void> {
@@ -288,8 +320,15 @@ class Ui {
   /** The call that just stopped recording: highlighted at the top of Recent for a few seconds. */
   justFinished = $state<string | null>(null);
   /** Open «Переместить в…» menu (context menu or the ⋯ button). */
-  moveMenu = $state<{ id: string; x: number; y: number } | null>(null);
+  moveMenu = $state<{ id: string; x: number; y: number; doc?: { folder: string } } | null>(null);
   openMove(id: string, x: number, y: number): void { this.moveMenu = { id, x, y }; }
+  /** The same menu for a document (G8); `folder` is where it is now. */
+  openMoveDoc(id: string, folder: string, x: number, y: number): void { this.moveMenu = { id, x, y, doc: { folder } }; }
+  /** «Переименовать» from a list or the sidebar: the small dialog (pages rename inline). */
+  renameTarget = $state<{ kind: 'call' | 'folder' | 'doc'; id: string; title: string } | null>(null);
+  /** Bumped when a document changed (renamed, moved, restored) so open lists and pages reload. */
+  docsRev = $state(0);
+
   callTab = $state<'transcript' | 'summary' | 'qa' | 'shots' | 'sources' | 'md'>('transcript');
   /** G5: the header «Новый созвон» popover (never shown on the library home). */
   newCallOpen = $state(false);

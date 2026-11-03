@@ -337,14 +337,7 @@ pub fn call_restore(st: State<'_, Shared>, id: Ulid) -> Result<()> {
 #[tauri::command(async)]
 #[specta::specta]
 pub fn call_rename(st: State<'_, Shared>, id: Ulid, title: String) -> Result<CallMeta> {
-    let title = title.trim().to_string();
-    if title.is_empty() {
-        return Err(AppError::new(ErrorCode::InvalidArgument).with_detail("empty title"));
-    }
-    let m = vault(&st)?.update_call(&id, |d| {
-        d.fm.title = title.clone();
-        d.heading = title;
-    })?;
+    let m = vault(&st)?.rename_call(&id, &title)?;
     changed(&st, StoreChangeKind::Updated, id, false);
     Ok(m)
 }

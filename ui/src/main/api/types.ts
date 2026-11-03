@@ -145,7 +145,7 @@ export interface Backend {
   folderGet(key: FolderKey): Promise<FolderDetail | null>;
   callGet(id: string): Promise<CallDetail | null>;
   folderCreate(input: NewFolder): Promise<FolderMeta>;
-  folderUpdate(id: string, patch: { instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void>;
+  folderUpdate(id: string, patch: { title?: string; instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void>;
   callTrash(id: string): Promise<void>;
   /** Moves the folder with ALL its calls and documents to the Trash (restorable). Rejects with `session_busy` while a call is recording in it. */
   folderDelete(id: string): Promise<void>;

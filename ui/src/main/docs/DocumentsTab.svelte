@@ -46,7 +46,7 @@
     loaded = true;
   }
   const reloadSoon = () => { clearTimeout(reloadTimer); reloadTimer = setTimeout(() => void load(), 120); };
-  $effect(() => { folder; progress = {}; void load(); });
+  $effect(() => { folder; ui.docsRev; progress = {}; void load(); });
 
   onMount(() => {
     const offProgress = api.onDocProgress((p) => {
@@ -120,7 +120,8 @@
     try {
       await api.docDelete(d.id);
       await load();
-      ui.notify(tm('docs.deleted', { name: d.title }), { label: tm('docs.undo'), run: () => void api.docRestore(d.id).then(load).catch((e) => ui.notify(errText(e))) });
+      void library.reload();
+      ui.notify(tm('docs.deleted', { name: d.title }), { label: tm('docs.undo'), run: () => void api.docRestore(d.id).then(() => Promise.all([load(), library.reload()])).catch((e) => ui.notify(errText(e))) });
     } catch (e) { ui.notify(errText(e)); }
   }
 </script>
@@ -160,7 +161,7 @@
     </div>
     <div class="list">
       {#each sorted as d (d.id)}
-        <DocRow doc={d} progress={progress[d.id]} overflow={overflow.has(d.id)} onpin={() => pin(d)} oncancel={() => cancel(d)} onretry={() => retry(d)} ondelete={() => remove(d)} onreveal={() => api.revealPath(d.original_path)} />
+        <DocRow doc={d} progress={progress[d.id]} overflow={overflow.has(d.id)} onpin={() => pin(d)} oncancel={() => cancel(d)} onretry={() => retry(d)} ondelete={() => remove(d)} onrename={() => { ui.renameTarget = { kind: 'doc', id: d.id, title: d.title }; }} onmove={(x, y) => ui.openMoveDoc(d.id, folder, x, y)} onreveal={() => api.revealPath(d.original_path)} />
       {/each}
     </div>
     <p class="drophint lbl">{tm('docs.dropHint')}</p>

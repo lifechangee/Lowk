@@ -95,6 +95,10 @@ pub struct VaultInner {
     cache: Mutex<HashMap<PathBuf, CacheEntry>>,
     known: Mutex<HashMap<Ulid, Known>>,
     pub(crate) live: Arc<Mutex<HashSet<Ulid>>>,
+    /// Titles typed for calls that are being recorded: (title, hash of the file text that carries it).
+    /// The writer applies them to its model (and recognises the file as its own); the file gets
+    /// its name from the title when the call ends.
+    pub(crate) pending_titles: Mutex<HashMap<Ulid, (String, String)>>,
 }
 
 #[derive(Clone)]
@@ -192,6 +196,7 @@ impl Vault {
             cache: Mutex::new(HashMap::new()),
             known: Mutex::new(HashMap::new()),
             live: Arc::new(Mutex::new(HashSet::new())),
+            pending_titles: Mutex::new(HashMap::new()),
         }));
         v.resync()?;
         Ok(v)
@@ -599,8 +604,30 @@ impl VaultInner {
             .doc
             .ok_or_else(|| err(ErrorCode::NotFound, "no folder card"))?;
         let mut dir = self.root.join(&rec.dir);
-        if let Some(t) = p.title.filter(|t| !t.trim().is_empty() && *t != doc.title) {
-            doc.title = t.trim().to_string();
+        let mut retitled = false;
+        if let Some(t) = p
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|t| !t.is_empty() && *t != doc.title)
+        {
+            // the folder directory is renamed with the title: a recording inside would lose its file
+            {
+                let live = self.live.lock();
+                if self
+                    .scan()?
+                    .files
+                    .iter()
+                    .any(|f| f.folder == FolderRef::User(*id) && live.contains(&f.id))
+                {
+                    return Err(err(
+                        ErrorCode::SessionBusy,
+                        "a call is being recorded in this folder",
+                    ));
+                }
+            }
+            doc.title = t.to_string();
+            retitled = true;
             let want = sanitize_name(&doc.title);
             if want != rec.dir {
                 let dst = unique_path(&self.root, &want, "");
@@ -624,6 +651,25 @@ impl VaultInner {
             doc.set_instructions(&i);
         }
         atomic_write(&dir.join(FOLDER_FILE), folder_codec::render(&doc).as_bytes())?;
+        if retitled {
+            // the calls carry the folder title in their front-matter
+            if let Ok(rd) = fs::read_dir(dir.join(CALLS_SUBDIR)) {
+                for e in rd.flatten() {
+                    let path = e.path();
+                    if path.extension().is_none_or(|x| x != "md") {
+                        continue;
+                    }
+                    let Ok(text) = fs::read_to_string(&path) else {
+                        continue;
+                    };
+                    let mut c = call_codec::parse(&text);
+                    if !c.fm.id.is_empty() && c.fm.folder != doc.title {
+                        c.fm.folder = doc.title.clone();
+                        atomic_write(&path, call_codec::render(&c).as_bytes())?;
+                    }
+                }
+            }
+        }
         self.resync()?;
         let fid = FolderRef::User(*id);
         self.folders()?
@@ -716,6 +762,48 @@ impl VaultInner {
             let _ = path;
             r.meta.ok_or_else(|| err(ErrorCode::NotFound, "call"))
         })
+    }
+
+    /// «Переименовать»: front-matter, the `# H1` and the file name follow the title. A call that is
+    /// being recorded gets the new title at once (front-matter and H1); its file is renamed when the
+    /// call ends. Empty titles are refused; equal titles of different calls are fine.
+    pub fn rename_call(&self, id: &Ulid, title: &str) -> Result<CallMeta> {
+        let title = title.trim().to_string();
+        if title.is_empty() {
+            return Err(err(ErrorCode::InvalidArgument, "empty title"));
+        }
+        if !self.live.lock().contains(id) {
+            return self.update_call(id, |d| {
+                d.fm.title = title.clone();
+                d.heading = title;
+            });
+        }
+        let _g = self.op.lock();
+        let rec = self.find(id)?;
+        let path = self.root.join(&rec.rel);
+        let mut doc = call_codec::parse(&fs::read_to_string(&path)?);
+        doc.fm.title = title.clone();
+        doc.heading = title.clone();
+        let text = call_codec::render(&doc);
+        atomic_write(&path, text.as_bytes())?;
+        self.pending_titles
+            .lock()
+            .insert(*id, (title, hash_bytes(text.as_bytes())));
+        self.resync()?;
+        self.find(id)?
+            .meta
+            .ok_or_else(|| err(ErrorCode::NotFound, "call"))
+    }
+
+    /// After the last write of a recording: the file takes its name from the (possibly renamed) title.
+    pub(crate) fn rename_finished(&self, id: &Ulid) -> Result<()> {
+        let _g = self.op.lock();
+        self.pending_titles.lock().remove(id);
+        let rec = self.find(id)?;
+        let path = self.root.join(&rec.rel);
+        let doc = call_codec::parse(&fs::read_to_string(&path)?);
+        self.rename_to_title(&path, &doc.fm)?;
+        Ok(())
     }
 
     pub fn set_call_summary(&self, id: &Ulid, summary: &str) -> Result<CallMeta> {

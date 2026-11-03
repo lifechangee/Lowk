@@ -15,6 +15,7 @@
   import { tm } from '../i18n';
   import { hrefs, router, type FolderTab } from '../router.svelte';
   import { callRow } from '../dnd.svelte';
+  import InlineTitle from '../shell/InlineTitle.svelte';
   import Select from '../../lib/components/Select.svelte';
   import type { MicPreset, RetxPreset } from '../../lib/ipc';
   import { library, ui } from '../state.svelte';
@@ -29,6 +30,7 @@
   const calls = $derived(library.callsIn(folder));
   const active = $derived(system ? 'calls' : tab);
   let confirmEmpty = $state(false);
+  let renaming = $state(false);
   let docCount = $state<number | null>(null);
 
   $effect(() => {
@@ -75,7 +77,7 @@
   <div class="cin chead">
     <div class="row1">
       <div class="hd">
-        <h1 class="lbl">{title}</h1>
+        <InlineTitle value={title} bind:editing={renaming} readonly={system} testid="folder-title" onsave={(t) => library.rename('folder', folder, t)} />
         <div class="meta">
           <span>{tPlural('main.calls', calls.length)}</span>
           {#if meta}<span class="micsel" data-testid="folder-mic"><span class="micl">{tm('m.folderMic')}</span><Select label={tm('m.folderMic')} value={meta.mic ?? 'inherit'} options={micOptions} onchange={setMic} /></span>{/if}
@@ -86,6 +88,7 @@
         <Button variant="danger" icon="trash" disabled={library.trashCount === 0} onclick={() => (confirmEmpty = true)}>{tm('m.emptyTrash')}</Button>
       {:else if !system}
         <Menu label={tm('main.folderActions')} testid="folder-menu" items={[
+          { id: 'rename', label: tm('m.rename'), icon: 'pencil', onselect: () => (renaming = true) },
           { id: 'export', label: tm('main.exportFolder'), icon: 'download', onselect: exportFolder },
           { id: 'reveal', label: tm('main.revealFolder'), icon: 'external', onselect: () => meta && api.revealPath(meta.path) },
           { sep: true },
@@ -115,6 +118,17 @@
               </div>
             {/each}
           {/if}
+          {#if isTrash}
+            {#each library.trashedDocs as d (d.id)}
+              <div class="tr trash" data-testid="trash-doc">
+                <div class="c1">
+                  <b class="lbl"><Icon name="doc" size={14} /> {d.title}</b>
+                  <small class="lbl">{tm('m.trashDoc')}</small>
+                </div>
+                <Button size="sm" icon="restore" onclick={() => library.restoreDoc(d.id)}>{tm('m.restore')}</Button>
+              </div>
+            {/each}
+          {/if}
           {#each calls as c (c.id)}
             <div class="tr" class:trash={isTrash} use:callRow={() => ({ id: c.id, title: c.title, movable: !isTrash && c.ended !== null })}>
               <a class="c1" href={isTrash ? undefined : hrefs.call(c.id)} draggable="false">
@@ -131,7 +145,7 @@
               {/if}
             </div>
           {:else}
-            {#if !(isTrash && library.trashedFolders.length)}
+            {#if !(isTrash && (library.trashedFolders.length || library.trashedDocs.length))}
             <div class="emptyrow" data-testid="calls-empty">
               <div class="eic"><Icon name={isTrash ? 'trash' : isUnsorted ? 'inbox' : 'folder'} size={20} /></div>
               <b>{isTrash ? tm('main.empty.trashTitle') : isUnsorted ? tm('main.empty.unsortedTitle') : tm('main.empty.folderTitle')}</b>
@@ -166,7 +180,6 @@
   .chead { padding-top: var(--s6); padding-bottom: var(--s4); }
   .row1 { display: flex; justify-content: space-between; gap: var(--s4); align-items: flex-start; }
   .hd { min-width: 0; flex: 1; }
-  h1 { font-size: 24px; line-height: 32px; margin: 0; font-weight: 650; letter-spacing: -0.025em; }
   .meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); align-items: center; color: var(--tx2); font-size: 12px; line-height: 20px; margin-top: var(--s1); }
   .micsel { display: inline-flex; align-items: center; gap: var(--s2); }
   .micsel :global(.sel) { width: 150px; height: 26px; font-size: 12px; }
