@@ -271,6 +271,10 @@ impl ModelStore {
     ) -> Result<()> {
         let t = self.tuning;
         let agent = agent_for(s.url.as_str());
+        // Whether the OS proxy is used (never its address): a stalling proxy and a stalling CDN look alike.
+        let via_proxy = lowk_platform::proxy::for_url(s.url.as_str()).is_some();
+        let started = Instant::now();
+        let mut retries = 0u32;
         let mut fails = 0u32;
         // Only bytes retained on disk count as progress. A 200 response can move a full
         // slice and then force a truncate; counting those bytes would make retries unbounded.
@@ -290,6 +294,14 @@ impl ModelStore {
                 // Complete (a previous run died while verifying): a Range past the end would be
                 // answered with 416. Go straight to the checksum.
                 progress(&s.file, InstallPhase::Downloading, have, s.size_bytes);
+                tracing::info!(
+                    file = %s.file,
+                    mb = s.size_bytes / (1024 * 1024),
+                    secs = started.elapsed().as_secs(),
+                    retries,
+                    via_proxy,
+                    "download finished"
+                );
                 return Ok(());
             }
             let mut moved = 0u64;
@@ -311,7 +323,8 @@ impl ModelStore {
                 Ok(()) => {}
                 Err(Fail::Fatal(e)) => return Err(e),
                 Err(Fail::Restart(why)) => {
-                    tracing::warn!(file = %s.file, why, "download restarts from the beginning");
+                    retries += 1;
+                    tracing::warn!(file = %s.file, why, via_proxy, "download restarts from the beginning");
                     let _ = fs::remove_file(part);
                     failed = true;
                     fails += 1;
@@ -320,12 +333,13 @@ impl ModelStore {
                     }
                 }
                 Err(Fail::Transient(why)) => {
+                    retries += 1;
                     failed = true;
                     fails += 1;
                     if fails > t.max_failures {
                         return Err(AppError::new(ErrorCode::Network).with_detail(why));
                     }
-                    tracing::warn!(file = %s.file, fails, why, "download interrupted; resuming");
+                    tracing::warn!(file = %s.file, fails, why, via_proxy, "download interrupted; resuming");
                 }
             }
             if failed {
@@ -460,9 +474,14 @@ fn fetch_slice(
                     .with_detail(format!("HTTP {c} for {}", s.file)),
             ))
         }
-        Err(e) => return Err(Fail::Transient(e.to_string())),
+        Err(e) => return Err(Fail::Transient(format!("{e} (asking for byte {have})"))),
     };
     let status = resp.status().as_u16();
+    // Where the bytes come from after redirects (the model host hands off to a CDN): host only, no query.
+    let host = ureq::ResponseExt::get_uri(&resp)
+        .host()
+        .unwrap_or("?")
+        .to_string();
     let (start, wanted) = match status {
         206 => {
             let cr = resp
@@ -560,12 +579,18 @@ fn fetch_slice(
                 }
             }
             Ok(Msg::Eof) => break Ok(()),
-            Ok(Msg::Err(e)) => break Err(Fail::Transient(e)),
+            Ok(Msg::Err(e)) => {
+                break Err(Fail::Transient(format!(
+                    "{e} at byte {} ({got} of this slice) from {host}, HTTP {status}",
+                    start + got
+                )))
+            }
             Err(RecvTimeoutError::Timeout) => {
                 if last_data.elapsed() >= t.stall {
                     break Err(Fail::Transient(format!(
-                        "no data for {:.1} s; reconnecting",
-                        t.stall.as_secs_f32()
+                        "no data for {:.1} s at byte {} ({got} of this slice) from {host}, HTTP {status}; reconnecting",
+                        t.stall.as_secs_f32(),
+                        start + got
                     )));
                 }
             }
@@ -578,7 +603,10 @@ fn fetch_slice(
     res?;
     flushed.map_err(|e| Fail::Fatal(io_err(e)))?;
     if got < wanted {
-        return Err(Fail::Transient(format!("short body {got}/{wanted}")));
+        return Err(Fail::Transient(format!(
+            "short body {got}/{wanted} at byte {} from {host}, HTTP {status}",
+            start + got
+        )));
     }
     Ok(())
 }
@@ -871,6 +899,25 @@ mod tests {
         assert!(t0.elapsed() < Duration::from_secs(3), "{:?}", t0.elapsed());
         assert!(st.verify("e", &specs));
         assert!(ev.iter().any(|e| e.0 == InstallPhase::Retrying));
+        let _ = fs::remove_dir_all(st.root());
+    }
+
+    #[test]
+    fn a_stall_says_where_it_happened() {
+        // Field reports said only «no data for 20 s»: the offset, the serving host and the status tell a
+        // stalling CDN slice from a stalling proxy.
+        let body = data(200_000, 239);
+        let m = serve(body.clone(), |_| Plan {
+            stall_after: Some(0),
+            ..Plan::default()
+        });
+        let st = ModelStore::new(tmp("stallwhere")).with_tuning(fast());
+        let specs = vec![spec(m.url.clone(), &body, None)];
+        let (r, _) = run(&st, &specs);
+        let detail = r.unwrap_err().detail.unwrap_or_default();
+        assert!(detail.contains("no data for"), "{detail}");
+        assert!(detail.contains("at byte 0"), "{detail}");
+        assert!(detail.contains("from 127.0.0.1, HTTP 206"), "{detail}");
         let _ = fs::remove_dir_all(st.root());
     }
 
