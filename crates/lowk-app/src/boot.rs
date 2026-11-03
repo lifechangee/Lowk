@@ -203,6 +203,7 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
         main_thread.clone(),
         StealthConfig {
             hide_main: s.stealth.hide_main,
+            overlay_capture_visible: s.stealth.overlay_capture_visible,
             verify_interval_ms: s.stealth.verify_interval_ms,
         },
         Box::new(move |t| tone_emitter.emit(AppEvent::Overlay(OverlayEvent::Tone(t)))),
@@ -213,6 +214,10 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
             if let Some(g) = capture::screen_grab() {
                 stealth.overlay.set_selftest_capture(g);
             }
+            let em = emitter.clone();
+            stealth.capture.set_listener(Arc::new(move |v| {
+                em.broadcast(lowk_types::events::STEALTH_CAPTURE, serde_json::json!(v));
+            }));
             let stealth = Arc::new(stealth);
             // The sampler (ScreenCaptureKit / Windows capture) exists only for the adaptive scrim, which is opt-in.
             state.tone.set_enabled(s.overlay.sampler_wanted(), || {
@@ -379,6 +384,14 @@ fn on_settings(st: &Shared, old: &Settings, new: &Settings) {
             if let Err(e) = stealth.set_hide_main(new.stealth.hide_main) {
                 tracing::warn!(%e, "hide_main not applied");
             }
+        }
+        // Apply the CURRENT saved value (read under the transition lock), never this queued snapshot.
+        let cur = || st.settings.get().stealth.overlay_capture_visible;
+        if let Some(Err(e)) = stealth.capture.reconcile(&cur, "settings") {
+            tracing::warn!(%e, "overlay capture visibility not applied; saving it as hidden");
+            let _ = st.settings.patch(SettingsPatch(
+                serde_json::json!({ "stealth": { "overlay_capture_visible": false } }),
+            ));
         }
         if old.overlay.effective_tone_mode() != new.overlay.effective_tone_mode() {
             stealth.set_tone_mode(new.overlay.effective_tone_mode());

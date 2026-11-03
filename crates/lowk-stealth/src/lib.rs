@@ -7,7 +7,8 @@
 //! This crate takes `raw-window-handle` handles, never `tauri::Window`.
 
 pub mod backend;
-pub mod controller;
+pub mod capture;
+mod controller;
 pub mod guard;
 pub mod magnet;
 pub mod mode;
@@ -19,6 +20,7 @@ pub mod swatches;
 pub mod tone;
 
 pub use backend::{Readback, WindowBackend};
+pub use capture::CaptureSwitch;
 pub use controller::{AreaCtl, OverlayCtl, PillCtl, WindowEventKind, AREA, MAIN, OVERLAY, PILL};
 pub use guard::StealthGuard;
 pub use mode::{Interaction, ModeChange, ModeInput, ModeMachine};
@@ -66,6 +68,8 @@ pub struct RawWindows {
 #[derive(Clone, Copy)]
 pub struct StealthConfig {
     pub hide_main: bool,
+    /// The user made the overlay and pill visible to screen capture (default false = excluded).
+    pub overlay_capture_visible: bool,
     /// Watchdog period while a stealth window is visible (default 1000 ms).
     pub verify_interval_ms: u32,
 }
@@ -74,6 +78,7 @@ impl Default for StealthConfig {
     fn default() -> Self {
         Self {
             hide_main: false,
+            overlay_capture_visible: false,
             verify_interval_ms: 1000,
         }
     }
@@ -88,6 +93,8 @@ pub struct Stealth {
     /// The area-selection window (macOS and Windows; absent when its window was not supplied).
     pub area: Option<AreaCtl>,
     tone: Arc<ToneShared>,
+    /// Overlay/pill capture visibility: the single owner of every transition (bind, settings).
+    pub capture: CaptureSwitch,
     _watchdog: std::thread::JoinHandle<()>,
 }
 
@@ -207,10 +214,14 @@ pub fn create_stealth(
         guard.protect_backend(MAIN, WindowPolicy::main(cfg.hide_main), b.clone())?;
         main_be = Some(b);
     }
-    guard.protect_backend(OVERLAY, WindowPolicy::OVERLAY, ob.clone())?;
+    guard.protect_backend(
+        OVERLAY,
+        WindowPolicy::overlay(cfg.overlay_capture_visible),
+        ob.clone(),
+    )?;
     if let Some(p) = win.pill {
         let b = native::make_backend(&p)?;
-        guard.protect_backend(PILL, WindowPolicy::PILL, b.clone())?;
+        guard.protect_backend(PILL, WindowPolicy::pill(cfg.overlay_capture_visible), b.clone())?;
         pill = Some(PillCtl::new(guard.clone(), main_thread.clone(), b));
     }
     if let Some(a) = win.area {
@@ -219,6 +230,15 @@ pub fn create_stealth(
         area = Some(AreaCtl::new(guard.clone(), main_thread.clone(), b));
     }
 
+    tracing::info!(
+        overlay_capture_visible = cfg.overlay_capture_visible,
+        "overlay capture exclusion at startup: {}",
+        if cfg.overlay_capture_visible {
+            "VISIBLE to capture (user setting)"
+        } else {
+            "excluded from capture"
+        }
+    );
     let ctl = OverlayCtl::new(guard.clone(), main_thread.clone(), ob);
     if let Some(b) = main_be {
         ctl.set_main_backend(Some(b));
@@ -226,6 +246,7 @@ pub fn create_stealth(
     let g2 = guard.clone();
     native::install_observers(Arc::new(move || g2.on_policy_change()));
     let watchdog = guard.spawn_watchdog(Duration::from_millis(u64::from(cfg.verify_interval_ms.max(100))));
+    let capture = CaptureSwitch::new(guard.clone(), pill.is_some());
     Ok(Stealth {
         controller: ctl.clone(),
         overlay: ctl,
@@ -238,6 +259,7 @@ pub fn create_stealth(
             last_rect: Mutex::new(None),
             diag: Mutex::new(SamplerDiag::default()),
         }),
+        capture,
         _watchdog: watchdog,
     })
 }

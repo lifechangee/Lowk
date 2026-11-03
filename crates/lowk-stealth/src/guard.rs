@@ -116,7 +116,20 @@ impl StealthGuard {
     pub fn set_policy(&self, label: &str, policy: WindowPolicy) -> Result<()> {
         let win = self.win(label)?;
         *win.policy.lock() = policy;
-        self.apply(label)
+        let r = self.apply(label);
+        if r.is_err() && policy.is_stealth() && policy.capture_excluded {
+            // Switching back to «hidden» must never leave a visible window that is not excluded: fail closed.
+            let w = win.clone();
+            run_main_sync(&self.inner.main, move || w.backend.hide());
+            win.visible.store(false, Ordering::SeqCst);
+            tracing::error!(label, "exclusion could not be re-applied, window hidden");
+        }
+        r
+    }
+
+    /// The desired capture exclusion of `label` (`None` = unknown window).
+    pub fn capture_excluded(&self, label: &str) -> Option<bool> {
+        self.win(label).ok().map(|w| w.policy.lock().capture_excluded)
     }
 
     pub fn apply(&self, label: &str) -> Result<()> {
@@ -272,7 +285,15 @@ impl StealthGuard {
         let wins = self.inner.wins.lock();
         let mut worst = StealthStatus::Verified;
         for (label, w) in wins.iter() {
-            if !w.policy.lock().capture_excluded {
+            let p = *w.policy.lock();
+            if !p.capture_excluded {
+                if p.is_stealth() {
+                    // The user chose «visible to capture»: the state is as wanted, but never reported as «hidden».
+                    if worst == StealthStatus::Verified {
+                        worst =
+                            StealthStatus::Degraded("overlay is visible to capture by the setting".into());
+                    }
+                }
                 continue;
             }
             match st.get(label) {
@@ -299,15 +320,29 @@ impl StealthGuard {
     /// apply, and if the read-back disagrees apply once more, then give up.
     fn apply_core(&self, win: &Win) -> Result<Readback> {
         let policy = *win.policy.lock();
-        let mut rb = win.backend.apply(&policy)?;
-        if !rb.matches(&policy) {
-            tracing::warn!(detail = %rb.detail, "read-back mismatch, re-applying");
-            rb = win.backend.apply(&policy)?;
+        let r = (|| {
+            let mut rb = win.backend.apply(&policy)?;
             if !rb.matches(&policy) {
-                return Err(unavailable(format!("read-back mismatch: {}", rb.detail)));
+                tracing::warn!(detail = %rb.detail, "read-back mismatch, re-applying");
+                rb = win.backend.apply(&policy)?;
+                if !rb.matches(&policy) {
+                    return Err(unavailable(format!("read-back mismatch: {}", rb.detail)));
+                }
             }
+            Ok(rb)
+        })();
+        if r.is_err() && policy.is_stealth() && !policy.capture_excluded {
+            // «Visible to capture» could not be applied or confirmed: hiding always wins. The desired state
+            // falls back to excluded, exclusion is re-applied best effort and the window is hidden.
+            let mut safe = policy;
+            safe.capture_excluded = true;
+            *win.policy.lock() = safe;
+            let _ = win.backend.apply(&safe);
+            win.backend.hide();
+            win.visible.store(false, Ordering::SeqCst);
+            tracing::error!("capture-visible state not confirmed: fell back to excluded and hid the window");
         }
-        Ok(rb)
+        r
     }
 
     fn show_core(&self, label: &str, win: &Win) -> Result<()> {
@@ -460,6 +495,105 @@ mod tests {
         g.panic_hide();
         assert!(o.0.lock().visible, "restored via apply->verify->show");
         assert!(!g.panic_active());
+    }
+
+    fn visible_guard() -> (StealthGuard, FakeBackend) {
+        let g = StealthGuard::new(Arc::new(InlineMainThread));
+        let o = FakeBackend::new();
+        g.protect_backend("overlay", WindowPolicy::overlay(true), Arc::new(o.clone()))
+            .unwrap();
+        (g, o)
+    }
+
+    #[test]
+    fn capture_visible_is_the_desired_state_and_is_never_re_excluded() {
+        let (g, o) = visible_guard();
+        assert!(!o.0.lock().excluded, "visible from the first apply");
+        g.show("overlay").unwrap();
+        assert!(o.0.lock().visible && !o.0.lock().excluded);
+        for _ in 0..3 {
+            g.watchdog_tick();
+        }
+        g.on_policy_change();
+        assert!(
+            !o.0.lock().excluded,
+            "the guard must not re-apply exclusion while visible"
+        );
+        assert_eq!(g.verify("overlay"), StealthStatus::Verified);
+        assert!(o.0.lock().visible, "still shown");
+        // never reported as «hidden»
+        assert!(matches!(g.status(), StealthStatus::Degraded(_)));
+    }
+
+    #[test]
+    fn invisible_re_applies_exclusion_on_every_pass() {
+        let (g, o, _m) = guard();
+        g.show("overlay").unwrap();
+        o.0.lock().excluded = false;
+        g.watchdog_tick();
+        assert!(o.0.lock().excluded);
+        o.0.lock().excluded = false;
+        g.on_policy_change();
+        assert!(o.0.lock().excluded);
+        assert_eq!(g.status(), StealthStatus::Verified);
+    }
+
+    #[test]
+    fn toggling_both_ways_takes_effect_at_once_without_a_re_show() {
+        let (g, o, _m) = guard();
+        g.show("overlay").unwrap();
+        assert!(o.0.lock().excluded);
+        let shows = o.calls().iter().filter(|c| *c == "show").count();
+        g.set_policy("overlay", WindowPolicy::overlay(true)).unwrap();
+        assert!(!o.0.lock().excluded && o.0.lock().visible);
+        assert_eq!(g.capture_excluded("overlay"), Some(false));
+        g.watchdog_tick();
+        assert!(!o.0.lock().excluded, "watchdog keeps the new desired state");
+        g.set_policy("overlay", WindowPolicy::overlay(false)).unwrap();
+        assert!(o.0.lock().excluded && o.0.lock().visible, "re-applied at once");
+        assert_eq!(g.capture_excluded("overlay"), Some(true));
+        assert_eq!(
+            o.calls().iter().filter(|c| *c == "show").count(),
+            shows,
+            "no hide/show flicker"
+        );
+        assert_eq!(g.status(), StealthStatus::Verified);
+    }
+
+    #[test]
+    fn switching_back_fails_closed_when_the_os_refuses() {
+        let (g, o) = visible_guard();
+        g.show("overlay").unwrap();
+        o.0.lock().refuse_flag = true;
+        assert!(g.set_policy("overlay", WindowPolicy::overlay(false)).is_err());
+        assert!(!o.0.lock().visible, "never visible and unexcluded");
+    }
+
+    #[test]
+    fn panic_hide_still_hides_a_capture_visible_overlay() {
+        let (g, o) = visible_guard();
+        g.show("overlay").unwrap();
+        g.panic_hide();
+        assert!(!o.0.lock().visible);
+        g.show("overlay").unwrap();
+        assert!(!o.0.lock().visible, "re-show blocked");
+    }
+
+    #[test]
+    fn failed_visible_apply_falls_back_to_exclusion_and_hides() {
+        let (g, o) = visible_guard();
+        g.show("overlay").unwrap();
+        o.0.lock().refuse_flag = true; // the OS no longer takes the flag (stays «visible» = not excluded, but...)
+                                       // simulate an unconfirmable state: readback says excluded although visible was requested
+        o.0.lock().excluded = true;
+        assert!(g.set_policy("overlay", WindowPolicy::overlay(true)).is_err());
+        assert_eq!(
+            g.capture_excluded("overlay"),
+            Some(true),
+            "desired state fell back to hidden"
+        );
+        assert!(!o.0.lock().visible, "window hidden");
+        assert!(o.0.lock().excluded, "exclusion re-applied/kept");
     }
 
     #[test]

@@ -48,4 +48,5 @@
 <button class="pill" class:v={vertical} type="button" title={label} aria-label={label} onpointerdown={pdown} onpointermove={pmove} onpointerup={pup} onpointercancel={pup} onclick={click}>
   <i></i>
   {#if !vertical}<span class="lbl">{label}</span>{/if}
+  {#if store.captureVisible}<b class="cdot" data-testid="pill-capture-dot" title={ot('overlay.captureVisible', store.lang)}></b>{/if}
 </button>

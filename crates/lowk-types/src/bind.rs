@@ -21,6 +21,8 @@ pub enum ActionId {
     ClearShots,
     /// Microphone on/off during a recording (default unbound; roadmap «auto» mode: docs/ROADMAP.md).
     ToggleMic,
+    /// Toggle `stealth.overlay_capture_visible` (overlay and pill visible / invisible to screen capture). Default unbound.
+    ToggleCaptureVisible,
     /// G6: hold = the overlay is clickable without taking focus (default Ctrl).
     ClickHold,
     /// G6: ask with a fixed template, no overlay mode switch needed.

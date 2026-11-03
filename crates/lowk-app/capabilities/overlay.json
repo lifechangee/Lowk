@@ -26,6 +26,7 @@
     "allow-pill-drag-to",
     "allow-pill-drag-end",
     "allow-overlay-tone",
+    "allow-stealth-capture-applied",
     "allow-llm-ask",
     "allow-llm-cancel",
     "allow-llm-set-template",

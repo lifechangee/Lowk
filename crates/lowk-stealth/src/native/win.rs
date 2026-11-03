@@ -98,8 +98,15 @@ impl Win {
 
     fn readback(&self, p: &WindowPolicy, set: &str) -> Readback {
         let aff = self.read_affinity();
+        // Exact readback only: EXCLUDEFROMCAPTURE = excluded, NONE = visible. A failed read or any other affinity
+        // (WDA_MONITOR, unknown) is never accepted: it reads as the opposite of the request, so the guard errors.
+        let known = match aff {
+            Some(a) if a == WDA_EXCLUDEFROMCAPTURE.0 => Some(true),
+            Some(a) if a == WDA_NONE.0 => Some(false),
+            _ => None,
+        };
         Readback {
-            capture_excluded: aff == Some(WDA_EXCLUDEFROMCAPTURE.0),
+            capture_excluded: known.unwrap_or(!p.capture_excluded),
             window_server_excluded: None,
             detail: format!(
                 "{set} affinity={aff:?} want_excluded={} exstyle=0x{:x}",
@@ -202,11 +209,14 @@ impl WindowBackend for Win {
             self.topmost();
         }
         if let Err(e) = &set {
-            if policy.capture_excluded {
-                return Err(unavailable(format!(
-                    "SetWindowDisplayAffinity failed: {e} (Windows build < 19041?)"
-                )));
+            if !policy.capture_excluded {
+                // Could not make it visible: fall back to exclusion at once (the guard hides the window).
+                // SAFETY: valid HWND.
+                let _ = unsafe { SetWindowDisplayAffinity(self.hwnd(), WDA_EXCLUDEFROMCAPTURE) };
             }
+            return Err(unavailable(format!(
+                "SetWindowDisplayAffinity failed: {e} (Windows build < 19041?)"
+            )));
         }
         Ok(self.readback(policy, &format!("set={set:?}")))
     }

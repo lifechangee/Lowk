@@ -73,6 +73,10 @@
     {/if}
   </div>
   <span class="sp"></span>
+  {#if store.captureVisible}
+    <!-- B8: the overlay is visible to screen capture (user setting): a persistent amber badge, in flow, never over controls -->
+    <span class="cvis" data-blk data-testid="ov-capture-badge" role="status" title={ot('overlay.captureVisible.hint', lang)}><i></i><span class="lbl">{ot('overlay.captureVisible', lang)}</span></span>
+  {/if}
   {#if store.shots > 0}
     <span class="chip" data-blk>
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 5V3.5A1.5 1.5 0 0 1 3.5 2H5M11 2h1.5A1.5 1.5 0 0 1 14 3.5V5M14 11v1.5a1.5 1.5 0 0 1-1.5 1.5H11M5 14H3.5A1.5 1.5 0 0 1 2 12.5V11" /><circle cx="8" cy="8" r="2" /></svg>

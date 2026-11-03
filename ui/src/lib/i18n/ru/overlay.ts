@@ -77,6 +77,8 @@ export const overlay = {
   'overlay.src.page': 'стр. {n}',
   'overlay.src.withheld': 'скрыто (только локально): {n}',
   'overlay.pill.start': 'Начать запись',
+  'overlay.captureVisible': 'Виден на записи',
+  'overlay.captureVisible.hint': 'Оверлей виден в скриншотах и при показе экрана. Выключается в Настройках.',
   'overlay.template': 'Шаблон',
   'overlay.new': 'новое',
   'overlay.state.idle': 'Не записывается',

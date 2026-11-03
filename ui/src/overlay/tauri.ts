@@ -41,6 +41,8 @@ export class TauriSource implements OverlaySource {
     }
     add(on<{ mode: OverlayMode } | OverlayMode>(EVENTS.overlayMode, (e) => store.setMode(typeof e === 'string' ? e : e.mode)));
     add(on<ToneEvent>(EVENTS.overlayTone, (e) => store.applyTone(e)));
+    // the badge / pill dot follow the APPLIED capture state published by the backend, not the saved preference
+    add(on<boolean>(EVENTS.stealthCapture, (v) => (store.captureVisible = v === true)));
     add(on<QueueState>(EVENTS.queueChanged, (e) => store.setQueue(e.shots, e.thumbs)));
     add(on<QaUpdate>(EVENTS.myAnswer, (e) => {
       // The close update of the PREVIOUS link arrives right after the new Ask's `start`; it must not
@@ -64,6 +66,7 @@ export class TauriSource implements OverlaySource {
     }, 1000);
     void commands.localeGet().then((l) => (this.#locale = l)).catch(() => {});
     void commands.settingsGet().then((s) => this.#applySettings(s)).catch(() => {});
+    void commands.stealthCaptureApplied().then((v) => (store.captureVisible = v)).catch(() => {});
     void commands.overlayTone().then((r) => r.status === 'ok' && store.applyTone(r.data)).catch(() => {});
     void commands.sessionState().then((s) => this.#session(s)).catch(() => {});
   }

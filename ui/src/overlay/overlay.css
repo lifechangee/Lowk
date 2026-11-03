@@ -125,6 +125,16 @@
   background: var(--chip); border: 1px solid var(--chipbd); font-size: 12px; line-height: 16px;
   color: var(--tx); min-width: 0; flex: 0 1 auto; text-shadow: none;
 }
+/* B8: «Виден на записи» (overlay visible to screen capture): amber chip, in the header flow */
+.cvis {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; flex: none;
+  background: rgba(245, 165, 36, 0.16); border: 1px solid rgba(245, 165, 36, 0.7); color: var(--tx);
+  font-size: 11px; line-height: 16px; font-weight: 600; text-shadow: none; white-space: nowrap;
+}
+.cvis i { width: 6px; height: 6px; border-radius: 50%; background: #f5a524; flex: none; }
+.pill { position: relative; }
+.pill .cdot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #f5a524; right: 10px; top: 50%; transform: translateY(-50%); }
+.pill.v .cdot { right: auto; left: 50%; top: auto; bottom: 8px; transform: translateX(-50%); }
 .chip .lbl { flex: none; white-space: nowrap; }
 .chip { flex: 0 0 auto; }
 .chip .shots-wrap { flex: 0 1 auto; min-width: 0; overflow: hidden; }

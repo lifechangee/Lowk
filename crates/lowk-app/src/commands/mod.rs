@@ -74,6 +74,7 @@ macro_rules! all_commands {
             crate::commands::stealth::pill_drag_end,
             crate::commands::stealth::overlay_input_submit,
             crate::commands::stealth::overlay_tone,
+            crate::commands::stealth::stealth_capture_applied,
             crate::commands::input::binds_get,
             crate::commands::input::binds_set,
             crate::commands::input::binds_record_start,

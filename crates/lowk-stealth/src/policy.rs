@@ -42,6 +42,21 @@ impl WindowPolicy {
         hidden_from_switchers: true,
         activates: false,
     };
+    /// Overlay policy for the capture switch: `capture_visible` lifts only the exclusion flag; the window
+    /// stays a stealth window (hidden from switchers, fail-closed show, panic hide).
+    pub fn overlay(capture_visible: bool) -> WindowPolicy {
+        WindowPolicy {
+            capture_excluded: !capture_visible,
+            ..Self::OVERLAY
+        }
+    }
+    /// Pill policy for the capture switch (see [`WindowPolicy::overlay`]).
+    pub fn pill(capture_visible: bool) -> WindowPolicy {
+        WindowPolicy {
+            capture_excluded: !capture_visible,
+            ..Self::PILL
+        }
+    }
     pub fn main(hide_main: bool) -> WindowPolicy {
         WindowPolicy {
             role: WindowRole::Main,
@@ -50,9 +65,10 @@ impl WindowPolicy {
             activates: true,
         }
     }
-    /// True for windows that must fail closed and obey panic hide.
+    /// True for windows that must fail closed and obey panic hide. Independent of the capture flag: an
+    /// overlay the user made visible to capture is still an overlay (panic hide must hide it).
     pub fn is_stealth(&self) -> bool {
-        self.capture_excluded && self.hidden_from_switchers
+        self.hidden_from_switchers
     }
 }
 
@@ -65,6 +81,15 @@ mod tests {
         assert!(WindowPolicy::PILL.is_stealth());
         assert!(WindowPolicy::AREA.is_stealth());
         const { assert!(!WindowPolicy::OVERLAY.activates) };
+    }
+    #[test]
+    fn capture_visible_lifts_only_the_exclusion() {
+        let o = WindowPolicy::overlay(true);
+        assert!(!o.capture_excluded && o.is_stealth() && o.role == WindowRole::Overlay);
+        assert_eq!(WindowPolicy::overlay(false), WindowPolicy::OVERLAY);
+        let p = WindowPolicy::pill(true);
+        assert!(!p.capture_excluded && p.is_stealth() && p.role == WindowRole::Pill);
+        assert_eq!(WindowPolicy::pill(false), WindowPolicy::PILL);
     }
     #[test]
     fn main_policy_is_independent() {

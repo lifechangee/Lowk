@@ -127,6 +127,21 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
                 ctl.set_mode(next)?;
             }
             ActionId::ToggleOverlay => crate::visibility::toggle(st)?,
+            ActionId::ToggleCaptureVisible => {
+                if down {
+                    let stealth = st.stealth()?;
+                    let on = !stealth.capture.applied();
+                    // One owner for the transition (applied state, not the saved value, decides). Hiding is never
+                    // rolled back; showing is kept only when both windows took it and it was saved.
+                    stealth.capture.change(on, "bind", &|v| {
+                        st.settings
+                            .patch(SettingsPatch(
+                                serde_json::json!({ "stealth": { "overlay_capture_visible": v } }),
+                            ))
+                            .map(|_| ())
+                    })?;
+                }
+            }
             ActionId::PanicHide => st.stealth()?.controller.panic_hide(),
             ActionId::ToggleMain => crate::windows::open_main(&st.app),
             // G7: the active monitor (per `capture.monitors`) into the queue.

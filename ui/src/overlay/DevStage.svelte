@@ -22,6 +22,8 @@
   const sw = (window as unknown as { __swatch?: { tone: ToneEvent; color: string } }).__swatch;
   let bg = $state<'dark' | 'light' | 'color' | 'live' | 'split' | 'swatch'>((q.get('bg') as 'dark') ?? 'dark');
   store.transparency = Number(q.get('t') ?? 60);
+  // capvis=1: the «visible on recording» badge / pill dot (B8, `settings.stealth.overlay_capture_visible`).
+  store.captureVisible = q.get('capvis') === '1';
   store.lang = q.get('lang') === 'en' ? 'en' : 'ru';
   let view = $state<'overlay' | 'pill'>(q.get('view') === 'pill' ? 'pill' : 'overlay');
   let pos = $state({ x: 0, y: 0 });

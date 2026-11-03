@@ -77,6 +77,8 @@ export const overlay = {
   'overlay.src.page': 'p. {n}',
   'overlay.src.withheld': 'withheld (local-only): {n}',
   'overlay.pill.start': 'Start recording',
+  'overlay.captureVisible': 'Visible on recording',
+  'overlay.captureVisible.hint': 'The overlay shows up in screenshots and screen sharing. Turn it off in Settings.',
   'overlay.template': 'Template',
   'overlay.new': 'new',
   'overlay.state.idle': 'Not recording',

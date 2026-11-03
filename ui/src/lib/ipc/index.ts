@@ -13,6 +13,7 @@ export const EVENTS = {
   overlayMode: 'overlay://mode',
   overlayTone: 'overlay://tone',
   stealthStatus: 'stealth://status',
+  stealthCapture: 'stealth://capture',
   queueChanged: 'queue://changed',
   permChanged: 'perm://changed',
   storeChanged: 'store://changed',
