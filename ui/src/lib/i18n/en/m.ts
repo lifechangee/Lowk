@@ -450,7 +450,7 @@ export const m = {
   'm.model.missing': 'Not downloaded',
   'm.model.downloading': 'Downloading {done} of {total} MB',
   'm.model.verifying': 'Verifying',
-  'm.model.retrying': 'Connection dropped, reconnecting…',
+  'm.model.retrying': 'Reconnecting…',
   'm.model.repairing': 'Re-downloading a damaged part…',
   'm.model.ready': 'Ready',
   'm.model.error': 'Error: {reason}',

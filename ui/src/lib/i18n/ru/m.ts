@@ -450,7 +450,7 @@ export const m = {
   'm.model.missing': 'Не скачана',
   'm.model.downloading': 'Скачивается {done} из {total} МБ',
   'm.model.verifying': 'Проверяется',
-  'm.model.retrying': 'Соединение прервалось, подключаюсь снова…',
+  'm.model.retrying': 'Переподключаюсь…',
   'm.model.repairing': 'Перекачиваю повреждённую часть…',
   'm.model.ready': 'Готова',
   'm.model.error': 'Ошибка: {reason}',
