@@ -77,15 +77,28 @@ test('G2 copies plain answer text and confirms the copy briefly', async ({ page 
   await expect(copy).toHaveText('Copy', { timeout: 2500 });
 });
 
-test('G3 Mic and Stop are labelled controls with the template chip styling', async ({ page }) => {
+test('G3 Mic and Stop are small icon buttons, labelled by title/aria, light and above the scrim', async ({ page }) => {
   await page.goto('/overlay.html?still=1&t=60&lang=ru&bare=1&mode=interactive');
-  await expect(page.getByRole('button', { name: 'Завершить' })).toBeVisible();
-  await expect(page.getByTestId('ov-mic')).toContainText('Микрофон');
-  const dimensions = await page.locator('.stop').first().evaluate((e) => ({ h: e.getBoundingClientRect().height, fs: getComputedStyle(e).fontSize }));
-  expect(dimensions.h).toBeGreaterThanOrEqual(26);
-  expect(dimensions.fs).toBe('12px');
-  // B10 regression: `all: unset` once dropped `position: relative`, so the buttons painted under the scrim and looked dark
-  for (const sel of ['.stop:not(.mic)', '.stop.mic']) expect(await page.locator(sel).evaluate((e) => getComputedStyle(e).position), sel).toBe('relative');
+  const stop = page.getByRole('button', { name: 'Завершить' });
+  const mic = page.getByTestId('ov-mic');
+  await expect(stop).toBeVisible();
+  await expect(mic).toBeVisible();
+  await expect(stop).toHaveAttribute('title', 'Завершить');
+  expect(await mic.getAttribute('aria-label')).toMatch(/икрофон/);
+  await expect(stop.locator('svg')).toHaveCount(1);
+  await expect(mic.locator('svg')).toHaveCount(1);
+  await expect(stop).toHaveText('');
+  await expect(mic).toHaveText('');
+  const chipColour = await page.locator('.tpl').evaluate((e) => getComputedStyle(e).color);
+  for (const loc of [stop, mic]) {
+    const d = await loc.evaluate((e) => { const b = e.getBoundingClientRect(); return { w: b.width, h: b.height, pos: getComputedStyle(e).position, c: getComputedStyle(e).color }; });
+    expect(d.w).toBeLessThanOrEqual(28);
+    expect(d.h).toBeLessThanOrEqual(28);
+    // B10 regression: `all: unset` once dropped `position: relative`, so the buttons painted under the scrim and looked dark
+    expect(d.pos).toBe('relative');
+    // light: same text colour as the template chip, not the dim secondary tone
+    expect(d.c).toBe(chipColour);
+  }
 });
 
 test('G4 streaming answer can be cancelled and remains visibly marked', async ({ page }) => {
