@@ -287,7 +287,13 @@ fn live_heartbeat_runs_for_silent_demo_and_engine_calls() {
     for demo in [true, false] {
         let r = rig(|_| {});
         r.session.start(opts(demo)).unwrap();
-        std::thread::sleep(Duration::from_millis(2_250));
+        // wait for a beat at >= 2 s of call time; a loaded CI runner may be late, so poll instead of a fixed sleep
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while std::time::Instant::now() < deadline
+            && !r.store.heartbeats.lock().unwrap().iter().any(|o| *o >= 2)
+        {
+            std::thread::sleep(Duration::from_millis(100));
+        }
         r.session.stop().unwrap();
         let beats = r.store.heartbeats.lock().unwrap();
         assert!(
