@@ -172,6 +172,18 @@ mod custom_binds {
     }
 
     #[test]
+    fn legacy_settings_toml_without_hold_delay_uses_one_second_default() {
+        let text = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../lowk-store/tests/fixtures/legacy-settings.toml"
+        ))
+        .unwrap();
+        let t: toml::Value = toml::from_str(&text).unwrap();
+        let s: Settings = serde_json::from_value(serde_json::to_value(t).unwrap()).unwrap();
+        assert_eq!(s.hold_delay_ms, 1000);
+    }
+
+    #[test]
     fn custom_toml_registers_cmd_shift_s_for_screenshot_and_cmd_shift_a_for_area() {
         let binds = custom_binds();
         let reg = FakeRegistrar::default();

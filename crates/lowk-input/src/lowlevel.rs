@@ -11,6 +11,7 @@ use lowk_types::{
 };
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub struct LowLevelBackend {
     engine: Arc<Engine>,
@@ -53,6 +54,10 @@ impl LowLevelBackend {
     /// screenshot area window eats key-ups, so a modifier hold could otherwise stay «down» for good.
     pub fn reset_holds(&self) {
         self.engine.on_raw(crate::matcher::Raw::Reset);
+    }
+
+    pub fn set_hold_delay(&self, delay: Duration) {
+        self.engine.set_hold_delay(delay);
     }
 
     /// Capability of the running hook, if any.
@@ -183,5 +188,9 @@ impl InputBackend for LowLevelBackend {
             .ok()
             .and_then(|mut g| g.take())
             .unwrap_or_else(|| channel().1)
+    }
+
+    fn set_hold_delay(&mut self, delay: Duration) {
+        LowLevelBackend::set_hold_delay(self, delay);
     }
 }

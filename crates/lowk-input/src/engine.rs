@@ -4,7 +4,8 @@
 use crate::matcher::{Fire, Matcher, Raw};
 use lowk_types::{now_mono_ns, BindEvent, BindSpec, KeyCode, Mods, MouseBtn, Trigger};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::Mutex;
+use std::sync::{Arc, Condvar, Mutex, Weak};
+use std::time::{Duration, Instant};
 
 struct Recorder {
     tx: Sender<Trigger>,
@@ -28,26 +29,38 @@ struct Inner {
 }
 
 pub struct Engine {
+    core: Arc<Core>,
+    timer: Mutex<Option<std::thread::JoinHandle<()>>>,
+}
+
+struct Core {
     inner: Mutex<Inner>,
+    wake: Condvar,
     tx: Sender<BindEvent>,
+    shutdown: std::sync::atomic::AtomicBool,
 }
 
 impl Engine {
     pub fn new(tx: Sender<BindEvent>) -> Self {
         Self {
-            inner: Mutex::new(Inner::default()),
-            tx,
+            core: Arc::new(Core {
+                inner: Mutex::new(Inner::default()),
+                wake: Condvar::new(),
+                tx,
+                shutdown: std::sync::atomic::AtomicBool::new(false),
+            }),
+            timer: Mutex::new(None),
         }
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
-        self.inner.lock().unwrap_or_else(|e| e.into_inner())
+        self.core.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     fn emit(&self, evs: impl IntoIterator<Item = Fire>) {
         for f in evs {
             tracing::debug!(action = ?f.action, phase = ?f.phase, "input: matched, queued for dispatch");
-            let _ = self.tx.send(BindEvent {
+            let _ = self.core.tx.send(BindEvent {
                 action: f.action,
                 phase: f.phase,
                 t_mono_ns: now_mono_ns(),
@@ -58,7 +71,32 @@ impl Engine {
 
     pub fn set_binds(&self, binds: Vec<BindSpec>) {
         let evs = self.lock().matcher.set_binds(binds);
+        self.core.wake.notify_one();
         self.emit(evs);
+    }
+
+    pub fn set_hold_delay(&self, delay: Duration) {
+        let evs = self.lock().matcher.set_hold_delay(delay).events;
+        self.emit(evs);
+        self.core.wake.notify_one();
+    }
+
+    fn ensure_timer(&self) {
+        if self.lock().matcher.next_deadline().is_none() {
+            return;
+        }
+        let mut timer = self.timer.lock().unwrap_or_else(|e| e.into_inner());
+        if timer.is_some() {
+            self.core.wake.notify_one();
+            return;
+        }
+        let weak = Arc::downgrade(&self.core);
+        *timer = Some(
+            std::thread::Builder::new()
+                .name("lowk-input-hold-timer".into())
+                .spawn(move || timer_loop(weak))
+                .expect("spawn input hold timer"),
+        );
     }
 
     /// Capture the next trigger. Binds are suspended while recording.
@@ -75,6 +113,7 @@ impl Engine {
             swallow_up_mouse: vec![],
         });
         drop(g);
+        self.core.wake.notify_one();
         self.emit(evs);
         rx
     }
@@ -112,6 +151,7 @@ impl Engine {
     /// See [`Matcher::set_baseline_mods`].
     pub fn baseline_mods(&self, m: Mods) {
         self.lock().matcher.set_baseline_mods(m);
+        self.core.wake.notify_one();
     }
 
     /// Feed one native event. Returns true when the native event must be swallowed.
@@ -121,8 +161,12 @@ impl Engine {
         if let Some(rec) = g.recorder.as_mut() {
             let (swallow, done) = Self::record_step(rec, raw);
             // Keep matcher modifier state in sync; binds stay suspended (events dropped).
-            if matches!(raw, Raw::Mods(_) | Raw::Reset) {
-                g.matcher.handle(raw);
+            match raw {
+                Raw::Mods(m) => g.matcher.set_baseline_mods(m),
+                Raw::Reset => {
+                    g.matcher.handle(raw);
+                }
+                _ => {}
             }
             if let Some(t) = done {
                 if let Some(rec) = g.recorder.take() {
@@ -130,6 +174,8 @@ impl Engine {
                     g.pending_up = (rec.swallow_up_keys, rec.swallow_up_mouse);
                 }
             }
+            drop(guard);
+            self.core.wake.notify_one();
             return swallow;
         }
         if let Some(s) = take_pending(&mut g.pending_up, &raw) {
@@ -137,6 +183,8 @@ impl Engine {
         }
         let out = g.matcher.handle(raw);
         drop(guard);
+        self.core.wake.notify_one();
+        self.ensure_timer();
         if out.events.is_empty()
             && matches!(
                 raw,
@@ -200,6 +248,59 @@ impl Engine {
     }
 }
 
+impl Drop for Engine {
+    fn drop(&mut self) {
+        {
+            let _guard = self.core.inner.lock().unwrap_or_else(|e| e.into_inner());
+            self.core
+                .shutdown
+                .store(true, std::sync::atomic::Ordering::Release);
+        }
+        self.core.wake.notify_all();
+        if let Some(timer) = self.timer.get_mut().unwrap_or_else(|e| e.into_inner()).take() {
+            let _ = timer.join();
+        }
+    }
+}
+
+fn timer_loop(weak: Weak<Core>) {
+    loop {
+        let Some(core) = weak.upgrade() else { return };
+        if core.shutdown.load(std::sync::atomic::Ordering::Acquire) {
+            return;
+        }
+        let mut guard = core.inner.lock().unwrap_or_else(|e| e.into_inner());
+        if core.shutdown.load(std::sync::atomic::Ordering::Acquire) {
+            return;
+        }
+        let Some(deadline) = guard.matcher.next_deadline() else {
+            let g = core.wake.wait(guard).unwrap_or_else(|e| e.into_inner());
+            drop(g);
+            continue;
+        };
+        let now = Instant::now();
+        if now < deadline {
+            let (g, _) = core
+                .wake
+                .wait_timeout(guard, deadline - now)
+                .unwrap_or_else(|e| e.into_inner());
+            drop(g);
+            continue;
+        }
+        let out = guard.matcher.poll(now);
+        drop(guard);
+        for f in out.events {
+            tracing::debug!(action = ?f.action, phase = ?f.phase, "input: matched, queued for dispatch");
+            let _ = core.tx.send(BindEvent {
+                action: f.action,
+                phase: f.phase,
+                t_mono_ns: now_mono_ns(),
+                template: f.template,
+            });
+        }
+    }
+}
+
 /// One-shot swallow of the releases belonging to a just-recorded key/button, so
 /// the target app never sees an orphan key-up/mouse-up.
 fn take_pending(p: &mut (Vec<&'static str>, Vec<MouseBtn>), raw: &Raw) -> Option<bool> {
@@ -245,6 +346,29 @@ mod tests {
         let b = rx.try_recv().unwrap();
         assert_eq!((a.phase, b.phase), (Phase::Down, Phase::Up));
         assert!(b.t_mono_ns >= a.t_mono_ns);
+    }
+
+    #[test]
+    fn timer_fires_without_more_input_and_drop_joins_worker() {
+        let (e, rx) = engine();
+        e.set_hold_delay(Duration::from_millis(50));
+        e.set_binds(vec![BindSpec {
+            action: ActionId::ClickHold,
+            trigger: Trigger::ModifierOnly { mods: Mods::CTRL },
+            swallow: false,
+            template: None,
+        }]);
+        e.on_raw(Raw::Mods(Mods::CTRL));
+        let down = rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("timer should fire pending hold");
+        assert_eq!((down.action, down.phase), (ActionId::ClickHold, Phase::Down));
+        let started = Instant::now();
+        drop(e);
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "timer thread did not stop promptly"
+        );
     }
 
     #[test]

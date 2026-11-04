@@ -16,6 +16,7 @@ use lowk_types::{
 };
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 /// What works right now; shown in Settings and onboarding.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -99,6 +100,10 @@ impl InputManager {
 }
 
 impl InputBackend for InputManager {
+    fn set_hold_delay(&mut self, delay: Duration) {
+        self.low.set_hold_delay(delay);
+    }
+
     fn set_binds(&mut self, binds: &[BindSpec]) -> Result<BindReport> {
         let mut status: Vec<Option<BindStatus>> = vec![None; binds.len()];
         let mut os_note: Vec<Option<&'static str>> = vec![None; binds.len()];
