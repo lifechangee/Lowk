@@ -286,6 +286,8 @@ impl Matcher {
                 }
                 self.mods = m;
                 let wanted = self.wanted_mod_only(m);
+                // A hold already fired proves intent: escalating it (Ctrl-hold, then +Alt) switches at once.
+                let holding = self.active.iter().any(|(_, h)| *h == Held::Mods);
                 if self.pending_mods.is_some() && self.pending_mods.as_ref().is_some_and(|p| p.mods != m) {
                     self.cancel_pending(if m == Mods::NONE {
                         "released"
@@ -300,7 +302,7 @@ impl Matcher {
                     _ => false,
                 });
                 if self.keys_down.is_empty() && self.mouse_down == 0 && m != Mods::NONE {
-                    if self.hold_delay.is_zero() {
+                    if self.hold_delay.is_zero() || holding {
                         out.events.extend(self.fire_mods(wanted).events);
                     } else if !wanted.is_empty() {
                         self.arm_mods(m, now);
@@ -635,6 +637,29 @@ mod tests {
                 .events,
             vec![fire(ActionId::ClickHold, Phase::Up)]
         );
+    }
+
+    #[test]
+    fn escalating_a_fired_hold_switches_at_once() {
+        let start = Instant::now();
+        let mut x = delayed(vec![ctrl_hold(), alt_hold()]);
+        x.handle_at(Raw::Mods(Mods::CTRL), start);
+        assert_eq!(
+            x.poll(start + Duration::from_millis(1000)).events,
+            vec![fire(ActionId::ClickHold, Phase::Down)]
+        );
+        let ctrl_alt = Mods {
+            ctrl: true,
+            alt: true,
+            ..Mods::NONE
+        };
+        let o = x.handle_at(Raw::Mods(ctrl_alt), start + Duration::from_millis(1100));
+        assert!(
+            o.events.contains(&fire(ActionId::MoveHold, Phase::Down)),
+            "{:?}",
+            o.events
+        );
+        assert_eq!(x.next_deadline(), None, "no second wait");
     }
 
     #[test]
