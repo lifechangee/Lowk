@@ -19,6 +19,7 @@ export interface OverlaySource {
   /** Interactive-mode input row submit. */
   submitText(text: string): void;
   setTemplate(id: string): void;
+  setScenario(scenario: import('../lib/ipc/bindings').Scenario): void;
   /** A source chip: open the call / document in the main window. */
   openSource?(s: import('../lib/ipc/bindings').SourceRef): void;
   /** «No API key» link: main window on Settings > Providers. */

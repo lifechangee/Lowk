@@ -308,3 +308,7 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 }
 .ov.interactive .more, .ov.hover .more { pointer-events: auto; cursor: pointer; }
 .sub .more { right: 12px; bottom: 2px; }
+
+.scenario-prompt { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 4px 8px; color: var(--tx); }
+.scenario-prompt button { color: inherit; background: var(--chip); border: 1px solid var(--intc); border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+.tpl-wrap.scenario-wrap .tpl .lbl { max-width: 120px; }

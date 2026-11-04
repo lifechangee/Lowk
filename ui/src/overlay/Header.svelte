@@ -2,6 +2,8 @@
   import type { OverlayStore } from './store.svelte';
   import type { OverlaySource } from './source';
   import { formatElapsed } from './store.svelte';
+  import type { Scenario } from '../lib/ipc/bindings';
+  const scenarios: Scenario[] = ['listen', 'assist', 'run'];
   import { ot } from './i18n';
 
   let { store, source }: { store: OverlayStore; source: OverlaySource } = $props();
@@ -28,6 +30,7 @@
     source.setTemplate(id);
   }
   function outside(e: PointerEvent) {
+    if (store.scenarioMenuOpen && !(e.target as HTMLElement).closest('.scenario-wrap')) store.scenarioMenuOpen = false;
     if (store.menuOpen && !(e.target as HTMLElement).closest('.tpl-wrap')) store.menuOpen = false;
   }
 </script>
@@ -53,6 +56,10 @@
     </button>
   {/if}
   <span class="div"></span>
+  <div class="tpl-wrap scenario-wrap" data-blk>
+    <button class="tpl" type="button" data-testid="scenario-chip" title={ot(`overlay.scenario.${store.scenario ?? 'none'}`, lang)} aria-haspopup="menu" aria-expanded={store.scenarioMenuOpen} onclick={() => { if (interactive) store.scenarioMenuOpen = !store.scenarioMenuOpen; }}><span class="lbl">{ot(`overlay.scenario.${store.scenario ?? 'none'}`, lang)}</span></button>
+    {#if store.scenarioMenuOpen}<div class="menu" role="menu">{#each scenarios as item}<button type="button" role="menuitem" onclick={() => source.setScenario(item)}><span class="lbl">{ot(`overlay.scenario.${item}`, lang)}</span></button>{/each}</div>{/if}
+  </div>
   <div class="tpl-wrap" data-blk>
     <button class="tpl" type="button" title={tplName} aria-haspopup="menu" aria-expanded={store.menuOpen} aria-label={ot('overlay.template', lang)} onclick={toggle}>
       <span class="lbl">{tplName}</span>

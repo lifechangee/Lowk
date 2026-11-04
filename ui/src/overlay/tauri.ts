@@ -82,6 +82,7 @@ export class TauriSource implements OverlaySource {
       quiet(commands.queueClear());
     }
     if (e.phase === 'idle') store.sttLoading = false;
+    store.setScenario(e.scenario ?? null);
     store.phase = e.phase;
     store.micOn = e.mic_on ?? true;
     store.micAuto = e.mic_mode === 'auto' && !e.mic_auto_unsupported;
@@ -109,7 +110,7 @@ export class TauriSource implements OverlaySource {
         const want = s.llm?.default_template;
         const id = (store.templates.find((t) => t.id === want) ?? store.templates.find((t) => t.id === 'brief') ?? store.templates[0]!).id;
         store.templateId = id;
-        void this.setTemplate(id);
+        // Settings may arrive before the session state; do not change the backend template here.
       }
     }
     store.lang = resolveOverlayLang(s.ui?.language ?? 'auto', this.#locale);
@@ -141,6 +142,9 @@ export class TauriSource implements OverlaySource {
   openSettings = () => quiet(commands.settingsOpen('providers'));
   clearQueue = () => quiet(commands.queueClear());
   submitText = (text: string) => quiet(commands.overlayInputSubmit(text));
+  setScenario = (scenario: import('../lib/ipc/bindings').Scenario) => {
+    void commands.sessionSetScenario(scenario).then((r) => { if (r.status === 'ok') this.#session(r.data); }).catch(() => {});
+  };
   setTemplate = (id: string) => quiet(commands.llmSetTemplate(id));
   toggleRecord = () => {
     const recording = this.#store?.phase === 'recording' || this.#store?.phase === 'paused';

@@ -1,6 +1,6 @@
 // Overlay view state. Fed by an OverlaySource (mock demo in dev, Tauri events in the app).
 // No business logic: it only folds events into what the components render.
-import type { SourceRef, LlmEvent, OverlayMode, OverlayVisibility, PillEdge, QaUpdate, SessionPhase, SttEvent, Template, ToneKind } from '../lib/ipc/bindings';
+import type { Scenario, SourceRef, LlmEvent, OverlayMode, OverlayVisibility, PillEdge, QaUpdate, SessionPhase, SttEvent, Template, ToneKind } from '../lib/ipc/bindings';
 import type { Lang } from '../lib/i18n';
 import { keyLabels, type KeyLabels } from './keys';
 import { GRID_COLS, GRID_ROWS, PRESETS, kFromTransparency, parseGrid, toneToVars, type ToneEvent, type ToneVars } from './tone';
@@ -23,6 +23,7 @@ export const MAX_SUB_LINES = 60;
 export type ChainStage = 'question' | 'hint' | 'my';
 
 export const DEFAULT_TEMPLATES: Template[] = [
+  { id: 'explain', names: { ru: 'Объясни', en: 'Explain' }, instruction: '' },
   { id: 'brief', names: { ru: 'Кратко ответить', en: 'Brief answer' }, instruction: '' },
   { id: 'complement', names: { ru: 'Дополни мой ответ', en: 'Complement my answer' }, instruction: '', needs_my_answer: true },
   { id: 'say', names: { ru: 'Что сказать?', en: 'What to say?' }, instruction: '' },
@@ -66,7 +67,9 @@ export class OverlayStore {
   holdDegraded = $state(false);
 
   templates = $state<Template[]>(DEFAULT_TEMPLATES);
-  templateId = $state('brief');
+  scenario = $state<Scenario | null>(null);
+  scenarioMenuOpen = $state(false);
+  templateId = $state('explain');
   menuOpen = $state(false);
 
   /** Subtitle history, oldest first: finals plus the line being spoken. The newest line is always the last. */
@@ -254,7 +257,7 @@ export class OverlayStore {
 
   setMode(m: OverlayMode): void {
     this.mode = m;
-    if (m !== 'interactive' && m !== 'hover') this.menuOpen = false;
+    if (m !== 'interactive' && m !== 'hover') { this.menuOpen = false; this.scenarioMenuOpen = false; }
   }
 
   setQueue(shots: number, thumbs: string[] = []): void {
@@ -273,6 +276,14 @@ export class OverlayStore {
     this.copied = true;
     clearTimeout(this.#copyTimer);
     this.#copyTimer = setTimeout(() => (this.copied = false), 1500);
+  }
+
+  setScenario(scenario: Scenario | null): void {
+    if (this.scenario !== scenario) {
+      this.scenario = scenario;
+      this.templateId = scenario === 'assist' ? 'brief' : scenario === 'run' ? 'say' : 'explain';
+    }
+    this.scenarioMenuOpen = false;
   }
 
   selectTemplate(id: string): void {

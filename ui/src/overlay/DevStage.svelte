@@ -24,6 +24,7 @@
   store.transparency = Number(q.get('t') ?? 60);
   // capvis=1: the «visible on recording» badge / pill dot (B8, `settings.stealth.overlay_capture_visible`).
   store.captureVisible = q.get('capvis') === '1';
+  store.setScenario(q.get('scenario') === 'null' ? null : q.get('scenario') === 'listen' ? 'listen' : q.get('scenario') === 'run' ? 'run' : 'assist');
   store.lang = q.get('lang') === 'en' ? 'en' : 'ru';
   let view = $state<'overlay' | 'pill'>(q.get('view') === 'pill' ? 'pill' : 'overlay');
   let pos = $state({ x: 0, y: 0 });

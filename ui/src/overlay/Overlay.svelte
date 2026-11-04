@@ -14,6 +14,9 @@
   import InputRow from './InputRow.svelte';
   import Hints from './Hints.svelte';
   import Pill from './Pill.svelte';
+  import { ot } from './i18n';
+  import type { Scenario } from '../lib/ipc/bindings';
+  const scenarios: Scenario[] = ['listen', 'assist', 'run'];
 
   let { store, source }: { store: OverlayStore; source: OverlaySource } = $props();
   const style = $derived(varsToStyle(store.tone, store.k, store.fontPx));
@@ -164,8 +167,11 @@
     <div class="scrim" style={scrimStyle} aria-hidden="true">{#each rowStyles as rs}<i style={rs}></i>{/each}</div>
     <Header {store} {source} />
     <Subtitle {store} />
+    {#if store.scenario === null && store.phase === 'recording'}
+      <div class="scenario-prompt" data-blk data-testid="scenario-prompt"><span>{ot('overlay.scenario.prompt', store.lang)}</span>{#each scenarios as item}<button type="button" onclick={() => source.setScenario(item)}>{ot(`overlay.scenario.${item}`, store.lang)}</button>{/each}</div>
+    {/if}
     <Answer {store} {source} />
-    <MyAnswer {store} {source} />
+    {#if store.scenario === 'assist'}<MyAnswer {store} {source} />{/if}
     {#if store.mode === 'interactive'}<InputRow {store} {source} />{/if}
     <Hints {store} />
     {#if store.sentinel}<div class="sentinel"></div>{/if}

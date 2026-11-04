@@ -1,5 +1,13 @@
 // Main-window strings (library, workspace, call page, settings, onboarding extras). Keys: `m.*`.
 export const m = {
+  'm.scenario': 'Scenario',
+  'm.scenario.listen': 'I’m listening',
+  'm.scenario.listen.desc': 'Lecture, webinar, mostly listening',
+  'm.scenario.assist': 'I need help',
+  'm.scenario.assist.desc': 'Interview, exam, answering questions',
+  'm.scenario.run': 'I’m leading a meeting',
+  'm.scenario.run.desc': 'Daily standup, 1:1, responsible for the outcome',
+
   'm.aiHint': 'AI hint',
   'm.audioSource': 'Audio source',
   'm.auto': 'Auto',
