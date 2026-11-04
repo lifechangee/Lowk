@@ -80,7 +80,7 @@ impl Settings {
             overlay: OverlaySettings::default(),
             capture: CaptureSettings::default(),
             binds: default_binds(os),
-            hold_delay_ms: 1000,
+            hold_delay_ms: 500,
             stealth: StealthSettings::default(),
             updates: UpdateSettings::default(),
             network: NetworkSettings::default(),
