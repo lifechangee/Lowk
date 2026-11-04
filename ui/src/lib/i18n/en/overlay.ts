@@ -4,6 +4,7 @@ export const overlay = {
   'overlay.scenario.listen': 'Listening',
   'overlay.scenario.assist': 'Help',
   'overlay.scenario.run': 'Leading a meeting',
+  'overlay.scenario.short': 'Mode?',
   'overlay.scenario.none': 'No scenario selected',
 
   'overlay.mode.passive': 'Click-through',

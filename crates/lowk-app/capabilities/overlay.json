@@ -14,6 +14,7 @@
     "allow-session-snapshot",
     "allow-session-start",
     "allow-session-stop",
+    "allow-session-set-scenario",
     "allow-session-set-mic",
     "allow-session-set-mic-mode",
     "allow-overlay-input-submit",

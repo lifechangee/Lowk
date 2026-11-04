@@ -57,7 +57,7 @@
   {/if}
   <span class="div"></span>
   <div class="tpl-wrap scenario-wrap" data-blk>
-    <button class="tpl" type="button" data-testid="scenario-chip" title={ot(`overlay.scenario.${store.scenario ?? 'none'}`, lang)} aria-haspopup="menu" aria-expanded={store.scenarioMenuOpen} onclick={() => { if (interactive) store.scenarioMenuOpen = !store.scenarioMenuOpen; }}><span class="lbl">{ot(`overlay.scenario.${store.scenario ?? 'none'}`, lang)}</span></button>
+    <button class="tpl" type="button" data-testid="scenario-chip" title={ot(`overlay.scenario.${store.scenario ?? 'none'}`, lang)} aria-haspopup="menu" aria-expanded={store.scenarioMenuOpen} onclick={() => { if (interactive) store.scenarioMenuOpen = !store.scenarioMenuOpen; }}><span class="lbl">{ot(store.scenario ? `overlay.scenario.${store.scenario}` : 'overlay.scenario.short', lang)}</span></button>
     {#if store.scenarioMenuOpen}<div class="menu" role="menu">{#each scenarios as item}<button type="button" role="menuitem" onclick={() => source.setScenario(item)}><span class="lbl">{ot(`overlay.scenario.${item}`, lang)}</span></button>{/each}</div>{/if}
   </div>
   <div class="tpl-wrap" data-blk>

@@ -3,14 +3,13 @@ import type { UnlistenFn } from '@tauri-apps/api/event';
 import { EVENTS, on, commands } from '../lib/ipc';
 import type { SourceRef, BindReport, ActionId, LlmEvent, OverlayMode, QaUpdate, QueueState, SessionState, Settings, SttEvent } from '../lib/ipc/bindings';
 import { bindFor, triggerText } from '../main/binds';
-import { resolveOverlayLang } from './i18n';
+import { et, resolveOverlayLang } from './i18n';
+import type { AppError } from '../lib/ipc/bindings';
 import type { OverlayStore } from './store.svelte';
 import type { OverlaySource } from './source';
 import type { ToneEvent } from './tone';
 import { copyPlainAnswer } from './clipboard';
 
-/** Commands answer with `{status:'error'}` instead of throwing; the overlay only needs to not crash. */
-const quiet = (p: Promise<unknown>) => void p.catch(() => {});
 
 export class TauriSource implements OverlaySource {
   #un: UnlistenFn[] = [];
@@ -19,6 +18,22 @@ export class TauriSource implements OverlaySource {
   #store: OverlayStore | undefined;
   #locale = 'en';
   #gen = 0;
+
+  #failure(error: unknown): void {
+    const store = this.#store;
+    if (!store) return;
+    const app = error as Partial<AppError> | null;
+    const key = `error.${app?.code ?? 'unknown'}` as Parameters<typeof et>[0];
+    const message = et(key, store.lang);
+    const fallback = et('error.unknown', store.lang);
+    store.flash((message === key ? fallback : message).replace(/\{(\w+)\}/g, (match, name: string) => app?.params?.[name] ?? match));
+  }
+
+  #action(p: Promise<unknown>): void {
+    void p.then((result) => {
+      if (result && typeof result === 'object' && 'status' in result && result.status === 'error' && 'error' in result) this.#failure(result.error);
+    }).catch((error) => this.#failure(error));
+  }
 
   start(store: OverlayStore): void {
     // Idempotent: a second start() (HMR, remount) must not stack a second set of listeners (F10).
@@ -79,7 +94,7 @@ export class TauriSource implements OverlaySource {
       this.#t0 = Date.now();
       store.elapsedMs = 0;
       store.reset();
-      quiet(commands.queueClear());
+      this.#action(commands.queueClear());
     }
     if (e.phase === 'idle') store.sttLoading = false;
     store.setScenario(e.scenario ?? null);
@@ -123,44 +138,46 @@ export class TauriSource implements OverlaySource {
     clearInterval(this.#tick);
   }
 
-  ask = () => quiet(commands.llmAsk(null));
+  ask = () => this.#action(commands.llmAsk(null));
   copyAnswer = () => {
     const store = this.#store;
     if (!store?.hasAnswered || !store.answer) return;
     void copyPlainAnswer(store.answer).then(() => store.markCopied()).catch(() => store.flash(store.lang === 'ru' ? 'Не удалось скопировать' : 'Could not copy'));
   };
-  cancelAnswer = () => quiet(commands.llmCancel());
-  doneMyAnswer = () => quiet(commands.qaDone());
+  cancelAnswer = () => this.#action(commands.llmCancel());
+  doneMyAnswer = () => this.#action(commands.qaDone());
   screenshot = () => {
     // G7: the queue arrives through `queue://changed`; only a refusal (e.g. no Screen Recording) needs a word.
     void commands.captureScreenshot().then((r) => {
       if (r.status === 'error') this.#store?.flash(this.#store.lang === 'ru' ? 'Нет доступа к записи экрана' : 'No Screen Recording access');
       else this.#store?.flash(this.#store.lang === 'ru' ? 'Скриншот добавлен' : 'Screenshot added');
-    }).catch(() => {});
+    }).catch((error) => this.#failure(error));
   };
-  openSource = (s: SourceRef) => quiet(commands.sourceOpen(s));
-  openSettings = () => quiet(commands.settingsOpen('providers'));
-  clearQueue = () => quiet(commands.queueClear());
-  submitText = (text: string) => quiet(commands.overlayInputSubmit(text));
+  openSource = (s: SourceRef) => this.#action(commands.sourceOpen(s));
+  openSettings = () => this.#action(commands.settingsOpen('providers'));
+  clearQueue = () => this.#action(commands.queueClear());
+  submitText = (text: string) => this.#action(commands.overlayInputSubmit(text));
   setScenario = (scenario: import('../lib/ipc/bindings').Scenario) => {
-    void commands.sessionSetScenario(scenario).then((r) => { if (r.status === 'ok') this.#session(r.data); }).catch(() => {});
+    void commands.sessionSetScenario(scenario).then((r) => { if (r.status === 'ok') this.#session(r.data); else this.#failure(r.error); }).catch((error) => this.#failure(error));
   };
-  setTemplate = (id: string) => quiet(commands.llmSetTemplate(id));
+  setTemplate = (id: string) => this.#action(commands.llmSetTemplate(id));
   toggleRecord = () => {
     const recording = this.#store?.phase === 'recording' || this.#store?.phase === 'paused';
-    quiet(recording ? commands.sessionStop() : commands.sessionStart({ title: null, folder: null, system: null, mic: null, demo: false }));
+    this.#action(recording ? commands.sessionStop() : commands.sessionStart({ title: null, folder: null, system: null, mic: null, demo: false }));
   };
-  stopRecording = () => quiet(commands.sessionStop());
+  stopRecording = () => this.#action(commands.sessionStop());
   setMic = (on: boolean) => {
     // optimistic; the session event that follows is the truth
+    const previous = this.#store?.micOn;
     if (this.#store) this.#store.micOn = on;
-    void commands.sessionSetMic(on).then((r) => r.status === 'ok' && this.#store && (this.#store.micOn = r.data.mic_on ?? true)).catch(() => {});
+    const failed = (error: unknown) => { if (this.#store && previous !== undefined) this.#store.micOn = previous; this.#failure(error); };
+    void commands.sessionSetMic(on).then((r) => { if (r.status === 'ok' && this.#store) this.#store.micOn = r.data.mic_on ?? true; else if (r.status === 'error') failed(r.error); }).catch(failed);
   };
-  escape = () => quiet(commands.overlayEscape());
-  dragStart = () => quiet(commands.overlayDragStart());
-  dragTo = (dx: number, dy: number) => quiet(commands.overlayDragTo(dx, dy));
-  dragEnd = () => quiet(commands.overlayDragEnd());
-  pillDragStart = () => quiet(commands.pillDragStart());
-  pillDragTo = (dx: number, dy: number) => quiet(commands.pillDragTo(dx, dy));
-  pillDragEnd = () => quiet(commands.pillDragEnd());
+  escape = () => this.#action(commands.overlayEscape());
+  dragStart = () => this.#action(commands.overlayDragStart());
+  dragTo = (dx: number, dy: number) => this.#action(commands.overlayDragTo(dx, dy));
+  dragEnd = () => this.#action(commands.overlayDragEnd());
+  pillDragStart = () => this.#action(commands.pillDragStart());
+  pillDragTo = (dx: number, dy: number) => this.#action(commands.pillDragTo(dx, dy));
+  pillDragEnd = () => this.#action(commands.pillDragEnd());
 }
