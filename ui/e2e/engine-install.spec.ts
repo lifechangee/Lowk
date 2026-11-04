@@ -122,7 +122,7 @@ test('a damaged part is re-downloaded with a transient notice, the bar never goe
       return { state: c.querySelector('[data-testid=model-chip]')?.getAttribute('data-state') ?? '', note: c.querySelector('[data-testid=model-note]')?.textContent ?? '', w: w ? parseFloat(w.style.width) : NaN, err: c.querySelectorAll('[data-testid=model-error]').length };
     });
     if (snap.state === 'ready' || Date.now() - t0 > 15_000) break;
-    if (/reconnecting/.test(snap.note)) sawRetry = true;
+    if (/reconnecting/i.test(snap.note)) sawRetry = true;
     if (/damaged part/.test(snap.note)) sawRepair = true;
     if (!Number.isNaN(snap.w)) pcts.push(snap.w);
     expect(snap.err, 'no terminal error while repairing').toBe(0);
