@@ -836,7 +836,7 @@ export class MockBackend implements Backend {
     const preset = opts.folder?.kind === 'user' ? (this.#folders.find((f) => f.id.kind === 'user' && f.id.id === (opts.folder as { id: string }).id)?.mic ?? 'inherit') : 'inherit';
     const g = this.#settings.audio?.record_mic as unknown;
     const globalMode: MicMode = g === false || g === 'off' ? 'off' : g === 'auto' ? 'auto' : 'on';
-    this.#session = this.#micState(preset === 'inherit' ? globalMode : preset, (globalThis as { __lowkMockAutoApp?: boolean }).__lowkMockAutoApp ?? opts.system?.kind === 'app', { phase: 'recording', call: id, demo: true });
+    this.#session = this.#micState(preset === 'inherit' ? globalMode : preset, (globalThis as { __lowkMockAutoApp?: boolean }).__lowkMockAutoApp ?? opts.system?.kind === 'app', { phase: 'recording', call: id, demo: true, scenario: opts.scenario ?? null });
     let i = 0;
     this.#liveTimer = setInterval(() => { const l = LIVE_LINES[i++ % LIVE_LINES.length]!; this.#live.forEach((cb) => cb(l)); }, 2600);
     return this.#session;
@@ -851,16 +851,16 @@ export class MockBackend implements Backend {
   }
   #autoApp = false;
   /** Mic fields for a mode like the backend: auto starts closed, or records like «on» when it cannot be detected. */
-  #micState(mode: MicMode, canDetect: boolean, base: Pick<SessionState, 'phase' | 'call' | 'demo'>): SessionState {
+  #micState(mode: MicMode, canDetect: boolean, base: Pick<SessionState, 'phase' | 'call' | 'demo' | 'scenario'>): SessionState {
     this.#autoApp = canDetect;
     const unsupported = mode === 'auto' && !canDetect;
     return { ...base, mic_mode: mode, mic_auto_unsupported: unsupported, mic_on: mode === 'on' || unsupported };
   }
   async sessionSetMicMode(mode: MicMode): Promise<SessionState> {
     if (this.#session.phase !== 'recording') throw appErr('session_idle');
-    const { phase, call, demo } = this.#session;
+    const { phase, call, demo, scenario } = this.#session;
     const prev = this.#session.mic_on;
-    this.#session = this.#micState(mode, this.#autoApp, { phase, call, demo });
+    this.#session = this.#micState(mode, this.#autoApp, { phase, call, demo, scenario });
     if (mode === 'auto' && !this.#session.mic_auto_unsupported) this.#session.mic_on = prev; // keeps the state until the app lets go
     return this.#session;
   }

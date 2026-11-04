@@ -89,7 +89,7 @@ test('G3 Mic and Stop are small icon buttons, labelled by title/aria, light and 
   await expect(mic.locator('svg')).toHaveCount(1);
   await expect(stop).toHaveText('');
   await expect(mic).toHaveText('');
-  const chipColour = await page.locator('.tpl').evaluate((e) => getComputedStyle(e).color);
+  const chipColour = await page.locator('.tpl:not([data-testid=scenario-chip])').evaluate((e) => getComputedStyle(e).color);
   for (const loc of [stop, mic]) {
     const d = await loc.evaluate((e) => { const b = e.getBoundingClientRect(); return { w: b.width, h: b.height, pos: getComputedStyle(e).position, c: getComputedStyle(e).color }; });
     expect(d.w).toBeLessThanOrEqual(28);

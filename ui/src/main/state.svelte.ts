@@ -4,7 +4,7 @@ import type { Key, LangSetting } from '../lib/i18n';
 import type { CallMeta, Document, FolderMeta, IndexStatus, MicMode, Settings, SourceInfo, Target, TrashedFolder } from '../lib/ipc';
 import { api, CommandError, folderKey, folderRef, hasTauri, SYS_TRASH, SYS_UNSORTED, type EngineNeeded, type FolderKey, type LiveLine } from './api';
 import { EVENTS, on } from '../lib/ipc';
-import type { SessionState } from '../lib/ipc';
+import type { SessionState, Scenario } from '../lib/ipc';
 import { mergePatch } from './api/mock';
 import { hrefs, router } from './router.svelte';
 import { errText } from './errors';
@@ -218,18 +218,18 @@ class Session {
   elapsed = $derived(this.phase === 'recording' ? Math.max(0, Math.floor((this.now - this.startedAt) / 1000)) : 0);
   #tick: ReturnType<typeof setInterval> | null = null;
   #off: (() => void) | null = null;
-  #pendingStart: { folder: FolderKey | null; target: Target | null; sourceLabel: string; languages: string[] | null } | null = null;
+  #pendingStart: { folder: FolderKey | null; target: Target | null; sourceLabel: string; languages: string[] | null; scenario: Scenario | null } | null = null;
 
-  async start(folder: FolderKey | null, target: Target | null, sourceLabel: string, languages: string[] | null = null): Promise<void> {
+  async start(folder: FolderKey | null, target: Target | null, sourceLabel: string, languages: string[] | null = null, scenario: Scenario | null = null): Promise<void> {
     if (this.phase === 'recording') return;
     languages = languages ? [...languages] : null; // plain array, not a reactive proxy (it crosses IPC)
     let st: SessionState;
     try {
-      st = await api.sessionStart({ title: null, folder: folder && folder !== SYS_UNSORTED ? folderRef(folder) : null, system: target, mic: null, demo: false, languages });
+      st = await api.sessionStart({ title: null, folder: folder && folder !== SYS_UNSORTED ? folderRef(folder) : null, system: target, mic: null, demo: false, languages, scenario });
     } catch (e) {
       // No engine: the backend already raised the «download the model» prompt (engine://needed); nothing started.
       if (e instanceof CommandError && e.app.code === 'engine_not_ready') {
-        this.#pendingStart = { folder, target, sourceLabel, languages };
+        this.#pendingStart = { folder, target, sourceLabel, languages, scenario };
         return;
       }
       throw e;
@@ -242,9 +242,9 @@ class Session {
     await library.reload();
   }
   async retryAfterEngineReady(): Promise<void> {
-    const pending = this.#pendingStart ?? { folder: null, target: { kind: 'whole_system' as const }, sourceLabel: tm('m.sourceSystemShort'), languages: null };
+    const pending = this.#pendingStart ?? { folder: null, target: { kind: 'whole_system' as const }, sourceLabel: tm('m.sourceSystemShort'), languages: null, scenario: null };
     this.#pendingStart = null;
-    await this.start(pending.folder, pending.target, pending.sourceLabel, pending.languages);
+    await this.start(pending.folder, pending.target, pending.sourceLabel, pending.languages, pending.scenario);
   }
   discardPendingStart(): void { this.#pendingStart = null; }
   #begin(call: string | null, folder: FolderKey, sourceLabel: string): void {

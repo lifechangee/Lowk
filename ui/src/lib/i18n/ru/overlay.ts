@@ -1,5 +1,11 @@
 // Overlay window (answers, modes, tones, transparency). Keys: `overlay.*`.
 export const overlay = {
+  'overlay.scenario.prompt': 'Что делаем?',
+  'overlay.scenario.listen': 'Слушаю',
+  'overlay.scenario.assist': 'Помощь',
+  'overlay.scenario.run': 'Веду встречу',
+  'overlay.scenario.none': 'Сценарий не выбран',
+
   'overlay.mode.passive': 'Сквозной',
   'overlay.mode.interactive': 'Интерактивный',
   'overlay.mode.moving': 'Перемещение',

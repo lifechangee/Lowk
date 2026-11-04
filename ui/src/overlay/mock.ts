@@ -76,6 +76,8 @@ export class MockSource implements OverlaySource {
     if (this.#autoplay) void this.#run(++this.#gen);
   }
 
+  setScenario = (scenario: import('../lib/ipc/bindings').Scenario) => this.#store.setScenario(scenario);
+
   stop(): void {
     this.#gen++;
     clearInterval(this.#tick);

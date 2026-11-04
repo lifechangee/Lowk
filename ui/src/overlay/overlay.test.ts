@@ -301,3 +301,17 @@ describe('microphone state', () => {
     expect(s.micOn).toBe(false);
   });
 });
+
+describe('scenario view state', () => {
+  it('tracks the scenario template when the scenario changes', () => {
+    const store = new OverlayStore();
+    store.setScenario('assist');
+    expect(store.templateId).toBe('brief');
+    store.setScenario('run');
+    expect(store.templateId).toBe('say');
+    store.setScenario('listen');
+    expect(store.templateId).toBe('explain');
+    store.setScenario(null);
+    expect(store.templateId).toBe('explain');
+  });
+});
