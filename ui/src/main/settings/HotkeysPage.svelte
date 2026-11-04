@@ -15,7 +15,7 @@
   const holdLabel = (ms: number) => (ms === 0 ? tm('m.holdDelay.now') : tm('m.holdDelay.sec', { n: (ms / 1000).toLocaleString(locale.lang) }));
   const holdOptions = $derived(HOLD_STEPS.map((ms) => ({ value: String(ms), label: holdLabel(ms) })));
   const holdValue = $derived.by(() => {
-    const v = prefs.value.hold_delay_ms ?? 1000;
+    const v = prefs.value.hold_delay_ms ?? 500;
     // a hand-edited settings.toml value shows as the nearest step
     return String(HOLD_STEPS.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a)));
   });
