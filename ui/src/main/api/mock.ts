@@ -266,7 +266,8 @@ export class MockBackend implements Backend {
       recommended: d.id === 'whisper-large-v3-turbo',
       needs_key: d.kind === 'cloud',
       license_url: 'https://openmdw.ai/license/1-1/',
-      extra_mb: d.id === 'whisper-large-v3-turbo' ? 620 : 0,
+      // Like the backend: the correction model counts only while it is missing (an install brings it too).
+      extra_mb: d.id === 'whisper-large-v3-turbo' && !this.#engineInstalled.has(d.id) ? 620 : 0,
       installing: qp('needed') === 'downloading' && d.id === 'whisper-large-v3-turbo' ? { engine: d.id, file: 'model.gguf', phase: 'downloading' as const, done_bytes: 580 * 1048576, total_bytes: 1371 * 1048576, message: null } : null,
       runtime_missing: d.kind === 'local' && typeof location !== 'undefined' && /[?&]runtime=missing\b/.test(location.search),
     }));
