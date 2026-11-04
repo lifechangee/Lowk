@@ -35,6 +35,8 @@ fn changed(prev: Option<Indicator>, next: Indicator) -> Option<Indicator> {
 
 /// Registers a platform renderer. A renderer registered after initialization receives current state.
 /// The macOS menu bar renderer will be wired here by the other team; this module does not implement it.
+// Only the Windows tray calls it so far; the macOS menu bar will use it (drop this allow then).
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn subscribe(f: Box<dyn Fn(Indicator) + Send + Sync>) {
     let current = *current_slot().lock();
     let f: Subscriber = Arc::from(f);
