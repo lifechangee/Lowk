@@ -23,6 +23,7 @@ pub const LEGACY_LLM_MODEL: &str = "deepseek/deepseek-v4.1-flash";
 /// (OpenRouter slug; also the reliable fallback model of `lowk-llm`).
 pub const DEFAULT_VISION_MODEL: &str = "anthropic/claude-haiku-5.5";
 pub const DEFAULT_OPENROUTER_URL: &str = "https://openrouter.ai/api/v1";
+pub const DEFAULT_DEEPSEEK_URL: &str = "https://api.deepseek.com/v1";
 /// Version- and provider-pinned default for cloud calls (summary, tags, Ask).
 pub const DEFAULT_LLM_MODEL_PINNED: &str = "deepseek/deepseek-v4.1-flash-1017";
 /// EmbeddingGemma GGUF used for local semantic search (about 310 MB).
@@ -403,6 +404,7 @@ pub struct SttBenchmark {
 #[serde(rename_all = "snake_case")]
 pub enum LlmProvider {
     Openrouter,
+    Deepseek,
     Ollama,
     Lmstudio,
     LlamaServer,
@@ -874,6 +876,19 @@ pub fn default_binds(os: Os) -> Vec<BindSpec> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn old_settings_load_and_deepseek_round_trips() {
+        let mut value = serde_json::to_value(Settings::defaults_for(Os::Macos)).unwrap();
+        value["llm"].as_object_mut().unwrap().remove("provider");
+        let old: Settings = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(old.llm.provider, LlmProvider::Openrouter);
+        value["llm"]["provider"] = serde_json::json!("deepseek");
+        let parsed: Settings = serde_json::from_value(value).unwrap();
+        assert_eq!(parsed.llm.provider, LlmProvider::Deepseek);
+        let encoded = serde_json::to_value(parsed).unwrap();
+        assert_eq!(encoded["llm"]["provider"], "deepseek");
+    }
 
     #[test]
     fn migration_adds_new_builtin_templates_without_replacing_user_settings() {

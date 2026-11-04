@@ -125,7 +125,7 @@ export class CommandError extends Error {
   }
 }
 
-export type SecretProvider = 'openrouter' | 'stt-cloud';
+export type SecretProvider = 'openrouter' | 'deepseek' | 'stt-cloud';
 
 /** `utt` identifies the utterance within its stream: a corrected re-emit replaces the shown line. */
 export type LiveLine = { speaker: Stream; text: string; utt?: number };
@@ -207,6 +207,7 @@ export interface Backend {
   llmDetectLocal(): Promise<LocalServer[]>;
   /** Rejects with the backend error (`api_key_missing`, `network`, `llm_provider`, ...). */
   llmKeyTest(): Promise<void>;
+  llmModels(): Promise<string[]>;
 
   // ---- M3: re-transcription of a saved recording ----
   /** Saved audio present?, a pass running / paused, progress, transcript revisions. */

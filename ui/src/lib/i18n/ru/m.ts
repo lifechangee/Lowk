@@ -76,6 +76,8 @@ export const m = {
   'm.localVisionModel': 'Локальная модель для скриншотов',
   'm.localVisionModelHint': 'Для папок «только локально»: скриншоты уходят только на неё, в облако никогда',
   'm.llmProvider': 'Провайдер нейронки',
+  'm.deepseekDirect': 'DeepSeek (напрямую)',
+  'm.deepseekKeyHint': 'Ключ с platform.deepseek.com. Работает без OpenRouter.',
   'm.detectTitle': 'Локальные модели',
   'm.detectLocal': 'Найти локальные модели',
   'm.detecting': 'Ищу…',

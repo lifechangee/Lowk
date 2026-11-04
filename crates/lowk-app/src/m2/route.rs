@@ -53,7 +53,7 @@ pub fn is_local_url(url: &str) -> bool {
 /// The configured provider runs on this machine / network.
 pub fn provider_is_local(s: &LlmSettings) -> bool {
     match s.provider {
-        LlmProvider::Openrouter => false,
+        LlmProvider::Openrouter | LlmProvider::Deepseek => false,
         LlmProvider::Ollama | LlmProvider::Lmstudio | LlmProvider::LlamaServer => true,
         LlmProvider::Custom => is_local_url(&s.base_url),
     }
@@ -108,7 +108,9 @@ pub fn resolve(s: &LlmSettings, local_only: bool, key: Option<String>, purpose: 
         return Ok(Route { cfg, cloud: false });
     }
     let kind: ProviderKind = s.provider.into();
-    if kind == ProviderKind::OpenRouter && key.as_deref().is_none_or(|k| k.trim().is_empty()) {
+    if matches!(kind, ProviderKind::OpenRouter | ProviderKind::Deepseek)
+        && key.as_deref().is_none_or(|k| k.trim().is_empty())
+    {
         return Err(AppError::new(ErrorCode::ApiKeyMissing));
     }
     Ok(Route {
@@ -200,6 +202,11 @@ pub fn resolve_vision(
         cfg.reasoning = false;
         cfg.session_id = session_id;
         return Ok(Route { cfg, cloud: false });
+    }
+    if s.provider == LlmProvider::Deepseek {
+        return Err(AppError::new(ErrorCode::NoVision).with_detail(
+            "DeepSeek does not support screenshots; choose a vision-capable provider or local model",
+        ));
     }
     let mut r = resolve(s, false, key, &purpose)?;
     if !model_has_vision(&r.cfg.model) {
@@ -350,6 +357,29 @@ mod tests {
         assert_eq!(r.cfg.model, lowk_types::DEFAULT_LLM_MODEL_PINNED);
         assert_eq!(r.cfg.session_id.as_deref(), Some("c"));
         assert!(!r.cfg.reasoning);
+    }
+
+    #[test]
+    fn deepseek_is_cloud_direct_and_blocked_in_local_only_folders() {
+        let mut s = cloud();
+        s.provider = LlmProvider::Deepseek;
+        let r = resolve(&s, false, Some("deepseek-key".into()), &Purpose::Summary).unwrap();
+        assert!(r.cloud);
+        assert_eq!(r.cfg.base_url, lowk_types::DEFAULT_DEEPSEEK_URL);
+        assert_eq!(r.cfg.kind, ProviderKind::Deepseek);
+        assert_eq!(r.cfg.pinned_provider, None);
+        assert_eq!(
+            resolve(&s, true, Some("deepseek-key".into()), &Purpose::Summary)
+                .unwrap_err()
+                .code,
+            ErrorCode::LocalOnlyBlocked
+        );
+        assert_eq!(
+            resolve_vision(&s, false, Some("deepseek-key".into()), None)
+                .unwrap_err()
+                .code,
+            ErrorCode::NoVision
+        );
     }
 
     #[test]

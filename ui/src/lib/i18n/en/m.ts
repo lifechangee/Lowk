@@ -76,6 +76,8 @@ export const m = {
   'm.localVisionModel': 'Local screenshot model',
   'm.localVisionModelHint': 'For local-only folders: screenshots go to this model only, never to the cloud',
   'm.llmProvider': 'LLM provider',
+  'm.deepseekDirect': 'DeepSeek (direct)',
+  'm.deepseekKeyHint': 'Get a key at platform.deepseek.com. Works without OpenRouter.',
   'm.detectTitle': 'Local models',
   'm.detectLocal': 'Detect local models',
   'm.detecting': 'Looking…',

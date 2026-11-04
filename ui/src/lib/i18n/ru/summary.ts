@@ -7,7 +7,7 @@ export const summary = {
   'summary.route.local': 'Текст созвона обработает локальная модель {model}; он не уйдёт в облако.',
   'summary.route.blocked': 'Саммари не будет создано: для папки «Только локально» настройте локальную модель или отключите этот режим.',
   'summary.provider.custom': 'свой сервер',
-  'summary.noKey': 'Не задан ключ OpenRouter.',
+  'summary.noKey': 'Не задан ключ выбранного облачного провайдера.',
   'summary.openSettings': 'Открыть настройки',
   'summary.building': 'Составляю саммари…',
   'summary.waiting': 'Жду ответ модели…',

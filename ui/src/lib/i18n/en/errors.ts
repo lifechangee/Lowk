@@ -28,7 +28,7 @@ export const errors = {
   'error.network': 'No connection to the server. Check your internet and try again',
   'error.llm_provider': 'The model provider returned an error. Check the key and the model in Settings',
   'error.llm_cancelled': 'Stopped',
-  'error.api_key_missing': 'The OpenRouter key is not set. Add it in Settings',
+  'error.api_key_missing': 'The selected cloud provider key is not set. Add it in Settings',
   'error.no_vision': 'The selected model cannot read images',
   'error.stealth_unavailable': 'Window hiding is not available on this system',
   'error.session_busy': 'A recording is already running',

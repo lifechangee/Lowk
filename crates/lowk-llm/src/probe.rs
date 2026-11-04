@@ -146,3 +146,17 @@ pub fn probe_fastest_provider(
         samples,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pinning_probe_rejects_deepseek_before_any_request() {
+        let cfg = LlmConfig::new(ProviderKind::Deepseek, "http://127.0.0.1:1/v1", "deepseek-chat")
+            .with_key(Some("test-key".into()));
+        let e =
+            probe_fastest_provider(&cfg, "deepseek-chat", &ProbeOptions::default(), &|| true).unwrap_err();
+        assert_eq!(e.code, ErrorCode::Unsupported);
+    }
+}

@@ -805,6 +805,8 @@ export class MockBackend implements Backend {
     if (qp('key') === 'bad') throw appErr('llm_provider');
   }
 
+  async llmModels(): Promise<string[]> { return ['deepseek-chat', 'deepseek-reasoner']; }
+
   // ================= export / import =================
   async pickSavePath(defaultName: string): Promise<string | null> { return `~/Downloads/${defaultName}`; }
   async pickOpenPath(extension: string): Promise<string | null> { return `~/Downloads/lowk-export.${extension}`; }

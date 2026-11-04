@@ -12,6 +12,10 @@ describe('summaryRoute', () => {
     expect(summaryRoute(cloud, true, 'DeepInfra')).toEqual({ kind: 'cloud', model: 'model-x', provider: 'DeepInfra' });
   });
 
+  it('names DeepSeek as the direct cloud route', () => {
+    expect(summaryRoute({ ...cloud, provider: 'deepseek' }, true)).toEqual({ kind: 'cloud', model: 'model-x', provider: 'DeepSeek' });
+  });
+
   it('reports local when the local-only route is configured', () => {
     expect(summaryRoute({ ...cloud, local_base_url: 'http://localhost:11434/v1', local_model: 'qwen' }, false)).toEqual({ kind: 'local', model: 'qwen' });
   });

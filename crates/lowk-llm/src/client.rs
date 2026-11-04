@@ -358,6 +358,29 @@ impl OpenAiClient {
         Ok(t0.elapsed())
     }
 
+    /// Lists models advertised by a compatible provider. DeepSeek's documented model pair is
+    /// retained when `/models` is unavailable or returns no usable IDs.
+    pub fn models(&self) -> Result<Vec<String>> {
+        let result = self.get_json("models").and_then(|v| {
+            v.get("data")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter()
+                        .filter_map(|r| r.get("id").and_then(Value::as_str).map(str::to_owned))
+                        .collect::<Vec<_>>()
+                })
+                .ok_or_else(|| AppError::new(ErrorCode::LlmBadResponse).with_detail("missing models.data"))
+        });
+        match result {
+            Ok(models) if !models.is_empty() => Ok(models),
+            Ok(_) | Err(_) if self.cfg.kind == ProviderKind::Deepseek => {
+                Ok(vec!["deepseek-chat".into(), "deepseek-reasoner".into()])
+            }
+            Ok(models) => Ok(models),
+            Err(e) => Err(e),
+        }
+    }
+
     /// GET a JSON document from the API (used by the latency probe).
     pub(crate) fn get_json(&self, path: &str) -> Result<Value> {
         let url = self.cfg.endpoint(path);
