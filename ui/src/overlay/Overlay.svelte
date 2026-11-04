@@ -147,7 +147,12 @@
     if (b) setTimeout(() => nativeClick || b.click(), 40);
   }
   function key(e: KeyboardEvent) {
-    if (e.key === 'Escape' && store.mode === 'interactive') source.escape?.();
+    if (e.key === 'Escape' && store.mode === 'interactive') {
+      if ((e.target as HTMLElement).closest?.('.my') && store.myAnswerState === 'listening') {
+        e.preventDefault();
+        source.doneMyAnswer?.();
+      } else source.escape?.();
+    }
   }
 </script>
 
@@ -164,7 +169,7 @@
     {:else}
       <Subtitle {store} />
       <Answer {store} {source} />
-      <MyAnswer {store} />
+      <MyAnswer {store} {source} />
       {#if store.mode === 'interactive'}<InputRow {store} {source} />{/if}
       <Hints {store} />
     {/if}

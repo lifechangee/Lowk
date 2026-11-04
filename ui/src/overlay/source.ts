@@ -11,6 +11,8 @@ export interface OverlaySource {
   copyAnswer?(): void;
   /** Stop the current answer stream. */
   cancelAnswer?(): void;
+  /** Close the current «Мой ответ» capture. */
+  doneMyAnswer?(): void;
   screenshot(): void;
   /** G7: empty the screenshot queue (header chip). */
   clearQueue?(): void;

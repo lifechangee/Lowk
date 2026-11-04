@@ -120,6 +120,13 @@ export const BGS: Bg[] = ['dark', 'light', 'color'];
 export const OPACITIES = [0, 60, 90] as const;
 
 export const OVERLAY_STATES: OverlayState[] = [
+  { id: 'my-before-ask', title: 'My answer: before first Ask', q: { still: '1', my: 'before_first_ask' }, full: false },
+  { id: 'my-listening', title: 'My answer: listening with partial speech', q: { still: '1', my: 'listening', partial: 'Говорю сейчас' }, full: false },
+  { id: 'my-paused', title: 'My answer: microphone paused', q: { still: '1', my: 'paused' }, full: false },
+  { id: 'my-limit', title: 'My answer: character/time limit reached', q: { still: '1', my: 'limit' }, full: false },
+  { id: 'my-closed', title: 'My answer: saved after Done', q: { still: '1', my: 'closed' }, full: false },
+  { id: 'slow-answer', title: 'G12: slow answer waiting for first token', q: { still: '1', slow: '1', slowAt: '8' }, full: false },
+  { id: 'slow-answer-20', title: 'G12: slow answer after 20 s (can cancel and ask again)', q: { still: '1', slow: '1', slowAt: '21' }, full: false },
   { id: 'passive', title: 'Passive (answer + «Мой ответ»)', q: { still: '1' }, full: true },
   { id: 'interactive-menu', title: 'Interactive, template menu open', q: { still: '1', mode: 'interactive', menu: '1' }, full: true },
   { id: 'interactive', title: 'Interactive (input row)', q: { still: '1', mode: 'interactive' }, full: false },

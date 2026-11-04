@@ -201,6 +201,65 @@ for (const lang of ['ru', 'en'] as const) {
   }
 }
 
+test('G10 «Мой ответ» renders each backend state with its state-specific copy', async ({ page }) => {
+  const cases = [
+    ['before_first_ask', 'Мой ответ', 'Начнёт записываться после ⌘↵'],
+    ['listening', 'Мой ответ · слушаю 0:12', 'Говорю сейчас'],
+    ['paused', 'Мой ответ · пауза', 'Микрофон выключен — ответ не записывается'],
+    ['limit', 'Мой ответ · предел', 'Достигнут предел: дальше не записывается'],
+    ['closed', 'Мой ответ · сохранён', 'подготовил короткий ответ'],
+  ] as const;
+  for (const [state, title, body] of cases) {
+    await page.goto(`/overlay.html?still=1&t=60&lang=ru&bare=1&my=${state}`);
+    const mine = page.getByTestId('my-answer');
+    await expect(mine).toContainText(title);
+    await expect(mine).toContainText(body);
+    if (state === 'listening' || state === 'paused') await expect(page.getByTestId('my-done')).toBeVisible();
+    else await expect(page.getByTestId('my-done')).toHaveCount(0);
+    if (state === 'listening') await expect(mine.locator('.my-dot')).toBeVisible();
+    else await expect(mine.locator('.my-dot')).toHaveCount(0);
+    if (state === 'closed') await expect(mine).toHaveClass(/dimmed/);
+  }
+});
+
+test('G10 interactive «Готово» closes listening and focused Esc closes it without leaving interactive mode', async ({ page }) => {
+  await page.goto('/overlay.html?still=1&t=60&lang=ru&bare=1&expose=1&mode=interactive&my=listening');
+  await page.getByTestId('my-done').click();
+  await expect(page.getByTestId('my-answer')).toContainText('Мой ответ · сохранён');
+  await page.evaluate(() => (window as unknown as { __ovStore: { applyQa: (u: unknown) => void } }).__ovStore.applyQa({ qa_id: 'mock-qa', state: 'listening', text: 'ответ', partial_text: '', elapsed_ms: 0, char_count: 6 }));
+  const mine = page.getByTestId('my-answer');
+  await mine.focus();
+  await page.keyboard.press('Escape');
+  await expect(mine).toContainText('Мой ответ · сохранён');
+  await expect(page.locator('.ov')).toHaveAttribute('data-mode', 'interactive');
+});
+
+test('G10 interactive click expands the strip text for scrolling', async ({ page }) => {
+  await page.goto('/overlay.html?still=1&t=60&lang=ru&bare=1&mode=interactive&my=closed&myText=Это%20длинный%20ответ%20для%20проверки%20раскрытия%20полного%20текста%20в%20интерактивном%20режиме.%20'.repeat(1));
+  const mine = page.getByTestId('my-answer');
+  await mine.click();
+  await expect(mine).toHaveClass(/expanded/);
+  await expect(mine.locator('.tx')).toHaveCSS('overflow-y', 'auto');
+});
+
+test('G10 complement refusal explains that there is nothing to add', async ({ page }) => {
+  await page.goto('/overlay.html?still=1&t=60&lang=ru&bare=1&emptyComplement=1');
+  await expect(page.locator('.ans .body')).toContainText('Сначала скажите ответ — дополнять пока нечего');
+  await expect(page.locator('.ans .body .err')).toHaveCount(0);
+});
+
+test('G12 slow answer shows live elapsed time and the retry option after twenty seconds', async ({ page }) => {
+  await page.clock.install();
+  await page.goto('/overlay.html?still=1&t=60&lang=ru&bare=1&slow=1');
+  await expect(page.getByTestId('ans-cancel')).toBeVisible();
+  await page.clock.runFor(6_000);
+  await expect(page.locator('.ans .body')).toContainText('Отвечает дольше обычного… 6 с');
+  await expect(page.locator('.ans .body')).not.toContainText('Можно отменить');
+  await page.clock.runFor(14_000);
+  await expect(page.locator('.ans .body')).toContainText('Отвечает дольше обычного… 20 с');
+  await expect(page.locator('.ans .body')).toContainText('Можно отменить и спросить снова');
+});
+
 for (const lang of ['ru', 'en'] as const) {
   test(`idle overlay (${lang}) says nothing is recorded, shows the start hint and no in-call layout`, async ({ page }) => {
     const ru = lang === 'ru';
