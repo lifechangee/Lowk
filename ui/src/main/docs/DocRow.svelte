@@ -84,7 +84,9 @@
 
 <style>
   .row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: var(--s3); align-items: start; padding: var(--s3) var(--s4); border-top: 1px solid var(--line); }
-  .row:first-child { border-top: none; }
+  .row:first-child { border-top: none; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .row:last-child { border-radius: 0 0 var(--r-lg) var(--r-lg); }
+  .row:first-child:last-child { border-radius: var(--r-lg); }
   .row:hover { background: var(--hv); }
   .ext { white-space: nowrap; overflow: hidden; font: 700 9px/16px var(--font); margin-top: var(--s0); padding: var(--s0) var(--s1); border-radius: var(--s1); background: var(--hv); border: 1px solid var(--line); color: var(--tx2); letter-spacing: 0.04em; text-align: center; }
   .main { min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }

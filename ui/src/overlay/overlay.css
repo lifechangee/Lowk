@@ -92,8 +92,8 @@
 .head {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--ln);
   min-width: 0;
   flex: none;
@@ -101,12 +101,12 @@
 .head .sp { flex: 1 1 0; min-width: 0; }
 .div { width: 1px; height: 16px; background: var(--ln); flex: none; }
 .ov.interactive .head { cursor: grab; }
-.rec { display: flex; align-items: center; gap: 6px; font: 600 12px/16px var(--mono); flex: none; }
+.rec { display: flex; align-items: center; gap: 8px; font: 600 12px/16px var(--mono); flex: none; }
 .rec i { width: 8px; height: 8px; border-radius: 50%; background: var(--recc); animation: pulse 1.6s infinite; flex: none; }
 .rec.off i { animation: none; background: transparent; border: 1.5px dashed var(--tx2); }
 .stop {
   /* `all: unset` drops the data-blk `position: relative`; without it the button paints UNDER the scrim and looks dim */
-  all: unset; position: relative; box-sizing: border-box; min-height: 26px; padding: 4px 7px; border-radius: 8px; flex: none; display: inline-flex; gap: 5px; align-items: center; justify-content: center;
+  all: unset; position: relative; box-sizing: border-box; min-height: 28px; padding: 4px 8px; border-radius: 8px; flex: none; display: inline-flex; gap: 4px; align-items: center; justify-content: center;
   background: var(--chip); border: 1px solid var(--chipbd); color: var(--tx); font: 550 12px/16px var(--font); white-space: nowrap; text-shadow: none; cursor: inherit;
 }
 .ov.interactive .stop, .ov.hover .stop { cursor: pointer; }
@@ -123,7 +123,7 @@
   100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
 }
 .chip {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px;
   background: var(--chip); border: 1px solid var(--chipbd); font-size: 12px; line-height: 16px;
   color: var(--tx); min-width: 0; flex: 0 1 auto; text-shadow: none;
 }
@@ -159,10 +159,10 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 .thumb.t2 { filter: brightness(1.1); }
 
 .tpl-wrap { position: relative; min-width: 0; flex: 0 1 auto; }
-.tpl-wrap .tpl .lbl { flex: 0 1 auto; }
+.tpl-wrap .tpl .lbl { flex: 0 1 auto; max-width: 160px; }
 .tpl {
   all: unset; box-sizing: border-box; cursor: inherit;
-  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 7px 4px 10px; border-radius: 8px;
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 4px 8px; border-radius: 8px;
   background: var(--chip); border: 1px solid var(--chipbd); font-size: 12px; line-height: 16px; font-weight: 550; color: var(--tx);
   text-shadow: none;
 }
@@ -226,9 +226,9 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 .ans .body b { font-weight: 650; }
 .ans .empty { color: var(--tx2); }
 .ans .err { color: var(--tx); font-style: italic; }
-.answer-actions { display: flex; gap: 6px; margin-top: 6px; flex: none; }
+.answer-actions { display: flex; gap: 8px; margin-top: 8px; flex: none; }
 /* position: `all: unset` drops the data-blk stacking, see .stop */
-.answer-action { all: unset; position: relative; box-sizing: border-box; display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 8px; background: var(--chip); border: 1px solid var(--chipbd); color: var(--tx); font: 550 12px/16px var(--font); text-shadow: none; cursor: inherit; pointer-events: auto; }
+.answer-action { all: unset; position: relative; box-sizing: border-box; display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 8px; background: var(--chip); border: 1px solid var(--chipbd); color: var(--tx); font: 550 12px/16px var(--font); text-shadow: none; cursor: inherit; pointer-events: auto; }
 .ov.interactive .answer-action, .ov.hover .answer-action { cursor: pointer; }
 .answer-action:hover, .answer-action:focus-visible { background: var(--hov); }
 .answer-action:focus-visible { outline: 2px solid var(--intc); outline-offset: 1px; }

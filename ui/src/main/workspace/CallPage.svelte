@@ -404,6 +404,7 @@
   .start p { margin: 0 0 var(--s1); max-width: 460px; color: var(--tx2); }
   .note { display: flex; align-items: center; gap: var(--s1); max-width: 460px; color: var(--tx3); font-size: 12px; line-height: 16px; text-align: center; }
   .warnl { color: var(--tx2); }
+  .sumbox .note { max-width: none; text-align: left; }
   .start :global(.btn) { margin-top: var(--s2); }
   .eic { width: 44px; height: 44px; border-radius: var(--r-lg); background: var(--hv); border: 1px solid var(--line); display: grid; place-items: center; color: var(--tx2); margin-bottom: var(--s1); }
   .lk { color: var(--ac); }

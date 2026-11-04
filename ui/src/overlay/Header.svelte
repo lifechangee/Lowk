@@ -50,13 +50,12 @@
   {/if}
   {#if store.phase === 'recording'}
     <button class="stop mic" class:muted={!store.micOn} data-blk type="button" data-testid="ov-mic" aria-pressed={store.micOn} title={ot(store.micAuto ? (store.micOn ? 'overlay.mic.autoOn' : 'overlay.mic.autoOff') : store.micOn ? 'overlay.mic.off' : 'overlay.mic.on', lang)} aria-label={ot(store.micAuto ? (store.micOn ? 'overlay.mic.autoOn' : 'overlay.mic.autoOff') : store.micOn ? 'overlay.mic.off' : 'overlay.mic.on', lang)} onclick={() => source.setMic?.(!store.micOn)}>
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2" width="4" height="7" rx="2" /><path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2" />{#if !store.micOn}<path d="M2.5 2.5l11 11" />{/if}{#if store.micAuto}<path d="M10.5 15l2-5 2 5M11.3 13.2h3.4" stroke-width="1.2" />{/if}</svg>
       <span class="lbl">{ot('overlay.mic.label', lang)}</span>
     </button>
   {/if}
   <span class="div"></span>
   <div class="tpl-wrap" data-blk>
-    <button class="tpl" type="button" aria-haspopup="menu" aria-expanded={store.menuOpen} aria-label={ot('overlay.template', lang)} onclick={toggle}>
+    <button class="tpl" type="button" title={tplName} aria-haspopup="menu" aria-expanded={store.menuOpen} aria-label={ot('overlay.template', lang)} onclick={toggle}>
       <span class="lbl">{tplName}</span>
       <svg class="caret-d" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 3.5 5 6.5 8 3.5" /></svg>
     </button>
