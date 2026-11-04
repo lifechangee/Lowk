@@ -91,8 +91,6 @@ export const overlay = {
   'overlay.template': 'Шаблон',
   'overlay.new': 'новое',
   'overlay.state.idle': 'Запись не идёт',
-  'overlay.idle.start': 'Начать запись: {key}',
-  'overlay.idle.button': 'Начать',
   'overlay.action.stop': 'Завершить',
   'overlay.answer.copy': 'Копировать',
   'overlay.answer.copied': 'Скопировано',

@@ -55,6 +55,26 @@ fn legacy_settings_gain_new_default_binds_without_overriding() {
 }
 
 #[test]
+fn legacy_always_overlay_setting_migrates_to_recording_only() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("settings.toml");
+    fs::write(&p, "[overlay]\nvisibility = \"always\"\n").unwrap();
+    let store = FileSettingsStore::open(d.path()).unwrap();
+    assert_eq!(store.get().overlay.visibility, OverlayVisibility::RecordingOnly);
+    let saved = fs::read_to_string(&p).unwrap();
+    assert!(saved.contains("visibility = \"recording_only\""));
+    assert!(!saved.contains("visibility = \"always\""));
+    assert_eq!(
+        FileSettingsStore::open(d.path())
+            .unwrap()
+            .get()
+            .overlay
+            .visibility,
+        OverlayVisibility::RecordingOnly
+    );
+}
+
+#[test]
 fn defaults_written_patch_persists_and_notifies() {
     let d = tempfile::tempdir().unwrap();
     let s = FileSettingsStore::open(d.path()).unwrap();

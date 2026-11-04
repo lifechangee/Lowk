@@ -1211,13 +1211,11 @@ export type OverlaySettings = {
 	adaptive_scrim?: boolean,
 };
 
-/**  When the overlay is shown while not recording. */
+/**  When the overlay is shown during a call. */
 export type OverlayVisibility = 
-/**  Shown whenever the app runs. */
-"always" | 
-/**  Hidden until recording starts (or the show/hide bind). Default. */
+/**  Shown only while a call is active. Default. */
 "recording_only" | 
-/**  Only the `ToggleOverlay` bind controls it. */
+/**  The `ToggleOverlay` bind controls it during a call. */
 "manual" | 
 /**
  *  A small unobtrusive pill on the screen edge while idle, stealth-protected

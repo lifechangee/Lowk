@@ -91,8 +91,6 @@ export const overlay = {
   'overlay.template': 'Template',
   'overlay.new': 'new',
   'overlay.state.idle': 'Not recording',
-  'overlay.idle.start': 'Start recording: {key}',
-  'overlay.idle.button': 'Start',
   'overlay.action.stop': 'Stop',
   'overlay.answer.copy': 'Copy',
   'overlay.answer.copied': 'Copied',

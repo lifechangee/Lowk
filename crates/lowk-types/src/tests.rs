@@ -129,7 +129,6 @@ fn overlay_visibility_has_pill_and_serializes_snake_case() {
         "\"pill\""
     );
     for v in [
-        OverlayVisibility::Always,
         OverlayVisibility::RecordingOnly,
         OverlayVisibility::Manual,
         OverlayVisibility::Pill,

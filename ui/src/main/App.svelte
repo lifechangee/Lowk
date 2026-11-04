@@ -156,7 +156,7 @@
   {#if dnd.call}
     <div class="ghost pop" style:left="{(dnd.x + 12) / zoom}px" style:top="{(dnd.y + 12) / zoom}px"><Icon name="doc" size={14} /><span class="lbl">{dnd.call.title}</span></div>
   {/if}
-  {#if ui.toast}<div class="toast" role="status"><span class="lbl">{ui.toast}</span>{#if ui.toastAction}{@const act = ui.toastAction}<button class="ta" onclick={() => { act.run(); ui.toast = null; ui.toastAction = null; }}>{act.label}</button>{/if}</div>{/if}
+  {#if ui.toast}<div class="toast" role="status"><span class="lbl">{ui.toast}</span>{#if ui.toastAction}{@const act = ui.toastAction}<button class="ta" onclick={() => { act.run(); ui.toast = null; ui.toastAction = null; }}>{act.label}</button>{#if act.dismissLabel}<button class="ta" onclick={() => { ui.toast = null; ui.toastAction = null; }}>{act.dismissLabel}</button>{/if}{/if}</div>{/if}
 {/if}
 
 <style>
