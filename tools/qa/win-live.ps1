@@ -54,10 +54,11 @@ public static class LowkWinLiveKeys {
     }
     [DllImport("user32.dll", SetLastError = true)]
     private static extern UInt32 SendInput(UInt32 nInputs, INPUT[] pInputs, Int32 cbSize);
-    public static void Key(UInt16 vk, bool up) {
+    public static void Key(UInt16 vk, UInt16 scan, bool up) {
         INPUT i = new INPUT();
         i.type = 1;
         i.data.ki.wVk = vk;
+        i.data.ki.wScan = scan;
         i.data.ki.dwFlags = up ? 2u : 0u;
         INPUT[] a = new INPUT[] { i };
         if (SendInput(1, a, Marshal.SizeOf(typeof(INPUT))) != 1)
@@ -131,14 +132,16 @@ function Get-LogCount {
 }
 
 function Send-Key([string]$Key, [bool]$Up) {
-    $vk = 0
+    # Left-hand virtual keys with their scan codes, like a physical keyboard: the hook tracks VK_LCONTROL /
+    # VK_LMENU, and the generic VK_CONTROL / VK_MENU of a bare SendInput reach it as unknown keys.
+    $vk = 0; $scan = 0
     switch ($Key) {
-        'Ctrl' { $vk = 0x11 }
-        'Alt' { $vk = 0x12 }
-        'Backslash' { $vk = 0xDC }
+        'Ctrl' { $vk = 0xA2; $scan = 0x1D }
+        'Alt' { $vk = 0xA4; $scan = 0x38 }
+        'Backslash' { $vk = 0xDC; $scan = 0x2B }
         default { throw "Unsupported key: $Key" }
     }
-    [LowkWinLiveKeys]::Key([UInt16]$vk, $Up)
+    [LowkWinLiveKeys]::Key([UInt16]$vk, [UInt16]$scan, $Up)
     $script:Pressed[$Key] = -not $Up
 }
 
