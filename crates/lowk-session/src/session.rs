@@ -1225,9 +1225,8 @@ impl Inner {
         self.ingest_inner(ev, false);
     }
 
-    /// An STT event; `from_engine` finals of local engines are queued for background
-    /// correction (their journal write waits for the better text, but the UI and Ask
-    /// see the live text at once).
+    /// An STT event; `from_engine` finals of local engines are journaled immediately
+    /// and also queued for optional background correction.
     fn ingest_inner(&self, mut ev: SttEvent, from_engine: bool) {
         // S1: one choke point for every engine (and the demo feed): no «�», no control characters.
         ev.text = lowk_types::text::clean_speech(&ev.text);
@@ -1276,6 +1275,7 @@ impl Inner {
                 };
                 if let Some(pcm) = cut {
                     c.pending_journal.insert((ev.stream, ev.utt), ev.clone());
+                    c.push_entry(CallEntry::Final { event: ev.clone() });
                     job = Some(CorrectionJob {
                         stream: ev.stream,
                         utt: ev.utt,

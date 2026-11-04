@@ -213,7 +213,10 @@ impl Vault {
     pub fn begin_call_with_clock(&self, m: NewCall, clock: SessionClock) -> Result<CallWriter> {
         let _g = self.0.op_lock();
         let dir = self.0.folder_dir(&m.folder)?;
-        let name = format!("{} {}", file_stamp(&m.started), sanitize_name(&m.title));
+        let offset = lowk_types::clock::local_offset_secs().unwrap_or_else(|| {
+            crate::util::parse_rfc3339(&m.started).map_or(0, |started| started.offset().whole_seconds())
+        });
+        let name = format!("{} {}", file_stamp(&m.started, offset), sanitize_name(&m.title));
         let calls_dir = self.0.root.join(&dir).join(CALLS_SUBDIR);
         fs::create_dir_all(&calls_dir)?;
         let path = unique_path(&calls_dir, &name, "md");
@@ -876,7 +879,7 @@ impl VaultInner {
 
     /// Title edits rename the file (`YYYY-MM-DD HHMM Title.md`).
     fn rename_to_title(&self, path: &Path, f: &CallFm) -> Result<PathBuf> {
-        let want = format!("{} {}", file_stamp(&f.started), sanitize_name(&f.title));
+        let want = format!("{} {}", file_stamp_existing(&f.started), sanitize_name(&f.title));
         let cur = path
             .file_stem()
             .map(|s| s.to_string_lossy().into_owned())
