@@ -104,6 +104,7 @@ macro_rules! all_commands {
             crate::commands::session::demo_start,
             crate::commands::session::llm_ask,
             crate::commands::session::llm_cancel,
+            crate::commands::session::qa_done,
             crate::commands::session::llm_set_template,
             crate::commands::capture::capture_screenshot,
             crate::commands::capture::queue_clear,

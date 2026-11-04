@@ -62,6 +62,7 @@
     "allow-index-status",
     "allow-llm-ask",
     "allow-llm-cancel",
+    "allow-qa-done",
     "allow-llm-key-test",
     "allow-llm-detect-local",
     "allow-llm-provider-status",

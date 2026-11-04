@@ -80,6 +80,7 @@ const COMMANDS: &[&str] = &[
     "demo_start",
     "llm_ask",
     "llm_cancel",
+    "qa_done",
     "llm_set_template",
     "capture_screenshot",
     "queue_clear",

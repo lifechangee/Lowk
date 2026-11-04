@@ -48,7 +48,7 @@ export class TauriSource implements OverlaySource {
     add(on<QaUpdate>(EVENTS.myAnswer, (e) => {
       // The close update of the PREVIOUS link arrives right after the new Ask's `start`; it must not
       // bring the old text back under the new question.
-      if (!e.closed) store.applyMyAnswer(e.text);
+      if (e.state !== 'closed') store.applyMyAnswer(e.text);
     }));
     const holdOff = (r: BindReport) => (store.holdDegraded = r.entries.some((e) => (e.action === 'move_hold' || e.action === 'click_hold') && e.status.state !== 'active'));
     add(on<BindReport>('binds://report', holdOff));

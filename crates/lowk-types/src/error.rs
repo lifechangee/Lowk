@@ -71,6 +71,8 @@ pub enum ErrorCode {
     SessionBusy,
     #[error("no session is running")]
     SessionIdle,
+    #[error("my answer is empty")]
+    MyAnswerEmpty,
     #[error("bind conflict")]
     BindConflict,
     #[error("ingest failed")]

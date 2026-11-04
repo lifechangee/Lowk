@@ -314,6 +314,12 @@ pub fn llm_cancel(st: State<'_, Shared>) -> Result<()> {
 
 #[tauri::command(async)]
 #[specta::specta]
+pub fn qa_done(st: State<'_, Shared>) -> Result<()> {
+    st.session.qa_done()
+}
+
+#[tauri::command(async)]
+#[specta::specta]
 pub fn llm_set_template(st: State<'_, Shared>, id: String) -> Result<()> {
     if !st.settings.get().templates.iter().any(|t| t.id == id) {
         return Err(AppError::new(ErrorCode::NotFound).with_detail("template"));

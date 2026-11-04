@@ -82,6 +82,8 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<BindsState>();
     types.register_mut::<Recommendation>();
     types.register_mut::<QaRecord>();
+    types.register_mut::<QaUpdate>();
+    types.register_mut::<MyAnswerState>();
     types.register_mut::<EngineDescriptor>();
     types.register_mut::<EngineInfo>();
     types.register_mut::<EngineProgress>();
