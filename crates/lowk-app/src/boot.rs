@@ -62,6 +62,7 @@ impl EventSink for PhaseWatcher {
                     );
                 }
                 visibility::apply(&st2, s.phase);
+                crate::indicator::recompute(&st2.app, s.phase, st2.engine_ready());
                 if ended {
                     visibility::session_ended(&st2);
                 }
@@ -234,6 +235,12 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     }
 
     state.heal_engine_setting();
+    crate::indicator::recompute(&state.app, SessionPhase::Idle, state.engine_ready());
+    // The tray is how a user sees and quits a background Lowk, but the app must start without it.
+    #[cfg(windows)]
+    if let Err(e) = crate::tray_win::setup(app, state.clone()) {
+        tracing::error!(%e, "tray icon could not be created");
+    }
     log_startup_facts(&state);
 
     // ---- input ----
@@ -422,6 +429,7 @@ fn on_settings(st: &Shared, old: &Settings, new: &Settings) {
     if new.binds != *st.applied_binds.lock() || old.hold_delay_ms != new.hold_delay_ms {
         apply_binds(st);
     }
+    crate::indicator::refresh(st);
     // G2: choosing another edge re-docks the pill (forget the dragged position).
     if old.overlay.pill_edge != new.overlay.pill_edge && !new.overlay.pill_positions.is_empty() {
         let _ = st.settings.patch(SettingsPatch(

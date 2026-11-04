@@ -62,6 +62,8 @@ pub fn register_types(types: &mut specta::Types) {
     types.register_mut::<AppError>();
     types.register_mut::<ErrorCode>();
     types.register_mut::<SessionSnapshot>();
+    types.register_mut::<Indicator>();
+    types.register_mut::<AttentionReason>();
     types.register_mut::<StartOpts>();
     types.register_mut::<FolderMeta>();
     types.register_mut::<CallMeta>();
@@ -133,6 +135,7 @@ pub mod events {
     pub const AUDIO_NOTICE: &str = "audio://notice";
     pub const QA_MY_ANSWER: &str = "qa://my-answer";
     pub const SESSION_STATE: &str = "session://state";
+    pub const INDICATOR_STATE: &str = "indicator://state";
     /// A recording ended (any path); payload `{ "route": "home" }`. The app has just
     /// shown/focused the main window; the UI navigates it to the library home.
     pub const SESSION_ENDED: &str = "session://ended";

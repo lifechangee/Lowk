@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-indicator-get"
+description = "Enables the indicator_get command without any pre-configured scope."
+commands.allow = ["indicator_get"]
+
+[[permission]]
+identifier = "deny-indicator-get"
+description = "Denies the indicator_get command without any pre-configured scope."
+commands.deny = ["indicator_get"]

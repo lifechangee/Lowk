@@ -45,6 +45,7 @@
     "allow-engine-install-cancel",
     "allow-engine-list",
     "allow-engine-status",
+    "allow-indicator-get",
     "allow-export-vault",
     "allow-folder-create",
     "allow-folder-delete",

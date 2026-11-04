@@ -13,6 +13,21 @@ pub enum SessionPhase {
     Stopping,
 }
 
+/// What the platform indicator should show while Lowk is running.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum Indicator {
+    Hidden,
+    Background,
+    Attention { reason: AttentionReason },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum AttentionReason {
+    EngineMissing,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct SessionState {
     pub phase: SessionPhase,

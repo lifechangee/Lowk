@@ -13,6 +13,7 @@ pub mod datadir;
 mod diagnostics;
 mod emitter;
 mod engines;
+mod indicator;
 pub mod m2;
 mod mainthread;
 #[cfg(any(debug_assertions, feature = "qa"))]
@@ -22,6 +23,8 @@ mod qa;
 mod sigterm;
 pub mod soak;
 mod state;
+#[cfg(windows)]
+mod tray_win;
 pub mod updater;
 mod visibility;
 mod windows;
