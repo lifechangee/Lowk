@@ -200,3 +200,22 @@ for (const lang of ['ru', 'en'] as const) {
     });
   }
 }
+
+for (const lang of ['ru', 'en'] as const) {
+  test(`idle overlay (${lang}) says nothing is recorded, shows the start hint and no in-call layout`, async ({ page }) => {
+    const ru = lang === 'ru';
+    await page.goto(`/overlay.html?idle=1&still=1&t=60&lang=${lang}&bare=1&bg=dark`);
+    await page.waitForSelector('[data-testid=ov-idle]');
+    const ov = page.locator('.ov');
+    await expect(ov).toContainText(ru ? 'Запись не идёт' : 'Not recording');
+    await expect(ov).toContainText(ru ? /Начать запись: \S+/ : /Start recording: \S+/);
+    await expect(page.getByTestId('ov-start')).toHaveText(ru ? 'Начать' : 'Start');
+    for (const t of ru ? ['Слушаю', 'Мой ответ', 'Вопрос', 'Подсказка ИИ', 'Нажмите'] : ['Listening', 'My answer', 'Question', 'AI hint', 'Press']) await expect(ov).not.toContainText(t);
+    for (const sel of ['.sub', '.ans', '.my', '.foot', '.tpl', '.stop:not(.go)', '.rec:not(.off)']) await expect(page.locator(sel)).toHaveCount(0);
+    // the button starts a call: the in-call layout takes over
+    await page.getByTestId('ov-start').click();
+    await expect(page.getByTestId('ov-idle')).toHaveCount(0);
+    await expect(page.locator('.sub')).toBeVisible();
+    await expect(page.locator('.stop.mic')).toBeVisible();
+  });
+}

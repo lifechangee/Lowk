@@ -1,7 +1,7 @@
 <script lang="ts">
   // Dev-only harness (vite dev, outside Tauri): test backgrounds, controls, mock demo feed.
   // Query params for deterministic screenshots: bg=dark|light|color|live, t=0..90, lang=ru|en,
-  // mode=passive|interactive|moving, menu=1, view=pill, still=1 (preloaded frame, no demo).
+  // mode=passive|interactive|moving, menu=1, idle=1 (no call running: the idle overlay), view=pill, still=1 (preloaded frame, no demo).
   import { onMount, untrack } from 'svelte';
   import { OverlayStore } from './store.svelte';
   import { MockSource, fakeThumb } from './mock';
@@ -15,7 +15,8 @@
   const bare = q.get('bare') === '1';
   const store = new OverlayStore();
   store.isMac = /mac/i.test(navigator.platform);
-  const source = new MockSource({ autoplay: q.get('still') !== '1', duplicate: q.get('dup') === '1' });
+  const idleStage = q.get('idle') === '1';
+  const source = new MockSource({ autoplay: q.get('still') !== '1' && !idleStage, duplicate: q.get('dup') === '1' });
 
   // bg=swatch: the colour-base spec (e2e/overlay-colors.spec.ts) injects `window.__swatch = { tone, color }`:
   // a real `overlay://tone` payload (with grid) from crates/lowk-stealth/tests/fixtures/swatches.json over a flat backdrop.
@@ -54,7 +55,7 @@
   $effect(() => {
     store.visibility = view === 'pill' ? 'pill' : 'recording_only';
     if (view === 'pill') store.phase = 'idle';
-    else if (untrack(() => store.phase) === 'idle') store.phase = 'recording';
+    else if (untrack(() => store.phase) === 'idle' && !idleStage) store.phase = 'recording';
   });
   $effect(() => setLang(store.lang));
 
@@ -74,7 +75,8 @@
     // QA hook (dev stage only): the Playwright specs drive the store with long synthetic calls / answers.
     if (q.get('expose') === '1') (window as unknown as { __ovStore: OverlayStore }).__ovStore = store;
     source.start(store);
-    if (q.get('still') === '1') preload();
+    if (idleStage) store.phase = 'idle';
+    else if (q.get('still') === '1') preload();
     if (view === 'pill') store.phase = 'idle';
     const m = q.get('mode') as OverlayMode | null;
     if (m) store.setMode(m);

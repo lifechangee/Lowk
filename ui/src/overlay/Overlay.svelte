@@ -14,6 +14,7 @@
   import InputRow from './InputRow.svelte';
   import Hints from './Hints.svelte';
   import Pill from './Pill.svelte';
+  import Idle from './Idle.svelte';
 
   let { store, source }: { store: OverlayStore; source: OverlaySource } = $props();
   const style = $derived(varsToStyle(store.tone, store.k, store.fontPx));
@@ -155,14 +156,18 @@
 {#if store.showPill}
   <div class="ovp" {style} style:width="100%" style:height="100%"><Pill {store} {source} /></div>
 {:else}
-  <div role="presentation" bind:this={root} onpointerdown={(e) => { press(e); down(e); }} onclickcapture={seen} oncontextmenu={(e) => e.preventDefault()} onpointermove={move} onpointerup={up} onpointercancel={up} class="ov" class:interactive={store.mode === 'interactive'} class:moving={store.mode === 'moving'} class:hover={store.mode === 'hover'} {style} data-mode={store.mode}>
+  <div role="presentation" bind:this={root} onpointerdown={(e) => { press(e); down(e); }} onclickcapture={seen} oncontextmenu={(e) => e.preventDefault()} onpointermove={move} onpointerup={up} onpointercancel={up} class="ov" class:interactive={store.mode === 'interactive'} class:moving={store.mode === 'moving'} class:hover={store.mode === 'hover'} class:idle={store.idle} {style} data-mode={store.mode}>
     <div class="scrim" style={scrimStyle} aria-hidden="true">{#each rowStyles as rs}<i style={rs}></i>{/each}</div>
     <Header {store} {source} />
-    <Subtitle {store} />
-    <Answer {store} {source} />
-    <MyAnswer {store} />
-    {#if store.mode === 'interactive'}<InputRow {store} {source} />{/if}
-    <Hints {store} />
+    {#if store.idle}
+      <Idle {store} {source} />
+    {:else}
+      <Subtitle {store} />
+      <Answer {store} {source} />
+      <MyAnswer {store} />
+      {#if store.mode === 'interactive'}<InputRow {store} {source} />{/if}
+      <Hints {store} />
+    {/if}
     {#if store.sentinel}<div class="sentinel"></div>{/if}
   </div>
 {/if}

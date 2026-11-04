@@ -100,7 +100,7 @@ export class TauriSource implements OverlaySource {
         const b = bindFor(s.binds, a);
         return b ? triggerText(b.trigger, os, names) : '';
       };
-      store.keysOverride = { ask: lab('ask_brief') || lab('ask'), complement: lab('ask_complement'), shot: lab('screenshot'), move: lab('move_hold'), click: lab('click_hold'), interactive: lab('toggle_interactive') };
+      store.keysOverride = { ask: lab('ask_brief') || lab('ask'), complement: lab('ask_complement'), shot: lab('screenshot'), move: lab('move_hold'), click: lab('click_hold'), interactive: lab('toggle_interactive'), record: lab('toggle_record') };
     }
     if (s.templates?.length) {
       store.templates = s.templates.filter((t) => t.id !== 'summary');
