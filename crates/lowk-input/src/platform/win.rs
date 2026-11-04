@@ -389,6 +389,13 @@ unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) 
     unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
 
+const HEALTH_TICK_MS: u32 = 750;
+
+/// Is this message the watchdog tick? `timer` is the id `SetTimer` returned (0 = no timer).
+fn is_health_tick(message: u32, wparam: usize, timer: usize) -> bool {
+    timer != 0 && message == WM_TIMER && wparam == timer
+}
+
 fn hook_thread(engine: Arc<Engine>, tx: mpsc::Sender<Result<u32, String>>) {
     {
         let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
@@ -433,7 +440,6 @@ fn hook_thread(engine: Arc<Engine>, tx: mpsc::Sender<Result<u32, String>>) {
         //    re-installed (a modifier is held, so only every 10 s);
         //  * keys / buttons believed down while the OS says they are up are released;
         //  * the hooks are re-registered every 30 s while nothing is held, and after an overlay mode change.
-        const HEALTH_TIMER: usize = 0x4c6b;
         let mut last_rehook = std::time::Instant::now();
         let mut last_mod_rehook = std::time::Instant::now() - Duration::from_secs(60);
         let (mut sus_keys, mut sus_btns): (Vec<u16>, Vec<u16>) = (vec![], vec![]);
@@ -449,7 +455,13 @@ fn hook_thread(engine: Arc<Engine>, tx: mpsc::Sender<Result<u32, String>>) {
                 Err(e) => tracing::error!(%e, "could not re-install the input hooks; will retry"),
             }
         };
-        SetTimer(None, HEALTH_TIMER, 750, None);
+        // A thread timer (no window): Windows ignores the requested id and returns its own, so the
+        // tick is matched on the returned id. Matching the requested one meant the tick never ran.
+        let health_timer = SetTimer(None, 0, HEALTH_TICK_MS, None);
+        if health_timer == 0 {
+            tracing::error!("input hook: watchdog timer could not be created");
+        }
+        let mut first_tick = true;
         // Force creation of this thread's message queue before announcing the id.
         let mut msg = MSG::default();
         let _ = PeekMessageW(&mut msg, None, WM_USER, WM_USER, PM_NOREMOVE);
@@ -457,9 +469,12 @@ fn hook_thread(engine: Arc<Engine>, tx: mpsc::Sender<Result<u32, String>>) {
         HOOK_TID.store(tid, Ordering::SeqCst);
         let _ = tx.send(Ok(tid));
         while GetMessageW(&mut msg, None, 0, 0).0 > 0 {
-            let tick = msg.message == WM_TIMER && msg.wParam.0 == HEALTH_TIMER;
+            let tick = is_health_tick(msg.message, msg.wParam.0, health_timer);
             if !tick && msg.message != WM_RESYNC {
                 continue;
+            }
+            if tick && std::mem::take(&mut first_tick) {
+                tracing::info!("input hook: watchdog running, {HEALTH_TICK_MS} ms");
             }
             // A mode change: compare with the OS at once (what the user holds right now is true).
             let immediate = !tick && take_resync();
@@ -506,7 +521,9 @@ fn hook_thread(engine: Arc<Engine>, tx: mpsc::Sender<Result<u32, String>>) {
             }
         }
         HOOK_TID.store(0, Ordering::SeqCst);
-        let _ = KillTimer(None, HEALTH_TIMER);
+        if health_timer != 0 {
+            let _ = KillTimer(None, health_timer);
+        }
         if let Some((k, m)) = hooks.take() {
             let _ = UnhookWindowsHookEx(k);
             let _ = UnhookWindowsHookEx(m);
@@ -625,6 +642,17 @@ mod tests {
             mods[slot] = down;
             assert_eq!(super::mods_of(&mods).ctrl, down);
         }
+    }
+
+    #[test]
+    fn the_watchdog_tick_is_matched_on_the_id_windows_returned() {
+        use windows::Win32::UI::WindowsAndMessaging::{WM_KEYDOWN, WM_TIMER};
+        // A windowless SetTimer ignores the requested id and returns its own (say 0x7ff0): the tick
+        // must match that one, or the watchdog never runs.
+        assert!(super::is_health_tick(WM_TIMER, 0x7ff0, 0x7ff0));
+        assert!(!super::is_health_tick(WM_TIMER, 0x4c6b, 0x7ff0));
+        assert!(!super::is_health_tick(WM_KEYDOWN, 0x7ff0, 0x7ff0));
+        assert!(!super::is_health_tick(WM_TIMER, 0, 0), "no timer, no tick");
     }
 
     #[test]
