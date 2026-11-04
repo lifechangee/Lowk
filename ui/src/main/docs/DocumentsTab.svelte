@@ -208,7 +208,7 @@
   .over { display: flex; gap: var(--s2); align-items: center; margin: 0; color: var(--tx); font-size: 12px; line-height: 16px; flex-wrap: wrap; }
   .over :global(svg) { color: var(--move); flex: none; }
   .over a { color: var(--ac); }
-  .list { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }
+  .list { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); }
   .drophint { color: var(--tx3); font-size: 12px; text-align: center; margin: 0; }
   .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--s3); border: 1px dashed var(--line-strong); border-radius: var(--r-xl); padding: var(--s12) var(--s8); }
   .eic { width: 44px; height: 44px; border-radius: var(--r-lg); background: var(--hv); border: 1px solid var(--line); display: grid; place-items: center; color: var(--tx2); }
