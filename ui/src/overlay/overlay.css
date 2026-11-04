@@ -115,6 +115,11 @@
 /* microphone switch: same icon chip as stop; off = crossed icon + dashed border, still light */
 .stop.mic { color: var(--tx); }
 .stop.mic.muted { border-style: dashed; }
+/* idle: no call is running, so the overlay is just the header and one line (not the 384 px in-call layout) */
+.ov.idle { height: auto; }
+.idle-body { display: flex; align-items: center; gap: 12px; padding: 12px 16px; font-size: calc(var(--ov-fs, 13px) + 1px); line-height: 20px; min-width: 0; }
+.idle-body .lbl { flex: 1 1 auto; min-width: 0; color: var(--tx2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.idle-body .go { width: auto; height: 28px; padding: 0 12px; }
 .rec.off { color: var(--tx2); font-family: var(--font); font-weight: 500; }
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.5); }

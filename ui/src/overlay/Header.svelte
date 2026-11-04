@@ -39,8 +39,7 @@
     <div class="rec" data-blk><i></i><span class="lbl">{formatElapsed(store.elapsedMs)}</span></div>
   {:else}
     {@const recLbl = ot(store.phase === 'paused' ? 'overlay.state.paused' : 'overlay.state.idle', lang)}
-    <!-- idle: a hollow dot with a tooltip (the long «Не записывается» label would crowd the 600 px header) -->
-    <div class="rec off" data-blk title={recLbl}><i></i><span class="lbl" class:sr={store.phase !== 'paused'}>{recLbl}</span></div>
+    <div class="rec off" data-blk title={recLbl}><i></i><span class="lbl">{recLbl}</span></div>
   {/if}
   {#if store.phase === 'recording' || store.phase === 'paused'}
     <!-- F8: one click, no confirmation. Click-through in passive mode; the record bind keeps working. -->
@@ -53,7 +52,7 @@
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2" width="4" height="7" rx="2" /><path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2" />{#if !store.micOn}<path d="M2.5 2.5l11 11" />{/if}{#if store.micAuto}<path d="M10.5 15l2-5 2 5M11.3 13.2h3.4" stroke-width="1.2" />{/if}</svg>
     </button>
   {/if}
-  <span class="div"></span>
+  {#if !store.idle}<span class="div"></span>
   <div class="tpl-wrap" data-blk>
     <button class="tpl" type="button" title={tplName} aria-haspopup="menu" aria-expanded={store.menuOpen} aria-label={ot('overlay.template', lang)} onclick={toggle}>
       <span class="lbl">{tplName}</span>
@@ -71,7 +70,7 @@
         {/each}
       </div>
     {/if}
-  </div>
+  </div>{/if}
   <span class="sp"></span>
   {#if store.captureVisible}
     <!-- B8: the overlay is visible to screen capture (user setting): a persistent amber badge, in flow, never over controls -->

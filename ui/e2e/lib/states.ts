@@ -125,6 +125,7 @@ export const OVERLAY_STATES: OverlayState[] = [
   { id: 'interactive', title: 'Interactive (input row)', q: { still: '1', mode: 'interactive' }, full: false },
   { id: 'hover', title: 'G6: hold-Ctrl clickable mode', q: { still: '1', mode: 'hover' }, full: false },
   { id: 'moving', title: 'Moving (hold-to-move)', q: { still: '1', mode: 'moving' }, full: false },
+  { id: 'idle', title: 'Idle (no call running): «Запись не идёт» + start hint', q: { idle: '1', still: '1' }, full: false },
   { id: 'pill', title: 'Pill', q: { still: '1', view: 'pill' }, pill: true, full: false },
   { id: 'adaptive', title: 'Adaptive tone grid (dark left, light right, bright bottom)', q: { still: '1' }, full: false, bgs: ['split'] },
   { id: 'adaptive-moving', title: 'Adaptive grid + moving badge', q: { still: '1', mode: 'moving' }, full: false, bgs: ['split'] },
