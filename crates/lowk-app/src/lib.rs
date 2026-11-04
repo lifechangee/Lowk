@@ -162,7 +162,11 @@ pub fn run() {
     init_tracing();
     diagnostics::install_panic_hook();
     let builder = specta_builder();
-    let mut tb = tauri::Builder::default();
+    // No Raw Input device events: Lowk never uses them, and on Windows tao's default registration
+    // (RIDEV_DEVNOTIFY for every keyboard and mouse) made Ctrl / Alt skip the low-level keyboard hooks
+    // while a Lowk window was in front, so single-key binds died with the main window or the overlay
+    // focused (tauri-apps/wry#1761). `Always` unregisters the devices (RIDEV_REMOVE).
+    let mut tb = tauri::Builder::default().device_event_filter(tauri::DeviceEventFilter::Always);
     // QA builds may run next to a developer's own instance (`LOWK_QA_MULTI=1`): no single-instance hand-off.
     #[cfg(feature = "qa")]
     let single = std::env::var_os("LOWK_QA_MULTI").is_none();
