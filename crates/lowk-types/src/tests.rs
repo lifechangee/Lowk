@@ -199,6 +199,7 @@ fn events_roundtrip_and_names() {
     let evs = vec![
         AppEvent::Stt(stt.clone()),
         AppEvent::Session(SessionState {
+            scenario: None,
             phase: SessionPhase::Recording,
             call: Some(Ulid::new()),
             demo: false,
@@ -530,6 +531,7 @@ fn m2_contracts_roundtrip() {
     let sum = fakes::FakeLlmService
         .summarize(
             &SummarizeInput {
+                scenario: None,
                 call: Ulid::new(),
                 title: "t".into(),
                 transcript: String::new(),

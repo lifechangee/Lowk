@@ -103,7 +103,7 @@ impl Settings {
         }
         // Add newer built-ins without replacing existing user edits or templates.
         for builtin in default_templates() {
-            if [TEMPLATE_SAY, TEMPLATE_RECAP].contains(&builtin.id.as_str())
+            if [TEMPLATE_SAY, TEMPLATE_RECAP, "explain"].contains(&builtin.id.as_str())
                 && !self.templates.iter().any(|t| t.id == builtin.id)
             {
                 self.templates.push(builtin);
@@ -146,6 +146,7 @@ impl Settings {
             TEMPLATE_SUMMARY,
             TEMPLATE_SAY,
             TEMPLATE_RECAP,
+            "explain",
         ] {
             if !ids.contains(id) {
                 return Err(bad(format!("built-in template {id:?} cannot be deleted")));
@@ -795,6 +796,7 @@ pub fn default_templates() -> Vec<Template> {
             reasoning: None,
         },
         summary_template(),
+        short_template("explain", "Объясни", "Explain", "Кратко объясни последнюю мысль или термин простыми словами на языке разговора."),
         short_template(TEMPLATE_SAY, "Что сказать?", "What to say?", "Кратко предложи, что сказать дальше по контексту созвона. Ответь одной-двумя короткими фразами на языке разговора."),
         short_template(TEMPLATE_RECAP, "Рекап", "Recap", "Кратко перескажи главные мысли последних пяти минут разговора. Ответь не более чем в трёх коротких пунктах на языке разговора."),
     ]

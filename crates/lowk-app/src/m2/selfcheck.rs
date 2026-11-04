@@ -565,6 +565,7 @@ pub fn run_checks(o: &Options) -> Vec<Check> {
                 { "id": "summary", "names": { "ru": "Резюме", "en": "Summary" }, "instruction": "Резюме." },
                 { "id": "say", "names": { "ru": "Что сказать?", "en": "What to say?" }, "instruction": "Подскажи, что сказать." },
                 { "id": "recap", "names": { "ru": "Рекап", "en": "Recap" }, "instruction": "Перескажи кратко." },
+                { "id": "explain", "names": { "ru": "Объясни", "en": "Explain" }, "instruction": "Объясни простыми словами." },
                 { "id": "pirate", "names": { "ru": "Пират", "en": "Pirate" }, "instruction": "Отвечай как пират, одним предложением." }
             ]
         }),

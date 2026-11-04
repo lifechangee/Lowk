@@ -34,6 +34,7 @@ fn rig(configure: impl FnOnce(&mut SessionDeps)) -> Rig {
 
 fn opts(demo: bool) -> StartOpts {
     StartOpts {
+        scenario: Some(Scenario::Assist),
         title: None,
         folder: None,
         system: None,
@@ -179,8 +180,9 @@ fn engine_output_reaches_transcript_bus_and_journal() {
     );
     // Only finals are journaled, and the flushed final made it before finish().
     let entries = r.store.entries.lock().unwrap();
-    assert_eq!(entries.len(), 1);
-    assert!(matches!(&entries[0], CallEntry::Final { event } if event.stream == Stream::System));
+    assert_eq!(entries.len(), 2);
+    assert!(matches!(&entries[0], CallEntry::Marker { text, .. } if text == "Сценарий: Мне нужна помощь"));
+    assert!(matches!(&entries[1], CallEntry::Final { event } if event.stream == Stream::System));
     let calls = r.store.calls.lock().unwrap();
     assert_eq!(calls[0].speaker_me, "Я");
     assert!(calls[0].started.ends_with('Z'));
@@ -221,8 +223,9 @@ fn background_correction_replaces_text_and_journals_only_the_better_one() {
     // two partials, the engine final, then the correction as the next revision
     assert_eq!(revs.last(), Some(&(3, SttKind::Final)));
     let entries = r.store.entries.lock().unwrap();
-    assert_eq!(entries.len(), 1);
-    assert!(matches!(&entries[0], CallEntry::Final { event } if event.text.ends_with("(whisper)")));
+    assert_eq!(entries.len(), 2);
+    assert!(matches!(&entries[0], CallEntry::Marker { text, .. } if text == "Сценарий: Мне нужна помощь"));
+    assert!(matches!(&entries[1], CallEntry::Final { event } if event.text.ends_with("(whisper)")));
     let d = r.session.stt_diagnostics().unwrap();
     assert_eq!(d.engine, "fake");
 }
@@ -236,8 +239,9 @@ fn unchanged_or_skipped_correction_keeps_the_live_text_in_the_journal() {
     }
     r.session.stop().unwrap();
     let entries = r.store.entries.lock().unwrap();
-    assert_eq!(entries.len(), 1);
-    assert!(matches!(&entries[0], CallEntry::Final { event } if event.text.starts_with("fake utterance")));
+    assert_eq!(entries.len(), 2);
+    assert!(matches!(&entries[0], CallEntry::Marker { text, .. } if text == "Сценарий: Мне нужна помощь"));
+    assert!(matches!(&entries[1], CallEntry::Final { event } if event.text.starts_with("fake utterance")));
 }
 
 #[test]
@@ -275,10 +279,12 @@ fn empty_complement_refusal_emits_error_without_opening_answer_or_record() {
         r.session.qa_records().is_empty(),
         "a refused complement must not arm an answer"
     );
+    let entries = r.store.entries.lock().unwrap();
     assert!(
-        r.store.entries.lock().unwrap().is_empty(),
+        matches!(entries.as_slice(), [CallEntry::Marker { text, .. }] if text == "Сценарий: Мне нужна помощь"),
         "a refused complement must not journal a Q&A"
     );
+    drop(entries);
     r.session.stop().unwrap();
 }
 
@@ -821,6 +827,7 @@ impl HintGenerator for SeenHints {
 
 fn user_folder_opts() -> StartOpts {
     StartOpts {
+        scenario: None,
         folder: Some(FolderRef::User(Ulid::from_parts(5, 5))),
         ..opts(false)
     }
@@ -975,7 +982,14 @@ fn mic_off_drops_me_frames_keeps_system_and_writes_markers() {
     assert!(r.session.state().mic_on);
     r.session.stop().unwrap();
 
-    assert_eq!(marker_texts(&r), vec!["Микрофон выключен", "Микрофон включён"]);
+    assert_eq!(
+        marker_texts(&r),
+        vec![
+            "Сценарий: Мне нужна помощь",
+            "Микрофон выключен",
+            "Микрофон включён"
+        ]
+    );
     assert_eq!(
         finals_of(&r, Stream::Me),
         1,
@@ -1003,7 +1017,10 @@ fn mic_marker_follows_the_ui_language() {
     r.session.set_mic_enabled(false).unwrap();
     r.session.set_mic_enabled(true).unwrap();
     r.session.stop().unwrap();
-    assert_eq!(marker_texts(&r), vec!["Microphone off", "Microphone on"]);
+    assert_eq!(
+        marker_texts(&r),
+        vec!["Сценарий: Мне нужна помощь", "Microphone off", "Microphone on"]
+    );
 }
 
 #[test]
@@ -1038,6 +1055,7 @@ fn new_call_mic_follows_folder_preset_and_global_default() {
         });
         r.session
             .start(StartOpts {
+                scenario: None,
                 folder: Some(folder.clone()),
                 ..opts(false)
             })
@@ -1415,6 +1433,7 @@ use lowk_audio::mic_use::FakeMicUseProbe;
 
 fn auto_opts() -> StartOpts {
     StartOpts {
+        scenario: None,
         system: Some(Target::App("us.zoom.xos".into())),
         ..opts(false)
     }
@@ -1692,4 +1711,21 @@ fn stopping_is_announced_before_a_slow_stt_worker_finishes_and_nothing_is_lost()
             .any(|e| matches!(e, CallEntry::Final { event } if event.text == TAIL_FINAL)),
         "the final delivered while the worker stopped is in the call: {saved:?}"
     );
+}
+
+#[test]
+fn scenario_switch_records_markers_and_state() {
+    let r = rig(|_| {});
+    let mut start = opts(true);
+    start.scenario = None;
+    r.session.start(start).unwrap();
+    assert_eq!(r.session.state().scenario, None);
+    r.session.set_scenario(Scenario::Assist).unwrap();
+    r.session.set_scenario(Scenario::Run).unwrap();
+    assert_eq!(r.session.state().scenario, Some(Scenario::Run));
+    assert_eq!(
+        marker_texts(&r),
+        ["Сценарий: Мне нужна помощь", "Сценарий: Я веду встречу"]
+    );
+    r.session.stop().unwrap();
 }

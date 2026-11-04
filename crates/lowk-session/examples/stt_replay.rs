@@ -214,6 +214,7 @@ fn run_pair(
     let t0 = Instant::now();
     session
         .start(StartOpts {
+            scenario: None,
             title: Some(tag.into()),
             folder: None,
             system: them.as_ref().map(|_| Target::WholeSystem),

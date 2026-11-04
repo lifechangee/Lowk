@@ -144,6 +144,7 @@ export const commands = {
 	sessionStart: (opts: StartOpts) => typedError<SessionState, AppError>(__TAURI_INVOKE("session_start", { opts })),
 	sessionStop: () => typedError<null, AppError>(__TAURI_INVOKE("session_stop")),
 	sessionPause: () => typedError<null, AppError>(__TAURI_INVOKE("session_pause")),
+	sessionSetScenario: (scenario: Scenario) => typedError<SessionState, AppError>(__TAURI_INVOKE("session_set_scenario", { scenario })),
 	/**  Overlay button / main-window control: microphone on or off while recording, without stopping it. */
 	sessionSetMic: (on: boolean) => typedError<SessionState, AppError>(__TAURI_INVOKE("session_set_mic", { on })),
 	/**  Microphone mode of the running recording: on, off or auto (only while the call app holds the microphone). */
@@ -289,7 +290,7 @@ export type AboutInfo = {
 	source_url: string,
 };
 
-export type ActionId = "toggle_record" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | 
+export type ActionId = "toggle_record" | "cycle_scenario" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | 
 /**  Copy the current AI answer from the overlay (default unbound). */
 "copy_answer" | "clear_shots" | 
 /**  Microphone on/off during a recording (default unbound; roadmap «auto» mode: docs/ROADMAP.md). */
@@ -556,7 +557,7 @@ export type CloseReason =
 /**  The user pressed Ask again. */
 "next_ask" | 
 /**  The user explicitly finished the answer. */
-"qa_done" | "session_end";
+"qa_done" | "session_end" | "scenario_changed";
 
 export type ContextChunk = {
 	id: string,
@@ -1403,6 +1404,8 @@ export type RetxStatus = {
 	revisions: RetxRevision[],
 };
 
+export type Scenario = "listen" | "assist" | "run";
+
 export type SearchFilters = {
 	folders?: FolderRef[],
 	/**  RFC 3339 dates (inclusive); apply to call start / document added. */
@@ -1487,6 +1490,7 @@ export type SessionSnapshot = {
 
 export type SessionState = {
 	phase: SessionPhase,
+	scenario?: Scenario | null,
 	call: Ulid | null,
 	/**  True while the demo/replay feed drives the session. */
 	demo: boolean,
@@ -1603,6 +1607,7 @@ export type SourceRef = {
 };
 
 export type StartOpts = {
+	scenario?: Scenario | null,
 	title: string | null,
 	folder: FolderRef | null,
 	system: Target | null,

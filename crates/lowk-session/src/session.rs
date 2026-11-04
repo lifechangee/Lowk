@@ -109,6 +109,7 @@ impl Core {
         Self {
             state: SessionState {
                 phase: SessionPhase::Idle,
+                scenario: None,
                 call: None,
                 demo: false,
                 mic_on: true,
@@ -368,6 +369,34 @@ impl Session {
         self.inner.demo_done.load(Ordering::SeqCst)
     }
 
+    pub fn set_scenario(&self, scenario: Scenario) -> Result<()> {
+        let mut out = Out::default();
+        {
+            let mut c = self.inner.core();
+            if !matches!(c.state.phase, SessionPhase::Recording | SessionPhase::Paused) {
+                return Err(AppError::new(ErrorCode::SessionIdle));
+            }
+            if c.state.scenario == Some(scenario) {
+                return Ok(());
+            }
+            if c.state.scenario == Some(Scenario::Assist) {
+                let o = c.qa.close(CloseReason::ScenarioChanged);
+                c.absorb_qa(o, &mut out);
+            }
+            c.state.scenario = Some(scenario);
+            let at_s = c
+                .clock
+                .map_or(0, |k| (k.offset_ns(now_mono_ns()) / 1_000_000_000) as u32);
+            c.push_entry(CallEntry::Marker {
+                at_s,
+                text: format!("Сценарий: {}", scenario.name_ru()),
+            });
+            out.events.push(AppEvent::Session(c.state.clone()));
+        }
+        self.inner.flush(out);
+        Ok(())
+    }
+
     pub fn start(&self, o: StartOpts) -> Result<CallId> {
         let inner = &self.inner;
         let settings = inner.deps.settings.get();
@@ -390,6 +419,7 @@ impl Session {
                 ..Core::new()
             };
             c.state.demo = o.demo;
+            c.state.scenario = o.scenario;
             c.state.call = None;
             // New call: the folder preset (inherit = the global setting) decides whether the microphone starts on.
             let folder = o.folder.clone().unwrap_or(FolderRef::Unsorted);
@@ -434,6 +464,12 @@ impl Session {
         {
             let mut c = inner.core();
             c.state.call = Some(call_id);
+            if let Some(scenario) = o.scenario {
+                c.push_entry(CallEntry::Marker {
+                    at_s: 0,
+                    text: format!("Сценарий: {}", scenario.name_ru()),
+                });
+            }
             c.set_phase(SessionPhase::Recording, &mut out);
             out.qa.push(c.qa.initial_state(t0_mono));
         }
@@ -1414,8 +1450,10 @@ impl Inner {
             let mut c = self.core();
             // The link opens at Ask time, not when the hint finishes: the user starts answering
             // while the hint streams, and that speech belongs to «Мой ответ».
-            let o = c.qa.arm(qa_id, question.to_owned(), String::new(), armed_at);
-            c.absorb_qa(o, &mut out);
+            if c.state.scenario == Some(Scenario::Assist) {
+                let o = c.qa.arm(qa_id, question.to_owned(), String::new(), armed_at);
+                c.absorb_qa(o, &mut out);
+            }
             c.pending_q.insert(qa_id, question.to_owned());
         }
         out.events.push(AppEvent::Llm(LlmEvent::Start { req_id, qa_id }));

@@ -221,6 +221,15 @@ impl Model {
                 }));
             }
             CallEntry::Marker { at_s, text } => {
+                for s in [
+                    lowk_types::Scenario::Listen,
+                    lowk_types::Scenario::Assist,
+                    lowk_types::Scenario::Run,
+                ] {
+                    if *text == format!("Сценарий: {}", s.name_ru()) {
+                        self.doc.fm.scenario = Some(s);
+                    }
+                }
                 self.doc.blocks_mut().push(Block::Marker {
                     at_s: *at_s,
                     text: text.clone(),

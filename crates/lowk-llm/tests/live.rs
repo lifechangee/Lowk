@@ -31,6 +31,7 @@ fn live_summary() {
     cfg.data_collection_deny = std::env::var("LOWK_LLM_LIVE_DENY").is_ok();
     let svc = CloudLlm::new(cfg);
     let input = SummarizeInput {
+        scenario: None,
         call: CallId::new(),
         title: "Релиз и платежи".into(),
         transcript: SAMPLE_RU.into(),

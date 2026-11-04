@@ -20,6 +20,7 @@ fn cfg(s: &MockServer) -> LlmConfig {
 
 fn input(tr: &str) -> SummarizeInput {
     SummarizeInput {
+        scenario: None,
         call: CallId::new(),
         title: "Релиз".into(),
         transcript: tr.into(),

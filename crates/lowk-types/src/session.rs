@@ -28,9 +28,43 @@ pub enum AttentionReason {
     EngineMissing,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum Scenario {
+    Listen,
+    Assist,
+    Run,
+}
+
+impl Scenario {
+    pub fn name_ru(self) -> &'static str {
+        match self {
+            Self::Listen => "Я слушаю",
+            Self::Assist => "Мне нужна помощь",
+            Self::Run => "Я веду встречу",
+        }
+    }
+    pub fn template(self) -> &'static str {
+        match self {
+            Self::Listen => "explain",
+            Self::Assist => "brief",
+            Self::Run => "say",
+        }
+    }
+    pub fn next(self) -> Self {
+        match self {
+            Self::Listen => Self::Assist,
+            Self::Assist => Self::Run,
+            Self::Run => Self::Listen,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct SessionState {
     pub phase: SessionPhase,
+    #[serde(default)]
+    pub scenario: Option<Scenario>,
     pub call: Option<CallId>,
     /// True while the demo/replay feed drives the session.
     pub demo: bool,
@@ -51,6 +85,8 @@ fn mic_default() -> bool {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 pub struct StartOpts {
+    #[serde(default)]
+    pub scenario: Option<Scenario>,
     pub title: Option<String>,
     pub folder: Option<FolderRef>,
     pub system: Option<Target>,

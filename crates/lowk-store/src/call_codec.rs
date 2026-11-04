@@ -77,6 +77,7 @@ pub struct CallFm {
     pub tags: Vec<String>,
     pub source_me: Option<String>,
     pub source_system: Option<String>,
+    pub scenario: Option<lowk_types::Scenario>,
     pub stt_engine: Option<String>,
     pub stt_mode: Option<String>,
     pub speaker_me: String,
@@ -101,6 +102,7 @@ impl CallFm {
             tags: vec![],
             source_me: None,
             source_system: None,
+            scenario: None,
             stt_engine: None,
             stt_mode: None,
             speaker_me: "Я".into(),
@@ -221,6 +223,7 @@ pub fn parse(md: &str) -> CallDoc {
         &get("title").unwrap_or_default(),
         &get("started").unwrap_or_default(),
     );
+    cf.scenario = get("scenario").and_then(|s| serde_json::from_value(serde_json::Value::String(s)).ok());
     cf.folder = get("folder").unwrap_or_default();
     cf.ended = get("ended");
     cf.duration_s = get("duration_s").and_then(|s| s.parse().ok());
@@ -595,6 +598,16 @@ fn render_frontmatter(f: &CallFm) -> Frontmatter {
     match f.duration_s {
         Some(d) => out.set_ordered("duration_s", d.to_string(), &ORDER),
         None => out.remove("duration_s"),
+    }
+    if let Some(s) = f.scenario {
+        let value = match s {
+            lowk_types::Scenario::Listen => "listen",
+            lowk_types::Scenario::Assist => "assist",
+            lowk_types::Scenario::Run => "run",
+        };
+        out.set_ordered("scenario", value.to_string(), &ORDER);
+    } else {
+        out.remove("scenario");
     }
     out.set_ordered("languages", fm::fmt_list(&f.languages), &ORDER);
     out.set_ordered("tags", fm::fmt_list(&f.tags), &ORDER);
