@@ -88,6 +88,9 @@ enum Line {
     Entry {
         e: CallEntry,
     },
+    Heartbeat {
+        offset_s: u32,
+    },
     End {
         ended: String,
     },
@@ -322,6 +325,7 @@ pub struct CallWriter {
     m: Model,
     last_sync: Instant,
     last_mat: Instant,
+    last_heartbeat: u32,
     unsynced: bool,
     written_hash: Option<String>,
     notice: Option<WriterNotice>,
@@ -352,6 +356,7 @@ impl CallWriter {
             m,
             last_sync: Instant::now(),
             last_mat: Instant::now(),
+            last_heartbeat: 0,
             unsynced: false,
             written_hash: None,
             notice: None,
@@ -446,6 +451,21 @@ impl CallWriter {
         Ok(())
     }
 
+    /// Journal call progress even when no speech or other content is emitted.
+    /// Heartbeats are coalesced to one per 2 s and share the journal's rate-limited fsync.
+    pub fn heartbeat(&mut self, offset_s: u32) -> Result<()> {
+        if offset_s < self.last_heartbeat.saturating_add(2) {
+            return Ok(());
+        }
+        self.append(&Line::Heartbeat { offset_s })?;
+        self.journal.flush()?;
+        if self.last_sync.elapsed() >= SYNC_EVERY {
+            self.sync()?;
+        }
+        self.last_heartbeat = offset_s;
+        Ok(())
+    }
+
     fn write_md(&mut self) -> Result<()> {
         // a title typed during the recording: the file already carries it (written by the vault)
         let pending = self.v.pending_titles.lock().get(&self.id).cloned();
@@ -535,11 +555,14 @@ pub struct Recoverable {
     pub entries: usize,
 }
 
-fn read_journal(path: &std::path::Path) -> Option<(Line, Vec<CallEntry>, Option<String>)> {
+type JournalRead = (Line, Vec<CallEntry>, Option<String>, Option<u32>);
+
+fn read_journal(path: &std::path::Path) -> Option<JournalRead> {
     let f = File::open(path).ok()?;
     let mut begin = None;
     let mut entries = vec![];
     let mut end = None;
+    let mut heartbeat: Option<u32> = None;
     for (i, l) in BufReader::new(f).lines().enumerate() {
         let Ok(l) = l else { break };
         // a torn trailing line (crash mid-write) is skipped
@@ -549,11 +572,14 @@ fn read_journal(path: &std::path::Path) -> Option<(Line, Vec<CallEntry>, Option<
         match (i, line) {
             (0, b @ Line::Begin { .. }) => begin = Some(b),
             (_, Line::Entry { e }) => entries.push(e),
+            (_, Line::Heartbeat { offset_s }) => {
+                heartbeat = Some(heartbeat.unwrap_or_default().max(offset_s));
+            }
             (_, Line::End { ended }) => end = Some(ended),
             _ => {}
         }
     }
-    Some((begin?, entries, end))
+    Some((begin?, entries, end, heartbeat))
 }
 
 impl Vault {
@@ -568,7 +594,7 @@ impl Vault {
             if p.extension().is_none_or(|x| x != "jsonl") || p.to_string_lossy().ends_with(".chat.jsonl") {
                 continue;
             }
-            if let Some((Line::Begin { id, new, .. }, entries, None)) = read_journal(&p) {
+            if let Some((Line::Begin { id, new, .. }, entries, None, _)) = read_journal(&p) {
                 if !self.live.lock().contains(&id) {
                     out.push(Recoverable {
                         id,
@@ -584,14 +610,14 @@ impl Vault {
     }
 
     /// Rebuild the `.md` from the journal and mark the call finished at the
-    /// time of its last recorded entry.
+    /// later of its last content offset and last heartbeat.
     pub fn recover_call(&self, id: &Ulid) -> Result<CallMeta> {
         let _g = self.op_lock();
         if self.live.lock().contains(id) {
             return Err(err(ErrorCode::SessionBusy, "call is being recorded"));
         }
         let jp = self.live_dir().join(format!("{id}.jsonl"));
-        let (begin, entries, _) =
+        let (begin, entries, _, heartbeat) =
             read_journal(&jp).ok_or_else(|| err(ErrorCode::NotFound, "no journal for call"))?;
         let Line::Begin {
             id: jid,
@@ -607,8 +633,9 @@ impl Vault {
         for e in &entries {
             m.apply(e)?;
         }
-        let ended = add_secs(&new.started, m.last_offset() as u64);
-        m.doc.fm.duration_s = Some(m.last_offset() as u64);
+        let duration = m.last_offset().max(heartbeat.unwrap_or_default());
+        let ended = add_secs(&new.started, duration as u64);
+        m.doc.fm.duration_s = Some(duration as u64);
         m.doc.fm.ended = Some(ended);
         let mut path = self.root.join(&rel);
         // keep user edits made to an already materialized file
@@ -773,6 +800,57 @@ mod segment_tests {
             "{text}"
         );
         assert!(recovered.duration_s.unwrap_or_default().abs_diff(5) <= 2);
+    }
+
+    fn recover_silent_tail(engine: &str) -> u64 {
+        let dir = tempfile::tempdir().unwrap();
+        let vault = Vault::create_in(dir.path()).unwrap();
+        let mut new = test_call();
+        new.stt_engine = Some(engine.into());
+        let clock = SessionClock {
+            t0_mono: 0,
+            t0_wall_ms: 1_794_000_000_000,
+        };
+        let mut writer = vault.begin_call_with_clock(new, clock).unwrap();
+        let id = writer.id();
+        writer
+            .push(CallEntry::Final {
+                event: SttEvent {
+                    stream: Stream::System,
+                    utt: 1,
+                    rev: 0,
+                    kind: SttKind::Final,
+                    text: "last words".into(),
+                    lang: None,
+                    t_start_ns: 1_000_000_000,
+                    t_audio_end_ns: 1_000_000_000,
+                    t_emit_ns: 1_000_000_000,
+                },
+            })
+            .unwrap();
+        // The call then runs silently for several seconds. Heartbeats are the only durable evidence
+        // after the last final, as happens in both demo replay and an idle local engine.
+        for offset in [2, 4, 6] {
+            writer.heartbeat(offset).unwrap();
+        }
+        std::mem::forget(writer);
+        drop(vault);
+        Vault::open(dir.path())
+            .unwrap()
+            .recover_call(&id)
+            .unwrap()
+            .duration_s
+            .unwrap()
+    }
+
+    #[test]
+    fn demo_crash_with_silent_tail_recovers_duration_from_heartbeat() {
+        assert!(recover_silent_tail("demo").abs_diff(7) <= 2);
+    }
+
+    #[test]
+    fn fake_local_engine_crash_with_silent_tail_recovers_duration_from_heartbeat() {
+        assert!(recover_silent_tail("fake-local").abs_diff(7) <= 2);
     }
 
     #[test]

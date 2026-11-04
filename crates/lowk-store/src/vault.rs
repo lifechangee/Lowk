@@ -879,7 +879,14 @@ impl VaultInner {
 
     /// Title edits rename the file (`YYYY-MM-DD HHMM Title.md`).
     fn rename_to_title(&self, path: &Path, f: &CallFm) -> Result<PathBuf> {
-        let want = format!("{} {}", file_stamp_existing(&f.started), sanitize_name(&f.title));
+        let offset = lowk_types::clock::local_offset_secs().unwrap_or_else(|| {
+            parse_rfc3339(&f.started).map_or(0, |started| started.offset().whole_seconds())
+        });
+        let want = format!(
+            "{} {}",
+            file_stamp_existing(&f.started, offset),
+            sanitize_name(&f.title)
+        );
         let cur = path
             .file_stem()
             .map(|s| s.to_string_lossy().into_owned())

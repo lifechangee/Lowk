@@ -14,6 +14,10 @@ use std::sync::{Arc, Mutex};
 /// Write side of one live call (implemented over `lowk_store::CallWriter`).
 pub trait CallRecorder: Send {
     fn push(&mut self, e: CallEntry) -> Result<()>;
+    /// Periodic durable progress marker for recovery during silence.
+    fn heartbeat(&mut self, _offset_s: u32) -> Result<()> {
+        Ok(())
+    }
     /// Cheap, called every ~20 s of call time: flush the journal to `.md`.
     fn materialize(&mut self) -> Result<()>;
     fn finish(self: Box<Self>) -> Result<Option<CallMeta>>;
@@ -71,6 +75,8 @@ pub struct MemCallStore {
     pub kept_frames: Arc<Mutex<Vec<(lowk_types::Stream, u64)>>>,
     /// Screenshots stored with the call: `(file name, size)`.
     pub images: Arc<Mutex<Vec<(String, usize)>>>,
+    /// Durable progress notifications, for heartbeat lifecycle tests.
+    pub heartbeats: Arc<Mutex<Vec<u32>>>,
 }
 struct MemRecorder {
     entries: Arc<Mutex<Vec<CallEntry>>>,
@@ -78,6 +84,7 @@ struct MemRecorder {
     finished: Arc<Mutex<u32>>,
     kept: Arc<Mutex<Vec<(lowk_types::Stream, u64)>>>,
     images: Arc<Mutex<Vec<(String, usize)>>>,
+    heartbeats: Arc<Mutex<Vec<u32>>>,
 }
 impl CallRecorder for MemRecorder {
     fn save_image(&mut self, name: &str, bytes: &[u8]) -> Result<String> {
@@ -102,6 +109,10 @@ impl CallRecorder for MemRecorder {
         *self.mats.lock().unwrap() += 1;
         Ok(())
     }
+    fn heartbeat(&mut self, offset_s: u32) -> Result<()> {
+        self.heartbeats.lock().unwrap().push(offset_s);
+        Ok(())
+    }
     fn finish(self: Box<Self>) -> Result<Option<CallMeta>> {
         *self.finished.lock().unwrap() += 1;
         Ok(None)
@@ -124,6 +135,7 @@ impl CallStore for MemCallStore {
                 finished: self.finished.clone(),
                 kept: self.kept_frames.clone(),
                 images: self.images.clone(),
+                heartbeats: self.heartbeats.clone(),
             }),
         ))
     }

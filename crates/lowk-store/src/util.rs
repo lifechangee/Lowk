@@ -136,22 +136,21 @@ pub(crate) fn file_stamp(started: &str, offset_secs: i32) -> String {
         .unwrap_or_else(|_| "0000-00-00 0000".into())
 }
 
-/// Preserve the existing filename prefix when a previously created call is renamed.
-pub(crate) fn file_stamp_existing(started: &str) -> String {
-    let b = started.as_bytes();
-    if b.len() >= 16 && b[10] == b'T' && started.is_char_boundary(16) {
-        format!("{} {}{}", &started[..10], &started[11..13], &started[14..16])
-    } else {
-        "0000-00-00 0000".into()
-    }
+/// Build the same startup-local filename prefix used when the call was created.
+pub(crate) fn file_stamp_existing(started: &str, offset_secs: i32) -> String {
+    file_stamp(started, offset_secs)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::file_stamp;
+    use super::{file_stamp, file_stamp_existing};
 
     #[test]
     fn filename_stamp_uses_fixed_local_offset() {
         assert_eq!(file_stamp("2026-11-04T13:05:00Z", 3 * 60 * 60), "2026-11-04 1605");
+        assert_eq!(
+            file_stamp_existing("2026-11-04T17:18:00Z", 3 * 60 * 60),
+            "2026-11-04 2018"
+        );
     }
 }
