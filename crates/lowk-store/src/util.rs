@@ -121,13 +121,37 @@ pub(crate) fn diff_secs(a: &str, b: &str) -> Option<u64> {
     u64::try_from((b - a).whole_seconds()).ok()
 }
 
-/// `YYYY-MM-DD HHMM` prefix for call file names, taken literally from the
-/// RFC 3339 string (the user's local time as recorded).
-pub(crate) fn file_stamp(started: &str) -> String {
+/// `YYYY-MM-DD HHMM` prefix for call file names at the startup local offset.
+pub(crate) fn file_stamp(started: &str, offset_secs: i32) -> String {
+    let Some(t) = parse_rfc3339(started) else {
+        return "0000-00-00 0000".into();
+    };
+    let Ok(offset) = UtcOffset::from_whole_seconds(offset_secs) else {
+        return "0000-00-00 0000".into();
+    };
+    let format = time::format_description::parse_borrowed::<2>("[year]-[month]-[day] [hour][minute]")
+        .expect("valid filename timestamp format");
+    t.to_offset(offset)
+        .format(&format)
+        .unwrap_or_else(|_| "0000-00-00 0000".into())
+}
+
+/// Preserve the existing filename prefix when a previously created call is renamed.
+pub(crate) fn file_stamp_existing(started: &str) -> String {
     let b = started.as_bytes();
     if b.len() >= 16 && b[10] == b'T' && started.is_char_boundary(16) {
         format!("{} {}{}", &started[..10], &started[11..13], &started[14..16])
     } else {
         "0000-00-00 0000".into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::file_stamp;
+
+    #[test]
+    fn filename_stamp_uses_fixed_local_offset() {
+        assert_eq!(file_stamp("2026-11-04T13:05:00Z", 3 * 60 * 60), "2026-11-04 1605");
     }
 }

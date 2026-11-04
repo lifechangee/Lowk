@@ -8,7 +8,7 @@ use crate::util::*;
 use crate::vault::{Vault, VaultInner};
 use lowk_types::*;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
@@ -20,6 +20,7 @@ use std::time::{Duration, Instant};
 const MERGE_GAP_S: u32 = 2;
 /// A line spanning more than this starts a new timestamp; a longer final is split at sentence ends.
 const MAX_TURN_S: u32 = 15;
+type FinalPieces = Vec<(u32, Speaker, String)>;
 
 /// Splits one final that spans more than `MAX_TURN_S` into sentence groups of about equal length,
 /// each stamped by its character share of the audio span. Always returns at least one segment.
@@ -71,7 +72,7 @@ pub(crate) fn segment(text: &str, at: u32, end: u32) -> Vec<(String, u32)> {
     }
     out
 }
-const SYNC_EVERY: Duration = Duration::from_secs(1);
+const SYNC_EVERY: Duration = Duration::from_secs(2);
 const MATERIALIZE_EVERY: Duration = Duration::from_secs(20);
 
 #[derive(Serialize, Deserialize)]
@@ -107,6 +108,7 @@ pub(crate) struct Model {
     last_end: u32,
     last_at: u32,
     langs: BTreeSet<String>,
+    finals: HashMap<(Stream, UttId), FinalPieces>,
 }
 
 impl Model {
@@ -125,6 +127,7 @@ impl Model {
             last_end: 0,
             last_at: 0,
             langs: m.languages.iter().cloned().collect(),
+            finals: HashMap::new(),
         }
     }
 
@@ -150,8 +153,33 @@ impl Model {
                 if cleaned.is_empty() {
                     return Ok(());
                 }
-                for (text, at) in segment(&cleaned, at, end) {
-                    self.add_turn(sp.clone(), at, end, &text);
+                let pieces = segment(&cleaned, at, end);
+                let key = (event.stream, event.utt);
+                if let Some(previous) = self.finals.remove(&key) {
+                    let mut rendered = Vec::with_capacity(pieces.len());
+                    for (i, (text, at)) in pieces.iter().enumerate() {
+                        rendered.push((*at, sp.clone(), text.clone()));
+                        if let Some((old_at, old_sp, old_text)) = previous.get(i) {
+                            if let Some(Block::Turn { text: current, .. }) = self.doc.blocks_mut().iter_mut().find(|b| {
+                                matches!(b, Block::Turn { at_s, speaker, text } if at_s == old_at && speaker == old_sp && text.contains(old_text))
+                            }) {
+                                *current = current.replacen(old_text, text, 1);
+                            } else {
+                                self.add_turn(sp.clone(), *at, end, text);
+                            }
+                        } else {
+                            self.add_turn(sp.clone(), *at, end, text);
+                        }
+                    }
+                    self.finals.insert(key, rendered);
+                    self.last_end = self.last_end.max(end);
+                } else {
+                    let mut rendered = Vec::with_capacity(pieces.len());
+                    for (text, at) in pieces {
+                        self.add_turn(sp.clone(), at, end, &text);
+                        rendered.push((at, sp.clone(), text));
+                    }
+                    self.finals.insert(key, rendered);
                 }
             }
             CallEntry::Qa {
@@ -397,7 +425,8 @@ impl CallWriter {
         Ok(format!("{stem}.assets/{clean}"))
     }
 
-    /// Append an entry. Partial STT events are ignored. fsync at most every ~1 s;
+    /// Append an entry. Partial STT events are ignored. Flush immediately; fsync is
+    /// rate-limited to at most once every ~2 s.
     /// the `.md` is re-materialized every ~20 s.
     pub fn push(&mut self, e: CallEntry) -> Result<()> {
         if let CallEntry::Final { event } = &e {
@@ -407,6 +436,7 @@ impl CallWriter {
         }
         self.m.apply(&e)?;
         self.append(&Line::Entry { e })?;
+        self.journal.flush()?;
         if self.last_sync.elapsed() >= SYNC_EVERY {
             self.sync()?;
         }
@@ -676,6 +706,74 @@ const _: fn() = || {
 #[cfg(test)]
 mod segment_tests {
     use super::*;
+
+    fn test_call() -> NewCall {
+        NewCall {
+            title: "Crash recovery".into(),
+            folder: FolderRef::Unsorted,
+            started: "2026-11-04T13:00:00Z".into(),
+            sources: CallSources {
+                me: None,
+                system: None,
+            },
+            stt_engine: Some("test".into()),
+            languages: vec![],
+            speaker_me: "Me".into(),
+            speaker_system: "System".into(),
+            clock: None,
+        }
+    }
+
+    #[test]
+    fn dropped_writer_recovers_finals_and_duration_from_recent_journal() {
+        let dir = tempfile::tempdir().unwrap();
+        let vault = Vault::create_in(dir.path()).unwrap();
+        let clock = SessionClock {
+            t0_mono: 0,
+            t0_wall_ms: 1_794_000_000_000,
+        };
+        let mut writer = vault.begin_call_with_clock(test_call(), clock).unwrap();
+        let id = writer.id();
+        for (sec, text) in [(1u64, "first final"), (2, "second final"), (5, "third final")] {
+            writer
+                .push(CallEntry::Final {
+                    event: SttEvent {
+                        stream: Stream::System,
+                        utt: sec,
+                        rev: 1,
+                        kind: SttKind::Final,
+                        text: text.into(),
+                        lang: None,
+                        t_start_ns: sec * 1_000_000_000,
+                        t_audio_end_ns: sec * 1_000_000_000,
+                        t_emit_ns: 0,
+                    },
+                })
+                .unwrap();
+            std::thread::sleep(Duration::from_millis(1_050));
+        }
+        std::thread::sleep(Duration::from_secs(2)); // Every final is now over 2 s old.
+        std::mem::forget(writer); // Simulates SIGKILL: neither finish nor Drop runs.
+        drop(vault);
+        let vault = Vault::open(dir.path()).unwrap();
+
+        let recovered = vault.recover_call(&id).unwrap();
+        let doc = vault.read_call_doc(&id).unwrap();
+        let text = doc
+            .blocks()
+            .iter()
+            .filter_map(|b| match b {
+                Block::Turn { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            text.contains("first final") && text.contains("second final") && text.contains("third final"),
+            "{text}"
+        );
+        assert!(recovered.duration_s.unwrap_or_default().abs_diff(5) <= 2);
+    }
 
     #[test]
     fn short_final_is_one_segment() {

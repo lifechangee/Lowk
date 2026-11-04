@@ -85,7 +85,17 @@ impl CallRecorder for MemRecorder {
         Ok(format!("mem.assets/{name}"))
     }
     fn push(&mut self, e: CallEntry) -> Result<()> {
-        self.entries.lock().unwrap().push(e);
+        let mut entries = self.entries.lock().unwrap();
+        if let CallEntry::Final { event } = &e {
+            if let Some(existing) = entries.iter_mut().find(|old| {
+                matches!(old,
+                CallEntry::Final { event: prev } if prev.stream == event.stream && prev.utt == event.utt)
+            }) {
+                *existing = e;
+                return Ok(());
+            }
+        }
+        entries.push(e);
         Ok(())
     }
     fn materialize(&mut self) -> Result<()> {
