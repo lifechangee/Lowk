@@ -39,6 +39,18 @@ The same `lintInPage` runs inside the real webview in `just qa-app`. Never loose
 * **Capturing the overlay**: the overlay is excluded from capture (`NSWindowSharingNone`), and ScreenCaptureKit does not deliver such a window while the exclusion is on, so the QA run sends `exclusion off` before capturing and restores it afterwards. Only qa builds can do that. The presence sampler needs no lift: it polls window-server metadata (`CGWindowList` on-screen flag and alpha) at ~120-250 Hz.
 * Needs Screen Recording permission for the terminal that runs `node tools/qa/app-qa.mjs`.
 
+## Windows live QA (`tools/qa/win-live.ps1`)
+
+Run from the repository root in Windows PowerShell 5.1 on an interactive desktop: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/qa/win-live.ps1`. Pass `-Build` to build the UI and debug QA executable first; `-Exe`, `-Out`, and `-Keep` select the executable, output directory, and whether to retain the isolated temporary data directory. The unattended run injects Ctrl, Ctrl+Backslash, and Alt input, checks the log for the ClickHold, MoveHold, overlay toggle, injected-input warning, and tray indicator transitions, calls the QA `demo-start` / `demo-stop` commands, and saves a virtual-screen screenshot after each result.
+
+Before starting, it aborts if an installed Lowk process is already running; quit that app yourself. It starts only the specified QA executable with a fresh `LOWK_DATA_DIR`, kills only its own process, releases injected keys in cleanup, and removes the temporary directory unless `-Keep` is set. It never uses audio, the microphone, or a real call. Keep hands off the keyboard during the five-second countdown and checks. A nonzero exit means at least one check failed. If `hold_delay_ms` is absent from `crates/lowk-types/src/settings.rs`, the two Ctrl hold-delay checks (and Ctrl+Backslash ClickHold suppression) report SKIP with that reason.
+
+Limits of the unattended run:
+
+* Injected input reaches the hook only because the script starts the qa build with `LOWK_QA_ACCEPT_INJECTED=1`; release builds ignore injected keys (`LLKHF_INJECTED`).
+* `SendInput` from a sandboxed or non-interactive shell reaches no low-level hook at all (a standalone `WH_KEYBOARD_LL` probe sees zero events). Run the script from a normal desktop PowerShell window. A run where every key check fails the same way usually means that, not a Lowk bug.
+* Modifier-only holds (hold Ctrl → ClickHold, hold Alt → MoveHold) still need a person at the keyboard before a release: physical modifier timing, a focused Lowk window and other apps' hooks are exactly what injection cannot reproduce. Key combos, the tray indicator transitions and the demo call checks are covered unattended.
+
 ## Session end-to-end (`tools/qa/session-e2e.mjs`)
 
 macOS, qa build, **no audio output**: `LOWK_QA_SYSTEM_FILE` / `LOWK_QA_ME_FILE` replay files as the System / Me streams (qa builds only).
