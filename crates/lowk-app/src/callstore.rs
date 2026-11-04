@@ -22,6 +22,10 @@ impl CallRecorder for Recorder {
     fn push(&mut self, e: CallEntry) -> Result<()> {
         self.w.push(e)
     }
+
+    fn heartbeat(&mut self, offset_s: u32) -> Result<()> {
+        self.w.heartbeat(offset_s)
+    }
     fn materialize(&mut self) -> Result<()> {
         self.w.materialize()
     }

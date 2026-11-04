@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { render } from 'svelte/server';
 import { describe, expect, it, vi } from 'vitest';
+import Answer from './Answer.svelte';
 import { BAND_PX, GRID_COLS, GRID_ROWS, PRESETS, blockTone, scrimRowGradient, scrimRowStyle, textGradient, kFromTransparency, menuRgb, normalizeRgb, parseGrid, toneToVars, varsToStyle, type ToneEvent } from './tone';
 import { OverlayStore, formatElapsed, splitBold } from './store.svelte';
 import { plainAnswer } from './clipboard';
@@ -27,6 +29,13 @@ describe('tone', () => {
 });
 
 describe('store', () => {
+  it('renders the empty complement refusal in the answer overlay', () => {
+    const s = new OverlayStore();
+    s.applyLlm({ type: 'error', req_id: 'empty', error: { code: 'my_answer_empty', params: {}, detail: null } });
+    const { body } = render(Answer, { props: { store: s } });
+    expect(body).toContain('Сначала скажите ответ — дополнять пока нечего');
+  });
+
   it('collects "My answer" only after an AI answer', () => {
     const s = new OverlayStore();
     const stt = (stream: 'me' | 'system', text: string) => ({ stream, utt: 1, rev: 0, kind: 'final' as const, text, lang: null, t_start_ns: 0, t_audio_end_ns: 0, t_emit_ns: 0 });

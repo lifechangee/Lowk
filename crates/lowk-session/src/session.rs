@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 const NS_PER_MS: u64 = 1_000_000;
 /// Journal -> `.md` cadence (call time).
@@ -437,6 +438,34 @@ impl Session {
             out.qa.push(c.qa.initial_state(t0_mono));
         }
         inner.flush(out);
+        let weak = Arc::downgrade(inner);
+        let heartbeat = std::thread::Builder::new()
+            .name("lowk-call-heartbeat".into())
+            .spawn(move || {
+                while let Some(inner) = weak.upgrade() {
+                    for _ in 0..20 {
+                        if inner.cancel.load(Ordering::SeqCst) {
+                            return;
+                        }
+                        std::thread::sleep(Duration::from_millis(100));
+                    }
+                    if inner.cancel.load(Ordering::SeqCst) {
+                        return;
+                    }
+                    let mut c = inner.core();
+                    if matches!(c.state.phase, SessionPhase::Recording | SessionPhase::Paused) {
+                        if let (Some(clock), Some(recorder)) = (c.clock, c.recorder.as_mut()) {
+                            let offset_s = (clock.offset_ns(now_mono_ns()) / 1_000_000_000)
+                                .min(u64::from(u32::MAX)) as u32;
+                            if let Err(error) = recorder.heartbeat(offset_s) {
+                                tracing::warn!(?error, "call journal heartbeat failed");
+                            }
+                        }
+                    }
+                }
+            })
+            .expect("spawn call heartbeat");
+        inner.core().threads.push(heartbeat);
         {
             let (mode, unsupported) = {
                 let c = inner.core();
@@ -577,12 +606,15 @@ impl Session {
             .find(|t| t.id == req.template_id)
             .cloned()
             .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("template"))?;
-        let qa_id = Ulid::new();
-        let req_id = Ulid::new();
         if template.needs_my_answer && inner.core().qa.current_answer().is_none_or(str::is_empty) {
-            inner.qa_empty_begin(qa_id, now_mono_ns());
+            inner.bus.emit(AppEvent::Llm(LlmEvent::Error {
+                req_id: Ulid::new(),
+                error: AppError::new(ErrorCode::MyAnswerEmpty),
+            }));
             return Err(AppError::new(ErrorCode::MyAnswerEmpty));
         }
+        let qa_id = Ulid::new();
+        let req_id = Ulid::new();
         let (delta, prev_cursor, question, my_answer, folder, call, first_turn, sent) = {
             let mut c = inner.core();
             match c.state.phase {
@@ -614,6 +646,10 @@ impl Session {
                 None
             };
             if template.needs_my_answer && my.as_deref().is_none_or(str::is_empty) {
+                inner.bus.emit(AppEvent::Llm(LlmEvent::Error {
+                    req_id: Ulid::new(),
+                    error: AppError::new(ErrorCode::MyAnswerEmpty),
+                }));
                 return Err(AppError::new(ErrorCode::MyAnswerEmpty));
             }
             (
@@ -1383,16 +1419,6 @@ impl Inner {
             c.pending_q.insert(qa_id, question.to_owned());
         }
         out.events.push(AppEvent::Llm(LlmEvent::Start { req_id, qa_id }));
-        self.flush(out);
-    }
-
-    fn qa_empty_begin(&self, qa_id: QaId, armed_at: MonoNs) {
-        let mut out = Out::default();
-        {
-            let mut c = self.core();
-            let qa = c.qa.arm(qa_id, String::new(), String::new(), armed_at);
-            c.absorb_qa(qa, &mut out);
-        }
         self.flush(out);
     }
 

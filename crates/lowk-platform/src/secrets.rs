@@ -22,6 +22,33 @@ pub trait SecretBackend: Send + Sync {
 
 struct Keyring;
 
+#[derive(Default)]
+#[cfg(feature = "qa")]
+struct MemoryStore(Mutex<HashMap<String, Zeroizing<String>>>);
+
+#[cfg(feature = "qa")]
+impl SecretBackend for MemoryStore {
+    fn set(&self, provider: &str, value: &str) -> Result<()> {
+        self.0
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .insert(provider.to_owned(), Zeroizing::new(value.to_owned()));
+        Ok(())
+    }
+    fn get(&self, provider: &str) -> Result<String> {
+        self.0
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(provider)
+            .map(|value| value.to_string())
+            .ok_or_else(|| AppError::new(ErrorCode::ApiKeyMissing))
+    }
+    fn delete(&self, provider: &str) -> Result<()> {
+        self.0.lock().unwrap_or_else(|p| p.into_inner()).remove(provider);
+        Ok(())
+    }
+}
+
 fn entry(provider: &str) -> Result<Entry> {
     if provider.is_empty() {
         return Err(AppError::new(ErrorCode::InvalidArgument));
@@ -158,9 +185,18 @@ impl Secrets {
     }
 }
 
+fn profile_secrets(isolated: bool) -> Secrets {
+    #[cfg(feature = "qa")]
+    if isolated {
+        return Secrets::new(Box::<MemoryStore>::default(), false);
+    }
+    let _ = isolated;
+    Secrets::new(Box::new(Keyring), cfg!(windows))
+}
+
 fn global() -> &'static Secrets {
     static G: OnceLock<Secrets> = OnceLock::new();
-    G.get_or_init(|| Secrets::new(Box::new(Keyring), cfg!(windows)))
+    G.get_or_init(|| profile_secrets(std::env::var_os("LOWK_DATA_DIR").is_some()))
 }
 
 /// Values already held in memory (read or saved in this run). Never touches the keychain, so it
@@ -202,6 +238,25 @@ pub fn delete(provider: &str) -> Result<()> {
 mod tests {
     use super::*;
     use std::sync::Arc;
+
+    #[cfg(feature = "qa")]
+    #[test]
+    fn isolated_profile_uses_only_in_memory_secrets() {
+        let secrets = profile_secrets(true);
+        assert_eq!(secrets.keychain_reads(), 0);
+        assert_eq!(
+            secrets.get("openrouter").unwrap_err().code,
+            ErrorCode::ApiKeyMissing
+        );
+        assert_eq!(secrets.keychain_reads(), 1); // in-memory backend access, never the OS keychain
+        secrets.set("openrouter", "qa-only").unwrap();
+        assert_eq!(secrets.get("openrouter").unwrap(), "qa-only");
+        secrets.delete("openrouter").unwrap();
+        assert_eq!(
+            secrets.get("openrouter").unwrap_err().code,
+            ErrorCode::ApiKeyMissing
+        );
+    }
 
     /// Models the Windows Credential Manager backend: target `user.service`, the secret is a UTF-16 blob
     /// capped at 2560 bytes (a bigger write is refused), a missing credential reads as `NoEntry`.

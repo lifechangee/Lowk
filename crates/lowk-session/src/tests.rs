@@ -255,6 +255,49 @@ fn ask_never_waits_for_correction() {
 }
 
 #[test]
+fn empty_complement_refusal_emits_error_without_opening_answer_or_record() {
+    let r = rig(|_| {});
+    let events = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    assert_eq!(
+        r.session
+            .ask(AskRequest {
+                template_id: "complement".into(),
+                typed_text: None,
+            })
+            .unwrap_err()
+            .code,
+        ErrorCode::MyAnswerEmpty
+    );
+    let got: Vec<_> = events.try_iter().collect();
+    assert!(got.iter().any(|event| matches!(event, AppEvent::Llm(LlmEvent::Error { error, .. }) if error.code == ErrorCode::MyAnswerEmpty)));
+    assert!(
+        r.session.qa_records().is_empty(),
+        "a refused complement must not arm an answer"
+    );
+    assert!(
+        r.store.entries.lock().unwrap().is_empty(),
+        "a refused complement must not journal a Q&A"
+    );
+    r.session.stop().unwrap();
+}
+
+#[test]
+fn live_heartbeat_runs_for_silent_demo_and_engine_calls() {
+    for demo in [true, false] {
+        let r = rig(|_| {});
+        r.session.start(opts(demo)).unwrap();
+        std::thread::sleep(Duration::from_millis(2_250));
+        r.session.stop().unwrap();
+        let beats = r.store.heartbeats.lock().unwrap();
+        assert!(
+            beats.iter().any(|offset| *offset >= 2),
+            "demo={demo}, beats={beats:?}"
+        );
+    }
+}
+
+#[test]
 fn failed_start_rolls_back_to_idle() {
     let r = rig(|d| {
         let mut s = d.settings.get();
