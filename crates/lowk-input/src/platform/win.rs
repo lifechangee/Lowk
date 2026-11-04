@@ -25,6 +25,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 const LLKHF_INJECTED: u32 = 0x10;
+const LLKHF_EXTENDED: u32 = 0x01;
 const LLMHF_INJECTED: u32 = 0x01;
 
 /// Injected input (SendInput, remote tools) is ignored for users. A qa build accepts it only when the run
@@ -237,8 +238,16 @@ fn mods_of(m: &[bool; 8]) -> Mods {
     }
 }
 
-fn mod_slot(vk: u16) -> Option<usize> {
+/// Slot in the modifier table for a key event. Besides the sided VKs, some keyboards, remappers and
+/// remote-desktop clients deliver the generic VK_SHIFT / VK_CONTROL / VK_MENU: those are sided by the
+/// extended flag (right Ctrl / Alt) or the scan code (right Shift). Treating them as ordinary keys
+/// would leave a «held key» behind that blocks every modifier-only bind.
+fn mod_slot(vk: u16, scan: u32, flags: u32) -> Option<usize> {
+    let extended = flags & LLKHF_EXTENDED != 0;
     match vk {
+        0x10 => Some(if scan == 0x36 { 1 } else { 0 }),
+        0x11 => Some(if extended { 3 } else { 2 }),
+        0x12 => Some(if extended { 5 } else { 4 }),
         0xA0 => Some(0),
         0xA1 => Some(1),
         0xA2 => Some(2),
@@ -275,7 +284,7 @@ fn on_key(msg: u32, kb: &KBDLLHOOKSTRUCT) -> bool {
     let Some(engine) = st.engine.clone() else {
         return false;
     };
-    let slot = mod_slot(vk);
+    let slot = mod_slot(vk, kb.scanCode, kb.flags.0);
     let before = mods_of(&st.mods);
     if reconcile_mods(&mut st.mods, os_mods(), slot) {
         let m = mods_of(&st.mods);
@@ -597,6 +606,25 @@ mod tests {
         assert!(!e.tick(false, at(3500)));
         assert!(!e.tick(true, at(4000)), "a new episode starts its own clock");
         assert!(e.tick(true, at(6000)));
+    }
+
+    #[test]
+    fn generic_modifier_vks_are_modifiers_not_held_keys() {
+        // A generic VK_CONTROL down/up must land in the modifier table, never in the held-key list.
+        assert_eq!(super::mod_slot(0x11, 0x1D, 0), Some(2));
+        assert_eq!(super::mod_slot(0x11, 0x1D, 0x01), Some(3));
+        assert_eq!(super::mod_slot(0x12, 0x38, 0), Some(4));
+        assert_eq!(super::mod_slot(0x12, 0x38, 0x01), Some(5));
+        assert_eq!(super::mod_slot(0x10, 0x2A, 0), Some(0));
+        assert_eq!(super::mod_slot(0x10, 0x36, 0), Some(1));
+        assert_eq!(super::mod_slot(0xA2, 0x1D, 0), Some(2));
+        assert_eq!(super::mod_slot(0x41, 0x1E, 0), None);
+        let mut mods = [false; 8];
+        for down in [true, false] {
+            let slot = super::mod_slot(0x11, 0x1D, 0).unwrap();
+            mods[slot] = down;
+            assert_eq!(super::mods_of(&mods).ctrl, down);
+        }
     }
 
     #[test]
