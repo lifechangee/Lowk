@@ -11,6 +11,7 @@ pub enum CloseReason {
     /// The user explicitly finished the answer.
     QaDone,
     SessionEnd,
+    ScenarioChanged,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]

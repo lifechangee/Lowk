@@ -79,7 +79,9 @@ fn start(st: &AppState, o: StartOpts) -> Result<SessionState> {
     st.heal_engine_setting();
     let o = effective(st, o)?;
     let folder = o.folder.clone();
+    let scenario = o.scenario.unwrap_or(Scenario::Listen);
     st.session.start(o)?;
+    *st.template.lock() = scenario.template().into();
     // the first Ask comes within seconds: connect the LLM provider and wake the embedder now
     st.spawn_ask_warmup(folder);
     Ok(st.session.state())
@@ -90,6 +92,7 @@ pub fn toggle_record(st: &Arc<AppState>) -> Result<()> {
         SessionPhase::Idle => start(
             st,
             StartOpts {
+                scenario: None,
                 title: None,
                 folder: None,
                 system: None,
@@ -108,6 +111,18 @@ pub fn toggle_record(st: &Arc<AppState>) -> Result<()> {
 pub fn toggle_mic(st: &Arc<AppState>) -> Result<()> {
     let on = !st.session.state().mic_on;
     st.session.set_mic_enabled(on)
+}
+
+pub fn set_scenario(st: &AppState, scenario: Scenario) -> Result<SessionState> {
+    st.session.set_scenario(scenario)?;
+    *st.template.lock() = scenario.template().into();
+    Ok(st.session.state())
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn session_set_scenario(st: State<'_, Shared>, scenario: Scenario) -> Result<SessionState> {
+    set_scenario(&st, scenario)
 }
 
 /// Overlay button / main-window control: microphone on or off while recording, without stopping it.
@@ -180,6 +195,7 @@ pub fn demo_start_inner(st: &AppState) -> Result<SessionState> {
     start(
         st,
         StartOpts {
+            scenario: None,
             title: None,
             folder: None,
             system: None,

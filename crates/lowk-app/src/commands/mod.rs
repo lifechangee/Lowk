@@ -89,6 +89,7 @@ macro_rules! all_commands {
             crate::commands::session::session_start,
             crate::commands::session::session_stop,
             crate::commands::session::session_pause,
+            crate::commands::session::session_set_scenario,
             crate::commands::session::session_set_mic,
             crate::commands::session::session_set_mic_mode,
             crate::commands::session::session_resume,

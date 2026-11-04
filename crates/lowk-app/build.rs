@@ -112,6 +112,7 @@ const COMMANDS: &[&str] = &[
     "retx_start",
     "retx_cancel",
     "retx_restore",
+    "session_set_scenario",
     "session_set_mic",
     "session_set_mic_mode",
     "trash_delete_forever",

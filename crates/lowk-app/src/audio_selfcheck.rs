@@ -91,6 +91,7 @@ fn run_session(o: &Opts, tag: &str, mic_gain: f32, echo_gain: f32) -> bool {
     });
     let t0 = Instant::now();
     let started = session.start(StartOpts {
+        scenario: None,
         title: Some(format!("audio selfcheck {tag}")),
         folder: None,
         system: Some(Target::WholeSystem),

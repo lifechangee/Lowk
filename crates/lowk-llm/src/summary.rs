@@ -417,7 +417,16 @@ keeping the \"Kind:\" line, chronology, every distinct topic, definition, decisi
     } else {
         ""
     };
-    l.append_system(&format!("{SUMMARY_SYSTEM}\n{}{multi_rule}", lang_rules(lang)));
+    let hint = input.scenario.map(|s| match s {
+        lowk_types::Scenario::Listen => "lecture",
+        lowk_types::Scenario::Assist => "interview",
+        lowk_types::Scenario::Run => "meeting",
+    });
+    let kind_rule = hint.map_or(String::new(), |k| format!("\nThe user chose the {k} kind. Use this kind instead of guessing; include relevant Q&A even if it arose in another scenario."));
+    l.append_system(&format!(
+        "{SUMMARY_SYSTEM}\n{}{multi_rule}{kind_rule}",
+        lang_rules(lang)
+    ));
     l.append_user(&user_prompt(input, body_tag, &body));
     let opts = ChatOptions {
         max_tokens: Some(1800),
@@ -757,6 +766,7 @@ mod tests {
 
     fn input(tr: &str) -> SummarizeInput {
         SummarizeInput {
+            scenario: None,
             call: lowk_types::CallId::new(),
             title: "Sync".into(),
             transcript: tr.into(),

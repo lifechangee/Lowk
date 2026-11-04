@@ -97,6 +97,7 @@
     "allow-session-start",
     "allow-session-state",
     "allow-session-stop",
+    "allow-session-set-scenario",
     "allow-session-set-mic",
     "allow-session-set-mic-mode",
     "allow-trash-delete-forever",

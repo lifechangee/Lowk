@@ -74,6 +74,7 @@ impl Services {
             _ => None,
         };
         let input = SummarizeInput {
+            scenario: doc.fm.scenario,
             call: *id,
             title: call.meta.title.clone(),
             transcript,

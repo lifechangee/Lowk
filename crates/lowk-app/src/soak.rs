@@ -563,6 +563,7 @@ fn run_in(o: &Opts, tmp: &Path) -> Result<bool, String> {
 
     let call = session
         .start(StartOpts {
+            scenario: None,
             title: Some("soak".into()),
             folder: None,
             system: Some(Target::WholeSystem),

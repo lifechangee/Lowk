@@ -176,6 +176,8 @@ pub struct QaDigest {
 /// Input of `LlmService::summarize`; `lowk-llm` never reads the vault.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct SummarizeInput {
+    #[serde(default)]
+    pub scenario: Option<crate::Scenario>,
     pub call: CallId,
     pub title: String,
     /// Transcript as `[HH:MM:SS] **Speaker:** text` lines (map-reduced when too long).

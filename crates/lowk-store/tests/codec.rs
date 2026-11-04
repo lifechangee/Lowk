@@ -288,3 +288,18 @@ fn transcript_revision_keys_survive_a_codec_round_trip() {
         "stable on a second round trip"
     );
 }
+
+#[test]
+fn scenario_frontmatter_roundtrips_and_old_calls_have_none() {
+    let mut doc = call_codec::parse(&fixture("call_minimal.md"));
+    assert_eq!(doc.fm.scenario, None);
+    for scenario in [
+        lowk_types::Scenario::Listen,
+        lowk_types::Scenario::Assist,
+        lowk_types::Scenario::Run,
+    ] {
+        doc.fm.scenario = Some(scenario);
+        let text = call_codec::render(&doc);
+        assert_eq!(call_codec::parse(&text).fm.scenario, Some(scenario));
+    }
+}

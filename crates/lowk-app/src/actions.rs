@@ -74,6 +74,14 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
             }
             _ if !down => {}
             ActionId::ToggleRecord => crate::commands::session::toggle_record(st)?,
+            ActionId::CycleScenario => {
+                let next = st
+                    .session
+                    .state()
+                    .scenario
+                    .map_or(Scenario::Listen, Scenario::next);
+                crate::commands::session::set_scenario(st, next)?;
+            }
             ActionId::ToggleMic => crate::commands::session::toggle_mic(st)?,
             ActionId::Ask => {
                 let template_id = st.template.lock().clone();

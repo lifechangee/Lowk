@@ -7,6 +7,7 @@ use specta::Type;
 #[serde(rename_all = "snake_case")]
 pub enum ActionId {
     ToggleRecord,
+    CycleScenario,
     Ask,
     Screenshot,
     ScreenshotArea,
