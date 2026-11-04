@@ -6,7 +6,19 @@
   import { bindSlot, defaultId } from '../templates';
   import { prefs } from '../state.svelte';
   import BindEditor from './BindEditor.svelte';
+  import Select from '../../lib/components/Select.svelte';
+  import SettingRow from '../../lib/components/SettingRow.svelte';
   let more = $state(false);
+
+  // Hold delay for modifier-only binds (hold Ctrl / Alt): fixed steps, the backend clamps to 0..=3000 ms.
+  const HOLD_STEPS = [0, 500, 1000, 1500, 2000] as const;
+  const holdLabel = (ms: number) => (ms === 0 ? tm('m.holdDelay.now') : tm('m.holdDelay.sec', { n: (ms / 1000).toLocaleString(locale.lang) }));
+  const holdOptions = $derived(HOLD_STEPS.map((ms) => ({ value: String(ms), label: holdLabel(ms) })));
+  const holdValue = $derived.by(() => {
+    const v = prefs.value.hold_delay_ms ?? 1000;
+    // a hand-edited settings.toml value shows as the nearest step
+    return String(HOLD_STEPS.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a)));
+  });
 
   // «Brief» and «Complement my answer» sit in the main list; every other template (built-in or created
   // by the user) gets its own row here, bound through `ask_template` + the template id.
@@ -44,6 +56,12 @@
 <BindEditor actions={more ? [...ACTIONS_PRIMARY, ...ACTIONS_EXTRA] : ACTIONS_PRIMARY} />
 <button class="more" onclick={() => (more = !more)}>{more ? tm('m.fewerActions') : tm('m.moreActions')}</button>
 
+<div class="hold" data-testid="hold-delay">
+  <SettingRow label={tm('m.holdDelay')} hint={tm('m.holdDelayHint')}>
+    <Select label={tm('m.holdDelay')} value={holdValue} options={holdOptions} onchange={(v) => prefs.patch({ hold_delay_ms: Number(v) })} />
+  </SettingRow>
+</div>
+
 <h2 class="gap">{tm('m.act.templates')}</h2>
 <p class="lead">{tm('m.act.templatesHint')}</p>
 <div data-testid="template-binds"><BindEditor actions={[]} templates={rows} showReset={false} hints={false} /></div>
@@ -51,6 +69,7 @@
 <style>
   h2 { font: 600 var(--fs-lg) var(--font); margin: 0 0 var(--s1); }
   .gap { margin-top: var(--s8); }
+  .hold { margin-top: var(--s4); }
   .lead { color: var(--tx2); margin: 0 0 var(--s3); font-size: 13px; }
   .more { all: unset; cursor: pointer; color: var(--ac); font-size: 13px; margin-top: var(--s2); }
   .more:hover { text-decoration: underline; }
