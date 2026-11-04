@@ -402,6 +402,7 @@ impl Session {
                 MicMode::Auto => unsupported,
             };
             c.state.mic_on = mic_on;
+            let _ = c.qa.set_mic(mic_on, t0_mono);
             c.state.mic_mode = mode;
             c.state.mic_auto_unsupported = unsupported;
             c.mic_target = target;
@@ -433,6 +434,7 @@ impl Session {
             let mut c = inner.core();
             c.state.call = Some(call_id);
             c.set_phase(SessionPhase::Recording, &mut out);
+            out.qa.push(c.qa.initial_state(t0_mono));
         }
         inner.flush(out);
         {
@@ -549,6 +551,21 @@ impl Session {
         }
     }
 
+    /// Explicitly finishes the current «Мой ответ» collection.
+    pub fn qa_done(&self) -> Result<()> {
+        let mut out = Out::default();
+        {
+            let mut c = self.inner.core();
+            if !matches!(c.state.phase, SessionPhase::Recording | SessionPhase::Paused) {
+                return Err(AppError::new(ErrorCode::SessionIdle));
+            }
+            let qa = c.qa.close(CloseReason::QaDone);
+            c.absorb_qa(qa, &mut out);
+        }
+        self.inner.flush(out);
+        Ok(())
+    }
+
     /// Ask the AI. Returns the new Q&A id at once; the answer streams as
     /// `AppEvent::Llm` events from a worker thread.
     pub fn ask(&self, req: AskRequest) -> Result<QaId> {
@@ -562,6 +579,10 @@ impl Session {
             .ok_or_else(|| AppError::new(ErrorCode::NotFound).with_detail("template"))?;
         let qa_id = Ulid::new();
         let req_id = Ulid::new();
+        if template.needs_my_answer && inner.core().qa.current_answer().is_none_or(str::is_empty) {
+            inner.qa_empty_begin(qa_id, now_mono_ns());
+            return Err(AppError::new(ErrorCode::MyAnswerEmpty));
+        }
         let (delta, prev_cursor, question, my_answer, folder, call, first_turn, sent) = {
             let mut c = inner.core();
             match c.state.phase {
@@ -588,10 +609,13 @@ impl Session {
                     pick(true).or_else(|| pick(false))
                 });
             let my = if template.needs_my_answer {
-                c.qa.latest_my_answer().map(str::to_owned)
+                c.qa.current_answer().map(str::to_owned)
             } else {
                 None
             };
+            if template.needs_my_answer && my.as_deref().is_none_or(str::is_empty) {
+                return Err(AppError::new(ErrorCode::MyAnswerEmpty));
+            }
             (
                 delta,
                 prev,
@@ -1060,6 +1084,8 @@ impl Inner {
                     }
                     c.state.mic_on = on;
                     self.mic_on.store(on, Ordering::SeqCst);
+                    let qa_out = c.qa.set_mic(on, now_mono_ns());
+                    c.absorb_qa(qa_out, &mut out);
                     let at_s = c
                         .clock
                         .map_or(0, |k| (k.offset_ns(now_mono_ns()) / 1_000_000_000) as u32);
@@ -1328,6 +1354,12 @@ impl Inner {
                 (Some(ev), Some(clock)) => c.transcript.apply(ev, &clock) != Applied::Stale,
                 _ => false,
             };
+            if stream == Stream::Me {
+                if let Some(ev) = result.as_ref().filter(|_| applied) {
+                    let qa = c.qa.correct(ev);
+                    c.absorb_qa(qa, &mut out);
+                }
+            }
             match (applied, result, orig) {
                 (true, Some(ev), _) => {
                     out.events.push(AppEvent::Stt(ev.clone()));
@@ -1351,6 +1383,16 @@ impl Inner {
             c.pending_q.insert(qa_id, question.to_owned());
         }
         out.events.push(AppEvent::Llm(LlmEvent::Start { req_id, qa_id }));
+        self.flush(out);
+    }
+
+    fn qa_empty_begin(&self, qa_id: QaId, armed_at: MonoNs) {
+        let mut out = Out::default();
+        {
+            let mut c = self.core();
+            let qa = c.qa.arm(qa_id, String::new(), String::new(), armed_at);
+            c.absorb_qa(qa, &mut out);
+        }
         self.flush(out);
     }
 

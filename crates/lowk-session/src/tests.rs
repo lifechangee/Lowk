@@ -327,10 +327,10 @@ fn demo_feed_builds_transcript_and_links_my_answers() {
     assert_eq!(streamed, qa[0].hint);
     // QA subscribers saw growing text and the closing update.
     let ups: Vec<_> = qa_rx.try_iter().collect();
-    assert!(ups.iter().any(|u| u.closed == Some(CloseReason::NextAsk)));
+    assert!(ups.iter().any(|u| u.state == MyAnswerState::Closed));
     assert!(ups
         .iter()
-        .any(|u| u.closed.is_none() && u.text.contains("EBITDA")));
+        .any(|u| u.state == MyAnswerState::Listening && u.text.contains("EBITDA")));
 
     r.session.stop().unwrap();
     let entries = r.store.entries.lock().unwrap();
@@ -423,6 +423,55 @@ fn live_ask_streams_hint_and_collects_my_answer() {
     assert!(entries
         .iter()
         .any(|e| matches!(e, CallEntry::MyAnswer { text, .. } if text == "Это прибыль до налогов.")));
+}
+
+#[test]
+fn complement_requires_the_current_answer_and_qa_done_closes_it() {
+    let hints = Arc::new(SeenHints {
+        seen: Mutex::new(vec![]),
+        refuse: None,
+        cloud: false,
+    });
+    let hints_for_rig = hints.clone();
+    let r = rig(|d| d.hints = hints_for_rig);
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    let finish_ask = |rx: &Receiver<AppEvent>| loop {
+        if matches!(
+            rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            AppEvent::Llm(LlmEvent::Done { .. })
+        ) {
+            break;
+        }
+    };
+    let first = r.session.ask(brief(None)).unwrap();
+    finish_ask(&rx);
+    let t = now_mono_ns() / 1_000_000_000 + 2;
+    r.session.inject_stt(ev(Stream::Me, 1, t, t + 1, "старый ответ"));
+    r.session.ask(brief(None)).unwrap();
+    finish_ask(&rx);
+    let before = hints.seen.lock().unwrap().len();
+    let complement = AskRequest {
+        template_id: TEMPLATE_COMPLEMENT.into(),
+        typed_text: None,
+    };
+    assert_eq!(
+        r.session.ask(complement.clone()).unwrap_err().code,
+        ErrorCode::MyAnswerEmpty
+    );
+    assert_eq!(
+        hints.seen.lock().unwrap().len(),
+        before,
+        "empty answer must not reach the generator"
+    );
+    // The previous non-empty answer is not reused after the second Ask.
+    assert_eq!(r.session.my_answer(&first).as_deref(), Some("старый ответ"));
+    r.session.qa_done().unwrap();
+    assert_eq!(
+        r.session.ask(complement).unwrap_err().code,
+        ErrorCode::MyAnswerEmpty
+    );
+    r.session.stop().unwrap();
 }
 
 struct WaitForAskCancel;

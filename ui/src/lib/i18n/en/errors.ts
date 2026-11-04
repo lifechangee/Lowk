@@ -27,6 +27,7 @@ export const errors = {
   'error.download_failed': 'The download failed. Check your connection and try again',
   'error.network': 'No connection to the server. Check your internet and try again',
   'error.llm_provider': 'The model provider returned an error. Check the key and the model in Settings',
+  'error.my_answer_empty': 'Say your answer first: there is nothing to complement yet',
   'error.llm_cancelled': 'Stopped',
   'error.api_key_missing': 'The selected cloud provider key is not set. Add it in Settings',
   'error.no_vision': 'The selected model cannot read images',

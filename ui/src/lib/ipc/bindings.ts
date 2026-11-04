@@ -185,6 +185,7 @@ export const commands = {
 	demoStart: () => typedError<SessionState, AppError>(__TAURI_INVOKE("demo_start")),
 	llmAsk: (typedText: string | null) => typedError<Ulid, AppError>(__TAURI_INVOKE("llm_ask", { typedText })),
 	llmCancel: () => typedError<null, AppError>(__TAURI_INVOKE("llm_cancel")),
+	qaDone: () => typedError<null, AppError>(__TAURI_INVOKE("qa_done")),
 	llmSetTemplate: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("llm_set_template", { id })),
 	captureScreenshot: () => typedError<number, AppError>(__TAURI_INVOKE("capture_screenshot")),
 	queueClear: () => typedError<null, AppError>(__TAURI_INVOKE("queue_clear")),
@@ -552,8 +553,10 @@ export type CaptureSource =
 export type ChunkKind = "speech" | "doc" | "qa" | "image";
 
 export type CloseReason = 
-/**  The only live trigger: the user pressed Ask again. */
-"next_ask" | "session_end";
+/**  The user pressed Ask again. */
+"next_ask" | 
+/**  The user explicitly finished the answer. */
+"qa_done" | "session_end";
 
 export type ContextChunk = {
 	id: string,
@@ -775,7 +778,7 @@ export type EngineProgress = {
 	message: string | null,
 };
 
-export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "bind_conflict" | "ingest_failed" | "index" | "doc_unsupported" | "doc_encrypted" | "doc_duplicate" | "doc_too_large" | "doc_empty" | "ocr_failed" | "ingest_cancelled" | "embedder_missing" | "embed_failed" | "llm_bad_response" | "archive_invalid" | 
+export type ErrorCode = "unknown" | "invalid_argument" | "not_found" | "already_exists" | "unsupported" | "not_implemented" | "io" | "permission_denied" | "perm_microphone" | "perm_system_audio" | "perm_screen_recording" | "perm_input_monitoring" | "perm_accessibility" | "vault_not_open" | "vault_invalid" | "format_invalid" | "settings_invalid" | "secret_store" | "audio_device" | "audio_target_lost" | "stt_engine" | "stt_backlog" | "engine_not_ready" | "download_failed" | "network" | "llm_provider" | "llm_cancelled" | "api_key_missing" | "no_vision" | "stealth_unavailable" | "session_busy" | "session_idle" | "my_answer_empty" | "bind_conflict" | "ingest_failed" | "index" | "doc_unsupported" | "doc_encrypted" | "doc_duplicate" | "doc_too_large" | "doc_empty" | "ocr_failed" | "ingest_cancelled" | "embedder_missing" | "embed_failed" | "llm_bad_response" | "archive_invalid" | 
 /**  The folder is local-only (`allow_cloud = false`) and no local LLM is configured. */
 "local_only_blocked" | 
 /**  The folder is local-only, so its screenshots never go to the cloud, and no local vision model is set. */
@@ -1090,6 +1093,8 @@ export type MoveProgress = {
 	total_mb: number,
 };
 
+export type MyAnswerState = "before_first_ask" | "listening" | "paused" | "limit" | "closed";
+
 /**  `network_check` result: a GET to the provider through the effective proxy. */
 export type NetworkCheck = {
 	ok: boolean,
@@ -1278,9 +1283,12 @@ export type QaRecord = {
 
 /**  `qa://my-answer`: the «Мой ответ» text of a link changed or the link closed. */
 export type QaUpdate = {
-	qa_id: Ulid,
+	qa_id: Ulid | null,
+	state: MyAnswerState,
 	text: string,
-	closed: CloseReason | null,
+	partial_text: string,
+	elapsed_ms: number,
+	char_count: number,
 };
 
 /**  `queue://changed`: screenshots waiting for the next Ask. */

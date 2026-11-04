@@ -90,10 +90,10 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
             | ActionId::AskFactcheck
             | ActionId::AskFollowup
             | ActionId::AskRecap => {
-                // G6: a fixed template per bind, no overlay mode switch needed.
-                // ⌘↵ (ask_brief) asks the default template (Settings -> Templates); the others are fixed.
+                // ⌘↵ follows the template currently shown on the overlay chip.
+                // Other built-in actions and explicit AskTemplate binds stay fixed.
                 let template_id = if ev.action == ActionId::AskBrief {
-                    default_template(st)
+                    existing_or_default(st, st.template.lock().clone())
                 } else {
                     ev.action.template_id().unwrap_or("brief").to_string()
                 };
@@ -209,10 +209,14 @@ fn resolve_default(ts: &[Template], want: &str) -> String {
 }
 
 fn existing_or_default(st: &AppState, id: String) -> String {
-    if st.settings.get().templates.iter().any(|t| t.id == id) {
-        id
+    resolve_chip_template(&st.settings.get().templates, &id, &default_template(st))
+}
+
+fn resolve_chip_template(templates: &[Template], selected: &str, fallback: &str) -> String {
+    if templates.iter().any(|t| t.id == selected) {
+        selected.to_owned()
     } else {
-        default_template(st)
+        resolve_default(templates, fallback)
     }
 }
 
@@ -241,5 +245,18 @@ mod tests {
         ts.retain(|t| t.id != "brief");
         assert_eq!(resolve_default(&ts, "gone"), "complement");
         assert_eq!(resolve_default(&[], "x"), "brief");
+    }
+
+    #[test]
+    fn ask_brief_uses_the_template_selected_on_the_chip() {
+        let ts = default_templates();
+        assert_eq!(
+            resolve_chip_template(&ts, TEMPLATE_COMPLEMENT, TEMPLATE_BRIEF),
+            TEMPLATE_COMPLEMENT
+        );
+        assert_eq!(
+            resolve_chip_template(&ts, "deleted", TEMPLATE_BRIEF),
+            TEMPLATE_BRIEF
+        );
     }
 }

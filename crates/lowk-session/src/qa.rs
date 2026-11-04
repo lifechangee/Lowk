@@ -1,12 +1,10 @@
-//! Q&A link tracking.
-//!
-//! question -> AI hint -> «Мой ответ». When a hint finishes, a [`QaTracker`]
-//! arms one link. It collects the `Final` segments of the Me stream until the
-//! user's next Ask or the session end (design decision: no timers, no
-//! interviewer-speech heuristics: only the user closes «Мой ответ»).
-//! All times are event time (`MonoNs` carried by the events), so behaviour is
-//! deterministic and replayable.
-use lowk_types::{CloseReason, MonoNs, QaId, QaRecord, QaUpdate, Stream, SttEvent, SttKind};
+//! Q&A link tracking. An answer starts on Ask, collects Me speech, and closes
+//! on the next Ask, explicit Done, or call end. Its duration limit is a cap,
+//! not an automatic close timer.
+use lowk_types::{CloseReason, MonoNs, MyAnswerState, QaId, QaRecord, QaUpdate, Stream, SttEvent, SttKind};
+
+const ANSWER_LIMIT_NS: u64 = 180_000_000_000;
+const ANSWER_LIMIT_CHARS: usize = 2_000;
 
 /// Returned for the session to journal (`CallEntry::MyAnswer`).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -23,14 +21,40 @@ pub struct QaOutput {
     pub closed: Vec<ClosedAnswer>,
 }
 
-#[derive(Default)]
 pub struct QaTracker {
     records: Vec<QaRecord>,
-    /// Index into `records` of the link that is still collecting.
+    /// Index into `records` of the current answer record, including a capped answer awaiting close.
     open: Option<usize>,
+    partial: String,
+    mic_on: bool,
+    started_at: MonoNs,
+    /// Utterance ids let background corrections replace the corresponding Me final.
+    segments: Vec<(usize, u64, String)>,
+    last_partial_emit: MonoNs,
+    limited: bool,
+}
+
+impl Default for QaTracker {
+    fn default() -> Self {
+        Self {
+            records: vec![],
+            open: None,
+            partial: String::new(),
+            mic_on: true,
+            started_at: 0,
+            segments: vec![],
+            last_partial_emit: 0,
+            limited: false,
+        }
+    }
 }
 
 impl QaTracker {
+    pub fn initial_state(&mut self, at: MonoNs) -> QaUpdate {
+        self.started_at = at;
+        self.update(None, MyAnswerState::BeforeFirstAsk, at)
+    }
+
     pub fn records(&self) -> &[QaRecord] {
         &self.records
     }
@@ -48,24 +72,26 @@ impl QaTracker {
         self.get(qa).map(|r| r.my_answer.as_str())
     }
 
-    /// Text of the most recent link with any content (for the `complement`
-    /// template: everything the user said since the last AI answer).
-    pub fn latest_my_answer(&self) -> Option<&str> {
-        self.records
-            .iter()
-            .rev()
-            .find(|r| !r.my_answer.is_empty())
-            .map(|r| r.my_answer.as_str())
+    pub fn current_answer(&self) -> Option<&str> {
+        self.open.map(|i| self.records[i].my_answer.as_str())
     }
 
-    /// The next Ask starts: close the collecting link.
-    pub fn on_ask(&mut self) -> QaOutput {
-        self.close(CloseReason::NextAsk)
+    fn update(&self, i: Option<usize>, state: MyAnswerState, at: MonoNs) -> QaUpdate {
+        let r = i.map(|i| &self.records[i]);
+        let text = r.map_or_else(String::new, |r| r.my_answer.clone());
+        QaUpdate {
+            qa_id: r.map(|r| r.qa_id),
+            state,
+            char_count: text.chars().count() as u32,
+            text,
+            partial_text: self.partial.clone(),
+            elapsed_ms: at.saturating_sub(self.started_at) / 1_000_000,
+        }
     }
 
-    /// A hint finished streaming: arm a new link (closing any older one).
+    /// Arm the record at the instant Ask is pressed; collection overlaps hint generation.
     pub fn arm(&mut self, qa_id: QaId, question: String, hint: String, armed_at: MonoNs) -> QaOutput {
-        let out = self.close(CloseReason::NextAsk);
+        let mut out = self.close_at(CloseReason::NextAsk, armed_at);
         self.records.push(QaRecord {
             qa_id,
             question,
@@ -76,6 +102,19 @@ impl QaTracker {
             closed: None,
         });
         self.open = Some(self.records.len() - 1);
+        self.started_at = armed_at;
+        self.partial.clear();
+        self.limited = false;
+        self.last_partial_emit = 0;
+        out.updates.push(self.update(
+            self.open,
+            if self.mic_on {
+                MyAnswerState::Listening
+            } else {
+                MyAnswerState::Paused
+            },
+            armed_at,
+        ));
         out
     }
 
@@ -103,8 +142,11 @@ impl QaTracker {
     pub fn on_stt(&mut self, ev: &SttEvent) -> QaOutput {
         let mut out = QaOutput::default();
         let Some(i) = self.open else { return out };
+        if self.limited {
+            return out;
+        }
         // Only the user's own finals count; System speech never touches the link.
-        if ev.kind != SttKind::Final || ev.stream != Stream::Me {
+        if ev.stream != Stream::Me || !self.mic_on {
             return out;
         }
         let text = ev.text.trim();
@@ -112,30 +154,117 @@ impl QaTracker {
         if text.is_empty() || ev.t_audio_end_ns <= self.records[i].armed_at {
             return out;
         }
+        if ev.t_audio_end_ns.saturating_sub(self.started_at) >= ANSWER_LIMIT_NS {
+            self.limited = true;
+            out.updates
+                .push(self.update(Some(i), MyAnswerState::Limit, ev.t_audio_end_ns));
+            return out;
+        }
+        if ev.kind == SttKind::Partial {
+            self.partial = text.to_owned();
+            if ev.t_audio_end_ns.saturating_sub(self.last_partial_emit) >= 150_000_000 {
+                self.last_partial_emit = ev.t_audio_end_ns;
+                out.updates
+                    .push(self.update(Some(i), MyAnswerState::Listening, ev.t_audio_end_ns));
+            }
+            return out;
+        }
+        self.partial.clear();
+        let existing = self.records[i].my_answer.chars().count();
+        let available = ANSWER_LIMIT_CHARS.saturating_sub(existing);
+        let separator = existing > 0 && available > 1;
+        let room = available.saturating_sub(usize::from(separator));
+        if room == 0 {
+            self.limited = true;
+            out.updates
+                .push(self.update(Some(i), MyAnswerState::Limit, ev.t_audio_end_ns));
+            return out;
+        }
+        let final_text: String = text.chars().take(room).collect();
         let r = &mut self.records[i];
-        if !r.my_answer.is_empty() {
+        if separator {
             r.my_answer.push(' ');
         }
-        r.my_answer.push_str(text);
+        r.my_answer.push_str(&final_text);
+        self.segments.push((i, ev.utt, final_text));
         r.first_at.get_or_insert(ev.t_start_ns);
-        out.updates.push(QaUpdate {
-            qa_id: r.qa_id,
-            text: r.my_answer.clone(),
-            closed: None,
-        });
+        let limit = r.my_answer.chars().count() >= ANSWER_LIMIT_CHARS;
+        if limit {
+            self.limited = true;
+        }
+        out.updates.push(self.update(
+            Some(i),
+            if limit {
+                MyAnswerState::Limit
+            } else {
+                MyAnswerState::Listening
+            },
+            ev.t_audio_end_ns,
+        ));
         out
     }
 
+    pub fn set_mic(&mut self, on: bool, at: MonoNs) -> QaOutput {
+        self.mic_on = on;
+        let Some(i) = self.open else {
+            return QaOutput::default();
+        };
+        if self.limited {
+            return QaOutput::default();
+        }
+        self.partial.clear();
+        QaOutput {
+            updates: vec![self.update(
+                Some(i),
+                if on {
+                    MyAnswerState::Listening
+                } else {
+                    MyAnswerState::Paused
+                },
+                at,
+            )],
+            closed: vec![],
+        }
+    }
+
+    pub fn correct(&mut self, ev: &SttEvent) -> QaOutput {
+        let Some(pos) = self.segments.iter().position(|(_, utt, _)| *utt == ev.utt) else {
+            return QaOutput::default();
+        };
+        let i = self.segments[pos].0;
+        self.segments[pos].2 = ev.text.trim().to_owned();
+        let joined = self
+            .segments
+            .iter()
+            .filter(|(record, _, _)| *record == i)
+            .map(|(_, _, s)| s.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        self.records[i].my_answer = joined.chars().take(ANSWER_LIMIT_CHARS).collect();
+        let state = if self.limited && self.open == Some(i) {
+            MyAnswerState::Limit
+        } else if self.open == Some(i) {
+            MyAnswerState::Listening
+        } else {
+            MyAnswerState::Closed
+        };
+        QaOutput {
+            updates: vec![self.update(Some(i), state, ev.t_emit_ns)],
+            closed: vec![],
+        }
+    }
+
     pub fn close(&mut self, reason: CloseReason) -> QaOutput {
+        self.close_at(reason, lowk_types::now_mono_ns())
+    }
+
+    fn close_at(&mut self, reason: CloseReason, at: MonoNs) -> QaOutput {
         let mut out = QaOutput::default();
         if let Some(i) = self.open.take() {
-            let r = &mut self.records[i];
-            r.closed = Some(reason);
-            out.updates.push(QaUpdate {
-                qa_id: r.qa_id,
-                text: r.my_answer.clone(),
-                closed: Some(reason),
-            });
+            self.records[i].closed = Some(reason);
+            self.partial.clear();
+            out.updates.push(self.update(Some(i), MyAnswerState::Closed, at));
+            let r = &self.records[i];
             if !r.my_answer.is_empty() {
                 out.closed.push(ClosedAnswer {
                     qa_id: r.qa_id,
@@ -195,14 +324,14 @@ mod tests {
     }
 
     #[test]
-    fn never_closes_by_time() {
+    fn time_limit_is_a_state_not_a_timer_close() {
         let mut t = QaTracker::default();
         t.arm(qa(1), "q".into(), "h".into(), 0);
         t.on_stt(&fin(Stream::Me, 1, 2, "раз"));
-        // Hours later: still open, still collecting.
+        // At the three minute cap the record stops accepting speech.
         let o = t.on_stt(&fin(Stream::Me, 7200, 7201, "два"));
-        assert!(o.closed.is_empty());
-        assert_eq!(o.updates[0].text, "раз два");
+        assert_eq!(o.updates[0].state, MyAnswerState::Limit);
+        assert_eq!(o.updates[0].text, "раз");
         assert_eq!(t.open_qa(), Some(qa(1)));
     }
 
@@ -211,14 +340,14 @@ mod tests {
         let mut t = QaTracker::default();
         t.arm(qa(1), "q1".into(), "h1".into(), 0);
         t.on_stt(&fin(Stream::Me, 1, 2, "ответ один"));
-        let o = t.on_ask();
+        let o = t.close(CloseReason::NextAsk);
         assert_eq!(o.closed[0].reason, CloseReason::NextAsk);
         // Arming while another is open closes it too.
         t.arm(qa(2), "q2".into(), "h2".into(), 10 * S);
         t.on_stt(&fin(Stream::Me, 11, 12, "ответ два"));
         let o = t.arm(qa(3), "q3".into(), "h3".into(), 20 * S);
         assert_eq!(o.closed[0].qa_id, qa(2));
-        assert_eq!(t.latest_my_answer(), Some("ответ два"));
+        assert_eq!(t.my_answer(&qa(2)), Some("ответ два"));
         assert_eq!(t.records().len(), 3);
         assert_eq!(t.open_qa(), Some(qa(3)));
     }
@@ -229,15 +358,62 @@ mod tests {
         t.arm(qa(1), "q".into(), "h".into(), 0);
         let o = t.close(CloseReason::SessionEnd);
         assert!(o.closed.is_empty());
-        assert_eq!(o.updates[0].closed, Some(CloseReason::SessionEnd));
+        assert_eq!(o.updates[0].state, MyAnswerState::Closed);
     }
 
     #[test]
-    fn partials_are_ignored() {
+    fn partials_are_shown_and_debounced() {
         let mut t = QaTracker::default();
         t.arm(qa(1), "q".into(), "h".into(), 0);
         let mut p = fin(Stream::Me, 1, 2, "ну");
         p.kind = SttKind::Partial;
+        assert_eq!(t.on_stt(&p).updates[0].partial_text, "ну");
+        p.text = "ну да".into();
+        p.t_audio_end_ns += 50_000_000;
         assert!(t.on_stt(&p).updates.is_empty());
+        p.t_audio_end_ns += 150_000_000;
+        assert_eq!(t.on_stt(&p).updates[0].partial_text, "ну да");
+    }
+
+    #[test]
+    fn qa_done_is_an_explicit_close_reason() {
+        let mut t = QaTracker::default();
+        t.arm(qa(1), "q".into(), "h".into(), 0);
+        t.on_stt(&fin(Stream::Me, 1, 2, "готово"));
+        let out = t.close(CloseReason::QaDone);
+        assert_eq!(out.closed[0].reason, CloseReason::QaDone);
+        assert_eq!(out.updates[0].state, MyAnswerState::Closed);
+    }
+
+    #[test]
+    fn mic_pause_and_resume_keeps_one_answer() {
+        let mut t = QaTracker::default();
+        t.arm(qa(1), "q".into(), "h".into(), 0);
+        assert_eq!(t.set_mic(false, S).updates[0].state, MyAnswerState::Paused);
+        assert!(t.on_stt(&fin(Stream::Me, 2, 3, "ignored")).updates.is_empty());
+        assert_eq!(t.set_mic(true, 4 * S).updates[0].state, MyAnswerState::Listening);
+        t.on_stt(&fin(Stream::Me, 5, 6, "сказал"));
+        assert_eq!(t.my_answer(&qa(1)), Some("сказал"));
+    }
+
+    #[test]
+    fn char_limit_truncates_and_locks_answer() {
+        let mut t = QaTracker::default();
+        t.arm(qa(1), "q".into(), "h".into(), 0);
+        let o = t.on_stt(&fin(Stream::Me, 1, 2, &"я".repeat(2_001)));
+        assert_eq!(o.updates[0].state, MyAnswerState::Limit);
+        assert_eq!(o.updates[0].char_count, 2_000);
+        assert!(t.on_stt(&fin(Stream::Me, 3, 4, "лишнее")).updates.is_empty());
+    }
+
+    #[test]
+    fn background_correction_replaces_answer_segment() {
+        let mut t = QaTracker::default();
+        t.arm(qa(1), "q".into(), "h".into(), 0);
+        t.on_stt(&fin(Stream::Me, 1, 2, "черновик"));
+        let mut corrected = fin(Stream::Me, 1, 2, "исправлено");
+        corrected.utt = 1;
+        let o = t.correct(&corrected);
+        assert_eq!(o.updates[0].text, "исправлено");
     }
 }

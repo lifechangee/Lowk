@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-qa-done"
+description = "Enables the qa_done command without any pre-configured scope."
+commands.allow = ["qa_done"]
+
+[[permission]]
+identifier = "deny-qa-done"
+description = "Denies the qa_done command without any pre-configured scope."
+commands.deny = ["qa_done"]

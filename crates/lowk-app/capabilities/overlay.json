@@ -29,6 +29,7 @@
     "allow-stealth-capture-applied",
     "allow-llm-ask",
     "allow-llm-cancel",
+    "allow-qa-done",
     "allow-llm-set-template",
     "allow-capture-screenshot",
     "allow-queue-clear",

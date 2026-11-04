@@ -6,9 +6,21 @@ use specta::Type;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum CloseReason {
-    /// The only live trigger: the user pressed Ask again.
+    /// The user pressed Ask again.
     NextAsk,
+    /// The user explicitly finished the answer.
+    QaDone,
     SessionEnd,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum MyAnswerState {
+    BeforeFirstAsk,
+    Listening,
+    Paused,
+    Limit,
+    Closed,
 }
 
 /// One question/hint/answer triple.
@@ -28,7 +40,10 @@ pub struct QaRecord {
 /// `qa://my-answer`: the «Мой ответ» text of a link changed or the link closed.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct QaUpdate {
-    pub qa_id: QaId,
+    pub qa_id: Option<QaId>,
+    pub state: MyAnswerState,
     pub text: String,
-    pub closed: Option<CloseReason>,
+    pub partial_text: String,
+    pub elapsed_ms: u64,
+    pub char_count: u32,
 }
