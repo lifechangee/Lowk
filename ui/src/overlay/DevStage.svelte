@@ -1,7 +1,7 @@
 <script lang="ts">
   // Dev-only harness (vite dev, outside Tauri): test backgrounds, controls, mock demo feed.
   // Query params for deterministic screenshots: bg=dark|light|color|live, t=0..90, lang=ru|en,
-  // mode=passive|interactive|moving, menu=1, idle=1, view=pill, still=1; my=before_first_ask|listening|paused|limit|closed drives My answer.
+  // mode=passive|interactive|moving, menu=1, view=pill, still=1; my=before_first_ask|listening|paused|limit|closed drives My answer.
   import { onMount, untrack } from 'svelte';
   import { OverlayStore } from './store.svelte';
   import { MockSource, fakeThumb } from './mock';
@@ -15,8 +15,7 @@
   const bare = q.get('bare') === '1';
   const store = new OverlayStore();
   store.isMac = /mac/i.test(navigator.platform);
-  const idleStage = q.get('idle') === '1';
-  const source = new MockSource({ autoplay: q.get('still') !== '1' && !idleStage, duplicate: q.get('dup') === '1' });
+  const source = new MockSource({ autoplay: q.get('still') !== '1', duplicate: q.get('dup') === '1' });
 
   // bg=swatch: the colour-base spec (e2e/overlay-colors.spec.ts) injects `window.__swatch = { tone, color }`:
   // a real `overlay://tone` payload (with grid) from crates/lowk-stealth/tests/fixtures/swatches.json over a flat backdrop.
@@ -49,13 +48,14 @@
   });
   // Applied once synchronously (first paint is already in the right tone: no start-up fade), then on change.
   store.applyTone(untrack(() => toneEvent));
+  store.phase = view === 'pill' ? 'idle' : 'recording';
   $effect(() => {
     store.applyTone(toneEvent);
   });
   $effect(() => {
     store.visibility = view === 'pill' ? 'pill' : 'recording_only';
     if (view === 'pill') store.phase = 'idle';
-    else if (untrack(() => store.phase) === 'idle' && !idleStage) store.phase = 'recording';
+    else if (untrack(() => store.phase) === 'idle') store.phase = 'recording';
   });
   $effect(() => setLang(store.lang));
 
@@ -76,8 +76,7 @@
     // QA hook (dev stage only): the Playwright specs drive the store with long synthetic calls / answers.
     if (q.get('expose') === '1') (window as unknown as { __ovStore: OverlayStore }).__ovStore = store;
     source.start(store);
-    if (idleStage) store.phase = 'idle';
-    else if (q.get('still') === '1') preload();
+    if (q.get('still') === '1') preload();
     const myState = q.get('my');
     if (myState && ['before_first_ask', 'listening', 'paused', 'limit', 'closed'].includes(myState)) {
       const state = myState as 'before_first_ask' | 'listening' | 'paused' | 'limit' | 'closed';

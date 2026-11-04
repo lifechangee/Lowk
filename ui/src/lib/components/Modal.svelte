@@ -5,7 +5,7 @@
   let { open, title, width = 480, align = 'center', closeLabel, onclose, children, footer }: Props = $props();
 </script>
 
-<svelte:window onkeydown={(e) => open && e.key === 'Escape' && onclose()} />
+<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onclose(); } }} />
 
 {#if open}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->

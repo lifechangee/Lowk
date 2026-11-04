@@ -167,7 +167,6 @@ for (const lang of ['ru', 'en'] as const) {
         ['no queue', `s.setMode('passive'); s.setQueue(0)`],
         ['queue 12', `s.setQueue(12, [])`],
         ['paused', `s.setQueue(2, []); s.phase = 'paused'`],
-        ['idle', `s.phase = 'idle'`],
         ['mic muted', `s.phase = 'recording'; s.micOn = false`],
       ];
       for (const [name, js] of states) {
@@ -259,22 +258,3 @@ test('G12 slow answer shows live elapsed time and the retry option after twenty 
   await expect(page.locator('.ans .body')).toContainText('Отвечает дольше обычного… 20 с');
   await expect(page.locator('.ans .body')).toContainText('Можно отменить и спросить снова');
 });
-
-for (const lang of ['ru', 'en'] as const) {
-  test(`idle overlay (${lang}) says nothing is recorded, shows the start hint and no in-call layout`, async ({ page }) => {
-    const ru = lang === 'ru';
-    await page.goto(`/overlay.html?idle=1&still=1&t=60&lang=${lang}&bare=1&bg=dark`);
-    await page.waitForSelector('[data-testid=ov-idle]');
-    const ov = page.locator('.ov');
-    await expect(ov).toContainText(ru ? 'Запись не идёт' : 'Not recording');
-    await expect(ov).toContainText(ru ? /Начать запись: \S+/ : /Start recording: \S+/);
-    await expect(page.getByTestId('ov-start')).toHaveText(ru ? 'Начать' : 'Start');
-    for (const t of ru ? ['Слушаю', 'Мой ответ', 'Вопрос', 'Подсказка ИИ', 'Нажмите'] : ['Listening', 'My answer', 'Question', 'AI hint', 'Press']) await expect(ov).not.toContainText(t);
-    for (const sel of ['.sub', '.ans', '.my', '.foot', '.tpl', '.stop:not(.go)', '.rec:not(.off)']) await expect(page.locator(sel)).toHaveCount(0);
-    // the button starts a call: the in-call layout takes over
-    await page.getByTestId('ov-start').click();
-    await expect(page.getByTestId('ov-idle')).toHaveCount(0);
-    await expect(page.locator('.sub')).toBeVisible();
-    await expect(page.locator('.stop.mic')).toBeVisible();
-  });
-}

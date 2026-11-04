@@ -110,9 +110,7 @@ export class OverlayStore {
   cells = $derived(this.grid ?? Array.from({ length: GRID_COLS * GRID_ROWS }, () => this.tone));
   template = $derived(this.templates.find((x) => x.id === this.templateId) ?? this.templates[0]);
   recording = $derived(this.phase === 'recording');
-  /** No call is running: the overlay shows the honest idle state, not the in-call layout. */
-  idle = $derived(this.phase === 'idle');
-  /** Idle + `pill` visibility = the unobtrusive edge strip instead of the full overlay. */
+  /** Pill visibility remains independent from the full overlay lifecycle. */
   showPill = $derived(this.pillWindow ?? (this.visibility === 'pill' && this.phase !== 'recording' && this.phase !== 'paused'));
 
   #toastTimer: ReturnType<typeof setTimeout> | undefined;

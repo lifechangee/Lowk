@@ -13,7 +13,7 @@
   const o = $derived(prefs.value.overlay ?? {});
   const opacity = $derived(o.opacity ?? 60);
   const vis = $derived(o.visibility ?? 'recording_only');
-  const modes: OverlayVisibility[] = ['recording_only', 'always', 'manual', 'pill'];
+  const modes: OverlayVisibility[] = ['recording_only', 'manual', 'pill'];
   const edges: PillEdge[] = ['right', 'left', 'top', 'bottom'];
   const tones: ToneMode[] = ['auto', 'light', 'dark'];
   const patch = (p: object) => prefs.patch({ overlay: p });

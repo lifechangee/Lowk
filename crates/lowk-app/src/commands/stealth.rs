@@ -60,6 +60,10 @@ pub fn overlay_set_mode(st: State<'_, Shared>, mode: OverlayMode) -> Result<()> 
 #[tauri::command(async)]
 #[specta::specta]
 pub fn overlay_show(st: State<'_, Shared>) -> Result<()> {
+    if !crate::visibility::toggle_allowed(st.session.state().phase) {
+        tracing::debug!("overlay_show ignored outside a call");
+        return Ok(());
+    }
     st.overlay_user_hidden
         .store(false, std::sync::atomic::Ordering::SeqCst);
     st.stealth()?.controller.show()

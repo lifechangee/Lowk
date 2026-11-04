@@ -521,15 +521,13 @@ impl Default for DocsSettings {
 
 // --- overlay -------------------------------------------------------------
 
-/// When the overlay is shown while not recording.
+/// When the overlay is shown during a call.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum OverlayVisibility {
-    /// Shown whenever the app runs.
-    Always,
-    /// Hidden until recording starts (or the show/hide bind). Default.
+    /// Shown only while a call is active. Default.
     RecordingOnly,
-    /// Only the `ToggleOverlay` bind controls it.
+    /// The `ToggleOverlay` bind controls it during a call.
     Manual,
     /// A small unobtrusive pill on the screen edge while idle, stealth-protected
     /// like the overlay; clicking it starts recording.

@@ -218,6 +218,7 @@ class Session {
   elapsed = $derived(this.phase === 'recording' ? Math.max(0, Math.floor((this.now - this.startedAt) / 1000)) : 0);
   #tick: ReturnType<typeof setInterval> | null = null;
   #off: (() => void) | null = null;
+  #pendingStart: { folder: FolderKey | null; target: Target | null; sourceLabel: string; languages: string[] | null } | null = null;
 
   async start(folder: FolderKey | null, target: Target | null, sourceLabel: string, languages: string[] | null = null): Promise<void> {
     if (this.phase === 'recording') return;
@@ -227,15 +228,25 @@ class Session {
       st = await api.sessionStart({ title: null, folder: folder && folder !== SYS_UNSORTED ? folderRef(folder) : null, system: target, mic: null, demo: false, languages });
     } catch (e) {
       // No engine: the backend already raised the «download the model» prompt (engine://needed); nothing started.
-      if (e instanceof CommandError && e.app.code === 'engine_not_ready') return;
+      if (e instanceof CommandError && e.app.code === 'engine_not_ready') {
+        this.#pendingStart = { folder, target, sourceLabel, languages };
+        return;
+      }
       throw e;
     }
+    this.#pendingStart = null;
     // The backend remembers the pick as `stt.last_languages`; mirror it so the selector keeps it without a reload.
     if (languages?.length) prefs.value = mergePatch(prefs.value, { stt: { last_languages: languages } });
     this.#mirrorMic(st);
     this.#begin(st.call, folder ?? SYS_UNSORTED, sourceLabel);
     await library.reload();
   }
+  async retryAfterEngineReady(): Promise<void> {
+    const pending = this.#pendingStart ?? { folder: null, target: { kind: 'whole_system' as const }, sourceLabel: tm('m.sourceSystemShort'), languages: null };
+    this.#pendingStart = null;
+    await this.start(pending.folder, pending.target, pending.sourceLabel, pending.languages);
+  }
+  discardPendingStart(): void { this.#pendingStart = null; }
   #begin(call: string | null, folder: FolderKey, sourceLabel: string): void {
     this.phase = 'recording';
     this.callId = call;
@@ -354,9 +365,9 @@ class Ui {
   engineNeeded = $state<EngineNeeded | null>(null);
   toast = $state<string | null>(null);
   /** An action shown inside the toast (e.g. «Отменить» after moving a document to the trash). */
-  toastAction = $state<{ label: string; run: () => void } | null>(null);
+  toastAction = $state<{ label: string; run: () => void; dismissLabel?: string } | null>(null);
   #timer: ReturnType<typeof setTimeout> | null = null;
-  notify(msg: string, action: { label: string; run: () => void } | null = null, ms?: number): void {
+  notify(msg: string, action: { label: string; run: () => void; dismissLabel?: string } | null = null, ms?: number): void {
     this.toast = msg;
     this.toastAction = action;
     if (this.#timer) clearTimeout(this.#timer);

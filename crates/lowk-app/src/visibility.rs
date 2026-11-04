@@ -19,9 +19,9 @@ pub enum Act {
 pub fn plan(vis: OverlayVisibility, phase: SessionPhase, user_hidden: bool) -> (Act, Act, bool) {
     let active = !matches!(phase, SessionPhase::Idle | SessionPhase::Stopping);
     match (vis, active) {
-        (OverlayVisibility::Manual, _) => (Act::Keep, Act::Keep, false),
+        (OverlayVisibility::Manual, true) => (Act::Keep, Act::Hide, false),
+        (OverlayVisibility::Manual, false) => (Act::Hide, Act::Hide, true),
         (_, true) => (if user_hidden { Act::Keep } else { Act::Show }, Act::Hide, false),
-        (OverlayVisibility::Always, false) => (Act::Show, Act::Hide, false),
         (OverlayVisibility::RecordingOnly, false) => (Act::Hide, Act::Hide, true),
         (OverlayVisibility::Pill, false) => (Act::Hide, Act::Show, true),
     }
@@ -85,6 +85,10 @@ pub fn apply(st: &AppState, phase: SessionPhase) {
 
 /// `ToggleOverlay` bind / `overlay_show` / `overlay_hide`.
 pub fn toggle(st: &AppState) -> Result<()> {
+    if !toggle_allowed(st.session.state().phase) {
+        tracing::debug!("toggle_overlay ignored outside a call");
+        return Ok(());
+    }
     let stealth = st.stealth()?;
     if stealth.guard.is_visible(lowk_stealth::OVERLAY) {
         st.overlay_user_hidden.store(true, Ordering::SeqCst);
@@ -97,6 +101,10 @@ pub fn toggle(st: &AppState) -> Result<()> {
         stealth.controller.show()?;
     }
     Ok(())
+}
+
+pub(crate) fn toggle_allowed(phase: SessionPhase) -> bool {
+    !matches!(phase, SessionPhase::Idle | SessionPhase::Stopping)
 }
 
 /// F8: after a recording ends, show/focus the main window and tell it to go to
@@ -116,6 +124,15 @@ mod tests {
     use SessionPhase as P;
 
     #[test]
+    fn toggle_overlay_is_ignored_when_idle() {
+        assert!(!toggle_allowed(P::Idle));
+        assert!(!toggle_allowed(P::Stopping));
+        assert!(toggle_allowed(P::Starting));
+        assert!(toggle_allowed(P::Recording));
+        assert!(toggle_allowed(P::Paused));
+    }
+
+    #[test]
     fn the_overlay_hides_when_the_call_starts_stopping_not_when_finalization_ends() {
         for vis in [V::RecordingOnly, V::Pill] {
             let (ov, _, forget) = plan(vis, P::Stopping, false);
@@ -126,8 +143,16 @@ mod tests {
     }
 
     #[test]
+    fn idle_never_keeps_or_shows_the_overlay() {
+        for vis in [V::RecordingOnly, V::Pill, V::Manual] {
+            assert_eq!(plan(vis, P::Idle, false).0, Act::Hide, "{vis:?}");
+            assert_eq!(plan(vis, P::Idle, true).0, Act::Hide, "{vis:?}");
+        }
+    }
+
+    #[test]
     fn stopping_and_idle_agree_for_every_setting() {
-        for vis in [V::Always, V::RecordingOnly, V::Pill, V::Manual] {
+        for vis in [V::RecordingOnly, V::Pill, V::Manual] {
             for hidden in [false, true] {
                 assert_eq!(
                     plan(vis, P::Stopping, hidden),

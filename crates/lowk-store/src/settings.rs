@@ -65,16 +65,16 @@ impl FileSettingsStore {
         fs::create_dir_all(config_dir)?;
         let path = config_dir.join(SETTINGS_FILE);
         let mut warning = None;
-        let (settings, raw, fresh, parse_warning) = match fs::read_to_string(&path) {
+        let (settings, raw, fresh, parse_warning, visibility_migrated) = match fs::read_to_string(&path) {
             Ok(t) => match Self::parse(&t) {
-                Ok((s, raw, parse_warning)) => (s, raw, false, parse_warning),
+                Ok((s, raw, parse_warning, migrated)) => (s, raw, false, parse_warning, migrated),
                 Err(e) => {
                     let _ = fs::copy(&path, config_dir.join("settings.toml.bad"));
                     warning = e.detail.clone();
-                    (Settings::default(), Value::Null, true, None)
+                    (Settings::default(), Value::Null, true, None, false)
                 }
             },
-            Err(_) => (Settings::default(), Value::Null, true, None),
+            Err(_) => (Settings::default(), Value::Null, true, None, false),
         };
         if let Some(w) = parse_warning {
             tracing::warn!(warning = %w, "ignored malformed settings field");
@@ -82,7 +82,7 @@ impl FileSettingsStore {
         }
         let recovered_field = warning.is_some();
         let mut settings = settings;
-        let migrated = !fresh && settings.migrate_binds(Os::current());
+        let migrated = visibility_migrated || (!fresh && settings.migrate_binds(Os::current()));
         let migrated = (!fresh && settings.migrate_templates()) || migrated;
         if fresh {
             settings.templates = TemplateSet::defaults().into_vec();
@@ -105,12 +105,20 @@ impl FileSettingsStore {
         Ok(store)
     }
 
-    fn parse(text: &str) -> Result<(Settings, Value, Option<String>)> {
+    fn parse(text: &str) -> Result<(Settings, Value, Option<String>, bool)> {
         let bad = |e: String| err(ErrorCode::SettingsInvalid, e);
         let t: toml::Value = toml::from_str(text).map_err(|e| bad(e.to_string()))?;
         let mut raw = serde_json::to_value(&t).map_err(|e| bad(e.to_string()))?;
+        let visibility_migrated = raw.pointer_mut("/overlay/visibility").is_some_and(|v| {
+            if v.as_str() == Some("always") {
+                *v = Value::String("recording_only".into());
+                true
+            } else {
+                false
+            }
+        });
         match serde_json::from_value::<Settings>(raw.clone()) {
-            Ok(s) => Ok((s, raw, None)),
+            Ok(s) => Ok((s, raw, None, visibility_migrated)),
             Err(original) => {
                 // Settings are a single typed struct, so recover the known
                 // optional source field independently and preserve all others.
@@ -123,7 +131,12 @@ impl FileSettingsStore {
                 };
                 let s =
                     serde_json::from_value::<Settings>(raw.clone()).map_err(|_| bad(original.to_string()))?;
-                Ok((s, raw, Some(format!("audio.last_source ignored: {source}"))))
+                Ok((
+                    s,
+                    raw,
+                    Some(format!("audio.last_source ignored: {source}")),
+                    visibility_migrated,
+                ))
             }
         }
     }
@@ -143,7 +156,7 @@ impl FileSettingsStore {
         let s = self.cur.lock().clone();
         let text = self.render(&s)?;
         atomic_write(&self.path, text.as_bytes())?;
-        if let Ok((_, raw, _)) = Self::parse(&text) {
+        if let Ok((_, raw, _, _)) = Self::parse(&text) {
             *self.raw.lock() = raw;
         }
         Ok(())
@@ -161,14 +174,14 @@ impl FileSettingsStore {
     /// Re-read the file after an external edit; notifies subscribers on change.
     pub fn reload(&self) -> Result<Settings> {
         let text = fs::read_to_string(&self.path)?;
-        let (mut s, raw, parse_warning) = Self::parse(&text)?;
+        let (mut s, raw, parse_warning, visibility_migrated) = Self::parse(&text)?;
         if let Some(w) = &parse_warning {
             tracing::warn!(warning = %w, "ignored malformed settings field");
             *self.warning.lock() = Some(w.clone());
         }
         *self.raw.lock() = raw;
         // S2: an externally restored old file (swapped screenshot binds) is repaired like on open.
-        let migrated = s.migrate_binds(Os::current());
+        let migrated = visibility_migrated || s.migrate_binds(Os::current());
         let changed = {
             let mut cur = self.cur.lock();
             let changed = *cur != s;
