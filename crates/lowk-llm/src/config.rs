@@ -10,6 +10,7 @@ pub const FALLBACK_MODEL: &str = lowk_types::DEFAULT_VISION_MODEL;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProviderKind {
     OpenRouter,
+    Deepseek,
     Ollama,
     LmStudio,
     LlamaServer,
@@ -20,6 +21,7 @@ impl From<LlmProvider> for ProviderKind {
     fn from(p: LlmProvider) -> Self {
         match p {
             LlmProvider::Openrouter => Self::OpenRouter,
+            LlmProvider::Deepseek => Self::Deepseek,
             LlmProvider::Ollama => Self::Ollama,
             LlmProvider::Lmstudio => Self::LmStudio,
             LlmProvider::LlamaServer => Self::LlamaServer,
@@ -107,20 +109,36 @@ impl LlmConfig {
 
     /// Live answers (`llm_ask`): `settings.llm.model`, the user's reasoning choice.
     pub fn for_ask(s: &LlmSettings, key: Option<String>, session_id: Option<String>) -> Self {
-        let mut c = Self::new(s.provider.into(), s.base_url.clone(), s.model.clone()).with_key(key);
+        let kind = ProviderKind::from(s.provider);
+        let url = if kind == ProviderKind::Deepseek {
+            lowk_types::DEFAULT_DEEPSEEK_URL
+        } else {
+            &s.base_url
+        };
+        let mut c = Self::new(kind, url, s.model.clone()).with_key(key);
         c.reasoning = s.reasoning;
         c.data_collection_deny = s.data_collection_deny;
         c.session_id = session_id;
-        c.pinned_provider = s.pinned_provider.clone();
+        c.pinned_provider = (kind == ProviderKind::OpenRouter)
+            .then(|| s.pinned_provider.clone())
+            .flatten();
         c.fallback_model = c.default_fallback();
         c
     }
 
     /// Summary: the pinned-version summary model, reasoning off, provider pinned.
     pub fn for_summary(s: &LlmSettings, key: Option<String>) -> Self {
-        let mut c = Self::new(s.provider.into(), s.base_url.clone(), s.summary_model.clone()).with_key(key);
+        let kind = ProviderKind::from(s.provider);
+        let url = if kind == ProviderKind::Deepseek {
+            lowk_types::DEFAULT_DEEPSEEK_URL
+        } else {
+            &s.base_url
+        };
+        let mut c = Self::new(kind, url, s.summary_model.clone()).with_key(key);
         c.data_collection_deny = s.data_collection_deny;
-        c.pinned_provider = s.pinned_provider.clone();
+        c.pinned_provider = (kind == ProviderKind::OpenRouter)
+            .then(|| s.pinned_provider.clone())
+            .flatten();
         c.fallback_model = c.default_fallback();
         c
     }
@@ -131,7 +149,7 @@ impl LlmConfig {
     }
 
     pub(crate) fn needs_key(&self) -> bool {
-        self.kind == ProviderKind::OpenRouter
+        matches!(self.kind, ProviderKind::OpenRouter | ProviderKind::Deepseek)
     }
 
     pub(crate) fn endpoint(&self, path: &str) -> String {
@@ -177,7 +195,7 @@ impl LlmConfig {
             ProviderKind::LlamaServer => {
                 m.insert("cache_prompt".into(), json!(true));
             }
-            ProviderKind::LmStudio | ProviderKind::Custom => {}
+            ProviderKind::Deepseek | ProviderKind::LmStudio | ProviderKind::Custom => {}
         }
         m
     }

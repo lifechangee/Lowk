@@ -26,5 +26,6 @@ export const settings = {
   'settings.hotkeys.hint': 'Click a field and press a new combination. Mouse side buttons can be used too.',
   'settings.hotkeys.reset': 'Reset to defaults',
   'settings.apiKey': 'OpenRouter key',
+  'settings.deepseekKey': 'DeepSeek key',
   'settings.apiKey.missing': 'not set',
 } as const;

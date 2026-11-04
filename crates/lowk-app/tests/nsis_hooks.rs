@@ -21,7 +21,13 @@ fn nsis_hook_file_is_referenced_in_tauri_conf() {
         "gated by the checkbox"
     );
     assert!(body.contains("RmDir /r \"$APPDATA\\Lowk\""));
-    assert!(body.contains("cmdkey /delete:openrouter.") && body.contains("cmdkey /delete:stt-cloud."));
+    // every provider whose key the app stores is deleted by the uninstaller's «delete data» option
+    for p in lowk_platform::purge::SECRET_PROVIDERS {
+        assert!(
+            body.contains(&format!("cmdkey /delete:{p}.")),
+            "uninstaller misses {p}"
+        );
+    }
     assert!(
         !body.to_uppercase().contains("$DOCUMENTS"),
         "the vault (Documents\\Lowk) is never deleted"
@@ -44,5 +50,5 @@ fn credential_targets_match_the_secret_providers() {
     // hooks delete «<provider>.<service>»; the app stores providers under SERVICE = the bundle id.
     let conf: serde_json::Value = serde_json::from_str(&read("tauri.conf.json")).unwrap();
     assert_eq!(conf["identifier"], lowk_platform::secrets::SERVICE);
-    assert!(read("src/commands/settings.rs").contains(r#"["openrouter", "stt-cloud"]"#));
+    assert!(read("src/commands/settings.rs").contains("lowk_platform::purge::SECRET_PROVIDERS"));
 }

@@ -29,5 +29,5 @@ export function summaryRoute(llm: Settings['llm'] | undefined, allowCloud: boole
     if (!localModel || !localUrl(localBase)) return { kind: 'blocked' };
     return { kind: 'local', model: localModel };
   }
-  return { kind: 'cloud', model: llm?.summary_model ?? model, provider: provider === 'openrouter' ? (pinnedProvider || 'OpenRouter') : 'custom' };
+  return { kind: 'cloud', model: llm?.summary_model ?? model, provider: provider === 'openrouter' ? (pinnedProvider || 'OpenRouter') : provider === 'deepseek' ? 'DeepSeek' : 'custom' };
 }

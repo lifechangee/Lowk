@@ -246,6 +246,8 @@ export const commands = {
 	llmProviderStatus: () => typedError<LlmProviderStatus, AppError>(__TAURI_INVOKE("llm_provider_status")),
 	/**  Cheap authenticated request to verify the OpenRouter key (`ApiKeyMissing`, `Network`, `LlmProvider`). */
 	llmKeyTest: () => typedError<null, AppError>(__TAURI_INVOKE("llm_key_test")),
+	/**  Lists DeepSeek models from `/models`, using the documented chat/reasoner pair if unavailable. */
+	llmModels: () => typedError<string[], AppError>(__TAURI_INVOKE("llm_models")),
 	/**
 	 *  Probes the usual loopback ports (Ollama 11434, LM Studio 1234, llama-server 8080; <= 300 ms each, in
 	 *  parallel, no prompts) and lists the servers with their models. Fills nothing by itself.
@@ -982,7 +984,7 @@ withheld: number } |
 /**  Sent once before the first delta: which model answers and how many screenshots go with the Ask. */
 { type: "meta"; req_id: Ulid; model: string; images: number };
 
-export type LlmProvider = "openrouter" | "ollama" | "lmstudio" | "llama_server" | "custom";
+export type LlmProvider = "openrouter" | "deepseek" | "ollama" | "lmstudio" | "llama_server" | "custom";
 
 /**  `llm_provider_status`: what Settings shows next to the key field. */
 export type LlmProviderStatus = {

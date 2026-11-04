@@ -60,6 +60,8 @@
     ; Credential Manager targets are «<provider>.<service>» (keyring crate), service = bundle id.
     nsExec::Exec 'cmdkey /delete:openrouter.${BUNDLEID}'
     Pop $0
+    nsExec::Exec 'cmdkey /delete:deepseek.${BUNDLEID}'
+    Pop $0
     nsExec::Exec 'cmdkey /delete:stt-cloud.${BUNDLEID}'
     Pop $0
     ; Remove the install folder if nothing is left in it.

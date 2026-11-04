@@ -133,6 +133,7 @@ export class TauriBackend extends MockBackend {
     return () => { dead = true; off?.(); };
   }
   override async secretStatus(p: SecretProvider): Promise<boolean> { return ok(await commands.secretStatus(p)); }
+  override async llmModels(): Promise<string[]> { return ok(await commands.llmModels()); }
   override async secretSet(p: SecretProvider, value: string): Promise<void> { ok(await commands.secretSet(p, value)); }
   override async secretDelete(p: SecretProvider): Promise<void> { ok(await commands.secretDelete(p)); }
   override async secretCheck(p: SecretProvider): Promise<{ ok: boolean; balance?: string; error?: AppError }> {

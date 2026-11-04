@@ -12,6 +12,7 @@ const ALLOWED: &[(&str, &str)] = &[
     ("huggingface.co", "model files"),
     // providers the user configures with their own key
     ("openrouter.ai", "LLM / embeddings"),
+    ("api.deepseek.com", "LLM"),
     ("api.deepgram.com", "cloud speech"),
     ("stt-rt.soniox.com", "cloud speech"),
     // updates: the daily check (when enabled) and the release download

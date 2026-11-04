@@ -133,6 +133,7 @@ macro_rules! all_commands {
             crate::commands::ai::llm_summarize_cancel,
             crate::commands::ai::llm_provider_status,
             crate::commands::ai::llm_key_test,
+            crate::commands::ai::llm_models,
             crate::commands::ai::llm_detect_local,
             crate::commands::retx::retx_status,
             crate::commands::retx::retx_start,

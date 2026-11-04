@@ -55,7 +55,7 @@ fn summary_client(env: &Env, settings: &Settings, local_only: bool) -> Option<Op
     let r = route::resolve(
         &settings.llm,
         local_only,
-        env.keys.openrouter(),
+        env.llm_key(settings.llm.provider),
         &Purpose::Summary,
     )
     .ok()?;
@@ -101,7 +101,7 @@ impl LlmHints {
         route::resolve(
             &s.llm,
             self.local_only(folder),
-            self.env.keys.openrouter(),
+            self.env.llm_key(s.llm.provider),
             &Purpose::Ask {
                 session_id: call.map(|c| c.to_string()),
             },
@@ -221,7 +221,7 @@ impl HintGenerator for LlmHints {
             route::resolve_vision(
                 &settings.llm,
                 self.local_only(&req.folder),
-                self.env.keys.openrouter(),
+                self.env.llm_key(settings.llm.provider),
                 req.call.map(|c| c.to_string()),
             )?
         } else {

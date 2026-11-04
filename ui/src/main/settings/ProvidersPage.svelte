@@ -20,6 +20,7 @@
   let found = $state<LocalServer[]>([]);
   let detecting = $state(false);
   let detected = $state(false);
+  let deepseekModels = $state<string[]>(['deepseek-chat', 'deepseek-reasoner']);
   const detect = async () => {
     detecting = true;
     try { found = await api.llmDetectLocal(); } catch { found = []; }
@@ -41,7 +42,7 @@
   // empty setting = the hardware check's pick, which is what a call would use
   const engineId = $derived(prefs.value.stt?.engine || recommended);
   const engine = $derived(engines.find((e) => e.id === engineId));
-  const providers: LlmProvider[] = ['openrouter', 'ollama', 'lmstudio', 'llama_server', 'custom'];
+  const providers: LlmProvider[] = ['openrouter', 'deepseek', 'ollama', 'lmstudio', 'llama_server', 'custom'];
   let model = $state('');
   let summaryModel = $state('');
   let pinned = $state('');
@@ -57,14 +58,20 @@
     prefs.patch({ stt: e?.kind === 'cloud' ? { engine: id, cloud_vendor: id } : { engine: id } });
   };
   const sizeLabel = (e: EngineDescriptor) => (e.kind === 'cloud' ? tm('m.cloud') : `${tm('m.local')} · ${(e.size_mb / 1000).toFixed(1)} GB`);
+  const chooseProvider = (provider: LlmProvider) => {
+    prefs.patch({ llm: { provider } });
+    if (provider === 'deepseek') void api.llmModels().then((models) => { if (models.length) deepseekModels = models; }).catch(() => undefined);
+  };
+  // load the DeepSeek model list once when the page opens on that provider
+  $effect(() => { if (llm.provider === 'deepseek') void api.llmModels().then((models) => { if (models.length) deepseekModels = models; }).catch(() => undefined); });
 </script>
 
 <h2>{tm('m.set.llm')}</h2>
 <SettingRow label={tm('m.llmProvider')}>
-  <Select label={tm('m.llmProvider')} value={llm.provider ?? 'openrouter'} options={providers.map((p) => ({ value: p, label: p === 'openrouter' ? 'OpenRouter' : p === 'ollama' ? 'Ollama' : p === 'lmstudio' ? 'LM Studio' : p === 'llama_server' ? 'llama-server' : tm('m.customEndpoint') }))} onchange={(v) => prefs.patch({ llm: { provider: v } })} />
+  <Select label={tm('m.llmProvider')} value={llm.provider ?? 'openrouter'} options={providers.map((p) => ({ value: p, label: p === 'openrouter' ? 'OpenRouter' : p === 'deepseek' ? tm('m.deepseekDirect') : p === 'ollama' ? 'Ollama' : p === 'lmstudio' ? 'LM Studio' : p === 'llama_server' ? 'llama-server' : tm('m.customEndpoint') }))} onchange={chooseProvider} />
 </SettingRow>
 <SettingRow label={tm('m.llmModel')} hint={tm('m.llmModelHint')}>
-  <TextInput bind:value={model} mono label={tm('m.llmModel')} onenter={() => prefs.patch({ llm: { model } })} oninput={() => {}} />
+  <TextInput bind:value={model} mono label={tm('m.llmModel')} suggestions={llm.provider === 'deepseek' ? deepseekModels : undefined} onenter={() => prefs.patch({ llm: { model } })} oninput={() => {}} />
 </SettingRow>
 <SettingRow label={tm('m.visionModel')} hint={tm('m.visionModelHint')}>
   <TextInput bind:value={visionModel} mono label={tm('m.visionModel')} onenter={() => prefs.patch({ llm: { vision_model: visionModel.trim() } })} oninput={() => {}} />
@@ -75,15 +82,19 @@
 <SettingRow label={tm('m.reasoning')} hint={tm('m.reasoningHint')}>
   <Toggle checked={llm.reasoning ?? false} label={tm('m.reasoning')} onchange={(v) => prefs.patch({ llm: { reasoning: v } })} />
 </SettingRow>
-<SettingRow label={tm('m.noDataCollection')} hint={tm('m.noDataCollectionHint')}>
-  <Toggle checked={llm.data_collection_deny ?? true} label={tm('m.noDataCollection')} onchange={(v) => prefs.patch({ llm: { data_collection_deny: v } })} />
-</SettingRow>
+{#if llm.provider === 'openrouter' || !llm.provider}
+  <SettingRow label={tm('m.noDataCollection')} hint={tm('m.noDataCollectionHint')}>
+    <Toggle checked={llm.data_collection_deny ?? true} label={tm('m.noDataCollection')} onchange={(v) => prefs.patch({ llm: { data_collection_deny: v } })} />
+  </SettingRow>
+{/if}
 <SettingRow label={tm('summary.settings.model')} hint={tm('summary.settings.modelHint')}>
   <TextInput bind:value={summaryModel} mono label={tm('summary.settings.model')} onenter={() => prefs.patch({ llm: { summary_model: summaryModel.trim() } })} oninput={() => {}} />
 </SettingRow>
-<SettingRow label={tm('summary.settings.pinned')} hint={tm('summary.settings.pinnedHint')}>
-  <TextInput bind:value={pinned} mono label={tm('summary.settings.pinned')} placeholder={tm('summary.settings.pinnedAuto')} onenter={() => prefs.patch({ llm: { pinned_provider: pinned.trim() || null } })} oninput={() => {}} />
-</SettingRow>
+{#if llm.provider === 'openrouter' || !llm.provider}
+  <SettingRow label={tm('summary.settings.pinned')} hint={tm('summary.settings.pinnedHint')}>
+    <TextInput bind:value={pinned} mono label={tm('summary.settings.pinned')} placeholder={tm('summary.settings.pinnedAuto')} onenter={() => prefs.patch({ llm: { pinned_provider: pinned.trim() || null } })} oninput={() => {}} />
+  </SettingRow>
+{/if}
 <div class="detect" data-testid="local-detect">
   <div class="detect-head">
     <strong>{tm('m.detectTitle')}</strong>
@@ -111,6 +122,7 @@
   <TextInput bind:value={localModel} mono label={tm('summary.settings.localModel')} onenter={() => prefs.patch({ llm: { local_model: localModel.trim() } })} oninput={() => {}} />
 </SettingRow>
 <KeyCard provider="openrouter" title={tm('settings.apiKey')} placeholder="sk-or-v1-…" />
+<KeyCard provider="deepseek" title={tm('settings.deepseekKey')} placeholder="sk-…" note={tm('m.deepseekKeyHint')} />
 
 <h2 class="gap">{tm('m.models.title')}</h2>
 <ModelRows />

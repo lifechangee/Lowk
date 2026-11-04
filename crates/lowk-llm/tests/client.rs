@@ -78,6 +78,50 @@ fn streams_deltas_usage_and_request_shape() {
 }
 
 #[test]
+fn deepseek_streams_with_direct_auth_and_no_openrouter_profile() {
+    let s = MockServer::scripted(vec![Reply::answer(&["Прямой", " ответ"])]);
+    let c =
+        LlmConfig::new(ProviderKind::Deepseek, s.base_url(), "deepseek-chat").with_key(Some("ds-key".into()));
+    let client = OpenAiClient::new(c);
+    let (r, deltas) = run(&client, &ledger());
+    assert_eq!(r.unwrap().text, "Прямой ответ");
+    assert_eq!(deltas, ["Прямой", " ответ"]);
+    let req = &s.chat_requests()[0];
+    assert_eq!(req.header("authorization"), Some("Bearer ds-key"));
+    let body = req.json();
+    assert_eq!(body["model"], "deepseek-chat");
+    assert_eq!(body["stream"], true);
+    assert!(body.get("provider").is_none());
+    assert!(body.get("reasoning").is_none());
+    assert!(body.get("session_id").is_none());
+}
+
+#[test]
+fn deepseek_lists_models_from_models_endpoint_or_falls_back() {
+    let server = MockServer::start(|_, _| {
+        Reply::json(
+            200,
+            r#"{"data":[{"id":"deepseek-chat"},{"id":"deepseek-reasoner"}]}"#,
+        )
+    });
+    let cfg = LlmConfig::new(ProviderKind::Deepseek, server.base_url(), "deepseek-chat")
+        .with_key(Some("ds-key".into()));
+    let models = OpenAiClient::new(cfg).models().unwrap();
+    assert_eq!(models, ["deepseek-chat", "deepseek-reasoner"]);
+    let req = &server.requests()[0];
+    assert_eq!(req.method, "GET");
+    assert_eq!(req.path, "/api/v1/models");
+    assert_eq!(req.header("authorization"), Some("Bearer ds-key"));
+
+    let unavailable = MockServer::start(|_, _| Reply::json(403, "blocked"));
+    let cfg = LlmConfig::new(ProviderKind::Deepseek, unavailable.base_url(), "deepseek-chat");
+    assert_eq!(
+        OpenAiClient::new(cfg).models().unwrap(),
+        ["deepseek-chat", "deepseek-reasoner"]
+    );
+}
+
+#[test]
 fn local_backend_needs_no_key_and_no_openrouter_fields() {
     let s = MockServer::scripted(vec![Reply::answer(&["ok"])]);
     let c = LlmConfig::new(ProviderKind::Ollama, s.base_url(), "gemma4:e4b");

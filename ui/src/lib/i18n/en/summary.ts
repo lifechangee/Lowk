@@ -7,7 +7,7 @@ export const summary = {
   'summary.route.local': 'Call text will be processed by the local model {model}; it will not go to the cloud.',
   'summary.route.blocked': 'No summary will be created: configure a local model for this local-only folder, or turn off local-only mode.',
   'summary.provider.custom': 'your server',
-  'summary.noKey': 'The OpenRouter key is not set.',
+  'summary.noKey': 'The selected cloud provider key is not set.',
   'summary.openSettings': 'Open Settings',
   'summary.building': 'Writing the summary…',
   'summary.waiting': 'Waiting for the model…',

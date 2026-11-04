@@ -115,6 +115,7 @@ const COMMANDS: &[&str] = &[
     "session_set_mic_mode",
     "trash_delete_forever",
     "llm_provider_status",
+    "llm_models",
     "llm_key_test",
     "llm_detect_local",
     "folder_export",

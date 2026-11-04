@@ -26,6 +26,9 @@ use std::sync::Arc;
 /// Where the BYOK key comes from. The app reads the OS keychain; tests inject a value.
 pub trait KeyProvider: Send + Sync {
     fn openrouter(&self) -> Option<String>;
+    fn deepseek(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Keychain (`openrouter`), plus the `OPENROUTER_API_KEY` environment variable in dev builds or when
@@ -44,6 +47,11 @@ impl KeyProvider for SystemKeys {
             .ok()
             .filter(|k| !k.trim().is_empty())
     }
+    fn deepseek(&self) -> Option<String> {
+        lowk_platform::secrets::get("deepseek")
+            .ok()
+            .filter(|k| !k.trim().is_empty())
+    }
 }
 
 /// Fixed key (tests, self-check).
@@ -51,6 +59,18 @@ pub struct StaticKey(pub Option<String>);
 impl KeyProvider for StaticKey {
     fn openrouter(&self) -> Option<String> {
         self.0.clone()
+    }
+    fn deepseek(&self) -> Option<String> {
+        self.0.clone()
+    }
+}
+
+impl Env {
+    pub fn llm_key(&self, provider: LlmProvider) -> Option<String> {
+        match provider {
+            LlmProvider::Deepseek => self.keys.deepseek(),
+            _ => self.keys.openrouter(),
+        }
     }
 }
 

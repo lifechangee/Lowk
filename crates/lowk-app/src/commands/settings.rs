@@ -68,7 +68,7 @@ pub fn locale_get() -> String {
 }
 
 /// Providers that may hold a key. The value never leaves Rust after `secret_set`.
-const PROVIDERS: [&str; 2] = ["openrouter", "stt-cloud"];
+const PROVIDERS: [&str; 3] = lowk_platform::purge::SECRET_PROVIDERS;
 
 fn provider(p: &str) -> Result<&str> {
     PROVIDERS

@@ -10,6 +10,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 impl Services {
+    pub fn deepseek_models(&self) -> Result<Vec<String>> {
+        let s = self.settings().llm;
+        if s.provider != LlmProvider::Deepseek {
+            return Err(AppError::new(ErrorCode::Unsupported));
+        }
+        let cfg = lowk_llm::LlmConfig::for_ask(&s, self.env.llm_key(LlmProvider::Deepseek), None);
+        lowk_llm::OpenAiClient::new(cfg).models()
+    }
+
     fn local_only_call(&self, meta: &CallMeta) -> bool {
         !folder_allows_cloud(&self.vault, &meta.folder)
     }
@@ -18,7 +27,7 @@ impl Services {
         route::resolve(
             &self.settings().llm,
             self.local_only_call(meta),
-            self.env.keys.openrouter(),
+            self.env.llm_key(self.settings().llm.provider),
             &Purpose::Summary,
         )
     }
@@ -145,15 +154,17 @@ impl Services {
         LlmProviderStatus {
             provider: s.provider,
             model: s.summary_model.clone(),
-            pinned_provider: s.pinned_provider.clone(),
-            key_present: self.env.keys.openrouter().is_some(),
+            pinned_provider: (s.provider == LlmProvider::Openrouter)
+                .then(|| s.pinned_provider.clone())
+                .flatten(),
+            key_present: self.env.llm_key(self.settings().llm.provider).is_some(),
         }
     }
 
     /// Settings «Проверить ключ»: one tiny authenticated request.
     pub fn key_test(&self) -> Result<()> {
         let s = self.settings().llm;
-        let route = route::resolve(&s, false, self.env.keys.openrouter(), &Purpose::Summary)?;
+        let route = route::resolve(&s, false, self.env.llm_key(s.provider), &Purpose::Summary)?;
         CloudLlm::new(route.cfg).test_key()
     }
 

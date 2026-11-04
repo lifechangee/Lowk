@@ -189,7 +189,7 @@ test.describe('summary', () => {
     await page.goto(`/main.html?lang=en&summary=nokey#/call/${CALL1}`);
     await page.getByRole('tab', { name: 'Summary' }).click();
     await page.getByRole('button', { name: 'Create summary' }).click();
-    await expect(page.getByTestId('summary-error')).toContainText('OpenRouter key');
+    await expect(page.getByTestId('summary-error')).toContainText('cloud provider key');
     await page.goto(`/main.html?lang=en&summary=offline#/call/${CALL1}`);
     await page.getByRole('tab', { name: 'Summary' }).click();
     await page.getByRole('button', { name: 'Create summary' }).click();
