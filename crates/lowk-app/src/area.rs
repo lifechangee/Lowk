@@ -52,7 +52,7 @@ fn displays(app: &AppHandle) -> Vec<AreaDisplay> {
         .collect()
 }
 
-fn lang(st: &AppState) -> &'static str {
+pub(crate) fn lang(st: &AppState) -> &'static str {
     match st.settings.get().ui.language {
         UiLanguage::Ru => "ru",
         UiLanguage::En => "en",

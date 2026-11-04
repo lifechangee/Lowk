@@ -262,7 +262,10 @@ pub fn engine_status(st: State<'_, Shared>) -> Vec<EngineInfo> {
 #[specta::specta]
 pub async fn engine_install(st: State<'_, Shared>, id: String) -> Result<()> {
     let st = st.inner().clone();
-    blocking(move || st.install_engine(&id)).await
+    let st2 = st.clone();
+    let r = blocking(move || st.install_engine(&id)).await;
+    crate::indicator::refresh(&st2);
+    r
 }
 
 #[tauri::command(async)]

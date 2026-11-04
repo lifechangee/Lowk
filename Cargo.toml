@@ -108,7 +108,7 @@ specta-typescript = "=0.0.12"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 
 # tauri (only lowk-app may depend on these)
-tauri = { version = "2.12", features = ["macos-private-api"] }
+tauri = { version = "2.12", features = ["macos-private-api", "tray-icon"] }
 tauri-build = "2.7"
 tauri-plugin-global-shortcut = "2.4"
 tauri-plugin-single-instance = "2.5"

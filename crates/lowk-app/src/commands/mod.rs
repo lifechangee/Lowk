@@ -4,6 +4,7 @@
 pub mod ai;
 pub mod capture;
 pub mod docs;
+pub mod indicator;
 pub mod input;
 pub mod platform;
 pub mod retx;
@@ -142,6 +143,7 @@ macro_rules! all_commands {
             crate::commands::settings::app_about,
             crate::commands::settings::licenses_text,
             crate::commands::settings::diagnostics_save,
+            crate::commands::indicator::indicator_get,
         ]
     };
 }

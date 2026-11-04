@@ -270,6 +270,7 @@ export const commands = {
 	licensesText: () => __TAURI_INVOKE<string>("licenses_text"),
 	/**  Writes the diagnostics zip (logs, versions, OS and hardware, engine status, redacted settings) to `dest`. */
 	diagnosticsSave: (dest: string) => typedError<DiagnosticsSaved, AppError>(__TAURI_INVOKE("diagnostics_save", { dest })),
+	indicatorGet: () => __TAURI_INVOKE<Indicator>("indicator_get"),
 };
 
 /* Types */
@@ -368,6 +369,8 @@ export type AskRequest = {
 	template_id: string,
 	typed_text: string | null,
 };
+
+export type AttentionReason = "engine_missing";
 
 export type AudioApp = {
 	id: string,
@@ -912,6 +915,11 @@ export type IndexStatus = {
 	embedder_model: string | null,
 	last_error: AppError | null,
 };
+
+/**  What the platform indicator should show while Lowk is running. */
+export type Indicator = "hidden" | "background" | { attention: {
+	reason: AttentionReason,
+} };
 
 /**  `doc://progress` payload (also used for the final `Ready` / `Failed`). */
 export type IngestProgress = {

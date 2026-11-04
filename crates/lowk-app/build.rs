@@ -126,6 +126,7 @@ const COMMANDS: &[&str] = &[
     "app_about",
     "licenses_text",
     "diagnostics_save",
+    "indicator_get",
 ];
 
 /// Short commit hash of the checkout, `unknown` without git (source tarball, CI without history).
