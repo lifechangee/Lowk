@@ -1,6 +1,6 @@
 // Overlay view state. Fed by an OverlaySource (mock demo in dev, Tauri events in the app).
 // No business logic: it only folds events into what the components render.
-import type { SourceRef, LlmEvent, OverlayMode, OverlayVisibility, PillEdge, SessionPhase, SttEvent, Template, ToneKind } from '../lib/ipc/bindings';
+import type { SourceRef, LlmEvent, OverlayMode, OverlayVisibility, PillEdge, QaUpdate, SessionPhase, SttEvent, Template, ToneKind } from '../lib/ipc/bindings';
 import type { Lang } from '../lib/i18n';
 import { keyLabels, type KeyLabels } from './keys';
 import { GRID_COLS, GRID_ROWS, PRESETS, kFromTransparency, parseGrid, toneToVars, type ToneEvent, type ToneVars } from './tone';
@@ -93,6 +93,10 @@ export class OverlayStore {
   /** Screenshots that went with the current ask (`llm://meta`); 0 = none. */
   imagesSent = $state(0);
   myAnswer = $state('');
+  myAnswerState = $state<QaUpdate['state']>('before_first_ask');
+  myAnswerPartial = $state('');
+  myAnswerElapsedMs = $state(0);
+  myAnswerQaId: QaUpdate['qa_id'] = null;
   /** True from the end of an AI answer until the next Ask: Me finals are collected as "My answer". */
   armed = $state(false);
   stage = $state<ChainStage>('question');
@@ -116,6 +120,10 @@ export class OverlayStore {
   /** Request being streamed + last delta seq applied: events can arrive twice (F10 defence in depth). */
   #req: string | null = null;
   #seq = -1;
+  #slowTimer: ReturnType<typeof setInterval> | undefined;
+  #myAnswerTimer: ReturnType<typeof setInterval> | undefined;
+  #askStartedAt = 0;
+  slowSeconds = $state(0);
 
   // ---- event folding (same shapes as the IPC DTOs) ----
   applyStt(e: SttEvent): void {
@@ -168,9 +176,14 @@ export class OverlayStore {
       this.withheld = 0;
       this.imagesSent = 0;
       this.streaming = true;
+      this.#askStartedAt = Date.now();
+      this.slowSeconds = 0;
+      clearInterval(this.#slowTimer);
+      this.#slowTimer = setInterval(() => {
+        if (this.streaming && !this.answer) this.slowSeconds = Math.floor((Date.now() - this.#askStartedAt) / 1000);
+      }, 250);
       this.hasAnswered = true;
       this.armed = false;
-      this.myAnswer = '';
       this.stage = 'hint';
     } else if (e.type === 'meta') {
       if (this.#req !== e.req_id) return;
@@ -188,13 +201,16 @@ export class OverlayStore {
         this.#seq = e.seq;
       }
       this.answer += e.text;
+      if (this.answer) clearInterval(this.#slowTimer);
     } else if (e.type === 'done') {
       if (!this.streaming || this.#req !== e.req_id) return;
       this.streaming = false;
+      clearInterval(this.#slowTimer);
       this.armed = true;
     } else {
       if (this.#req !== null && this.#req !== e.req_id) return;
       this.streaming = false;
+      clearInterval(this.#slowTimer);
       // Keep partial text visible and label it; a refusal still explains why it failed.
       if (e.error.code === 'llm_cancelled') {
         this.cancelled = true;
@@ -208,6 +224,25 @@ export class OverlayStore {
   applyMyAnswer(text: string): void {
     this.myAnswer = text;
     if (text) this.stage = 'my';
+  }
+
+  /** Dev stage only: pretend the pending ask began `ms` earlier (slow-answer screenshots). */
+  backdateAsk(ms: number): void {
+    this.#askStartedAt -= ms;
+    this.slowSeconds = Math.floor((Date.now() - this.#askStartedAt) / 1000);
+  }
+
+  applyQa(e: QaUpdate): void {
+    // A close event for the prior answer can arrive after the next Ask has begun.
+    if (e.state === 'closed' && e.qa_id !== this.myAnswerQaId) return;
+    clearInterval(this.#myAnswerTimer);
+    this.myAnswerState = e.state;
+    this.myAnswerQaId = e.qa_id;
+    this.myAnswer = e.text;
+    this.myAnswerPartial = e.partial_text;
+    this.myAnswerElapsedMs = e.elapsed_ms;
+    if (e.state === 'listening') this.#myAnswerTimer = setInterval(() => (this.myAnswerElapsedMs += 1000), 1000);
+    if (e.text || e.partial_text) this.stage = 'my';
   }
 
   applyTone(t: ToneEvent): void {
@@ -252,6 +287,8 @@ export class OverlayStore {
     this.sttError = null;
     this.answer = '';
     this.streaming = false;
+    clearInterval(this.#slowTimer);
+    this.slowSeconds = 0;
     this.answerError = false;
     this.cancelled = false;
     this.copied = false;
@@ -261,6 +298,11 @@ export class OverlayStore {
     this.imagesSent = 0;
     this.hasAnswered = false;
     this.myAnswer = '';
+    this.myAnswerPartial = '';
+    this.myAnswerElapsedMs = 0;
+    this.myAnswerState = 'before_first_ask';
+    this.myAnswerQaId = null;
+    clearInterval(this.#myAnswerTimer);
     this.armed = false;
     this.#req = null;
     this.stage = 'question';

@@ -4,6 +4,7 @@ import type { LlmIn, OverlayStore } from './store.svelte';
 import type { OverlaySource } from './source';
 import { ot } from './i18n';
 import type { Stream } from '../lib/ipc/bindings';
+import type { QaUpdate } from '../lib/ipc/bindings';
 
 interface Beat {
   stream: Stream;
@@ -162,6 +163,10 @@ export class MockSource implements OverlaySource {
     this.#gen++;
     this.#store.applyLlm({ type: 'error', req_id: req, error: { code: 'llm_cancelled', params: {}, detail: null } });
     this.#answerReq = null;
+  }
+
+  doneMyAnswer(): void {
+    this.#store.applyQa({ qa_id: 'mock-qa' as never, state: 'closed', text: this.#store.myAnswer, partial_text: '', elapsed_ms: this.#store.myAnswerElapsedMs, char_count: this.#store.myAnswer.length } satisfies QaUpdate);
   }
 
   screenshot(): void {

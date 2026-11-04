@@ -240,12 +240,22 @@ img.thumb { object-fit: cover; display: block; background: none; opacity: 1; }
 
 /* ---- "My answer" line ---- */
 .my {
-  padding: 8px 16px; border-top: 1px dashed var(--bd); min-height: 52px; max-height: 64px; flex: none; font-size: calc(var(--ov-fs, 13px) - 1px); line-height: calc(var(--ov-fs, 13px) + 5px);
+  padding: 8px 16px; border-top: 1px dashed var(--bd); min-height: 52px; max-height: 72px; flex: none; font-size: calc(var(--ov-fs, 13px) - 1px); line-height: calc(var(--ov-fs, 13px) + 5px);
   display: flex; gap: 8px; align-items: flex-start; background: var(--chip); overflow: hidden;
 }
-.my .t { font-size: 10px; line-height: calc(var(--ov-fs, 13px) + 5px); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx2); width: 88px; flex: none; }
-.my .tx { flex: 1 1 0; min-width: 0; font-style: italic; color: var(--tx); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.my-content { min-width: 0; flex: 1 1 0; display: flex; flex-direction: column; gap: 0; }
+.my .t { font-size: 10px; line-height: 16px; font-weight: 700; color: var(--tx2); flex: none; }
+.my .tx { min-width: 0; font-style: italic; color: var(--tx); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .my .tx.ph { color: var(--tx2); }
+.my .partial, .my.dimmed .tx { color: var(--tx2); -webkit-text-fill-color: var(--tx2); }
+.my .my-dot { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; background: var(--recc); vertical-align: 0; }
+.my.interactive { cursor: pointer; }
+.my.interactive:focus-visible { outline: 2px solid var(--intc); outline-offset: -2px; }
+.my.expanded { max-height: 128px; }
+.my.expanded .tx { display: block; overflow: auto; max-height: 88px; scrollbar-width: thin; }
+.my.limited .tx { -webkit-line-clamp: 1; line-clamp: 1; }
+.my .limit-note { display: block; flex: none; color: var(--tx2); font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.my .my-done { flex: none; padding: 4px 8px; font-size: 12px; }
 
 /* ---- input row (interactive only) ---- */
 .inp { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--ln); padding: 8px 16px; flex: none; }

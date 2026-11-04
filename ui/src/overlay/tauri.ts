@@ -48,7 +48,7 @@ export class TauriSource implements OverlaySource {
     add(on<QaUpdate>(EVENTS.myAnswer, (e) => {
       // The close update of the PREVIOUS link arrives right after the new Ask's `start`; it must not
       // bring the old text back under the new question.
-      if (e.state !== 'closed') store.applyMyAnswer(e.text);
+      store.applyQa(e);
     }));
     const holdOff = (r: BindReport) => (store.holdDegraded = r.entries.some((e) => (e.action === 'move_hold' || e.action === 'click_hold') && e.status.state !== 'active'));
     add(on<BindReport>('binds://report', holdOff));
@@ -129,6 +129,7 @@ export class TauriSource implements OverlaySource {
     void copyPlainAnswer(store.answer).then(() => store.markCopied()).catch(() => store.flash(store.lang === 'ru' ? 'Не удалось скопировать' : 'Could not copy'));
   };
   cancelAnswer = () => quiet(commands.llmCancel());
+  doneMyAnswer = () => quiet(commands.qaDone());
   screenshot = () => {
     // G7: the queue arrives through `queue://changed`; only a refusal (e.g. no Screen Recording) needs a word.
     void commands.captureScreenshot().then((r) => {

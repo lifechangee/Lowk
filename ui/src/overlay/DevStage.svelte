@@ -1,7 +1,7 @@
 <script lang="ts">
   // Dev-only harness (vite dev, outside Tauri): test backgrounds, controls, mock demo feed.
   // Query params for deterministic screenshots: bg=dark|light|color|live, t=0..90, lang=ru|en,
-  // mode=passive|interactive|moving, menu=1, idle=1 (no call running: the idle overlay), view=pill, still=1 (preloaded frame, no demo).
+  // mode=passive|interactive|moving, menu=1, idle=1, view=pill, still=1; my=before_first_ask|listening|paused|limit|closed drives My answer.
   import { onMount, untrack } from 'svelte';
   import { OverlayStore } from './store.svelte';
   import { MockSource, fakeThumb } from './mock';
@@ -68,6 +68,7 @@
     store.applyLlm({ type: 'delta', req_id: 'r', seq: 0, text: ru ? '**EBITDA margin** вырос с 21,3% до **23,4%** (+2,1 п.п.). **CAC** снизился на 11%, с 86 до 77 тыс. ₽, за счёт partner-канала. Стоит упомянуть one-off эффект в марже.' : '**One-off items** added about **1.2 pp** to the Q3 margin, so the Q4 forecast should exclude them. Underlying margin is roughly 22.2%.' });
     store.applyLlm({ type: 'done', req_id: 'r', truncated: false, usage: null });
     store.applyStt({ stream: 'me', utt: 2, rev: 0, kind: 'final', text: ru ? 'EBITDA margin вырос до двадцати трёх и четырёх, а CAC упал на одиннадцать процентов.' : 'The one-offs added around one point two, so I would exclude them.', lang: null, t_start_ns: 0, t_audio_end_ns: 0, t_emit_ns: 0 });
+    store.applyQa({ qa_id: 'mock-qa' as never, state: 'closed', text: ru ? 'EBITDA margin вырос до двадцати трёх и четырёх, а CAC упал на одиннадцать процентов.' : 'The one-offs added around one point two, so I would exclude them.', partial_text: '', elapsed_ms: 47_000, char_count: 70 });
     store.setQueue(2, [fakeThumb(0), fakeThumb(1)]);
   }
 
@@ -77,6 +78,19 @@
     source.start(store);
     if (idleStage) store.phase = 'idle';
     else if (q.get('still') === '1') preload();
+    const myState = q.get('my');
+    if (myState && ['before_first_ask', 'listening', 'paused', 'limit', 'closed'].includes(myState)) {
+      const state = myState as 'before_first_ask' | 'listening' | 'paused' | 'limit' | 'closed';
+      if (state === 'closed') store.applyQa({ qa_id: 'mock-qa' as never, state: 'listening', text: '', partial_text: '', elapsed_ms: 0, char_count: 0 });
+      const text = q.get('myText') ?? (state === 'before_first_ask' || state === 'paused' ? '' : 'Я заранее подготовил короткий ответ с основными цифрами и выводом.');
+      store.applyQa({ qa_id: state === 'before_first_ask' ? null : 'mock-qa' as never, state, text, partial_text: state === 'listening' ? q.get('partial') ?? 'Говорю сейчас' : '', elapsed_ms: Number(q.get('elapsed') ?? 12_000), char_count: text.length });
+    }
+    if (q.get('slow') === '1') store.applyLlm({ type: 'start', req_id: 'slow', qa_id: 'slow-qa' as never });
+    if (q.get('slowAt')) store.backdateAsk(Number(q.get('slowAt')) * 1000);
+    if (q.get('emptyComplement') === '1') {
+      store.applyLlm({ type: 'start', req_id: 'empty', qa_id: 'empty-qa' as never });
+      store.applyLlm({ type: 'error', req_id: 'empty', error: { code: 'my_answer_empty', params: {}, detail: null } });
+    }
     if (view === 'pill') store.phase = 'idle';
     const m = q.get('mode') as OverlayMode | null;
     if (m) store.setMode(m);
@@ -105,6 +119,11 @@
     }
     if (typing(e) && e.key !== 'Escape') return;
     if (e.key === 'Escape') {
+      if ((e.target as HTMLElement).closest?.('.my') && store.myAnswerState === 'listening') {
+        e.preventDefault();
+        source.doneMyAnswer?.();
+        return;
+      }
       if (store.menuOpen) store.menuOpen = false;
       else store.setMode('passive');
     } else if (e.key.toLowerCase() === 'i') store.setMode(store.mode === 'interactive' ? 'passive' : 'interactive');

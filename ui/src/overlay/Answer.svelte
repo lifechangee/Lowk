@@ -3,7 +3,7 @@
   import type { OverlaySource } from './source';
   import type { SourceRef } from '../lib/ipc/bindings';
   import { splitBold } from './store.svelte';
-  import { ot } from './i18n';
+  import { et, ot } from './i18n';
   import { copyPlainAnswer } from './clipboard';
   import { follow } from './follow';
 
@@ -51,7 +51,11 @@
   </div>
   <div class="bodywrap">
     <div class="body" bind:this={body} use:follow={opts} data-testid="ans-body"><div class="bt" data-gt>
-      {#if store.answerError}
+      {#if store.errorCode === 'my_answer_empty'}
+        <span class="empty" role="status">{et('error.my_answer_empty', lang)}</span>
+      {:else if store.streaming && store.slowSeconds >= 6 && !store.answer}
+        <span class="empty" role="status">{ot('overlay.answer.slow', lang, { seconds: store.slowSeconds })}{#if store.slowSeconds >= 20}<br />{ot('overlay.answer.slowAgain', lang)}{/if}</span>
+      {:else if store.answerError}
         <span class="err">{ot(errKey, lang)}</span>
         {#if store.errorCode === 'api_key_missing'}<button class="lnk" onclick={() => source?.openSettings?.()}>{ot('overlay.answer.openSettings', lang)}</button>{/if}
       {:else if !store.hasAnswered}

@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BAND_PX, GRID_COLS, GRID_ROWS, PRESETS, blockTone, scrimRowGradient, scrimRowStyle, textGradient, kFromTransparency, menuRgb, normalizeRgb, parseGrid, toneToVars, varsToStyle, type ToneEvent } from './tone';
 import { OverlayStore, formatElapsed, splitBold } from './store.svelte';
 import { plainAnswer } from './clipboard';
+import { myAnswerView } from './my-answer';
 
 describe('tone', () => {
   it('normalizes colour formats', () => {
@@ -61,6 +62,38 @@ describe('store', () => {
   });
   it('converts formatted answers to plain text for copying', () => {
     expect(plainAnswer('**Bold** and **strong**')).toBe('Bold and strong');
+  });
+});
+
+describe('My answer state view', () => {
+  it('maps each backend state to its label/body treatment', () => {
+    expect(myAnswerView('before_first_ask', 0)).toMatchObject({ title: 'before', body: 'hotkey', dot: false, dimmed: false });
+    expect(myAnswerView('listening', 12_000)).toMatchObject({ title: 'listening', body: 'text', elapsed: '0:12', dot: true });
+    expect(myAnswerView('paused', 0)).toMatchObject({ title: 'paused', body: 'paused' });
+    expect(myAnswerView('limit', 0)).toMatchObject({ title: 'limit', body: 'limit' });
+    expect(myAnswerView('closed', 0)).toMatchObject({ title: 'closed', body: 'text', dimmed: true });
+  });
+});
+
+describe('slow answer clock', () => {
+  it('shows elapsed seconds after six seconds only until the first token', () => {
+    vi.useFakeTimers();
+    try {
+      const s = new OverlayStore();
+      s.applyLlm({ type: 'start', req_id: 'slow', qa_id: 'q' });
+      vi.advanceTimersByTime(5_999);
+      expect(s.slowSeconds).toBeLessThan(6);
+      vi.advanceTimersByTime(1);
+      expect(s.slowSeconds).toBe(6);
+      vi.advanceTimersByTime(14_000);
+      expect(s.slowSeconds).toBe(20);
+      s.applyLlm({ type: 'delta', req_id: 'slow', text: 'first token' });
+      vi.advanceTimersByTime(2_000);
+      expect(s.slowSeconds).toBe(20);
+      vi.useRealTimers();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -5,7 +5,7 @@ import type { OverlaySource } from './source';
 import type { TauriSource } from './tauri';
 
 type M = Exclude<keyof OverlaySource, 'start' | 'stop'>;
-const ACTIONS: M[] = ['ask', 'copyAnswer', 'cancelAnswer', 'screenshot', 'clearQueue', 'submitText', 'setTemplate', 'openSource', 'openSettings', 'toggleRecord', 'stopRecording', 'setMic', 'escape', 'dragStart', 'dragTo', 'dragEnd', 'pillDragStart', 'pillDragTo', 'pillDragEnd'];
+const ACTIONS: M[] = ['ask', 'copyAnswer', 'cancelAnswer', 'doneMyAnswer', 'screenshot', 'clearQueue', 'submitText', 'setTemplate', 'openSource', 'openSettings', 'toggleRecord', 'stopRecording', 'setMic', 'escape', 'dragStart', 'dragTo', 'dragEnd', 'pillDragStart', 'pillDragTo', 'pillDragEnd'];
 
 export class LazyTauriSource implements OverlaySource {
   #real: TauriSource | undefined;
