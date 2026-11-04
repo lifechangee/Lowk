@@ -506,4 +506,8 @@ export const m = {
   'm.unsaved.save': 'Сохранить',
   'm.unsaved.discard': 'Не сохранять',
   'm.unsaved.stay': 'Остаться',
+  'm.holdDelay': 'Задержка для одиночных клавиш',
+  'm.holdDelayHint': 'Сколько держать Ctrl или Alt, прежде чем сработает действие. Защищает от случайных срабатываний при наборе.',
+  'm.holdDelay.now': 'Сразу',
+  'm.holdDelay.sec': '{n} с',
 } as const;
