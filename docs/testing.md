@@ -45,6 +45,12 @@ Run from the repository root in Windows PowerShell 5.1 on an interactive desktop
 
 Before starting, it aborts if an installed Lowk process is already running; quit that app yourself. It starts only the specified QA executable with a fresh `LOWK_DATA_DIR`, kills only its own process, releases injected keys in cleanup, and removes the temporary directory unless `-Keep` is set. It never uses audio, the microphone, or a real call. Keep hands off the keyboard during the five-second countdown and checks. A nonzero exit means at least one check failed. If `hold_delay_ms` is absent from `crates/lowk-types/src/settings.rs`, the two Ctrl hold-delay checks (and Ctrl+Backslash ClickHold suppression) report SKIP with that reason.
 
+Limits of the unattended run:
+
+* Injected input reaches the hook only because the script starts the qa build with `LOWK_QA_ACCEPT_INJECTED=1`; release builds ignore injected keys (`LLKHF_INJECTED`).
+* `SendInput` from a sandboxed or non-interactive shell reaches no low-level hook at all (a standalone `WH_KEYBOARD_LL` probe sees zero events). Run the script from a normal desktop PowerShell window. A run where every key check fails the same way usually means that, not a Lowk bug.
+* Modifier-only holds (hold Ctrl → ClickHold, hold Alt → MoveHold) still need a person at the keyboard before a release: physical modifier timing, a focused Lowk window and other apps' hooks are exactly what injection cannot reproduce. Key combos, the tray indicator transitions and the demo call checks are covered unattended.
+
 ## Session end-to-end (`tools/qa/session-e2e.mjs`)
 
 macOS, qa build, **no audio output**: `LOWK_QA_SYSTEM_FILE` / `LOWK_QA_ME_FILE` replay files as the System / Me streams (qa builds only).
