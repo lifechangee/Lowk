@@ -6,8 +6,9 @@
 use crate::dirs::{self, Layout, BUNDLE_ID, ROOT_SUBDIRS};
 use std::path::{Path, PathBuf};
 
-/// Providers whose API keys the app stores in the OS keychain (service = bundle id).
-pub const SECRET_PROVIDERS: [&str; 2] = ["openrouter", "stt-cloud"];
+/// Providers whose API keys the app stores in the OS keychain (service = bundle id). The single list: the
+/// settings commands, `--purge-user-data` and the Windows uninstaller (checked by a test) all follow it.
+pub const SECRET_PROVIDERS: [&str; 3] = ["openrouter", "deepseek", "stt-cloud"];
 
 /// Everything outside [`Layout`] that the purge has to know.
 #[derive(Clone, Debug, Default)]
