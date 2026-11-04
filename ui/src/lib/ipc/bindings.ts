@@ -1500,6 +1500,11 @@ export type Settings_Deserialize = {
 	overlay?: OverlaySettings,
 	capture?: CaptureSettings,
 	binds?: BindSpec_Deserialize[],
+	/**
+	 *  How long a modifier-only bind (hold Ctrl / Alt) must be held alone before it fires; 0 = at once.
+	 *  Keeps typing shortcuts (Ctrl+C, Shift+Alt) from triggering it. Applied clamped to 0..=3000.
+	 */
+	hold_delay_ms?: number,
 	stealth?: StealthSettings,
 	updates?: UpdateSettings,
 	network?: NetworkSettings,
@@ -1519,6 +1524,11 @@ export type Settings_Serialize = {
 	overlay: OverlaySettings,
 	capture: CaptureSettings,
 	binds: BindSpec_Serialize[],
+	/**
+	 *  How long a modifier-only bind (hold Ctrl / Alt) must be held alone before it fires; 0 = at once.
+	 *  Keeps typing shortcuts (Ctrl+C, Shift+Alt) from triggering it. Applied clamped to 0..=3000.
+	 */
+	hold_delay_ms: number,
 	stealth: StealthSettings,
 	updates: UpdateSettings,
 	network: NetworkSettings,

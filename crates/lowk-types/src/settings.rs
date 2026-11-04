@@ -48,6 +48,9 @@ pub struct Settings {
     pub overlay: OverlaySettings,
     pub capture: CaptureSettings,
     pub binds: Vec<BindSpec>,
+    /// How long a modifier-only bind (hold Ctrl / Alt) must be held alone before it fires; 0 = at once.
+    /// Keeps typing shortcuts (Ctrl+C, Shift+Alt) from triggering it. Applied clamped to 0..=3000.
+    pub hold_delay_ms: u32,
     pub stealth: StealthSettings,
     pub updates: UpdateSettings,
     pub network: NetworkSettings,
@@ -76,6 +79,7 @@ impl Settings {
             overlay: OverlaySettings::default(),
             capture: CaptureSettings::default(),
             binds: default_binds(os),
+            hold_delay_ms: 1000,
             stealth: StealthSettings::default(),
             updates: UpdateSettings::default(),
             network: NetworkSettings::default(),

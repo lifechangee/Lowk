@@ -71,6 +71,7 @@ pub trait SettingsStore: Send + Sync {
 /// Implemented by `lowk-input`'s backends.
 pub trait InputBackend: Send {
     fn set_binds(&mut self, binds: &[BindSpec]) -> Result<BindReport>;
+    fn set_hold_delay(&mut self, _delay: std::time::Duration) {}
     fn events(&self) -> Receiver<BindEvent>;
 }
 

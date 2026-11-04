@@ -289,8 +289,14 @@ fn log_startup_facts(st: &AppState) {
 /// degraded (bundle diagnostics: dev builds inherit the host app's permissions, bundles do not)
 /// and tell the windows (`binds://report`) so the overlay hint and Settings show the truth.
 pub fn apply_binds(st: &AppState) {
-    let binds = st.settings.get().binds;
-    let r = st.input.lock().set_binds(&binds);
+    let settings = st.settings.get();
+    let binds = settings.binds;
+    let mut input = st.input.lock();
+    input.set_hold_delay(std::time::Duration::from_millis(
+        settings.hold_delay_ms.min(3000) as u64
+    ));
+    let r = input.set_binds(&binds);
+    drop(input);
     match r {
         Ok(rep) => {
             for e in &rep.entries {
@@ -413,7 +419,7 @@ fn on_settings(st: &Shared, old: &Settings, new: &Settings) {
             ));
         }
     }
-    if new.binds != *st.applied_binds.lock() {
+    if new.binds != *st.applied_binds.lock() || old.hold_delay_ms != new.hold_delay_ms {
         apply_binds(st);
     }
     // G2: choosing another edge re-docks the pill (forget the dragged position).
