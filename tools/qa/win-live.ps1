@@ -13,9 +13,14 @@ $script:QaToken = $null
 $script:Pressed = @{ Ctrl = $false; Alt = $false; Backslash = $false }
 $script:Results = @()
 $script:HoldDelayAvailable = Test-Path (Join-Path $PSScriptRoot '..\..\crates\lowk-types\src\settings.rs')
+$script:HoldDelayDefault = $null
 if ($script:HoldDelayAvailable) {
     $settingsText = Get-Content (Join-Path $PSScriptRoot '..\..\crates\lowk-types\src\settings.rs') -Raw
     $script:HoldDelayAvailable = $settingsText -match '\bhold_delay_ms\b'
+    if ($settingsText -match '(?m)^\s*hold_delay_ms:\s*(\d+),') {
+        $parsedDelay = 0.0
+        if ([double]::TryParse($Matches[1], [ref]$parsedDelay)) { $script:HoldDelayDefault = $parsedDelay }
+    }
 }
 $script:HoldDelayReason = 'hold_delay_ms does not exist in crates/lowk-types/src/settings.rs in this checkout.'
 
@@ -213,15 +218,21 @@ try {
     for ($n = 5; $n -gt 0; $n--) { Write-Host $n; Start-Sleep -Seconds 1 }
 
     if ($script:HoldDelayAvailable) {
-        $offset = Get-LogCount
-        Send-Key 'Ctrl' $false
-        Start-Sleep -Milliseconds 500
-        Send-Key 'Ctrl' $true
-        Start-Sleep -Milliseconds 1500
-        $lines = @(Get-NewLogLines $offset)
-        $bad = @($lines | Where-Object { $_ -match 'action=ClickHold phase=Down' })
-        if ($bad.Count -eq 0) { Write-Check 'hold-too-short' 'PASS' 'no ClickHold Down within 1.5 s after Ctrl was released' @() }
-        else { Write-Check 'hold-too-short' 'FAIL' 'ClickHold Down appeared after a 500 ms hold' $bad }
+        if ($null -ne $script:HoldDelayDefault -and $script:HoldDelayDefault -lt 300) {
+            Write-Check 'hold-too-short' 'SKIP' 'default delay is too short for a meaningful short-hold check' @()
+        }
+        else {
+            $offset = Get-LogCount
+            Send-Key 'Ctrl' $false
+            # The default delay is 0.5 s, so 200 ms stays well under it.
+            Start-Sleep -Milliseconds 200
+            Send-Key 'Ctrl' $true
+            Start-Sleep -Milliseconds 1500
+            $lines = @(Get-NewLogLines $offset)
+            $bad = @($lines | Where-Object { $_ -match 'action=ClickHold phase=Down' })
+            if ($bad.Count -eq 0) { Write-Check 'hold-too-short' 'PASS' 'no ClickHold Down within 1.5 s after Ctrl was released' @() }
+            else { Write-Check 'hold-too-short' 'FAIL' 'ClickHold Down appeared after a 200 ms hold' $bad }
+        }
 
         $offset = Get-LogCount
         Send-Key 'Ctrl' $false
