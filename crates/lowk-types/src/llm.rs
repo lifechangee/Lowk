@@ -203,6 +203,11 @@ pub enum SummaryEvent {
         step: u32,
         total: u32,
     },
+    ReadableProgress {
+        call: CallId,
+        step: u32,
+        total: u32,
+    },
     /// Streamed Markdown of the summary body.
     Delta {
         call: CallId,

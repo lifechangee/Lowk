@@ -352,7 +352,7 @@ class Ui {
   /** Bumped when a document changed (renamed, moved, restored) so open lists and pages reload. */
   docsRev = $state(0);
 
-  callTab = $state<'transcript' | 'summary' | 'qa' | 'shots' | 'sources' | 'md'>('transcript');
+  callTab = $state<'transcript' | 'readable' | 'summary' | 'qa' | 'shots' | 'sources' | 'md'>('transcript');
   /** G5: the header «Новый созвон» popover (never shown on the library home). */
   newCallOpen = $state(false);
   /** Folder the popover starts with when opened from a folder's empty state («Новый созвон здесь»). */
