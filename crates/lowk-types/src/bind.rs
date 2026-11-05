@@ -8,6 +8,7 @@ use specta::Type;
 pub enum ActionId {
     ToggleRecord,
     CycleScenario,
+    MarkMoment,
     Ask,
     Screenshot,
     ScreenshotArea,

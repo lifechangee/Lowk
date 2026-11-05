@@ -185,6 +185,11 @@ export class MockBackend implements Backend {
     if (!d) { d = makeDetail(meta); this.#details.set(id, d); }
     return { ...structuredClone(d), meta: structuredClone(meta), summary: this.#summaries.has(id) ? (this.#summaryText.get(id) ?? d.summary ?? this.#summaryFor(meta)) : null };
   }
+  async callImage(id: string, relPath: string): Promise<string> {
+    const detail = await this.callGet(id);
+    if (!detail?.shots.some((shot) => shot.rel_path === relPath)) throw new Error('Image unavailable');
+    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNw6TjzHwAFRAKYH64YhwAAAABJRU5ErkJggg==';
+  }
   async folderCreate(input: NewFolder): Promise<FolderMeta> {
     const id = '01JC8Z3K6Q9X2M4N7R5T0V' + String(900 + this.#folders.length).padStart(4, '0');
     const meta: FolderMeta = { id: { kind: 'user', id }, title: input.title, tags: [], allow_cloud: input.allow_cloud, default_template: null, mic: 'inherit', retx: 'inherit', path: input.title, call_count: 0 };

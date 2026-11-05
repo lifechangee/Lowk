@@ -31,6 +31,7 @@ const COMMANDS: &[&str] = &[
     "call_list",
     "call_summarized",
     "call_get",
+    "call_image",
     "call_get_md",
     "call_save_md",
     "call_move",

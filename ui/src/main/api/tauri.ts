@@ -73,6 +73,7 @@ export class TauriBackend extends MockBackend {
       throw e;
     }
   }
+  override async callImage(id: string, relPath: string): Promise<string> { return ok(await commands.callImage(id, relPath)); }
   override async recoveredTake(): Promise<RecoveredCall[]> { return commands.recoveredTake(); }
   override async folderCreate(input: NewFolder): Promise<FolderMeta> { return ok(await commands.folderCreate(input)); }
   override async folderUpdate(id: string, patch: { title?: string; instructions?: string; allow_cloud?: boolean; mic?: MicPreset; retx?: RetxPreset }): Promise<void> {

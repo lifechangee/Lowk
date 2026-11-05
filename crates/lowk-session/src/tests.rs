@@ -1729,3 +1729,86 @@ fn scenario_switch_records_markers_and_state() {
     );
     r.session.stop().unwrap();
 }
+
+#[test]
+fn mark_moment_only_during_call() {
+    let r = rig(|_| {});
+    assert!(!r.session.mark_moment());
+    let mut start = opts(true);
+    start.scenario = None;
+    r.session.start(start).unwrap();
+    assert!(r.session.mark_moment());
+    let entries = r.store.entries.lock().unwrap().clone();
+    assert!(entries
+        .iter()
+        .any(|e| matches!(e, CallEntry::Marker { at_s: 0, text } if text == "Важный момент")));
+    r.session.stop().unwrap();
+    assert!(!r.session.mark_moment());
+}
+
+#[test]
+fn recap_does_not_advance_normal_ask_cursor() {
+    let hints = Arc::new(SeenHints {
+        seen: Mutex::new(vec![]),
+        refuse: None,
+        cloud: false,
+    });
+    let h = hints.clone();
+    let r = rig(|d| d.hints = h);
+    let rx = r.session.subscribe();
+    r.session.start(opts(false)).unwrap();
+    let t = now_mono_ns() / 1_000_000_000;
+    r.session
+        .inject_stt(ev(Stream::System, 1, t, t + 1, "Перед повтором"));
+    r.session
+        .ask(AskRequest {
+            template_id: TEMPLATE_RECAP.into(),
+            typed_text: None,
+        })
+        .unwrap();
+    while !matches!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+        AppEvent::Llm(LlmEvent::Done { .. })
+    ) {}
+    r.session.ask(brief(None)).unwrap();
+    while !matches!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+        AppEvent::Llm(LlmEvent::Done { .. })
+    ) {}
+    assert!(hints.seen.lock().unwrap()[1]
+        .delta
+        .iter()
+        .any(|l| l.text == "Перед повтором"));
+    r.session.stop().unwrap();
+}
+
+#[test]
+fn screenshot_is_saved_at_capture_and_reused_by_ask() {
+    let (r, shots, _) = shot_rig(false);
+    let image = img(1);
+    r.session.record_screenshots(std::slice::from_ref(&image));
+    assert!(r.store.images.lock().unwrap().is_empty());
+    r.session.start(opts(false)).unwrap();
+    r.session.record_screenshots(std::slice::from_ref(&image));
+    let entries = r.store.entries.lock().unwrap().clone();
+    let path = entries
+        .iter()
+        .find_map(|e| match e {
+            CallEntry::Image {
+                rel_path,
+                source,
+                caption,
+                ..
+            } if source == "screenshot" && caption.is_empty() => Some(rel_path.clone()),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(r.store.images.lock().unwrap().len(), 1);
+    shots.q.lock().unwrap().retain(|i| i.id == image.id);
+    let rx = r.session.subscribe();
+    r.session.ask(brief(Some("describe"))).unwrap();
+    wait_llm_end(&rx);
+    assert_eq!(r.store.images.lock().unwrap().len(), 1);
+    assert!(r.store.entries.lock().unwrap().iter().any(|e| matches!(e, CallEntry::Image { rel_path, source, .. } if *rel_path == path && source.starts_with("ask:"))));
+    r.session.stop().unwrap();
+}

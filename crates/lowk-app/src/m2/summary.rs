@@ -52,6 +52,13 @@ impl Services {
                         text
                     ));
                 }
+                Block::Marker { at_s, text } if text == "Важный момент" => {
+                    transcript.push_str(&format!(
+                        "[{}] [MARKED MOMENT] {}\n",
+                        fmt_offset(u64::from(*at_s)),
+                        text
+                    ));
+                }
                 Block::Qa(q) => qa.push(QaDigest {
                     question: q.question.clone(),
                     hint: q.answer.clone(),

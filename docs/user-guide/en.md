@@ -67,6 +67,7 @@ Defaults on macOS (Windows: Ctrl instead of ⌘, Alt instead of ⌥). All are ch
 | Interactive mode (typing in the overlay) | ⌘⇧I |
 | Show or hide the overlay | ⌘\ |
 | Start or stop recording | ⌘⇧R |
+| Mark a moment | ⌘⇧M |
 | **Hold ⌥**: move the overlay | hold |
 | **Hold ⌃**: mouse becomes active over the overlay | hold |
 

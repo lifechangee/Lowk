@@ -52,6 +52,7 @@ macro_rules! all_commands {
             crate::commands::vault::call_list,
             crate::commands::vault::call_summarized,
             crate::commands::vault::call_get,
+            crate::commands::vault::call_image,
             crate::commands::vault::call_get_md,
             crate::commands::vault::call_save_md,
             crate::commands::vault::call_move,

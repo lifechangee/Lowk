@@ -63,7 +63,7 @@ fn default_binds_per_os() {
     let find = |b: &[BindSpec], a| b.iter().find(|x| x.action == a).unwrap().trigger.clone();
     let mac = default_binds(Os::Macos);
     let win = default_binds(Os::Windows);
-    assert_eq!(mac.len(), 9);
+    assert_eq!(mac.len(), 10);
     assert!(mac.iter().all(|b| b.action != ActionId::CopyAnswer));
     assert!(win.iter().all(|b| b.action != ActionId::CopyAnswer));
     assert_eq!(
@@ -726,4 +726,26 @@ fn whole_system_target_ignores_a_stray_app_id_but_serializes_canonically() {
 fn the_startup_offset_is_shared_once_recorded() {
     crate::clock::set_local_offset_secs(3 * 3600);
     assert_eq!(crate::clock::local_offset_secs(), Some(3 * 3600));
+}
+
+#[test]
+fn mark_moment_default_migrates_only_when_free() {
+    let mut s = Settings::defaults_for(Os::Macos);
+    let default = s
+        .binds
+        .iter()
+        .find(|b| b.action == ActionId::MarkMoment)
+        .unwrap()
+        .clone();
+    s.binds.retain(|b| b.action != ActionId::MarkMoment);
+    assert!(s.migrate_binds(Os::Macos));
+    assert!(s
+        .binds
+        .iter()
+        .any(|b| b.action == ActionId::MarkMoment && b.trigger == default.trigger));
+    s.binds.retain(|b| b.action != ActionId::MarkMoment);
+    s.binds[0].trigger = default.trigger;
+    let before = s.binds.clone();
+    assert!(!s.migrate_binds(Os::Macos));
+    assert_eq!(s.binds, before);
 }

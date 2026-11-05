@@ -212,6 +212,18 @@ impl Model {
                 source,
                 caption,
             } => {
+                if source.starts_with("ask:") {
+                    if let Some(Block::Image(existing)) = self
+                        .doc
+                        .blocks_mut()
+                        .iter_mut()
+                        .find(|b| matches!(b, Block::Image(i) if i.rel_path == *rel_path))
+                    {
+                        existing.source = source.clone();
+                        existing.caption = caption.clone();
+                        return Ok(());
+                    }
+                }
                 self.doc.blocks_mut().push(Block::Image(ImageBlock {
                     rel_path: rel_path.clone(),
                     at_s: *at_s,

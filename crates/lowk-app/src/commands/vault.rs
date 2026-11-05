@@ -188,6 +188,7 @@ pub struct Utterance {
     pub at_s: u32,
     pub speaker: Stream,
     pub text: String,
+    pub marker: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
@@ -246,6 +247,13 @@ fn detail(meta: CallMeta, md: &str, templates: &[Template], lang_ru: bool) -> Ca
                     Stream::System
                 },
                 text: text.clone(),
+                marker: false,
+            }),
+            Block::Marker { at_s, text } => d.transcript.push(Utterance {
+                at_s: *at_s,
+                speaker: Stream::System,
+                text: text.clone(),
+                marker: true,
             }),
             Block::Qa(q) => {
                 if d.model.is_empty() {
@@ -285,7 +293,7 @@ fn detail(meta: CallMeta, md: &str, templates: &[Template], lang_ru: bool) -> Ca
                     "manual".into()
                 },
             }),
-            Block::Raw(_) | Block::Marker { .. } => {}
+            Block::Raw(_) => {}
         }
     }
     d
@@ -299,6 +307,105 @@ pub fn call_get(st: State<'_, Shared>, id: Ulid) -> Result<CallDetail> {
     let s = st.settings.get();
     let ru = !matches!(s.ui.language, UiLanguage::En);
     Ok(detail(call.meta, &call.md, &s.templates, ru))
+}
+
+// Check lexical paths as well as canonical paths: an image must be listed verbatim,
+// and neither traversal nor a symlink may escape the call directory or vault.
+fn image_path_allowed(
+    root: &std::path::Path,
+    parent: &std::path::Path,
+    path: &std::path::Path,
+    rel: &str,
+    entries: &[String],
+) -> bool {
+    use std::path::Component;
+    !rel.is_empty()
+        && std::path::Path::new(rel)
+            .components()
+            .all(|c| matches!(c, Component::Normal(_)))
+        && entries.iter().any(|entry| entry == rel)
+        && parent.starts_with(root)
+        && path.starts_with(parent)
+        && path != parent
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn call_image(st: State<'_, Shared>, id: Ulid, rel_path: String) -> Result<String> {
+    let v = vault(&st)?;
+    let call = v.read_call(&id)?;
+    let doc = call_codec::parse(&call.md);
+    let entries: Vec<String> = doc
+        .blocks()
+        .iter()
+        .filter_map(|b| match b {
+            Block::Image(i) => Some(i.rel_path.clone()),
+            _ => None,
+        })
+        .collect();
+    let root = std::fs::canonicalize(v.root())?;
+    let call_path = v.root().join(&call.meta.path);
+    let parent = std::fs::canonicalize(
+        call_path
+            .parent()
+            .ok_or_else(|| AppError::new(ErrorCode::NotFound))?,
+    )?;
+    let path = std::fs::canonicalize(parent.join(&rel_path))?;
+    if !image_path_allowed(&root, &parent, &path, &rel_path, &entries) {
+        return Err(AppError::new(ErrorCode::InvalidArgument));
+    }
+    let bytes = std::fs::read(&path)?;
+    use base64::Engine;
+    let mime = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("png")) {
+        "image/png"
+    } else {
+        "image/jpeg"
+    };
+    Ok(format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    ))
+}
+
+#[cfg(test)]
+mod image_tests {
+    use super::image_path_allowed;
+    use std::path::Path;
+
+    #[test]
+    fn only_listed_images_inside_the_call_are_allowed() {
+        let root = Path::new("/vault");
+        let parent = Path::new("/vault/call");
+        let entries = vec!["images/slide.png".to_string(), "../other.png".to_string()];
+        assert!(image_path_allowed(
+            root,
+            parent,
+            Path::new("/vault/call/images/slide.png"),
+            "images/slide.png",
+            &entries
+        ));
+        assert!(!image_path_allowed(
+            root,
+            parent,
+            Path::new("/vault/other.png"),
+            "../other.png",
+            &entries
+        ));
+        assert!(!image_path_allowed(
+            root,
+            parent,
+            Path::new("/vault/call/secret.png"),
+            "secret.png",
+            &entries
+        ));
+        assert!(!image_path_allowed(
+            root,
+            parent,
+            Path::new("/outside/slide.png"),
+            "images/slide.png",
+            &entries
+        ));
+    }
 }
 
 /// The raw `.md` (editor and export).

@@ -73,6 +73,7 @@ struct Core {
     /// S4: drops Me speech that is only the speakers' echo of System speech.
     echo: EchoGuard,
     recorder: Option<Box<dyn CallRecorder>>,
+    saved_shots: HashMap<u64, String>,
     capture: Option<Box<dyn CaptureHandle>>,
     engines: Option<Engines>,
     /// Background correction (local engines): audio rings, the worker, and finals whose
@@ -121,6 +122,7 @@ impl Core {
             qa: QaTracker::default(),
             echo: EchoGuard::default(),
             recorder: None,
+            saved_shots: HashMap::new(),
             capture: None,
             engines: None,
             rings: None,
@@ -159,31 +161,25 @@ impl Core {
     /// Stores the screenshots an answer was asked about next to the call and links them to the Q&A
     /// (`source=ask:<qa id>`, the question as caption). A failed write is logged, never fatal.
     fn record_images(&mut self, qa_id: &QaId, at_s: u32, question: &str, images: &[SentImage]) {
-        let Some(r) = self.recorder.as_mut() else { return };
-        let id = qa_id.to_string();
-        let tag = &id[id.len().saturating_sub(6)..];
         let caption: String = question.chars().take(200).collect();
-        for (i, im) in images.iter().enumerate() {
-            let name = format!(
-                "{:02}{:02}{:02}-ask-{tag}-{}.{}",
-                at_s / 3600,
-                at_s / 60 % 60,
-                at_s % 60,
-                i + 1,
-                im.ext
-            );
-            match r.save_image(&name, &im.bytes) {
-                Ok(rel_path) => {
-                    if let Err(err) = r.push(CallEntry::Image {
+        for im in images {
+            if let Some(rel_path) = self.saved_shots.get(&im.id).cloned() {
+                self.push_entry(CallEntry::Image {
+                    at_s,
+                    rel_path,
+                    source: format!("ask:{qa_id}"),
+                    caption: caption.clone(),
+                });
+            } else if let Some(r) = self.recorder.as_mut() {
+                let name = format!("{:06}-ask-{}.{}", at_s, im.id, im.ext);
+                if let Ok(rel_path) = r.save_image(&name, &im.bytes) {
+                    self.push_entry(CallEntry::Image {
                         at_s,
                         rel_path,
-                        source: format!("ask:{id}"),
+                        source: format!("ask:{qa_id}"),
                         caption: caption.clone(),
-                    }) {
-                        tracing::warn!(?err, "call journal write failed");
-                    }
+                    });
                 }
-                Err(err) => tracing::warn!(?err, "cannot store the screenshot with the call"),
             }
         }
     }
@@ -367,6 +363,53 @@ impl Session {
     }
     pub fn demo_finished(&self) -> bool {
         self.inner.demo_done.load(Ordering::SeqCst)
+    }
+
+    /// Save newly captured screenshots immediately while keeping them queued for Ask.
+    pub fn record_screenshots(&self, images: &[QueuedImage]) {
+        let mut c = self.inner.core();
+        if !matches!(c.state.phase, SessionPhase::Recording | SessionPhase::Paused) {
+            return;
+        }
+        let at_s = c
+            .clock
+            .map_or(0, |k| (k.offset_ns(now_mono_ns()) / 1_000_000_000) as u32);
+        for im in images {
+            if c.saved_shots.contains_key(&im.id) {
+                continue;
+            }
+            let name = format!("{:06}-screenshot-{}.png", at_s, im.id);
+            if let Some(r) = c.recorder.as_mut() {
+                match r.save_image(&name, &im.png) {
+                    Ok(rel_path) => {
+                        c.push_entry(CallEntry::Image {
+                            at_s,
+                            rel_path: rel_path.clone(),
+                            source: "screenshot".into(),
+                            caption: String::new(),
+                        });
+                        c.saved_shots.insert(im.id, rel_path);
+                    }
+                    Err(err) => tracing::warn!(?err, "cannot store screenshot"),
+                }
+            }
+        }
+    }
+
+    /// Mark the current call position. Returns false when no call is active.
+    pub fn mark_moment(&self) -> bool {
+        let mut c = self.inner.core();
+        if !matches!(c.state.phase, SessionPhase::Recording | SessionPhase::Paused) {
+            return false;
+        }
+        let at_s = c
+            .clock
+            .map_or(0, |k| (k.offset_ns(now_mono_ns()) / 1_000_000_000) as u32);
+        c.push_entry(CallEntry::Marker {
+            at_s,
+            text: "Важный момент".into(),
+        });
+        true
     }
 
     pub fn set_scenario(&self, scenario: Scenario) -> Result<()> {
@@ -582,6 +625,7 @@ impl Session {
         tracing::info!(ms = ms(t0), "call stop: worker threads joined");
         // Screenshots queued during this call must not leak into the next one.
         inner.deps.shots.clear();
+        inner.core().saved_shots.clear();
 
         let mut out = Out::default();
         let recorder = {
@@ -658,9 +702,18 @@ impl Session {
                 SessionPhase::Idle => return Err(AppError::new(ErrorCode::SessionIdle)),
                 _ => return Err(AppError::new(ErrorCode::SessionBusy)),
             }
-            let delta = c.transcript.snapshot_for_ask(c.llm_cursor);
+            let delta = if template.id == "recap" {
+                let now_s = c
+                    .clock
+                    .map_or(0, |k| (k.offset_ns(now_mono_ns()) / 1_000_000_000) as u32);
+                c.transcript.recap(now_s)
+            } else {
+                c.transcript.snapshot_for_ask(c.llm_cursor)
+            };
             let prev = c.llm_cursor;
-            c.llm_cursor = c.transcript.next_seq();
+            if template.id != "recap" {
+                c.llm_cursor = c.transcript.next_seq();
+            }
             let question = req
                 .typed_text
                 .clone()
@@ -736,6 +789,7 @@ impl Session {
                     me.core().pending_q.insert(qa_id, label.to_owned());
                 }
                 let pack = match &folder {
+                    _ if template.id == "recap" => ContextPack::default(),
                     FolderRef::User(fid) => me
                         .deps
                         .retriever

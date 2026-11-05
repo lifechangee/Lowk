@@ -16,6 +16,8 @@
       {#if k.click}<span data-blk><kbd>{k.click}</kbd><span class="lbl">{ot('overlay.hint.click', lang)}</span></span>{/if}
       {#if k.ask}<span data-blk><kbd>{k.ask}</kbd><span class="lbl">{ot('overlay.hint.ask', lang)}</span></span>{/if}
       {#if k.complement}<span data-blk><kbd>{k.complement}</kbd><span class="lbl">{ot('overlay.hint.complement', lang)}</span></span>{/if}
+      {#if store.scenario === 'listen' && k.mark}<span data-blk><kbd>{k.mark}</kbd><span class="lbl">{lang === 'ru' ? 'Отметить момент' : 'Mark moment'}</span></span>{/if}
+      {#if store.scenario === 'listen' && k.recap}<span data-blk><kbd>{k.recap}</kbd><span class="lbl">{lang === 'ru' ? 'Что я пропустил?' : 'What did I miss?'}</span></span>{/if}
       {#if k.shot}<span data-blk><kbd>{k.shot}</kbd><span class="lbl">{ot('overlay.hint.shot', lang)}</span></span>{/if}
     {/if}
   </div>

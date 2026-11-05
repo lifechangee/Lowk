@@ -73,6 +73,12 @@ pub(crate) fn dispatch(st: &Arc<AppState>, ev: BindEvent) {
                 }
             }
             _ if !down => {}
+            ActionId::MarkMoment => {
+                if st.session.mark_moment() {
+                    st.emitter
+                        .broadcast("session://moment-marked", serde_json::json!({}));
+                }
+            }
             ActionId::ToggleRecord => crate::commands::session::toggle_record(st)?,
             ActionId::CycleScenario => {
                 let next = st
