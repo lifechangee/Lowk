@@ -67,6 +67,7 @@ export class TauriSource implements OverlaySource {
     }));
     const holdOff = (r: BindReport) => (store.holdDegraded = r.entries.some((e) => (e.action === 'move_hold' || e.action === 'click_hold') && e.status.state !== 'active'));
     add(on<BindReport>('binds://report', holdOff));
+    add(on('session://moment-marked', () => store.flash(store.lang === 'ru' ? 'Момент отмечен' : 'Moment marked')));
     add(on('binds://copy-answer', () => this.copyAnswer()));
     void commands.bindsGet().then((b) => holdOff(b.report)).catch(() => {});
     add(on<{ perm: string }>('binds://failed', (e) => {
@@ -116,7 +117,7 @@ export class TauriSource implements OverlaySource {
         const b = bindFor(s.binds, a);
         return b ? triggerText(b.trigger, os, names) : '';
       };
-      store.keysOverride = { ask: lab('ask_brief') || lab('ask'), complement: lab('ask_complement'), shot: lab('screenshot'), move: lab('move_hold'), click: lab('click_hold'), interactive: lab('toggle_interactive'), record: lab('toggle_record') };
+      store.keysOverride = { ask: lab('ask_brief') || lab('ask'), complement: lab('ask_complement'), shot: lab('screenshot'), move: lab('move_hold'), click: lab('click_hold'), interactive: lab('toggle_interactive'), record: lab('toggle_record'), mark: lab('mark_moment'), recap: lab('ask_recap') };
     }
     if (s.templates?.length) {
       store.templates = s.templates.filter((t) => t.id !== 'summary');

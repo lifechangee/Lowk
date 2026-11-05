@@ -16,6 +16,7 @@
     "allow-binds-set",
     "allow-call-delete",
     "allow-call-get",
+    "allow-call-image",
     "allow-call-get-md",
     "allow-call-list",
     "allow-call-move",

@@ -68,7 +68,7 @@ export function folderRef(key: FolderKey): FolderRef {
 }
 export const isSystemKey = (key: FolderKey): boolean => key === SYS_UNSORTED || key === SYS_TRASH;
 
-export type Utterance = { at_s: number; speaker: Stream; text: string };
+export type Utterance = { at_s: number; speaker: Stream; text: string; marker?: boolean };
 
 /** One «Вопрос → Подсказка ИИ → Мой ответ» chain (`lowk-qa` callout). */
 export type QaItem = {
@@ -146,6 +146,7 @@ export interface Backend {
   folderGet(key: FolderKey): Promise<FolderDetail | null>;
   /** `null` = no such call (deleted outside the app, vault moved); other failures throw. */
   callGet(id: string): Promise<CallDetail | null>;
+  callImage(id: string, relPath: string): Promise<string>;
   /** Calls a crash left unfinished and this launch finished; returned once. */
   recoveredTake(): Promise<RecoveredCall[]>;
   folderCreate(input: NewFolder): Promise<FolderMeta>;

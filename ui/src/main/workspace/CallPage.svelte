@@ -24,6 +24,23 @@
   let { id, at = null, match = null }: { id: string; at?: number | null; match?: string | null } = $props();
 
   let detail = $state<CallDetail | null>(null);
+  let preview = $state<string | null>(null);
+  let images = $state<Record<string, string>>({});
+  let requested = new Set<string>();
+  function observeShot(node: HTMLElement, relPath: string) {
+    const cid = id;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      if (requested.has(relPath)) return;
+      requested.add(relPath);
+      void api.callImage(cid, relPath).then((url) => {
+        if (cid === id) images[relPath] = url;
+      }).catch(() => {});
+    });
+    observer.observe(node);
+    return { destroy: () => observer.disconnect() };
+  }
   /** The load finished: no such call (`missing`) or a read error (`loadError`). */
   let missing = $state(false);
   let loadError = $state('');
@@ -44,6 +61,9 @@
   $effect(() => {
     const cid = id;
     detail = null;
+    images = {};
+    requested = new Set();
+    preview = null;
     missing = false;
     loadError = '';
     sum = { phase: 'idle', text: '', error: null };
@@ -263,7 +283,7 @@
           {#each timeline as it (it.kind + it.i)}
             {#if it.kind === 'line'}
               {@const u = detail.transcript[it.i]!}
-              <div class="ln" class:sys={u.speaker === 'system'} class:hit={hitIdx === it.i} data-line={it.i}><span class="ts">{clock(u.at_s)}</span><span class={u.speaker === 'me' ? 'sp-me' : 'sp-sys'}>{speaker(u.speaker)}</span><span class="tx">{u.text}</span></div>
+              <div class="ln" class:sys={u.speaker === 'system'} class:hit={hitIdx === it.i} data-line={it.i}><span class="ts">{clock(u.at_s)}</span><span class={u.speaker === 'me' ? 'sp-me' : 'sp-sys'}>{u.marker ? '◆' : speaker(u.speaker)}</span><span class="tx">{u.text}</span></div>
             {:else if it.kind === 'qa'}
               {@const q = detail.qa[it.i]!}
               <div class="qa ind">
@@ -274,7 +294,7 @@
               </div>
             {:else}
               {@const s = detail.shots[it.i]!}
-              <div class="shot ind"><div class="im">{s.title}</div><div class="cp"><Tag text={tm('m.screenshot')} /><span class="lbl">{clock(s.at_s)} · {s.caption}</span></div></div>
+              <div class="shot ind"><button class="im" type="button" use:observeShot={s.rel_path} onclick={() => preview = images[s.rel_path] ?? null} aria-label={s.title}>{#if images[s.rel_path]}<img src={images[s.rel_path]} alt={s.title} />{:else}{s.title}{/if}</button><div class="cp"><Tag text={tm('m.screenshot')} /><span class="lbl">{clock(s.at_s)} · {s.caption}</span></div></div>
             {/if}
           {/each}
           {#if timeline.length === 0}<p class="empty">{tm('m.emptyTranscript')}</p>{/if}
@@ -319,7 +339,7 @@
           {/each}
         {:else if ui.callTab === 'shots'}
           <div class="shots2">
-            {#each detail.shots as s (s.id)}<div class="sh2"><div class="im">{s.title}</div><div class="cp lbl">{clock(s.at_s)} · {s.caption}</div></div>{:else}<p class="empty">{tm('m.emptyShots')}</p>{/each}
+            {#each detail.shots as s (s.id)}<div class="sh2"><button class="im" type="button" use:observeShot={s.rel_path} onclick={() => preview = images[s.rel_path] ?? null} aria-label={s.title}>{#if images[s.rel_path]}<img src={images[s.rel_path]} alt={s.title} />{:else}{s.title}{/if}</button><div class="cp lbl">{clock(s.at_s)} · {s.caption}</div></div>{:else}<p class="empty">{tm('m.emptyShots')}</p>{/each}
           </div>
         {:else if ui.callTab === 'sources'}
           <div class="srctab" data-testid="sources-tab">
@@ -346,6 +366,16 @@
   <CallMissing error={loadError} />
 {:else}
   <p class="empty pad">{tm('common.loading')}</p>
+{/if}
+
+<svelte:window onkeydown={(event) => { if (event.key === 'Escape') preview = null; }} />
+{#if preview}
+  <div class="image-modal" role="presentation" onclick={() => preview = null}>
+    <div role="dialog" tabindex="-1" aria-modal="true" aria-label={tm('m.screenshotPreview')} onclick={(event) => event.stopPropagation()} onkeydown={(event) => { if (event.key === 'Escape') preview = null; }}>
+      <button type="button" onclick={() => preview = null} aria-label={tm('common.close')}>×</button>
+      <img src={preview} alt={tm('m.screenshotPreview')} />
+    </div>
+  </div>
 {/if}
 
 <style>
@@ -387,7 +417,11 @@
   .mine .q { color: var(--tx2); margin-bottom: var(--s1); }
   .mine i { color: var(--tx); }
   .shot { margin-top: var(--s2); margin-bottom: var(--s2); max-width: 420px; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--panel); }
-  .im { background: linear-gradient(135deg, #3a3d44, #1d1e22); color: #fff; font-weight: 650; height: 152px; padding: var(--s4); font-size: 20px; line-height: 24px; }
+  .im { display: block; width: 100%; cursor: pointer; border: 0; background: linear-gradient(135deg, #3a3d44, #1d1e22); color: #fff; font-weight: 650; height: 152px; padding: var(--s4); font-size: 20px; line-height: 24px; }
+  .im img { width: 100%; height: 100%; object-fit: contain; }
+  .image-modal { position: fixed; inset: 0; z-index: 1000; background: #000b; display: grid; place-items: center; }
+  .image-modal div { max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; align-items: end; }
+  .image-modal img { max-width: 90vw; max-height: 80vh; object-fit: contain; }
   .cp { padding: var(--s2) var(--s3); font-size: 12px; line-height: 16px; color: var(--tx2); display: flex; gap: var(--s2); align-items: center; min-width: 0; }
   .shots2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
   .sh2 { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--panel); }

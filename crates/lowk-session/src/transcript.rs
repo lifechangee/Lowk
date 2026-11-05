@@ -87,6 +87,15 @@ impl TranscriptBuf {
             .collect()
     }
 
+    /// Non-empty utterances from the last five minutes of the call.
+    pub fn recap(&self, now_s: u32) -> Vec<TranscriptLine> {
+        let cutoff = now_s.saturating_sub(300);
+        self.lines()
+            .into_iter()
+            .filter(|l| l.offset_s >= cutoff && l.offset_s <= now_s && !l.text.trim().is_empty())
+            .collect()
+    }
+
     /// Seq the next new utterance will get.
     pub fn next_seq(&self) -> u64 {
         self.next_seq
@@ -135,6 +144,20 @@ mod tests {
             t_audio_end_ns: 5_000_000_000,
             t_emit_ns: 5_000_000_000,
         }
+    }
+
+    #[test]
+    fn recap_uses_only_last_five_minutes() {
+        let mut t = TranscriptBuf::default();
+        for (id, sec) in [(1, 99), (2, 100), (3, 400), (4, 401)] {
+            let mut event = ev(Stream::System, id, 0, SttKind::Final, "speech");
+            event.t_start_ns = clock().t0_mono + sec * 1_000_000_000;
+            t.apply(&event, &clock());
+        }
+        assert_eq!(
+            t.recap(400).iter().map(|l| l.offset_s).collect::<Vec<_>>(),
+            vec![100, 400]
+        );
     }
 
     #[test]

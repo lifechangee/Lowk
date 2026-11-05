@@ -81,6 +81,7 @@ export const commands = {
 	/**  Ids of calls that already have a non-empty summary. */
 	callSummarized: () => typedError<Ulid[], AppError>(__TAURI_INVOKE("call_summarized")),
 	callGet: (id: Ulid) => typedError<CallDetail, AppError>(__TAURI_INVOKE("call_get", { id })),
+	callImage: (id: Ulid, relPath: string) => typedError<string, AppError>(__TAURI_INVOKE("call_image", { id, relPath })),
 	/**  The raw `.md` (editor and export). */
 	callGetMd: (id: Ulid) => typedError<string, AppError>(__TAURI_INVOKE("call_get_md", { id })),
 	callSaveMd: (id: Ulid, md: string) => typedError<null, AppError>(__TAURI_INVOKE("call_save_md", { id, md })),
@@ -290,7 +291,7 @@ export type AboutInfo = {
 	source_url: string,
 };
 
-export type ActionId = "toggle_record" | "cycle_scenario" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | 
+export type ActionId = "toggle_record" | "cycle_scenario" | "mark_moment" | "ask" | "screenshot" | "screenshot_area" | "toggle_interactive" | "toggle_overlay" | "move_hold" | "panic_hide" | "toggle_main" | "next_template" | "prev_template" | "cancel_answer" | 
 /**  Copy the current AI answer from the overlay (default unbound). */
 "copy_answer" | "clear_shots" | 
 /**  Microphone on/off during a recording (default unbound; roadmap «auto» mode: docs/ROADMAP.md). */
@@ -1933,6 +1934,7 @@ export type Utterance = {
 	at_s: number,
 	speaker: Stream,
 	text: string,
+	marker: boolean,
 };
 
 /**  `vault_open` / `vault_info` payload. */

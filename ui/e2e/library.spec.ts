@@ -94,6 +94,7 @@ for (const lang of ['en', 'ru'] as const) {
     test('a folder with a recording in progress refuses to be deleted, with a clear message', async ({ page }) => {
       await page.goto(`/main.html?lang=${lang}#/folder/${EMPTY}`);
       await page.locator('[data-np-trigger] button').last().click();
+      await page.getByTestId('start-listen').click();
       await page.locator('.np button.btn.primary').click();
       await page.waitForSelector('.recpill');
       const row = folderRow(page, 'Новый проект');

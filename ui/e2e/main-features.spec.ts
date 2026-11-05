@@ -46,6 +46,7 @@ test('F7 panic is unbound by default, show/hide overlay is on the backslash key'
 test('F8 stopping a recording opens library home with the new call on top of Recent', async ({ page }) => {
   await page.goto('/main.html?lang=en#/');
   await page.locator('.side .nc button.btn.primary').click();
+  await page.getByTestId('start-listen').click();
   await page.locator('.np button.btn.primary').click();
   await page.waitForSelector('.recpill');
   await page.evaluate(() => (location.hash = '#/folder/sys:unsorted'));

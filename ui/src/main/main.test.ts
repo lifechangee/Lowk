@@ -34,7 +34,9 @@ describe('binds', () => {
     const mac = defaultBinds('macos');
     expect(formatTrigger(mac[0]!.trigger, 'macos', names)).toEqual(['⌘', '↵']);
     expect(formatTrigger(mac.find((x) => x.action === 'screenshot')!.trigger, 'macos', names)).toEqual(['⇧', '⌘', 'S']);
+    expect(formatTrigger(mac.find((x) => x.action === 'mark_moment')!.trigger, 'macos', names)).toEqual(['⇧', '⌘', 'B']);
     const win = defaultBinds('windows');
+    expect(formatTrigger(win.find((x) => x.action === 'mark_moment')!.trigger, 'windows', names)).toEqual(['Ctrl', 'Shift', 'B']);
     expect(formatTrigger(win.find((x) => x.action === 'screenshot')!.trigger, 'windows', names)).toEqual(['Ctrl', 'Shift', 'S']);
     expect(formatTrigger(win.find((x) => x.action === 'move_hold')!.trigger, 'windows', names)).toEqual(['Alt']);
   });

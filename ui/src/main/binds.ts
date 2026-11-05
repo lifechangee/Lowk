@@ -1,7 +1,7 @@
 // Pure helpers for the bind editor: formatting, recording, defaults, conflict warnings.
 import type { ActionId, BindSpec, MouseBtn, Mods, Os, Trigger } from '../lib/ipc';
 
-export const ACTIONS_PRIMARY: ActionId[] = ['ask_brief', 'ask_complement', 'screenshot', 'screenshot_area', 'click_hold', 'toggle_interactive', 'toggle_overlay', 'panic_hide', 'toggle_capture_visible', 'toggle_record', 'toggle_mic', 'move_hold'];
+export const ACTIONS_PRIMARY: ActionId[] = ['ask_brief', 'ask_complement', 'mark_moment', 'screenshot', 'screenshot_area', 'click_hold', 'toggle_interactive', 'toggle_overlay', 'panic_hide', 'toggle_capture_visible', 'toggle_record', 'toggle_mic', 'move_hold'];
 /** G6: one bind per template; `ask` (the template picked in the overlay chip) stays assignable. */
 export const ACTIONS_EXTRA: ActionId[] = ['ask', 'next_template', 'prev_template', 'cancel_answer', 'copy_answer', 'clear_shots', 'toggle_main'];
 export const ALL_ACTIONS: ActionId[] = [...ACTIONS_PRIMARY, ...ACTIONS_EXTRA];
@@ -20,6 +20,7 @@ export function defaultBinds(os: Os): BindSpec[] {
     { action: 'toggle_interactive', trigger: combo('KeyI', ms) },
     { action: 'toggle_overlay', trigger: combo('Backslash', m) },
     { action: 'toggle_record', trigger: combo('KeyR', ms) },
+    { action: 'mark_moment', trigger: combo('KeyB', ms) },
     { action: 'move_hold', trigger: { kind: 'modifier_only', mods: { alt: true } } },
     { action: 'click_hold', trigger: { kind: 'modifier_only', mods: { ctrl: true } } },
   ];

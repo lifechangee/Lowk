@@ -162,6 +162,19 @@ fn user_prompt(input: &SummarizeInput, body_tag: &str, body: &str) -> String {
     }
     s.push_str(&format!("<call title=\"{}\"/>\n", input.title.replace('"', "'")));
     s.push_str(&format!("<{body_tag}>\n{body}\n</{body_tag}>\n"));
+    if body_tag == "notes" {
+        let lines: Vec<_> = input.transcript.lines().collect();
+        for (i, line) in lines.iter().enumerate() {
+            if line.contains("[MARKED MOMENT]") {
+                s.push_str("<marked_context>\n");
+                for context in &lines[i.saturating_sub(1)..(i + 2).min(lines.len())] {
+                    s.push_str(context);
+                    s.push('\n');
+                }
+                s.push_str("</marked_context>\n");
+            }
+        }
+    }
     if !input.qa.is_empty() {
         s.push_str("<qa>\n");
         for (i, q) in input.qa.iter().enumerate() {
@@ -319,7 +332,7 @@ pub(crate) fn run(
             let sys = format!(
                 "{SUMMARY_SYSTEM} Extract facts from part {} of {}{} of one long recording (a call or lecture) as terse bullets \
 (first a line \"Kind: meeting, interview, lecture, broadcast, casual or other\"; then the topics in order, main points and ideas, definitions and terms, decisions, tasks with owners, questions put to Me and how Me answered, questions anyone asked, homework or what to learn if mentioned), in {}. \
-Keep product names and English terms exactly as spoken. Output only bullets.",
+Preserve every [MARKED MOMENT] timestamp and the nearby spoken context. Keep product names and English terms exactly as spoken. Output only bullets.",
                 i + 1,
                 parts.len(),
                 fmt_span(span),
@@ -371,7 +384,7 @@ Keep product names and English terms exactly as spoken. Output only bullets.",
                 };
                 let sys = format!(
                     "{SUMMARY_SYSTEM} Merge these consecutive notes of one long recording into one shorter set of terse bullets in {}, \
-keeping the \"Kind:\" line, chronology, every distinct topic, definition, decision, task and question, and English terms exactly as spoken. Drop repetition. Output only bullets.",
+keeping every marked moment with its timestamp and nearby context, the \"Kind:\" line, chronology, every distinct topic, definition, decision, task and question, and English terms exactly as spoken. Drop repetition. Output only bullets.",
                     lang.name()
                 );
                 let joined = g.iter().map(|x| x.1.as_str()).collect::<Vec<_>>().join("\n");
@@ -422,9 +435,16 @@ keeping the \"Kind:\" line, chronology, every distinct topic, definition, decisi
         lowk_types::Scenario::Assist => "interview",
         lowk_types::Scenario::Run => "meeting",
     });
+    let marker_rule = if input.scenario == Some(lowk_types::Scenario::Listen)
+        && input.transcript.contains("[MARKED MOMENT]")
+    {
+        "\nStart with a section «Отмеченные моменты»: list every marked timestamp and what was said around it. Preserve all marked moments from the input."
+    } else {
+        ""
+    };
     let kind_rule = hint.map_or(String::new(), |k| format!("\nThe user chose the {k} kind. Use this kind instead of guessing; include relevant Q&A even if it arose in another scenario."));
     l.append_system(&format!(
-        "{SUMMARY_SYSTEM}\n{}{multi_rule}{kind_rule}",
+        "{SUMMARY_SYSTEM}\n{}{multi_rule}{kind_rule}{marker_rule}",
         lang_rules(lang)
     ));
     l.append_user(&user_prompt(input, body_tag, &body));
@@ -775,6 +795,16 @@ mod tests {
             output_language: None,
             folder_instructions: None,
         }
+    }
+
+    #[test]
+    fn reduced_prompt_keeps_marked_moments_and_context() {
+        let mut i = input("[00:00:10] **System:** Before\n[00:00:11] [MARKED MOMENT] Важный момент\n[00:00:12] **System:** After\n");
+        i.scenario = Some(lowk_types::Scenario::Listen);
+        let prompt = user_prompt(&i, "notes", "condensed");
+        assert!(prompt.contains("[00:00:11] [MARKED MOMENT]"));
+        assert!(prompt.contains("Before"));
+        assert!(prompt.contains("After"));
     }
 
     #[test]

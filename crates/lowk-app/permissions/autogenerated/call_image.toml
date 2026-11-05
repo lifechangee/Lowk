@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-call-image"
+description = "Enables the call_image command without any pre-configured scope."
+commands.allow = ["call_image"]
+
+[[permission]]
+identifier = "deny-call-image"
+description = "Denies the call_image command without any pre-configured scope."
+commands.deny = ["call_image"]

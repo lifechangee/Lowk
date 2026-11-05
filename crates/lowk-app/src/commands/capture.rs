@@ -1,6 +1,6 @@
 //! G7: screenshot queue. `capture_screenshot` grabs the active monitor (or all / the primary, per
 //! `capture.monitors`; our own windows excluded, see `lowk-capture`) into an in-memory queue and emits
-//! `queue://changed`; the next Ask sends the queue to the model (`ShotSource`). Nothing is written to disk here.
+//! `queue://changed`; the next Ask sends the queue to the model (`ShotSource`).
 use crate::emitter::UiEmitter;
 use crate::state::{AppState, Shared};
 use lowk_capture::CapturedShot;
@@ -74,11 +74,13 @@ impl ShotQueue {
     }
 
     /// Adds shots (ids assigned here), dropping the oldest beyond [`MAX_QUEUE`].
-    pub fn push(&self, shots: Vec<CapturedShot>) {
+    pub fn push(&self, shots: Vec<CapturedShot>) -> Vec<QueuedImage> {
+        let mut added = Vec::new();
         {
             let mut q = self.q.lock();
             for mut s in shots {
                 s.id = self.next_id.fetch_add(1, Ordering::SeqCst);
+                added.push(queued(&s));
                 q.push(s);
             }
             let n = q.len();
@@ -87,6 +89,7 @@ impl ShotQueue {
             }
         }
         self.emit();
+        added
     }
 }
 
@@ -162,7 +165,8 @@ fn grab_now(st: &AppState) -> Result<Vec<CapturedShot>> {
 /// the queue length. Used by the command and the bind.
 pub fn capture_into_queue(st: &Arc<AppState>) -> Result<u32> {
     let shots = grab_now(st)?;
-    st.shots.push(shots);
+    let added = st.shots.push(shots);
+    st.session.record_screenshots(&added);
     Ok(st.shots.lock().len() as u32)
 }
 
@@ -179,7 +183,8 @@ pub fn capture_area_into_queue(st: &Arc<AppState>, rect: Rect) -> Result<u32> {
         return Err(AppError::new(ErrorCode::PermScreenRecording));
     }
     let shot = lowk_capture::capture_area(&own_windows(st), rect)?;
-    st.shots.push(vec![shot]);
+    let added = st.shots.push(vec![shot]);
+    st.session.record_screenshots(&added);
     Ok(st.shots.lock().len() as u32)
 }
 

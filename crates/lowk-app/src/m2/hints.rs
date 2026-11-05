@@ -241,7 +241,14 @@ impl HintGenerator for LlmHints {
         let mut conv = {
             let g = self.conv.lock();
             match g.as_ref() {
-                Some(c) if !req.first_turn && c.call == req.call && c.model == route.cfg.model => c.clone(),
+                Some(c)
+                    if req.template_id != "recap"
+                        && !req.first_turn
+                        && c.call == req.call
+                        && c.model == route.cfg.model =>
+                {
+                    c.clone()
+                }
                 _ => CallConv {
                     call: req.call,
                     model: route.cfg.model.clone(),
@@ -348,8 +355,10 @@ impl HintGenerator for LlmHints {
         ledger.append_assistant(&out.text);
         let soft = policy.need(&ledger, "") != CompactNeed::None;
         conv.ledger = ledger;
-        *self.conv.lock() = Some(conv);
-        if soft {
+        if req.template_id != "recap" {
+            *self.conv.lock() = Some(conv);
+        }
+        if soft && req.template_id != "recap" {
             self.compact_in_background(policy, summary_client(&self.env, &settings, local_only));
         }
         if !out.model.is_empty() {
