@@ -36,6 +36,9 @@
   let body: HTMLElement | undefined = $state();
   let hitIdx = $state<number | null>(null);
 
+  let readableProgress = $state<{step: number; total: number} | null>(null);
+  let readablePhase = $state<'idle' | 'generating' | 'error'>('idle');
+  let readableError = $state('');
   // ---- summary ----
   let sum = $state<{ phase: 'idle' | 'streaming' | 'error'; text: string; error: AppError | null; step?: number; total?: number }>({ phase: 'idle', text: '', error: null });
   // ---- re-transcription of the saved audio ----
@@ -47,6 +50,7 @@
     missing = false;
     loadError = '';
     sum = { phase: 'idle', text: '', error: null };
+    readablePhase = 'idle';
     retx = null;
     api.retxStatus(cid).then((s) => { if (cid === id) retx = s; }).catch(() => (retx = null));
     api.callGet(cid).then((d) => { if (cid !== id) return; detail = d; missing = d === null; }).catch((e) => { if (cid === id) loadError = errText(e); });
@@ -77,6 +81,7 @@
   onMount(() =>
     api.onSummaryEvent((e) => {
       if (e.call !== id) return;
+      if (e.type === 'readable_progress') { readableProgress = { step: e.step, total: e.total }; return; }
       if (e.type === 'start') sum = { phase: 'streaming', text: '', error: null };
       else if (e.type === 'progress') { sum.step = e.step; sum.total = e.total; }
       else if (e.type === 'delta') sum.text += e.text;
@@ -140,6 +145,26 @@
   }
   const retxPct = $derived(retx && retx.total_s > 0 ? Math.min(100, Math.round((retx.done_s / retx.total_s) * 100)) : 0);
 
+  async function makeReadable() {
+    if (!detail || readablePhase === 'generating') return;
+    const cid = detail.meta.id;
+    readableProgress = null;
+    readablePhase = 'generating';
+    try {
+      const text = await api.llmReadableText(cid);
+      if (cid === id && detail) { detail.readable_text = text; readablePhase = 'idle'; }
+      void library.reload();
+    } catch (e) {
+      if (cid === id) { if ((e as {code?: string}).code === 'llm_cancelled') readablePhase = 'idle'; else { readableError = errText(e); readablePhase = 'error'; } }
+    }
+  }
+  async function copyReadable() {
+    if (detail?.readable_text) {
+      try { await navigator.clipboard.writeText(detail.readable_text); ui.notify(tm('summary.copied')); }
+      catch { ui.notify(tm('summary.copyFailed')); }
+    }
+  }
+
   async function summarize() {
     if (!detail || sum.phase === 'streaming') return;
     ui.callTab = 'summary';
@@ -184,6 +209,7 @@
   const hasSummary = $derived(!!detail?.summary);
   const tabs = $derived([
     { id: 'transcript' as const, label: tm('main.transcript') },
+    { id: 'readable' as const, label: 'Читаемый текст' },
     { id: 'summary' as const, label: tm('main.summary') },
     { id: 'qa' as const, label: tm('main.aiQuestions'), count: detail?.qa.length ?? 0 },
     { id: 'shots' as const, label: tm('main.screenshots'), count: detail?.shots.length ?? 0 },
@@ -278,6 +304,21 @@
             {/if}
           {/each}
           {#if timeline.length === 0}<p class="empty">{tm('m.emptyTranscript')}</p>{/if}
+        {:else if ui.callTab === 'readable'}
+          <div class="sumbox" data-testid="readable-tab">
+            {#if summaryNotice?.kind === 'blocked'}<small class="note warnl">{tm('summary.route.blocked')}</small>{/if}
+            {#if readablePhase === 'generating'}
+              <Button size="sm" disabled>{detail.readable_text ? "Обновить" : "Подготовить"}</Button><div role="status"><i class="spin"></i> Обрабатываю… {#if readableProgress}часть {readableProgress.step} из {readableProgress.total}{/if}</div><Button size="sm" onclick={() => api.llmReadableTextCancel(id)}>Остановить</Button>
+            {:else}
+              {#if readablePhase === 'error'}<div class="err" role="alert">Не удалось подготовить текст: {readableError}</div>{/if}
+              {#if detail.readable_text}
+                <div class="sh"><span></span><span class="acts"><Button size="sm" icon="copy" onclick={copyReadable}>{tm('common.copy')}</Button><Button size="sm" icon="refresh" disabled={summaryNotice?.kind === 'blocked'} onclick={makeReadable}>Обновить</Button></span></div>
+                <Md md={detail.readable_text} />
+              {:else}
+                <div class="start"><h2>Читаемый текст</h2><p>Исправим ошибки и разделим текст на абзацы.</p><Button variant="primary" icon="sparkle" disabled={summaryNotice?.kind === 'blocked'} onclick={makeReadable}>Подготовить</Button></div>
+              {/if}
+            {/if}
+          </div>
         {:else if ui.callTab === 'summary'}
           <div class="sumbox" data-testid="summary-tab">
             {#if summaryNotice?.kind === 'cloud'}<small class="note">{tm('summary.route.cloud', { model: summaryNotice.model, provider: summaryNotice.provider === 'custom' ? tm('summary.provider.custom') : summaryNotice.provider })}</small>

@@ -106,6 +106,8 @@ const COMMANDS: &[&str] = &[
     "embedder_install_cancel",
     "source_open",
     "settings_open",
+    "llm_readable_text",
+    "llm_readable_text_cancel",
     "llm_summarize",
     "llm_summarize_cancel",
     "retx_status",

@@ -132,6 +132,8 @@ macro_rules! all_commands {
             crate::commands::search::source_open,
             crate::commands::search::settings_open,
             crate::commands::ai::llm_summarize,
+            crate::commands::ai::llm_readable_text,
+            crate::commands::ai::llm_readable_text_cancel,
             crate::commands::ai::llm_summarize_cancel,
             crate::commands::ai::llm_provider_status,
             crate::commands::ai::llm_key_test,

@@ -38,6 +38,7 @@ export const MAIN_STATES: MainState[] = [
   { id: 'unsorted-menu', title: 'Unsorted: «Move to…» menu', hash: '#/folder/sys:unsorted', act: 'move-menu', mockup: 'mn' },
   { id: 'trash', title: 'Trash', hash: '#/folder/sys:trash', mockup: 'mn' },
   { id: 'call-transcript', title: 'Call: transcript tab', hash: `#/call/${CALL1}`, mockup: 'mn' },
+  { id: 'call-readable', title: 'Call: readable text', hash: `#/call/${CALL1}`, act: 'tab-readable', mockup: 'mn' },
   { id: 'call-summary', title: 'Call: summary tab', hash: `#/call/${CALL1}`, act: 'tab-summary', mockup: 'mn' },
   { id: 'call-qa', title: 'Call: AI questions tab', hash: `#/call/${CALL1}`, act: 'tab-qa', mockup: 'mn' },
   { id: 'call-shots', title: 'Call: screenshots tab', hash: `#/call/${CALL1}`, act: 'tab-shots', mockup: 'mn' },

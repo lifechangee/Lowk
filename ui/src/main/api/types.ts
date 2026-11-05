@@ -100,6 +100,7 @@ export type ShotItem = {
 export type CallDetail = {
   meta: CallMeta;
   summary: string | null;
+  readable_text?: string | null;
   transcript: Utterance[];
   qa: QaItem[];
   shots: ShotItem[];
@@ -198,6 +199,8 @@ export interface Backend {
 
   // ---- summary, provider ----
   /** Starts the stream; the events arrive through `onSummaryEvent`. */
+  llmReadableText(call: string): Promise<string>;
+  llmReadableTextCancel(call: string): Promise<void>;
   llmSummarize(call: string): Promise<void>;
   llmSummarizeCancel(call: string): Promise<void>;
   /** `summary://event` */

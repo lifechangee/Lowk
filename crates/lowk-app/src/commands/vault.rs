@@ -218,6 +218,7 @@ pub struct ShotItem {
 pub struct CallDetail {
     pub meta: CallMeta,
     pub summary: Option<String>,
+    pub readable_text: Option<String>,
     pub transcript: Vec<Utterance>,
     pub qa: Vec<QaItem>,
     pub shots: Vec<ShotItem>,
@@ -228,6 +229,7 @@ pub struct CallDetail {
 fn detail(meta: CallMeta, md: &str, templates: &[Template], lang_ru: bool) -> CallDetail {
     let doc = call_codec::parse(md);
     let mut d = CallDetail {
+        readable_text: Some(doc.readable_text().trim().to_string()).filter(|s| !s.is_empty()),
         summary: Some(doc.summary().trim().to_string()).filter(|s| !s.is_empty()),
         keep_audio: doc.fm.audio != "none",
         model: String::new(),

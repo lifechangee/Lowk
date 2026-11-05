@@ -11,6 +11,20 @@ pub fn llm_summarize(st: State<'_, Shared>, call: CallId) -> Result<()> {
     st.svc()?.summarize(call)
 }
 
+/// Generate and save a readable transcript.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn llm_readable_text(st: State<'_, Shared>, call: CallId) -> Result<String> {
+    st.svc()?.readable_text(call)
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn llm_readable_text_cancel(st: State<'_, Shared>, call: CallId) -> Result<()> {
+    st.svc()?.readable_text_cancel(&call);
+    Ok(())
+}
+
 /// Cancels a running summary.
 #[tauri::command(async)]
 #[specta::specta]

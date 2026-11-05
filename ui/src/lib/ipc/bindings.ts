@@ -242,6 +242,9 @@ export const commands = {
 	settingsOpen: (page: string) => typedError<null, AppError>(__TAURI_INVOKE("settings_open", { page })),
 	/**  Starts the post-call summary (streams `summary://event`; Done also writes `## Summary`). */
 	llmSummarize: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("llm_summarize", { call })),
+	/**  Generate and save a readable transcript. */
+	llmReadableText: (call: Ulid) => typedError<string, AppError>(__TAURI_INVOKE("llm_readable_text", { call })),
+	llmReadableTextCancel: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("llm_readable_text_cancel", { call })),
 	/**  Cancels a running summary. */
 	llmSummarizeCancel: (call: Ulid) => typedError<null, AppError>(__TAURI_INVOKE("llm_summarize_cancel", { call })),
 	/**  Provider, pinned model/provider and whether the BYOK key is present. */
@@ -496,6 +499,7 @@ export type BindsState_Serialize = {
 export type CallDetail = {
 	meta: CallMeta,
 	summary: string | null,
+	readable_text: string | null,
 	transcript: Utterance[],
 	qa: QaItem[],
 	shots: ShotItem[],
@@ -1772,7 +1776,7 @@ export type Summary = {
 /**  `summary://event` payload (separate from `llm://*`, which belongs to the overlay). */
 export type SummaryEvent = { type: "start"; call: Ulid } | 
 /**  A long call is summarised in parts: request `step` of an estimated `total` is starting. */
-{ type: "progress"; call: Ulid; step: number; total: number } | 
+{ type: "progress"; call: Ulid; step: number; total: number } | { type: "readable_progress"; call: Ulid; step: number; total: number } | 
 /**  Streamed Markdown of the summary body. */
 { type: "delta"; call: Ulid; text: string } | { type: "done"; call: Ulid; summary: Summary } | { type: "error"; call: Ulid; error: AppError };
 

@@ -93,6 +93,7 @@ export class MockBackend implements Backend {
         { id: 'objection', names: { ru: 'Возражение клиента', en: 'Client objection' }, instruction: 'Предложи вежливый ответ на возражение клиента: признай сомнение, приведи один аргумент и задай уточняющий вопрос.', needs_my_answer: false, vision: false, reasoning: true },
       ],
     };
+    if (qp('readable') === 'localonly') for (const folder of this.#folders) folder.allow_cloud = false;
     if (qp('empty')) { this.#folders = []; this.#calls = []; this.#documents = []; }
     for (const f of this.#folders) this.#instructions.set(folderKey(f.id), makeFolderDetail(f).instructions);
   }
@@ -749,6 +750,20 @@ export class MockBackend implements Backend {
   #summaryFor(meta: CallMeta): string { return meta.languages[0] === 'en' ? SUMMARY_MD_EN : SUMMARY_MD; }
   #sumEmit(e: SummaryEvent): void { for (const f of this.#sumSubs) f(e); }
   onSummaryEvent(cb: (e: SummaryEvent) => void): () => void { this.#sumSubs.add(cb); return () => this.#sumSubs.delete(cb); }
+  #readableCancelled = new Set<string>();
+  async llmReadableTextCancel(call: string): Promise<void> { this.#readableCancelled.add(call); }
+  async llmReadableText(call: string): Promise<string> {
+    this.#readableCancelled.delete(call);
+    const detail = this.#details.get(call);
+    if (!detail) throw new Error('Call not found');
+    this.#sumEmit({ type: 'readable_progress', call, step: 3, total: 15 });
+    await delay(qp('readable') === 'hold' ? 3000 : 100);
+    if (this.#readableCancelled.has(call)) throw appErr('llm_cancelled');
+    if (qp('readable') === 'error') throw appErr('network');
+    const text = detail.transcript.map((line) => `[${line.at_s}] ${line.text}`).join('\n');
+    detail.readable_text = text;
+    return text;
+  }
   async llmSummarize(call: string): Promise<void> {
     const meta = this.#call(call);
     if (!meta) throw appErr('not_found');

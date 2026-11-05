@@ -111,6 +111,7 @@ pub struct Services {
     pub(crate) feed: Sender<Job>,
     pub(crate) ingest: ingest::Queue,
     pub(crate) embed: embed::EmbedState,
+    pub(crate) readable_runs: Mutex<HashMap<CallId, Arc<AtomicBool>>>,
     pub(crate) summaries: Mutex<HashMap<CallId, Arc<AtomicBool>>>,
     pub(crate) retx: retx::RetxState,
 }
@@ -154,6 +155,7 @@ impl Services {
                 feed: feed_tx,
                 ingest: ingest_q,
                 embed: embed::EmbedState::default(),
+                readable_runs: Mutex::new(HashMap::new()),
                 summaries: Mutex::new(HashMap::new()),
                 retx: retx::RetxState::default(),
             }

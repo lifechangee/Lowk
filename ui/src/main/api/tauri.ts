@@ -204,6 +204,8 @@ export class TauriBackend extends MockBackend {
   override async embedderInstall(): Promise<void> { ok(await commands.embedderInstall()); }
   override async embedderInstallCancel(): Promise<void> { ok(await commands.embedderInstallCancel()); }
 
+  override async llmReadableTextCancel(call: string): Promise<void> { ok(await commands.llmReadableTextCancel(call)); }
+  override async llmReadableText(call: string): Promise<string> { return ok(await commands.llmReadableText(call)); }
   override async llmSummarize(call: string): Promise<void> { ok(await commands.llmSummarize(call)); }
   override async llmSummarizeCancel(call: string): Promise<void> { ok(await commands.llmSummarizeCancel(call)); }
   override onSummaryEvent(cb: (e: SummaryEvent) => void): () => void { return TauriBackend.#listen('summary://event', cb); }

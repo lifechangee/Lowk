@@ -68,6 +68,8 @@
     "allow-llm-provider-status",
     "allow-llm-models",
     "allow-llm-set-template",
+    "allow-llm-readable-text",
+    "allow-llm-readable-text-cancel",
     "allow-llm-summarize",
     "allow-llm-summarize-cancel",
     "allow-network-check",
