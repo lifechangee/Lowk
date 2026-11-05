@@ -469,6 +469,7 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
             detected.map(|l| (l, "tag"))
         };
         drop(stream);
+        // An untagged utterance keeps today's behaviour: only the foreign-letter guard applies.
         if guard
             && needs_language_rescue(
                 detected.as_ref().map(|(l, _)| l.as_str()),
@@ -664,6 +665,12 @@ mod tests {
     }
 
     #[test]
+    fn untagged_utterance_is_not_rescued() {
+        let allowed = vec!["ru".into(), "en".into()];
+        assert!(!needs_language_rescue(None, &allowed, false));
+    }
+
+    #[test]
     fn language_rescue_decisions() {
         let allowed = vec!["ru".into(), "en".into()];
         for tag in ["uk", "bg", "es", "pl"] {
@@ -674,7 +681,6 @@ mod tests {
         for tag in ["ru", "en"] {
             assert!(!needs_language_rescue(Some(tag), &allowed, false));
         }
-        assert!(!needs_language_rescue(None, &allowed, false));
         let candidates = vec![("en".into(), "hello".into()), ("ru".into(), "text".into())];
         assert_eq!(
             pick_rescue(

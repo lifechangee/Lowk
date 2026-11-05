@@ -104,8 +104,8 @@ if __name__=="__main__":
         if any(not ready_wav(f) for f in clips.values()) and not converter:
             print("error: converting audio requires afconvert or ffmpeg", file=sys.stderr)
             sys.exit(2)
-        totals=[0,0,0,0]; total_leaks=Counter()
-        print("clip segments outside no_lang foreign_letters leaks...", flush=True)
+        totals=[0,0,0,0]; total_leaks=Counter(); cers=[]
+        print("clip segments outside no_lang foreign_letters cer leaks...", flush=True)
         with tempfile.TemporaryDirectory() as tmp:
             for i,(name,f) in enumerate(sorted(clips.items())):
                 wav=f
@@ -120,8 +120,15 @@ if __name__=="__main__":
                 leaks=Counter(e["lang"] for e in events if e.get("lang") and e["lang"] not in langs)
                 counts=[len(events),sum(leaks.values()),sum(not e.get("lang") for e in events),sum(oolc(e.get("text", ""),langs)>0 for e in events)]
                 totals=[a+b for a,b in zip(totals,counts)]; total_leaks.update(leaks)
-                print(name, *counts, *(f"{k}={v}" for k,v in sorted(leaks.items())), flush=True)
-        print("TOTAL", *totals, *(f"{k}={v}" for k,v in sorted(total_leaks.items())), flush=True)
+                ref_path=os.path.splitext(f)[0]+".txt"
+                clip_cer="-"
+                if os.path.isfile(ref_path):
+                    with open(ref_path, encoding="utf-8") as ref:
+                        value=cer(" ".join(e.get("text", "") for e in events), ref.read())
+                    cers.append(value); clip_cer=f"{value:.3f}"
+                print(name, *counts, clip_cer, *(f"{k}={v}" for k,v in sorted(leaks.items())), flush=True)
+        mean_cer=f"{sum(cers)/len(cers):.3f}" if cers else "-"
+        print("TOTAL", *totals, mean_cer, *(f"{k}={v}" for k,v in sorted(total_leaks.items())), flush=True)
         sys.exit(0)
     # S3 regression + per-call language sets: replays the stt-bench recordings (files only, no sound) per language set.
     # usage: stt-lang-check.py [ru,en] [ru] [en] ...   (default: ru,en); exit 1 on any foreign letter for a set.
