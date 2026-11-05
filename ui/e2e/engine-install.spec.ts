@@ -66,6 +66,7 @@ test('engine card: no CPU notice when the worker runs on a GPU backend', async (
 test('CPU fallback: a toast appears once the recording started and the worker reported the CPU backend', async ({ page }) => {
   await page.goto('/main.html?lang=ru&cpu=1#/');
   await page.locator('.side .nc button.btn.primary').click();
+  await page.getByTestId('start-listen').click();
   await page.locator('.np button.btn.primary').click();
   await page.waitForSelector('.recpill');
   await expect(page.locator('.toast')).toContainText('на процессоре, а не на видеокарте', { timeout: 8000 });

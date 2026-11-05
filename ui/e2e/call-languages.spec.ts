@@ -16,6 +16,7 @@ test('new call card: ru+en by default, picks are sent with the call and remember
   await chip(page, 'pl').click();
   await chip(page, 'ru').click();
   await expect(chip(page, 'ru')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('start-listen').click();
   await page.getByRole('button', { name: /Start recording/ }).first().click();
   await expect.poll(() => started(page)).toEqual(['en', 'pl']);
   // stop; the selector keeps the last choice (not the settings default)
@@ -57,6 +58,7 @@ test('header popover has the same language selector', async ({ page }) => {
   const np = page.locator('.np');
   await expect(np.locator('[data-lang=ru]')).toHaveAttribute('aria-pressed', 'true');
   await np.locator('[data-lang=en]').click();
+  await page.getByTestId('start-listen').click();
   await np.getByRole('button', { name: /Start recording/ }).click();
   await expect.poll(() => started(page)).toEqual(['ru']);
 });
