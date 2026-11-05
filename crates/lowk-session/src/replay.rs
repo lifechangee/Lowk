@@ -179,6 +179,7 @@ fn stt_item(
             kind,
             text,
             lang: Some(u.lang.into()),
+            lang_src: None,
             t_start_ns: (u.start_ms + 250) * NS,
             t_audio_end_ns: audio_end_ms * NS,
             t_emit_ns: emit_ms * NS,

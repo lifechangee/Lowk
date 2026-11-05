@@ -33,6 +33,8 @@ pub struct SttEvent {
     pub kind: SttKind,
     pub text: String,
     pub lang: Option<LangTag>,
+    #[serde(skip)]
+    pub lang_src: Option<String>,
     pub t_start_ns: MonoNs,
     pub t_audio_end_ns: MonoNs,
     pub t_emit_ns: MonoNs,

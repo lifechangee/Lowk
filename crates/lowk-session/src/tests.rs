@@ -70,6 +70,7 @@ fn ev(stream: Stream, utt: u64, start_s: u64, end_s: u64, text: &str) -> SttEven
         kind: SttKind::Final,
         text: text.into(),
         lang: None,
+        lang_src: None,
         t_start_ns: start_s * S,
         t_audio_end_ns: end_s * S,
         t_emit_ns: end_s * S,

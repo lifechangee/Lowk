@@ -340,6 +340,7 @@ fn parse_event(v: &serde_json::Value, stream: Stream, base: u64) -> Option<SttEv
         },
         text,
         lang: v["lang"].as_str().map(str::to_owned),
+        lang_src: v["lang_src"].as_str().map(str::to_owned),
         t_start_ns: v["t_start_ns"].as_u64()?,
         t_audio_end_ns: v["t_audio_end_ns"].as_u64()?,
         t_emit_ns: now_mono_ns(),

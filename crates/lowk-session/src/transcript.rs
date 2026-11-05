@@ -130,6 +130,7 @@ mod tests {
             kind,
             text: text.into(),
             lang: None,
+            lang_src: None,
             t_start_ns: 4_000_000_000,
             t_audio_end_ns: 5_000_000_000,
             t_emit_ns: 5_000_000_000,

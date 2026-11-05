@@ -261,10 +261,33 @@ impl SttSink for SessionSink {
     }
 }
 
+fn language_outside(lang: Option<&str>, chosen: &[String]) -> bool {
+    lang.is_some_and(|l| !chosen.iter().any(|c| c == l))
+}
+
 impl CorrectionSink for SessionSink {
     fn done(&self, stream: Stream, utt: UttId, result: Option<SttEvent>) {
         if let Some(i) = self.0.upgrade() {
-            i.apply_correction(stream, utt, result);
+            let lang = result.as_ref().and_then(|ev| ev.lang.clone());
+            let reason = if result.is_some() {
+                "accepted"
+            } else {
+                "unavailable"
+            };
+            i.apply_correction(stream, utt, None, lang, reason, result);
+        }
+    }
+    fn decision(
+        &self,
+        stream: Stream,
+        utt: UttId,
+        rev: u32,
+        lang: Option<String>,
+        reason: &'static str,
+        result: Option<SttEvent>,
+    ) {
+        if let Some(i) = self.0.upgrade() {
+            i.apply_correction(stream, utt, Some(rev), lang, reason, result);
         }
     }
 }
@@ -930,6 +953,7 @@ impl Inner {
             .as_deref()
             .or((!remembered.is_empty()).then_some(remembered.as_slice()));
         let langs = lowk_types::langpolicy::resolve(requested, &settings.stt.languages, &engine_langs);
+        self.core().allowed_langs = langs.clone();
         let new_call = NewCall {
             title: o.title.clone().unwrap_or_else(|| default_title(wall, o.demo)),
             folder: o.folder.clone().unwrap_or(FolderRef::Unsorted),
@@ -1340,6 +1364,11 @@ impl Inner {
                 return;
             }
             let Some(clock) = c.clock else { return };
+            if ev.kind == SttKind::Final {
+                tracing::info!(target: "lowk_session::lang", stream = ?ev.stream, utt = ev.utt, rev = ev.rev,
+                    lang = ev.lang.as_deref().unwrap_or("none"), lang_src = ev.lang_src.as_deref().unwrap_or("none"),
+                    chosen = %c.allowed_langs.join(","), outside = language_outside(ev.lang.as_deref(), &c.allowed_langs), "live final");
+            }
             if from_engine && !echo_guard_off() {
                 c.echo.note_system(&ev);
                 match c.echo.filter_me(&ev) {
@@ -1403,7 +1432,7 @@ impl Inner {
             let sink: Arc<dyn CorrectionSink> = Arc::new(SessionSink(self.weak.clone()));
             if !corr.submit(job, sink, backlog) {
                 // skipped under load: the live text is final
-                self.apply_correction(stream, utt, None);
+                self.apply_correction(stream, utt, None, None, "skipped", None);
             }
         }
     }
@@ -1416,7 +1445,15 @@ impl Inner {
     }
 
     /// A corrected text for an already-final utterance (or `None`: keep the live text).
-    fn apply_correction(&self, stream: Stream, utt: UttId, result: Option<SttEvent>) {
+    fn apply_correction(
+        &self,
+        stream: Stream,
+        utt: UttId,
+        rev: Option<u32>,
+        lang: Option<String>,
+        reason: &str,
+        result: Option<SttEvent>,
+    ) {
         let mut out = Out::default();
         {
             let mut c = self.core();
@@ -1426,6 +1463,11 @@ impl Inner {
                 (Some(ev), Some(clock)) => c.transcript.apply(ev, &clock) != Applied::Stale,
                 _ => false,
             };
+            let rev = rev.or_else(|| orig.as_ref().map(|o| o.rev + 1)).unwrap_or(0);
+            tracing::info!(target: "lowk_session::lang", ?stream, utt, rev,
+                lang = lang.as_deref().unwrap_or("none"), lang_src = if lang.is_some() { "whisper" } else { "none" },
+                chosen = %c.allowed_langs.join(","), outside = language_outside(lang.as_deref(), &c.allowed_langs),
+                accepted = applied, reason = if result.is_some() && !applied { "stale" } else { reason }, "correction decision");
             if stream == Stream::Me {
                 if let Some(ev) = result.as_ref().filter(|_| applied) {
                     let qa = c.qa.correct(ev);
@@ -1642,5 +1684,17 @@ mod targeted_tests {
         let offset = ::time::UtcOffset::from_hms(3, 0, 0).unwrap();
         assert_eq!(default_title_at(wall_ms, false, offset), "Call 2026-11-03 21:23");
         assert_eq!(default_title_at(wall_ms, true, offset), "Demo 2026-11-03 21:23");
+    }
+}
+
+#[cfg(test)]
+mod language_measurement_tests {
+    use super::language_outside;
+    #[test]
+    fn outside_uses_only_known_languages() {
+        let chosen = vec!["ru".into(), "en".into()];
+        assert!(language_outside(Some("uk"), &chosen));
+        assert!(!language_outside(Some("en"), &chosen));
+        assert!(!language_outside(None, &chosen));
     }
 }

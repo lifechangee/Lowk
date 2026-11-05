@@ -137,6 +137,7 @@ fn s1_writer_never_stores_replacement_characters() {
             kind: SttKind::Final,
             text: "А, о\u{FFFD}кей. Расскажи ко\u{FFFD}".into(),
             lang: None,
+            lang_src: None,
             t_start_ns: 1_000_000_000,
             t_audio_end_ns: 2_000_000_000,
             t_emit_ns: 2_000_000_000,
@@ -186,6 +187,7 @@ fn s6_lines_are_ordered_by_audio_time_not_by_final_arrival() {
             kind: SttKind::Final,
             text: text.into(),
             lang: None,
+            lang_src: None,
             // audio time relative to the call start, on the shared monotonic clock
             t_start_ns: 5_000_000_000 + a * 1_000_000_000,
             t_audio_end_ns: 5_000_000_000 + b * 1_000_000_000,

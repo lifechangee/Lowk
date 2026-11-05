@@ -43,11 +43,77 @@ fn clean(s: &str) -> String {
         .join(" ")
 }
 
+// Match the locale pieces recognized by the pinned decoder; retain the last tag.
+fn parse_locale_tags(raw: &str) -> (String, Option<String>) {
+    let mut output = String::new();
+    let mut lang = None;
+    let mut rest = raw;
+    while let Some(start) = rest.find('<') {
+        output.push_str(&rest[..start]);
+        rest = &rest[start..];
+        let Some(end) = rest.find('>') else { break };
+        let tag = &rest[1..end];
+        let valid = tag.split_once('-').filter(|(l, r)| {
+            (2..=3).contains(&l.len())
+                && l.bytes().all(|b| b.is_ascii_lowercase())
+                && (2..=4).contains(&r.len())
+                && r.bytes().all(|b| b.is_ascii_alphabetic())
+        });
+        if let Some((l, _)) = valid {
+            lang = Some(l.to_owned());
+        } else {
+            output.push_str(&rest[..=end]);
+        }
+        rest = &rest[end + 1..];
+    }
+    output.push_str(rest);
+    (output, lang)
+}
+
 // The language/script policy is the very file the app uses (std only), so the two cannot drift.
 #[path = "../../../crates/lowk-types/src/langpolicy.rs"]
 #[allow(dead_code)]
 mod langpolicy;
 use langpolicy::strip_foreign;
+
+fn needs_language_rescue(tag: Option<&str>, allowed: &[String], forced: bool) -> bool {
+    !forced
+        && !allowed.is_empty()
+        && tag.is_some_and(|tag| !allowed.iter().any(|a| a == &langpolicy::primary(tag)))
+}
+
+// Only Latin and Cyrillic have a script preference; ties and other scripts use selection order.
+fn pick_rescue(original: &str, candidates: &[(String, String)], allowed: &[String]) -> Option<usize> {
+    let (mut latin, mut cyrillic, mut other) = (0, 0, 0);
+    for c in original.chars().filter(|c| c.is_alphabetic()) {
+        match c {
+            '\u{0041}'..='\u{005A}'
+            | '\u{0061}'..='\u{007A}'
+            | '\u{00C0}'..='\u{024F}'
+            | '\u{1E00}'..='\u{1EFF}' => latin += 1,
+            '\u{0400}'..='\u{052F}' | '\u{2DE0}'..='\u{2DFF}' | '\u{A640}'..='\u{A69F}' => cyrillic += 1,
+            _ => other += 1,
+        }
+    }
+    let script = if latin > cyrillic && latin > other {
+        Some(langpolicy::Script::Latin)
+    } else if cyrillic > latin && cyrillic > other {
+        Some(langpolicy::Script::Cyrillic)
+    } else {
+        None
+    };
+    let find = |matching_script: bool| {
+        allowed.iter().find_map(|language| {
+            if matching_script && !langpolicy::lang(language).is_some_and(|l| Some(l.script) == script) {
+                return None;
+            }
+            candidates
+                .iter()
+                .position(|(candidate, text)| candidate == language && !text.is_empty())
+        })
+    };
+    script.and_then(|_| find(true)).or_else(|| find(false))
+}
 
 fn foreign_count(s: &str, allowed: &[String]) -> usize {
     langpolicy::foreign_letter_count(s, allowed)
@@ -394,7 +460,40 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
         }
         stream.finalize()?;
         let mut t = clean(&stream.text().full);
+        // raw_text is available in the pinned binding even with filtering enabled, so the
+        // ordinary streaming text and its token projection stay exactly as before.
+        let (_, detected) = parse_locale_tags(&stream.snapshot().raw_text);
+        let mut detected = if let Some(forced) = run.language.as_deref() {
+            Some((forced.split('-').next().unwrap_or(forced).to_owned(), "forced"))
+        } else {
+            detected.map(|l| (l, "tag"))
+        };
         drop(stream);
+        // An untagged utterance keeps today's behaviour: only the foreign-letter guard applies.
+        if guard
+            && needs_language_rescue(
+                detected.as_ref().map(|(l, _)| l.as_str()),
+                &allowed,
+                run.language.is_some(),
+            )
+        {
+            let mut candidates = Vec::new();
+            for l in &rescue_langs {
+                let o = RunOptions {
+                    language: Some((*l).into()),
+                    ..Default::default()
+                };
+                if let Ok(mut s2) = asr_s.stream(&o, &so) {
+                    if kept.iter().all(|c| s2.feed(&c.pcm).is_ok()) && s2.finalize().is_ok() {
+                        candidates.push((langpolicy::primary(l), clean(&s2.text().full)));
+                    }
+                }
+            }
+            if let Some(index) = pick_rescue(&t, &candidates, &allowed) {
+                t = candidates[index].1.clone();
+                detected = Some((candidates[index].0.clone(), "rescue"));
+            }
+        }
         if guard && foreign_count(&t, &allowed) > 0 {
             // S3: drifted into letters outside the user's languages: decode the same audio again with each
             // allowed language's prompt and keep the cleanest text; whatever is still foreign is dropped.
@@ -411,6 +510,7 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
                         let n = foreign_count(&again, &allowed);
                         if !again.is_empty() && n < best.0 {
                             best = (n, again);
+                            detected = Some((l.split('-').next().unwrap_or(l).to_owned(), "rescue"));
                         }
                     }
                 }
@@ -425,8 +525,13 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
             t = strip_foreign(&t, &allowed);
         }
         if !t.is_empty() {
-            emit(json!({"ev":"stt","kind":"final","utt":utt,"rev":rev,"text":t,
-                        "t_start_ns":t_start,"t_audio_end_ns":t_end}));
+            let mut event = json!({"ev":"stt","kind":"final","utt":utt,"rev":rev,"text":t,
+                        "t_start_ns":t_start,"t_audio_end_ns":t_end});
+            if let Some((lang, source)) = detected {
+                event["lang"] = json!(lang);
+                event["lang_src"] = json!(source);
+            }
+            emit(event);
         }
         if stop_all {
             break 'outer;
@@ -557,6 +662,46 @@ mod tests {
         // en-only: Cyrillic is foreign, German umlauts are not wanted, Polish selected allows ł
         assert_eq!(foreign_count("Привет hello", &["en".into()]), 6);
         assert_eq!(foreign_count("Bułżą", &["pl".into(), "en".into()]), 0);
+    }
+
+    #[test]
+    fn untagged_utterance_is_not_rescued() {
+        let allowed = vec!["ru".into(), "en".into()];
+        assert!(!needs_language_rescue(None, &allowed, false));
+    }
+
+    #[test]
+    fn language_rescue_decisions() {
+        let allowed = vec!["ru".into(), "en".into()];
+        for tag in ["uk", "bg", "es", "pl"] {
+            assert!(needs_language_rescue(Some(tag), &allowed, false));
+            assert!(!needs_language_rescue(Some(tag), &allowed, true));
+            assert!(!needs_language_rescue(Some(tag), &[], false));
+        }
+        for tag in ["ru", "en"] {
+            assert!(!needs_language_rescue(Some(tag), &allowed, false));
+        }
+        let candidates = vec![("en".into(), "hello".into()), ("ru".into(), "text".into())];
+        assert_eq!(
+            pick_rescue(
+                "\u{043f}\u{0440}\u{0438}\u{0432}\u{0435}\u{0442}",
+                &candidates,
+                &allowed
+            ),
+            Some(1)
+        );
+        assert_eq!(pick_rescue("hello", &candidates, &allowed), Some(0));
+        assert_eq!(pick_rescue("123", &candidates, &allowed), Some(1));
+        assert_eq!(pick_rescue("hello", &[], &allowed), None);
+    }
+
+    #[test]
+    fn locale_tags_are_removed_and_last_language_is_used() {
+        assert_eq!(
+            parse_locale_tags("<ru-RU>hello <en-US>world"),
+            ("hello world".into(), Some("en".into()))
+        );
+        assert_eq!(parse_locale_tags("hello <unk>"), ("hello <unk>".into(), None));
     }
 
     #[test]
