@@ -5,6 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 async function openLive(page: Page, lang: 'ru' | 'en') {
   await page.goto(`/main.html?lang=${lang}#/`);
   await page.locator('.side .nc button.btn.primary').click();
+  await page.getByTestId('start-listen').click();
   await page.locator('.np button.btn.primary').click();
   await page.waitForSelector('.recpill');
   await page.locator('.recpill').getByRole('button', { name: lang === 'ru' ? 'Открыть' : 'Open' }).click();

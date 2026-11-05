@@ -7,6 +7,7 @@ const ACME = '01JC8Z3K6Q9X2M4N7R5T0V0001'; // folder fixture «Acme Corp»
 
 async function startCall(page: import('@playwright/test').Page) {
   await page.locator('.side .nc button.btn.primary').click();
+  await page.getByTestId('start-listen').click();
   await page.locator('.np button.btn.primary').click();
   await page.waitForSelector('.recpill');
 }

@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-test('hotkeys: the hold delay for single keys is a select of fixed steps, 1 s by default, and the choice is saved to the settings', async ({ page }) => {
+test('hotkeys: the hold delay for single keys is a select of fixed steps, 0.5 s by default, and the choice is saved to the settings', async ({ page }) => {
   await page.goto('/main.html?lang=en#/settings/hotkeys');
   const row = page.getByTestId('hold-delay');
   await expect(row).toContainText('Delay for single keys');
   await expect(row).toContainText('How long to hold Ctrl or Alt');
   const sel = row.getByRole('combobox', { name: 'Delay for single keys' });
-  await expect(sel).toHaveValue('1000');
+  await expect(sel).toHaveValue('500');
   await expect(sel.locator('option')).toHaveText(['At once', '0.5 s', '1 s', '1.5 s', '2 s']);
   await sel.selectOption('0');
   await expect(sel).toHaveValue('0');

@@ -59,6 +59,7 @@ test('G5 one «New call» button, always in the sidebar, always the same popover
   await expect(pop).toHaveCount(0);
 
   await trigger.click();
+  await pop.getByTestId('start-listen').click();
   await pop.getByRole('button', { name: /Start recording/ }).click();
   await expect(pop).toHaveCount(0);
   await page.waitForSelector('.recpill');
@@ -127,7 +128,7 @@ test('G6 holding Ctrl makes the overlay clickable (template menu opens) and rele
   await page.keyboard.down('Control');
   await expect(page.locator('.ov')).toHaveClass(/hover/);
   await expect(page.locator('.head .mode .lbl')).toHaveText('Clickable');
-  await page.locator('.tpl').click();
+  await page.getByRole('button', { name: 'Template', exact: true }).click();
   await expect(page.locator('.menu')).toBeVisible();
   await page.keyboard.up('Control');
   await expect(page.locator('.ov')).not.toHaveClass(/hover/);
