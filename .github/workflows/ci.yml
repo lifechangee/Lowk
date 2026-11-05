@@ -208,6 +208,9 @@ jobs:
       - run: pnpm --dir ui install --frozen-lockfile
       - run: pnpm --dir ui build
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      # The qa feature (live QA builds) is otherwise never compiled in CI.
+      - name: qa feature compiles
+        run: cargo clippy -p lowk-app --features qa --all-targets -- -D warnings
       - run: cargo test --workspace
       # Compile-check of the STT worker (ggml CPU build; Vulkan/CUDA stay optional features).
       - name: stt worker builds
