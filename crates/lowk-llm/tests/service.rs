@@ -463,3 +463,17 @@ fn short_call_is_one_request_with_trivial_progress() {
     assert_eq!(s.chat_requests().len(), 1);
     assert_eq!(p, [(1, 1)]);
 }
+
+#[test]
+fn readable_text_round_trip() {
+    let server = MockServer::scripted(vec![Reply::answer(&["[00:00:01] **Я:** Привет."])]);
+    let result = CloudLlm::new(cfg(&server))
+        .readable_text("[00:00:01] **Я:** ну привет")
+        .unwrap();
+    assert_eq!(result, "[00:00:01] **Я:** Привет.");
+    let request = server.chat_requests()[0].json();
+    assert!(request["messages"][0]["content"]
+        .as_str()
+        .unwrap()
+        .contains("Do not summarize, shorten, translate"));
+}

@@ -9,6 +9,34 @@ use lowk_types::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+// Keep the run registered through the save, serializing it with cancellation.
+fn readable_run(
+    runs: &parking_lot::Mutex<std::collections::HashMap<CallId, Arc<AtomicBool>>>,
+    id: CallId,
+    work: impl FnOnce(&AtomicBool) -> Result<String>,
+    save: impl FnOnce(&str) -> Result<()>,
+) -> Result<String> {
+    let cancel = Arc::new(AtomicBool::new(false));
+    {
+        let mut runs = runs.lock();
+        if runs.contains_key(&id) {
+            return Err(AppError::new(ErrorCode::SessionBusy).with_detail("readable text already running"));
+        }
+        runs.insert(id, cancel.clone());
+    }
+    let result = (|| {
+        let text = work(&cancel)?;
+        let _runs = runs.lock();
+        if cancel.load(Ordering::SeqCst) {
+            return Err(AppError::new(ErrorCode::LlmCancelled));
+        }
+        save(&text)?;
+        Ok(text)
+    })();
+    runs.lock().remove(&id);
+    result
+}
+
 impl Services {
     pub fn deepseek_models(&self) -> Result<Vec<String>> {
         let s = self.settings().llm;
@@ -151,6 +179,43 @@ impl Services {
         Ok(())
     }
 
+    pub fn readable_text(&self, id: CallId) -> Result<String> {
+        readable_run(
+            &self.readable_runs,
+            id,
+            |cancel| {
+                let (meta, input) = self.summarize_input(&id)?;
+                let route = self.summary_route(&meta)?;
+                CloudLlm::new(route.cfg).readable_text_with_progress(
+                    &input.transcript,
+                    &mut |step, total| {
+                        self.env.emit(AppEvent::Summary(SummaryEvent::ReadableProgress {
+                            call: id,
+                            step,
+                            total,
+                        }))
+                    },
+                    &|| !cancel.load(Ordering::SeqCst),
+                )
+            },
+            |text| {
+                self.vault.update_call(&id, |doc| doc.set_readable_text(text))?;
+                self.env.emit(AppEvent::Store(StoreChange {
+                    kind: StoreChangeKind::Updated,
+                    id,
+                    is_folder: false,
+                }));
+                Ok(())
+            },
+        )
+    }
+
+    pub fn readable_text_cancel(&self, id: &CallId) {
+        if let Some(f) = self.readable_runs.lock().get(id) {
+            f.store(true, Ordering::SeqCst);
+        }
+    }
+
     pub fn summarize_cancel(&self, id: &CallId) {
         if let Some(f) = self.summaries.lock().get(id) {
             f.store(true, Ordering::SeqCst);
@@ -205,5 +270,45 @@ impl Services {
                 }
             })
             .ok();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn readable_run_refuses_duplicate_and_cancelled_run_does_not_save() {
+        let runs = Arc::new(parking_lot::Mutex::new(std::collections::HashMap::new()));
+        let id = CallId::new();
+        let (started_tx, started_rx) = mpsc::channel();
+        let (resume_tx, resume_rx) = mpsc::channel();
+        let saved = Arc::new(AtomicBool::new(false));
+        let worker_runs = runs.clone();
+        let worker_saved = saved.clone();
+        let worker = std::thread::spawn(move || {
+            readable_run(
+                &worker_runs,
+                id,
+                |_| {
+                    started_tx.send(()).unwrap();
+                    resume_rx.recv().unwrap();
+                    Ok("result".into())
+                },
+                |_| {
+                    worker_saved.store(true, Ordering::SeqCst);
+                    Ok(())
+                },
+            )
+        });
+        started_rx.recv().unwrap();
+        let duplicate = readable_run(&runs, id, |_| panic!("duplicate started"), |_| Ok(()));
+        assert_eq!(duplicate.unwrap_err().code, ErrorCode::SessionBusy);
+        runs.lock().get(&id).unwrap().store(true, Ordering::SeqCst);
+        resume_tx.send(()).unwrap();
+        assert_eq!(worker.join().unwrap().unwrap_err().code, ErrorCode::LlmCancelled);
+        assert!(!saved.load(Ordering::SeqCst));
+        assert!(runs.lock().is_empty());
     }
 }

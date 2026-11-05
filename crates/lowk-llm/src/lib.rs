@@ -58,6 +58,20 @@ impl CloudLlm {
 }
 
 impl CloudLlm {
+    /// Normalize consecutive transcript chunks without reducing their content.
+    pub fn readable_text(&self, transcript: &str) -> Result<String> {
+        summary::readable_text(&self.client, transcript, &mut |_, _| {}, &|| true)
+    }
+
+    pub fn readable_text_with_progress(
+        &self,
+        transcript: &str,
+        on_progress: &mut dyn FnMut(u32, u32),
+        should_continue: &dyn Fn() -> bool,
+    ) -> Result<String> {
+        summary::readable_text(&self.client, transcript, on_progress, should_continue)
+    }
+
     /// Like `summarize`, plus `on_progress(step, total)` before each request of a long (map-reduce)
     /// summary; `total` is an estimate that may grow when extra merge levels are needed.
     pub fn summarize_with_progress(

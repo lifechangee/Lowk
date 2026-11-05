@@ -32,10 +32,11 @@ async function act(page: Page, a: string | undefined) {
   if (a === 'tpl-edit') { await page.locator('[data-tpl=complement] .main').click(); await page.waitForSelector('[data-testid=tpl-editor]'); }
   if (a === 'tpl-new') { await page.locator('.foot button.primary').click(); await page.locator('[data-testid=tpl-editor] button.primary').click(); await page.waitForSelector('[data-testid=tpl-editor] [role=alert]'); await page.waitForTimeout(600); }
   if (a === 'tpl-delete') { await page.locator('[data-tpl=objection] .main').click(); await page.locator('[data-testid=tpl-editor] button.danger').click(); await page.waitForSelector('.modal'); }
-  if (a === 'tab-summary') await page.getByRole('tab').nth(1).click();
-  if (a === 'tab-qa') await page.getByRole('tab').nth(2).click();
-  if (a === 'tab-shots') await page.getByRole('tab').nth(3).click();
-  if (a === 'tab-sources') await page.getByRole('tab').nth(4).click();
+  if (a === 'tab-readable') await page.getByRole('tab').nth(1).click();
+  if (a === 'tab-summary') await page.getByRole('tab').nth(2).click();
+  if (a === 'tab-qa') await page.getByRole('tab').nth(3).click();
+  if (a === 'tab-shots') await page.getByRole('tab').nth(4).click();
+  if (a === 'tab-sources') await page.getByRole('tab').nth(5).click();
   if (a === 'search') { await page.keyboard.press('Control+k'); await page.waitForSelector('.pal input'); }
   if (a.startsWith('palette-q:')) {
     await page.keyboard.press('Control+k');
@@ -71,9 +72,9 @@ async function act(page: Page, a: string | undefined) {
   if (a === 'doc-edit') { await page.getByRole('button', { name: /Edit|Править/ }).click(); await page.waitForSelector('.cm-editor, textarea.fb'); }
   if (a === 'call-menu') { await page.getByTestId('call-menu').click(); await page.waitForSelector('[role=menu]'); }
   if (a === 'call-props') { await page.getByTestId('call-menu').click(); await page.getByRole('menuitem').first().click(); await page.waitForSelector('[data-testid=call-props]'); }
-  if (a === 'summary-stream') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=md] ul'); await page.waitForTimeout(500); }
-  if (a === 'summary-done') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.getByRole('button', { name: /Refresh summary|Обновить саммари/ }).waitFor({ timeout: 15000 }); }
-  if (a === 'summary-error') { await page.getByRole('tab').nth(1).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=summary-error]'); }
+  if (a === 'summary-stream') { await page.getByRole('tab').nth(2).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=md] ul'); await page.waitForTimeout(500); }
+  if (a === 'summary-done') { await page.getByRole('tab').nth(2).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.getByRole('button', { name: /Refresh summary|Обновить саммари/ }).waitFor({ timeout: 15000 }); }
+  if (a === 'summary-error') { await page.getByRole('tab').nth(2).click(); await page.getByRole('button', { name: /Create summary|Создать саммари/ }).click(); await page.waitForSelector('[data-testid=summary-error]'); }
   if (a === 'embedder-install' || a === 'embedder-fail') {
     await page.getByRole('button', { name: /Download|Скачать/ }).click();
     await page.waitForSelector(a === 'embedder-install' ? '[data-testid=embedder-model] [role=progressbar]' : '[data-testid=embedder-model] [role=alert]');

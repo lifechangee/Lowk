@@ -754,3 +754,18 @@ fn tags_in_existing_files_are_kept_on_edit_and_never_added() {
     let after = fs::read_to_string(d.path().join(&v.read_call(&c.id).unwrap().meta.path)).unwrap();
     assert!(after.contains("tags: [sales, weekly]"), "{after}");
 }
+
+#[test]
+fn readable_text_survives_reopening_without_changing_transcript() {
+    let (dir, vault) = open();
+    let call = record(&vault, FolderRef::Unsorted);
+    let before = vault.read_call_doc(&call.id).unwrap().blocks().to_vec();
+    vault
+        .update_call(&call.id, |doc| doc.set_readable_text("[00:00:03] **Я:** Привет."))
+        .unwrap();
+    drop(vault);
+    let reopened = Vault::open(dir.path()).unwrap();
+    let doc = reopened.read_call_doc(&call.id).unwrap();
+    assert_eq!(doc.readable_text(), "[00:00:03] **Я:** Привет.");
+    assert_eq!(doc.blocks(), before);
+}
