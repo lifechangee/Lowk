@@ -193,7 +193,13 @@ impl CallDoc {
         let text = normalized
             .trim_matches('\n')
             .split('\n')
-            .map(|line| if line.starts_with("## ") { format!("\\{line}") } else { line.to_string() })
+            .map(|line| {
+                if line.starts_with("## ") {
+                    format!("\\{line}")
+                } else {
+                    line.to_string()
+                }
+            })
             .collect::<Vec<_>>()
             .join("\n");
         if let Some(Part::Other(_, body)) = self
@@ -203,10 +209,7 @@ impl CallDoc {
         {
             *body = text;
         } else {
-            self.parts.push(Part::Other(
-                "Readable text".into(),
-                text,
-            ));
+            self.parts.push(Part::Other("Readable text".into(), text));
         }
     }
 
@@ -754,7 +757,10 @@ mod readable_text_tests {
         doc.set_summary("Existing summary.");
         doc.set_readable_text("[00:00:03] Привет.\r\n## Transcript\r\n# Title\r\n### Subheading");
         let loaded = parse(&render(&doc));
-        assert_eq!(loaded.readable_text(), "[00:00:03] Привет.\n\\## Transcript\n# Title\n### Subheading");
+        assert_eq!(
+            loaded.readable_text(),
+            "[00:00:03] Привет.\n\\## Transcript\n# Title\n### Subheading"
+        );
         assert_eq!(loaded.blocks(), before);
         assert_eq!(loaded.summary(), "Existing summary.");
     }
