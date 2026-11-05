@@ -189,16 +189,23 @@ impl CallDoc {
     }
 
     pub fn set_readable_text(&mut self, text: &str) {
+        let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+        let text = normalized
+            .trim_matches('\n')
+            .split('\n')
+            .map(|line| if line.starts_with("## ") { format!("\\{line}") } else { line.to_string() })
+            .collect::<Vec<_>>()
+            .join("\n");
         if let Some(Part::Other(_, body)) = self
             .parts
             .iter_mut()
             .find(|p| matches!(p, Part::Other(h, _) if h == "Readable text"))
         {
-            *body = text.trim_matches('\n').to_string();
+            *body = text;
         } else {
             self.parts.push(Part::Other(
                 "Readable text".into(),
-                text.trim_matches('\n').to_string(),
+                text,
             ));
         }
     }
@@ -744,9 +751,11 @@ mod readable_text_tests {
             text: "ну привет".into(),
         });
         let before = doc.blocks().to_vec();
-        doc.set_readable_text("[00:00:03] **Я:** Привет.");
+        doc.set_summary("Existing summary.");
+        doc.set_readable_text("[00:00:03] Привет.\r\n## Transcript\r\n# Title\r\n### Subheading");
         let loaded = parse(&render(&doc));
-        assert_eq!(loaded.readable_text(), "[00:00:03] **Я:** Привет.");
+        assert_eq!(loaded.readable_text(), "[00:00:03] Привет.\n\\## Transcript\n# Title\n### Subheading");
         assert_eq!(loaded.blocks(), before);
+        assert_eq!(loaded.summary(), "Existing summary.");
     }
 }
