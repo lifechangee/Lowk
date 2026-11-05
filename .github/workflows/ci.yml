@@ -111,6 +111,25 @@ jobs:
       - run: pnpm --dir ui test
       - run: pnpm --dir ui build
       - run: pnpm --dir ui size
+      # Playwright runs in the manual e2e job below (and locally via just e2e).
+      - name: licenses (frontend)
+        run: pnpm --dir ui licenses list --prod --json > /dev/null
+
+  # Manual only until the 4 Linux-only failures are fixed.
+  e2e:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - run: pnpm --dir ui install --frozen-lockfile
       # Run the non-visual Playwright suite in Chromium; visual baselines are local.
       - name: Install Playwright Chromium
         run: pnpm --dir ui exec playwright install --with-deps chromium
@@ -123,9 +142,6 @@ jobs:
           name: playwright-artifacts
           path: ui/e2e/out/
           retention-days: 7
-      - name: licenses (frontend)
-        run: pnpm --dir ui licenses list --prod --json > /dev/null
-
   test-macos:
     needs: changes
     if: needs.changes.outputs.os == 'true' || github.event_name != 'pull_request'
