@@ -13,7 +13,7 @@ use block2::RcBlock;
 use lowk_types::{Rect, Result};
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObjectProtocol};
-use objc2::{define_class, msg_send, ClassType, MainThreadOnly};
+use objc2::{define_class, msg_send, sel, ClassType, MainThreadOnly};
 use objc2_app_kit::*;
 use objc2_foundation::{
     MainThreadMarker, NSArray, NSDictionary, NSNotification, NSOperationQueue, NSPoint, NSString,
@@ -90,6 +90,19 @@ fn primary_height() -> f64 {
         .unwrap_or(0.0)
 }
 
+/// Synchronize the WindowServer side of a panel converted after NSWindow initialization.
+fn prevent_panel_activation(w: &(impl NSObjectProtocol + objc2::Message)) -> bool {
+    if !w.respondsToSelector(sel!(_setPreventsActivation:)) {
+        tracing::warn!("overlay may activate the app on click: panel activation SPI unavailable");
+        return false;
+    }
+    // SAFETY: the receiver is an NSWindow (or the test double below), and this SPI takes BOOL.
+    unsafe {
+        let _: () = msg_send![w, _setPreventsActivation: true];
+    }
+    true
+}
+
 impl Win {
     fn panel(&self) -> &NSPanel {
         // SAFETY: only called after `prepare` swapped the class (stealth roles).
@@ -123,6 +136,13 @@ impl Win {
                 | NSWindowCollectionBehavior::FullScreenAuxiliary,
         );
         w.setStyleMask(w.styleMask() | NSWindowStyleMask::NonactivatingPanel);
+        // This window was initialized by Tao as an NSWindow, then class-swapped to NSPanel.
+        // NSPanel normally sets the WindowServer prevents-activation tag during initialization;
+        // setStyleMask does not update it (FB16484811). The mask alone therefore still lets a
+        // mouse-down activate Lowk and order its main window forward, even in mouse-only Hover.
+        // Synchronize the tag for ALL panel modes: a nonactivating panel can still become key
+        // for typing. This SPI is needed only for the runtime conversion, never for main.
+        prevent_panel_activation(&**w);
         let p = self.panel();
         p.setFloatingPanel(true);
         p.setHidesOnDeactivate(false);
@@ -327,5 +347,49 @@ pub fn install_observers(on_change: Arc<dyn Fn() + Send + Sync>) {
             &objc2_foundation::NSNotificationCenter::defaultCenter(),
             NSApplicationDidChangeScreenParametersNotification,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use objc2::{AnyThread, DefinedClass};
+    use objc2_foundation::NSObject;
+    use std::cell::Cell;
+
+    define_class!(
+        #[unsafe(super(NSObject))]
+        #[ivars = Cell<bool>]
+        struct ActivationProbe;
+
+        unsafe impl NSObjectProtocol for ActivationProbe {}
+
+        impl ActivationProbe {
+            #[unsafe(method(_setPreventsActivation:))]
+            fn set_prevents_activation(&self, prevents: bool) {
+                self.ivars().set(prevents);
+            }
+        }
+    );
+
+    // No NSApplication, NSWindow, event loop or permissions: exercise the actual SPI dispatch
+    // against an NSObject double. The style-mask readback alone cannot test this regression.
+    #[test]
+    fn converted_panel_explicitly_prevents_window_server_activation() {
+        let probe = ActivationProbe::alloc().set_ivars(Cell::new(false));
+        let probe: Retained<ActivationProbe> = unsafe { msg_send![super(probe), init] };
+        for _ in 0..2 {
+            assert!(prevent_panel_activation(&*probe));
+            assert!(
+                probe.ivars().get(),
+                "must send YES, independent of key eligibility"
+            );
+        }
+    }
+
+    #[test]
+    fn missing_activation_spi_is_a_noop() {
+        let object = NSObject::new();
+        assert!(!prevent_panel_activation(&*object));
     }
 }
