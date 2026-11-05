@@ -43,6 +43,7 @@ fn final_entry(sec: u64, text: &str) -> CallEntry {
             kind: SttKind::Final,
             text: text.into(),
             lang: Some("ru".into()),
+            lang_src: None,
             t_start_ns: ns,
             t_audio_end_ns: ns + 1_000_000_000,
             t_emit_ns: ns,

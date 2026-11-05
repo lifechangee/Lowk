@@ -293,6 +293,7 @@ mod tests {
             kind: SttKind::Final,
             text: text.into(),
             lang: None,
+            lang_src: None,
             t_start_ns: start_s * S,
             t_audio_end_ns: end_s * S,
             t_emit_ns: end_s * S,

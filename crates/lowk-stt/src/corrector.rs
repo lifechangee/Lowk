@@ -41,6 +41,18 @@ pub struct CorrectionJob {
 pub trait CorrectionSink: Send + Sync {
     /// `Some(final with rev + 1)` when the text changed, `None` when kept / failed.
     fn done(&self, stream: Stream, utt: UttId, result: Option<SttEvent>);
+    /// Report the language even when a correction is rejected.
+    fn decision(
+        &self,
+        stream: Stream,
+        utt: UttId,
+        _rev: u32,
+        _lang: Option<String>,
+        _reason: &'static str,
+        result: Option<SttEvent>,
+    ) {
+        self.done(stream, utt, result);
+    }
 }
 
 pub trait Corrector: Send + Sync {
@@ -256,6 +268,7 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
         let accepted = accept_correction(&q.job.original, &r.text, &q.job.allowed);
         let changed = accepted.is_some();
         let text = accepted.unwrap_or_default();
+        let detected_lang = r.lang.clone();
         let ev = changed.then(|| SttEvent {
             stream: q.job.stream,
             utt: q.job.utt,
@@ -263,6 +276,7 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
             kind: SttKind::Final,
             text,
             lang: r.lang,
+            lang_src: None,
             t_start_ns: q.job.t_start_ns,
             t_audio_end_ns: q.job.t_audio_end_ns,
             t_emit_ns: now_mono_ns(),
@@ -270,7 +284,15 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
         if changed {
             c.corrected.fetch_add(1, Ordering::Relaxed);
         }
-        finish(&q, ev);
+        c.pending.fetch_sub(1, Ordering::SeqCst);
+        q.sink.decision(
+            q.job.stream,
+            q.job.utt,
+            q.job.rev + 1,
+            detected_lang,
+            if changed { "accepted" } else { "rejected" },
+            ev,
+        );
     }
     if let Some((mut child, mut stdin, _)) = conn {
         let _ = stdin.write_all(&frame_bytes(KIND_CONTROL, br#"{"op":"stop"}"#));
@@ -363,6 +385,7 @@ impl Corrector for FakeCorrector {
                 kind: SttKind::Final,
                 text,
                 lang: None,
+                lang_src: None,
                 t_start_ns: job.t_start_ns,
                 t_audio_end_ns: job.t_audio_end_ns,
                 t_emit_ns: now_mono_ns(),

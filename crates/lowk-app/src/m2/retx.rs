@@ -476,6 +476,7 @@ mod tests {
                 kind: SttKind::Final,
                 text: "живой текст".into(),
                 lang: None,
+                lang_src: None,
                 t_start_ns: 2_000_000_000,
                 t_audio_end_ns: 4_000_000_000,
                 t_emit_ns: 0,

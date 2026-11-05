@@ -330,6 +330,7 @@ mod tests {
                     kind: SttKind::Final,
                     text: text.into(),
                     lang: None,
+                    lang_src: None,
                     t_start_ns: at * 1_000_000_000,
                     t_audio_end_ns: at * 1_000_000_000 + 1_000_000_000,
                     t_emit_ns: 0,

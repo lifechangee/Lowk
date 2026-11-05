@@ -119,6 +119,7 @@ impl Parser {
             kind,
             text,
             lang: self.lang.clone(),
+            lang_src: None,
             t_start_ns: self.t_start.unwrap_or(self.t_end),
             t_audio_end_ns: self.t_end.max(self.t_start.unwrap_or(0)),
             t_emit_ns: now,

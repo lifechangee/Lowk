@@ -192,6 +192,7 @@ fn events_roundtrip_and_names() {
         kind: SttKind::Partial,
         text: "А что значит EBITDA?".into(),
         lang: Some("ru".into()),
+        lang_src: None,
         t_start_ns: 1,
         t_audio_end_ns: 2,
         t_emit_ns: 3,

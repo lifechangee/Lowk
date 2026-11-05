@@ -43,6 +43,33 @@ fn clean(s: &str) -> String {
         .join(" ")
 }
 
+// Match the locale pieces recognized by the pinned decoder; retain the last tag.
+fn parse_locale_tags(raw: &str) -> (String, Option<String>) {
+    let mut output = String::new();
+    let mut lang = None;
+    let mut rest = raw;
+    while let Some(start) = rest.find('<') {
+        output.push_str(&rest[..start]);
+        rest = &rest[start..];
+        let Some(end) = rest.find('>') else { break };
+        let tag = &rest[1..end];
+        let valid = tag.split_once('-').filter(|(l, r)| {
+            (2..=3).contains(&l.len())
+                && l.bytes().all(|b| b.is_ascii_lowercase())
+                && (2..=4).contains(&r.len())
+                && r.bytes().all(|b| b.is_ascii_alphabetic())
+        });
+        if let Some((l, _)) = valid {
+            lang = Some(l.to_owned());
+        } else {
+            output.push_str(&rest[..=end]);
+        }
+        rest = &rest[end + 1..];
+    }
+    output.push_str(rest);
+    (output, lang)
+}
+
 // The language/script policy is the very file the app uses (std only), so the two cannot drift.
 #[path = "../../../crates/lowk-types/src/langpolicy.rs"]
 #[allow(dead_code)]
@@ -394,6 +421,14 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
         }
         stream.finalize()?;
         let mut t = clean(&stream.text().full);
+        // raw_text is available in the pinned binding even with filtering enabled, so the
+        // ordinary streaming text and its token projection stay exactly as before.
+        let (_, detected) = parse_locale_tags(&stream.snapshot().raw_text);
+        let mut detected = if let Some(forced) = run.language.as_deref() {
+            Some((forced.split('-').next().unwrap_or(forced).to_owned(), "forced"))
+        } else {
+            detected.map(|l| (l, "tag"))
+        };
         drop(stream);
         if guard && foreign_count(&t, &allowed) > 0 {
             // S3: drifted into letters outside the user's languages: decode the same audio again with each
@@ -411,6 +446,7 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
                         let n = foreign_count(&again, &allowed);
                         if !again.is_empty() && n < best.0 {
                             best = (n, again);
+                            detected = Some((l.split('-').next().unwrap_or(l).to_owned(), "rescue"));
                         }
                     }
                 }
@@ -425,8 +461,13 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
             t = strip_foreign(&t, &allowed);
         }
         if !t.is_empty() {
-            emit(json!({"ev":"stt","kind":"final","utt":utt,"rev":rev,"text":t,
-                        "t_start_ns":t_start,"t_audio_end_ns":t_end}));
+            let mut event = json!({"ev":"stt","kind":"final","utt":utt,"rev":rev,"text":t,
+                        "t_start_ns":t_start,"t_audio_end_ns":t_end});
+            if let Some((lang, source)) = detected {
+                event["lang"] = json!(lang);
+                event["lang_src"] = json!(source);
+            }
+            emit(event);
         }
         if stop_all {
             break 'outer;
@@ -557,6 +598,15 @@ mod tests {
         // en-only: Cyrillic is foreign, German umlauts are not wanted, Polish selected allows ł
         assert_eq!(foreign_count("Привет hello", &["en".into()]), 6);
         assert_eq!(foreign_count("Bułżą", &["pl".into(), "en".into()]), 0);
+    }
+
+    #[test]
+    fn locale_tags_are_removed_and_last_language_is_used() {
+        assert_eq!(
+            parse_locale_tags("<ru-RU>hello <en-US>world"),
+            ("hello world".into(), Some("en".into()))
+        );
+        assert_eq!(parse_locale_tags("hello <unk>"), ("hello <unk>".into(), None));
     }
 
     #[test]
