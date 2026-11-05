@@ -76,6 +76,45 @@ fn parse_locale_tags(raw: &str) -> (String, Option<String>) {
 mod langpolicy;
 use langpolicy::strip_foreign;
 
+fn needs_language_rescue(tag: Option<&str>, allowed: &[String], forced: bool) -> bool {
+    !forced
+        && !allowed.is_empty()
+        && tag.is_some_and(|tag| !allowed.iter().any(|a| a == &langpolicy::primary(tag)))
+}
+
+// Only Latin and Cyrillic have a script preference; ties and other scripts use selection order.
+fn pick_rescue(original: &str, candidates: &[(String, String)], allowed: &[String]) -> Option<usize> {
+    let (mut latin, mut cyrillic, mut other) = (0, 0, 0);
+    for c in original.chars().filter(|c| c.is_alphabetic()) {
+        match c {
+            '\u{0041}'..='\u{005A}'
+            | '\u{0061}'..='\u{007A}'
+            | '\u{00C0}'..='\u{024F}'
+            | '\u{1E00}'..='\u{1EFF}' => latin += 1,
+            '\u{0400}'..='\u{052F}' | '\u{2DE0}'..='\u{2DFF}' | '\u{A640}'..='\u{A69F}' => cyrillic += 1,
+            _ => other += 1,
+        }
+    }
+    let script = if latin > cyrillic && latin > other {
+        Some(langpolicy::Script::Latin)
+    } else if cyrillic > latin && cyrillic > other {
+        Some(langpolicy::Script::Cyrillic)
+    } else {
+        None
+    };
+    let find = |matching_script: bool| {
+        allowed.iter().find_map(|language| {
+            if matching_script && !langpolicy::lang(language).is_some_and(|l| Some(l.script) == script) {
+                return None;
+            }
+            candidates
+                .iter()
+                .position(|(candidate, text)| candidate == language && !text.is_empty())
+        })
+    };
+    script.and_then(|_| find(true)).or_else(|| find(false))
+}
+
 fn foreign_count(s: &str, allowed: &[String]) -> usize {
     langpolicy::foreign_letter_count(s, allowed)
 }
@@ -430,6 +469,30 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
             detected.map(|l| (l, "tag"))
         };
         drop(stream);
+        if guard
+            && needs_language_rescue(
+                detected.as_ref().map(|(l, _)| l.as_str()),
+                &allowed,
+                run.language.is_some(),
+            )
+        {
+            let mut candidates = Vec::new();
+            for l in &rescue_langs {
+                let o = RunOptions {
+                    language: Some((*l).into()),
+                    ..Default::default()
+                };
+                if let Ok(mut s2) = asr_s.stream(&o, &so) {
+                    if kept.iter().all(|c| s2.feed(&c.pcm).is_ok()) && s2.finalize().is_ok() {
+                        candidates.push((langpolicy::primary(l), clean(&s2.text().full)));
+                    }
+                }
+            }
+            if let Some(index) = pick_rescue(&t, &candidates, &allowed) {
+                t = candidates[index].1.clone();
+                detected = Some((candidates[index].0.clone(), "rescue"));
+            }
+        }
         if guard && foreign_count(&t, &allowed) > 0 {
             // S3: drifted into letters outside the user's languages: decode the same audio again with each
             // allowed language's prompt and keep the cleanest text; whatever is still foreign is dropped.
@@ -598,6 +661,32 @@ mod tests {
         // en-only: Cyrillic is foreign, German umlauts are not wanted, Polish selected allows ł
         assert_eq!(foreign_count("Привет hello", &["en".into()]), 6);
         assert_eq!(foreign_count("Bułżą", &["pl".into(), "en".into()]), 0);
+    }
+
+    #[test]
+    fn language_rescue_decisions() {
+        let allowed = vec!["ru".into(), "en".into()];
+        for tag in ["uk", "bg", "es", "pl"] {
+            assert!(needs_language_rescue(Some(tag), &allowed, false));
+            assert!(!needs_language_rescue(Some(tag), &allowed, true));
+            assert!(!needs_language_rescue(Some(tag), &[], false));
+        }
+        for tag in ["ru", "en"] {
+            assert!(!needs_language_rescue(Some(tag), &allowed, false));
+        }
+        assert!(!needs_language_rescue(None, &allowed, false));
+        let candidates = vec![("en".into(), "hello".into()), ("ru".into(), "text".into())];
+        assert_eq!(
+            pick_rescue(
+                "\u{043f}\u{0440}\u{0438}\u{0432}\u{0435}\u{0442}",
+                &candidates,
+                &allowed
+            ),
+            Some(1)
+        );
+        assert_eq!(pick_rescue("hello", &candidates, &allowed), Some(0));
+        assert_eq!(pick_rescue("123", &candidates, &allowed), Some(1));
+        assert_eq!(pick_rescue("hello", &[], &allowed), None);
     }
 
     #[test]

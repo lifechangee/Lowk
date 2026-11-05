@@ -82,6 +82,28 @@ pub fn accept_correction(original: &str, raw: &str, allowed: &[String]) -> Optio
     ok.then_some(text)
 }
 
+fn correction_decision(
+    original: &str,
+    raw: &str,
+    allowed: &[String],
+    lang: Option<&str>,
+) -> (Option<String>, &'static str) {
+    if !allowed.is_empty()
+        && lang
+            .filter(|l| !l.trim().is_empty())
+            .is_some_and(|l| !allowed.iter().any(|a| a == &lowk_types::langpolicy::primary(l)))
+    {
+        return (None, "lang_outside");
+    }
+    let accepted = accept_correction(original, raw, allowed);
+    let reason = if accepted.is_some() {
+        "accepted"
+    } else {
+        "rejected"
+    };
+    (accepted, reason)
+}
+
 /// Rejects hallucinated / truncated Whisper output.
 pub fn plausible(original: &str, new: &str) -> bool {
     let (o, n) = (original.trim().chars().count(), new.trim().chars().count());
@@ -265,7 +287,8 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
             .record(q.at.elapsed().as_millis().min(u32::MAX as u128) as u32);
         // S1: a Whisper token boundary inside a multi-byte letter leaves «�»: such a text is
         // damaged, keep the live one instead of storing it.
-        let accepted = accept_correction(&q.job.original, &r.text, &q.job.allowed);
+        let (accepted, reason) =
+            correction_decision(&q.job.original, &r.text, &q.job.allowed, r.lang.as_deref());
         let changed = accepted.is_some();
         let text = accepted.unwrap_or_default();
         let detected_lang = r.lang.clone();
@@ -285,14 +308,8 @@ fn run_loop(spec: SidecarSpec, rx: Receiver<Option<Queued>>, c: Arc<Counters>) {
             c.corrected.fetch_add(1, Ordering::Relaxed);
         }
         c.pending.fetch_sub(1, Ordering::SeqCst);
-        q.sink.decision(
-            q.job.stream,
-            q.job.utt,
-            q.job.rev + 1,
-            detected_lang,
-            if changed { "accepted" } else { "rejected" },
-            ev,
-        );
+        q.sink
+            .decision(q.job.stream, q.job.utt, q.job.rev + 1, detected_lang, reason, ev);
     }
     if let Some((mut child, mut stdin, _)) = conn {
         let _ = stdin.write_all(&frame_bytes(KIND_CONTROL, br#"{"op":"stop"}"#));
@@ -450,6 +467,29 @@ mod tests {
         };
         assert!(!c.submit(job, Arc::new(S), 0));
         assert_eq!(c.stats().1, 1);
+    }
+
+    #[test]
+    fn correction_detected_language_must_be_allowed() {
+        let ru_en = vec!["ru".into(), "en".into()];
+        let ru_uk = vec!["ru".into(), "uk".into()];
+        let (original, correction) = ("hello world", "Hello world.");
+        assert_eq!(
+            correction_decision(original, correction, &ru_en, Some("uk")),
+            (None, "lang_outside")
+        );
+        assert_eq!(
+            correction_decision(original, correction, &ru_uk, Some("uk")).1,
+            "accepted"
+        );
+        assert_eq!(
+            correction_decision(original, correction, &ru_en, None).0,
+            accept_correction(original, correction, &ru_en)
+        );
+        assert_eq!(
+            correction_decision(original, correction, &[], Some("uk")).1,
+            "accepted"
+        );
     }
 
     #[test]
