@@ -16,6 +16,6 @@ export interface KeyLabels {
 
 export function keyLabels(isMac: boolean): KeyLabels {
   return isMac
-    ? { mark: '⌘⇧M', recap: '', interactive: '⌘⇧I', ask: '⌘↵', complement: '⌘⇧↵', shot: '⌘⇧S', move: '⌥', click: '⌃', record: '⌘⇧R' }
-    : { mark: 'Ctrl+Shift+M', recap: '', interactive: 'Ctrl+Shift+I', ask: 'Ctrl+Enter', complement: 'Ctrl+Shift+Enter', shot: 'Ctrl+Shift+S', move: 'Alt', click: 'Ctrl', record: 'Ctrl+Shift+R' };
+    ? { mark: '⌘⇧B', recap: '', interactive: '⌘⇧I', ask: '⌘↵', complement: '⌘⇧↵', shot: '⌘⇧S', move: '⌥', click: '⌃', record: '⌘⇧R' }
+    : { mark: 'Ctrl+Shift+B', recap: '', interactive: 'Ctrl+Shift+I', ask: 'Ctrl+Enter', complement: 'Ctrl+Shift+Enter', shot: 'Ctrl+Shift+S', move: 'Alt', click: 'Ctrl', record: 'Ctrl+Shift+R' };
 }

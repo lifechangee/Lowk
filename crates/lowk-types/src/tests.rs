@@ -66,6 +66,14 @@ fn default_binds_per_os() {
     assert_eq!(mac.len(), 10);
     assert!(mac.iter().all(|b| b.action != ActionId::CopyAnswer));
     assert!(win.iter().all(|b| b.action != ActionId::CopyAnswer));
+    for (binds, mods) in [(&mac, Mods::META_SHIFT), (&win, Mods::CTRL_SHIFT)] {
+        let mark = Trigger::Combo {
+            mods,
+            key: KeyCode::new("KeyB"),
+        };
+        assert_eq!(find(binds, ActionId::MarkMoment), mark);
+        assert_eq!(binds.iter().filter(|b| b.trigger == mark).count(), 1);
+    }
     assert_eq!(
         find(&mac, ActionId::AskBrief),
         Trigger::Combo {
@@ -730,22 +738,40 @@ fn the_startup_offset_is_shared_once_recorded() {
 
 #[test]
 fn mark_moment_default_migrates_only_when_free() {
-    let mut s = Settings::defaults_for(Os::Macos);
-    let default = s
-        .binds
-        .iter()
-        .find(|b| b.action == ActionId::MarkMoment)
-        .unwrap()
-        .clone();
-    s.binds.retain(|b| b.action != ActionId::MarkMoment);
-    assert!(s.migrate_binds(Os::Macos));
-    assert!(s
-        .binds
-        .iter()
-        .any(|b| b.action == ActionId::MarkMoment && b.trigger == default.trigger));
-    s.binds.retain(|b| b.action != ActionId::MarkMoment);
-    s.binds[0].trigger = default.trigger;
-    let before = s.binds.clone();
-    assert!(!s.migrate_binds(Os::Macos));
-    assert_eq!(s.binds, before);
+    for (os, mods) in [(Os::Macos, Mods::META_SHIFT), (Os::Windows, Mods::CTRL_SHIFT)] {
+        let mut s = Settings::defaults_for(os);
+        let expected = Trigger::Combo {
+            mods,
+            key: KeyCode::new("KeyB"),
+        };
+        let mark = s
+            .binds
+            .iter_mut()
+            .find(|b| b.action == ActionId::MarkMoment)
+            .unwrap();
+        assert_eq!(mark.trigger, expected);
+        // Already saved bindings, including the previous default, are preserved.
+        mark.trigger = Trigger::Combo {
+            mods,
+            key: KeyCode::new("KeyM"),
+        };
+        assert!(!s.migrate_binds(os));
+        assert!(s.binds.iter().any(|b| b.action == ActionId::MarkMoment
+            && b.trigger
+                == Trigger::Combo {
+                    mods,
+                    key: KeyCode::new("KeyM")
+                }));
+        s.binds.retain(|b| b.action != ActionId::MarkMoment);
+        assert!(s.migrate_binds(os));
+        assert!(s
+            .binds
+            .iter()
+            .any(|b| b.action == ActionId::MarkMoment && b.trigger == expected));
+        s.binds.retain(|b| b.action != ActionId::MarkMoment);
+        s.binds[0].trigger = expected;
+        let before = s.binds.clone();
+        assert!(!s.migrate_binds(os));
+        assert_eq!(s.binds, before);
+    }
 }

@@ -857,7 +857,7 @@ pub fn default_binds(os: Os) -> Vec<BindSpec> {
         combo(ActionId::ToggleOverlay, primary, "Backslash"),
         // F7: PanicHide is deliberately NOT bound by default (action stays, assignable in settings).
         combo(ActionId::ToggleRecord, primary_shift, "KeyR"),
-        combo(ActionId::MarkMoment, primary_shift, "KeyM"),
+        combo(ActionId::MarkMoment, primary_shift, "KeyB"),
         BindSpec {
             action: ActionId::MoveHold,
             trigger: Trigger::ModifierOnly { mods: Mods::ALT },
