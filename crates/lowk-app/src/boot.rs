@@ -237,8 +237,8 @@ pub fn setup(app: &mut App) -> std::result::Result<(), BoxErr> {
     state.heal_engine_setting();
     crate::indicator::recompute(&state.app, SessionPhase::Idle, state.engine_ready());
     // The tray is how a user sees and quits a background Lowk, but the app must start without it.
-    #[cfg(windows)]
-    if let Err(e) = crate::tray_win::setup(app, state.clone()) {
+    #[cfg(any(windows, target_os = "macos"))]
+    if let Err(e) = crate::tray::setup(app, state.clone()) {
         tracing::error!(%e, "tray icon could not be created");
     }
     log_startup_facts(&state);

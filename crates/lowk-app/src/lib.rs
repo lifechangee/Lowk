@@ -23,8 +23,8 @@ mod qa;
 mod sigterm;
 pub mod soak;
 mod state;
-#[cfg(windows)]
-mod tray_win;
+#[cfg(any(windows, target_os = "macos"))]
+mod tray;
 pub mod updater;
 mod visibility;
 mod windows;
