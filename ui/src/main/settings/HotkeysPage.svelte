@@ -11,11 +11,11 @@
   let more = $state(false);
 
   // Hold delay for modifier-only binds (hold Ctrl / Alt): fixed steps, the backend clamps to 0..=3000 ms.
-  const HOLD_STEPS = [0, 500, 1000, 1500, 2000] as const;
+  const HOLD_STEPS = [0, 250, 500, 1000, 1500, 2000] as const;
   const holdLabel = (ms: number) => (ms === 0 ? tm('m.holdDelay.now') : tm('m.holdDelay.sec', { n: (ms / 1000).toLocaleString(locale.lang) }));
   const holdOptions = $derived(HOLD_STEPS.map((ms) => ({ value: String(ms), label: holdLabel(ms) })));
   const holdValue = $derived.by(() => {
-    const v = prefs.value.hold_delay_ms ?? 500;
+    const v = prefs.value.hold_delay_ms ?? 250;
     // a hand-edited settings.toml value shows as the nearest step
     return String(HOLD_STEPS.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a)));
   });

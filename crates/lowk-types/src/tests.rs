@@ -38,7 +38,7 @@ fn settings_defaults_reflect_brief() {
     assert!(!s.llm.reasoning);
     assert_eq!(s.stt.languages, vec!["ru", "en"]);
     assert_eq!(s.templates[0].id, "brief");
-    assert_eq!(s.hold_delay_ms, 500);
+    assert_eq!(s.hold_delay_ms, 250);
     assert!(s.templates[1].needs_my_answer);
     assert_eq!(s.llm.default_template, s.templates[0].id);
     assert!(!s.onboarding.recording_notice_ack);
@@ -49,7 +49,7 @@ fn settings_missing_hold_delay_uses_default_for_legacy_file() {
     // Settings uses serde(default), so this is the same missing-field behavior as a TOML settings file.
     let value = serde_json::json!({});
     let s: Settings = serde_json::from_value(value).unwrap();
-    assert_eq!(s.hold_delay_ms, 500);
+    assert_eq!(s.hold_delay_ms, 250);
 }
 
 #[test]

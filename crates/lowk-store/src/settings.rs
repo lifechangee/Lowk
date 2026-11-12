@@ -57,6 +57,15 @@ fn keep_unknown(typed: &mut Value, raw: &Value) {
     }
 }
 
+fn migrate_hold_delay(settings: &mut Settings) -> bool {
+    if settings.schema_version < 3 && settings.hold_delay_ms == 500 {
+        settings.hold_delay_ms = 250;
+        true
+    } else {
+        false
+    }
+}
+
 impl FileSettingsStore {
     /// Open `<config_dir>/settings.toml`; a missing file yields defaults (and is
     /// written with the built-in templates), a corrupt one is backed up to
@@ -84,6 +93,7 @@ impl FileSettingsStore {
         let mut settings = settings;
         let migrated = visibility_migrated || (!fresh && settings.migrate_binds(Os::current()));
         let migrated = (!fresh && settings.migrate_templates()) || migrated;
+        let migrated = (!fresh && migrate_hold_delay(&mut settings)) || migrated;
         if fresh {
             settings.templates = TemplateSet::defaults().into_vec();
         }
@@ -182,13 +192,18 @@ impl FileSettingsStore {
         *self.raw.lock() = raw;
         // S2: an externally restored old file (swapped screenshot binds) is repaired like on open.
         let migrated = visibility_migrated || s.migrate_binds(Os::current());
+        let migrated = migrate_hold_delay(&mut s) || migrated;
+        let old_schema = s.schema_version < SETTINGS_SCHEMA_VERSION;
+        if old_schema {
+            s.schema_version = SETTINGS_SCHEMA_VERSION;
+        }
         let changed = {
             let mut cur = self.cur.lock();
             let changed = *cur != s;
             *cur = s.clone();
             changed
         };
-        if migrated || parse_warning.is_some() {
+        if migrated || old_schema || parse_warning.is_some() {
             self.write()?;
         }
         if changed {

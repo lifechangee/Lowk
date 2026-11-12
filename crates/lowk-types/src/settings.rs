@@ -11,7 +11,7 @@ use specta::Type;
 use std::collections::BTreeMap;
 
 /// 2: `Template.reasoning` became tri-state (`None` = follow the global setting).
-pub const SETTINGS_SCHEMA_VERSION: u32 = 2;
+pub const SETTINGS_SCHEMA_VERSION: u32 = 3;
 /// Symbolic default; `lowk-platform` resolves `~/Documents` (Windows: known folder).
 pub const DEFAULT_VAULT_PATH: &str = "~/Documents/Lowk";
 /// Live answers use the version-pinned snapshot too (BRIEF, bench 2026-10-21: 1.2 s TTFT p50). The plain
@@ -80,7 +80,7 @@ impl Settings {
             overlay: OverlaySettings::default(),
             capture: CaptureSettings::default(),
             binds: default_binds(os),
-            hold_delay_ms: 500,
+            hold_delay_ms: 250,
             stealth: StealthSettings::default(),
             updates: UpdateSettings::default(),
             network: NetworkSettings::default(),
