@@ -82,6 +82,51 @@ fn needs_language_rescue(tag: Option<&str>, allowed: &[String], forced: bool) ->
         && tag.is_some_and(|tag| !allowed.iter().any(|a| a == &langpolicy::primary(tag)))
 }
 
+const RESCUE_MAX_DIST: f64 = 0.30;
+
+// Compare lowercase characters after removing punctuation and collapsing whitespace.
+fn normalized_distance(original: &str, candidate: &str) -> f64 {
+    fn normalize(s: &str) -> Vec<char> {
+        let mut result = Vec::new();
+        let mut space = false;
+        for c in s.chars().flat_map(char::to_lowercase) {
+            if c.is_whitespace() {
+                space = !result.is_empty();
+            } else if !(c.is_ascii_punctuation()
+                || matches!(c, '\u{2000}'..='\u{206f}' | '\u{2e00}'..='\u{2e7f}' | '\u{3001}'..='\u{303f}' | '\u{fe10}'..='\u{fe1f}' | '\u{fe30}'..='\u{fe4f}' | '\u{ff01}'..='\u{ff0f}' | '\u{ff1a}'..='\u{ff20}' | '\u{ff3b}'..='\u{ff40}' | '\u{ff5b}'..='\u{ff65}'))
+            {
+                if space {
+                    result.push(' ');
+                    space = false;
+                }
+                result.push(c);
+            }
+        }
+        result
+    }
+    let a = normalize(original);
+    let b = normalize(candidate);
+    let max_len = a.len().max(b.len());
+    if max_len == 0 {
+        return 0.0;
+    }
+    let mut previous: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.iter().enumerate() {
+        let mut current = vec![i + 1; b.len() + 1];
+        for (j, cb) in b.iter().enumerate() {
+            current[j + 1] = (previous[j + 1] + 1)
+                .min(current[j] + 1)
+                .min(previous[j] + usize::from(ca != cb));
+        }
+        previous = current;
+    }
+    previous[b.len()] as f64 / max_len as f64
+}
+
+fn use_rescue_candidate(original: &str, candidate: &str, allowed: &[String]) -> bool {
+    foreign_count(original, allowed) > 0 || normalized_distance(original, candidate) <= RESCUE_MAX_DIST
+}
+
 // Only Latin and Cyrillic have a script preference; ties and other scripts use selection order.
 fn pick_rescue(original: &str, candidates: &[(String, String)], allowed: &[String]) -> Option<usize> {
     let (mut latin, mut cyrillic, mut other) = (0, 0, 0);
@@ -490,8 +535,21 @@ fn run_stream(a: &[String]) -> Result<(), BoxErr> {
                 }
             }
             if let Some(index) = pick_rescue(&t, &candidates, &allowed) {
-                t = candidates[index].1.clone();
-                detected = Some((candidates[index].0.clone(), "rescue"));
+                let (lang, candidate) = &candidates[index];
+                let keep_candidate = use_rescue_candidate(&t, candidate, &allowed);
+                eprintln!(
+                    "[rescue] distance={:.3} kept={} lang={}",
+                    normalized_distance(&t, candidate),
+                    if keep_candidate { "candidate" } else { "original" },
+                    lang
+                );
+                let source = if keep_candidate {
+                    t = candidate.clone();
+                    "rescue"
+                } else {
+                    "rescue_tag"
+                };
+                detected = Some((lang.clone(), source));
             }
         }
         if guard && foreign_count(&t, &allowed) > 0 {
@@ -693,6 +751,28 @@ mod tests {
         assert_eq!(pick_rescue("hello", &candidates, &allowed), Some(0));
         assert_eq!(pick_rescue("123", &candidates, &allowed), Some(1));
         assert_eq!(pick_rescue("hello", &[], &allowed), None);
+    }
+
+    #[test]
+    fn rescue_candidate_distance_guard() {
+        let allowed = vec!["en".into()];
+        assert!(use_rescue_candidate("hello world", "hello worlds", &allowed));
+        assert!(!use_rescue_candidate("hello world", "different words", &allowed));
+        assert!(use_rescue_candidate(
+            "\u{043f}\u{0440}\u{0438}\u{0432}\u{0435}\u{0442}",
+            "different words",
+            &allowed
+        ));
+        assert_eq!(normalized_distance("abcdefghij", "abcxyzghij"), 0.30);
+        assert!(use_rescue_candidate("abcdefghij", "abcxyzghij", &allowed));
+        assert_eq!(normalized_distance("Hello,   WORLD!", "hello world"), 0.0);
+        assert_eq!(normalized_distance("", ""), 0.0);
+        assert_eq!(normalized_distance("!!!", " "), 0.0);
+        assert_eq!(normalized_distance("hello", ""), 1.0);
+        assert_eq!(normalized_distance("", "hello"), 1.0);
+        assert!(use_rescue_candidate("", "", &allowed));
+        assert!(!use_rescue_candidate("hello", "", &allowed));
+        assert!(!use_rescue_candidate("", "hello", &allowed));
     }
 
     #[test]
