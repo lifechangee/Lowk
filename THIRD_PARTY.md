@@ -335,7 +335,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | libdbus-sys | 0.2.7 | Apache-2.0/MIT | <https://github.com/diwic/dbus-rs> |
 | libloading | 0.7.4 | ISC | <https://github.com/nagisa/rust_libloading/> |
 | libredox | 0.1.25 | MIT | <https://gitlab.redox-os.org/redox-os/libredox.git> |
-| libsqlite3-sys | 0.38.2 | MIT | <https://github.com/rusqlite/rusqlite> |
+| libsqlite3-sys | 0.39.1 | MIT | <https://github.com/rusqlite/rusqlite> |
 | linux-raw-sys | 0.12.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | <https://github.com/sunfishcode/linux-raw-sys> |
 | litemap | 0.8.3 | Unicode-3.0 | <https://github.com/unicode-org/icu4x> |
 | lock_api | 0.4.14 | MIT OR Apache-2.0 | <https://github.com/Amanieu/parking_lot> |
@@ -477,7 +477,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | ringbuf | 0.5.3 | MIT OR Apache-2.0 | <https://github.com/agerasev/ringbuf.git> |
 | rsqlite-vfs | 0.1.1 | MIT | - |
 | rubato | 5.0.1 | MIT OR Apache-2.0 | <https://github.com/HEnquist/rubato> |
-| rusqlite | 0.40.2 | MIT | <https://github.com/rusqlite/rusqlite> |
+| rusqlite | 0.41.1 | MIT | <https://github.com/rusqlite/rusqlite> |
 | rust-stemmers | 1.2.0 | MIT/BSD-3-Clause | <https://github.com/CurrySoftware/rust-stemmers> |
 | rustc-hash | 2.1.3 | Apache-2.0 OR MIT | <https://github.com/rust-lang/rustc-hash> |
 | rustfft | 6.4.1 | MIT OR Apache-2.0 | <https://github.com/ejmahler/RustFFT> |
