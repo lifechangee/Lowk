@@ -353,7 +353,7 @@ fn templates_reasoning_migrates_from_bool_to_tristate() {
     let raw = fs::read_to_string(&p).unwrap();
     assert!(raw.contains("schema_version = 1") && raw.contains("reasoning = false"));
     let s = FileSettingsStore::open(d.path()).unwrap().get();
-    assert_eq!(s.schema_version, 2);
+    assert_eq!(s.schema_version, 3);
     assert!(s.templates.iter().all(|t| t.reasoning.is_none()));
     // a forced-on template survives the migration, and so does a forced-off one chosen after it
     let st = FileSettingsStore::open(d.path()).unwrap();
@@ -515,4 +515,28 @@ fn legacy_settings_read_overlay_capture_as_hidden_and_the_switch_persists() {
             .stealth
             .overlay_capture_visible
     );
+}
+
+#[test]
+fn hold_delay_migration_preserves_custom_values_and_persists() {
+    for (version, field, expected) in [
+        (2, "hold_delay_ms = 500\n", 250),
+        (2, "hold_delay_ms = 1000\n", 1000),
+        (2, "hold_delay_ms = 0\n", 0),
+        (3, "hold_delay_ms = 500\n", 500),
+        (2, "", 250),
+    ] {
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("settings.toml");
+        fs::write(&path, format!("schema_version = {version}\n{field}")).unwrap();
+        let store = FileSettingsStore::open(d.path()).unwrap();
+        assert_eq!(store.get().hold_delay_ms, expected);
+        let saved: toml::Value = toml::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(saved["hold_delay_ms"].as_integer(), Some(i64::from(expected)));
+        assert_eq!(saved["schema_version"].as_integer(), Some(3));
+        assert_eq!(
+            FileSettingsStore::open(d.path()).unwrap().get().hold_delay_ms,
+            expected
+        );
+    }
 }

@@ -218,20 +218,20 @@ try {
     for ($n = 5; $n -gt 0; $n--) { Write-Host $n; Start-Sleep -Seconds 1 }
 
     if ($script:HoldDelayAvailable) {
-        if ($null -ne $script:HoldDelayDefault -and $script:HoldDelayDefault -lt 300) {
+        if ($null -ne $script:HoldDelayDefault -and $script:HoldDelayDefault -lt 150) {
             Write-Check 'hold-too-short' 'SKIP' 'default delay is too short for a meaningful short-hold check' @()
         }
         else {
             $offset = Get-LogCount
             Send-Key 'Ctrl' $false
-            # The default delay is 0.5 s, so 200 ms stays well under it.
-            Start-Sleep -Milliseconds 200
+            # The default delay is 0.25 s, so 100 ms stays well under it.
+            Start-Sleep -Milliseconds 100
             Send-Key 'Ctrl' $true
             Start-Sleep -Milliseconds 1500
             $lines = @(Get-NewLogLines $offset)
             $bad = @($lines | Where-Object { $_ -match 'action=ClickHold phase=Down' })
             if ($bad.Count -eq 0) { Write-Check 'hold-too-short' 'PASS' 'no ClickHold Down within 1.5 s after Ctrl was released' @() }
-            else { Write-Check 'hold-too-short' 'FAIL' 'ClickHold Down appeared after a 200 ms hold' $bad }
+            else { Write-Check 'hold-too-short' 'FAIL' 'ClickHold Down appeared after a 100 ms hold' $bad }
         }
 
         $offset = Get-LogCount
