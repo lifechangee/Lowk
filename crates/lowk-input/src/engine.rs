@@ -76,8 +76,11 @@ impl Engine {
     }
 
     pub fn set_hold_delay(&self, delay: Duration) {
-        let evs = self.lock().matcher.set_hold_delay(delay).events;
-        self.emit(evs);
+        let mut guard = self.lock();
+        let out = guard.matcher.set_hold_delay(delay);
+        mask_alt_hold(&out);
+        drop(guard);
+        self.emit(out.events);
         self.core.wake.notify_one();
     }
 
@@ -182,6 +185,7 @@ impl Engine {
             return s;
         }
         let out = g.matcher.handle(raw);
+        mask_alt_hold(&out);
         drop(guard);
         self.core.wake.notify_one();
         self.ensure_timer();
@@ -288,6 +292,7 @@ fn timer_loop(weak: Weak<Core>) {
             continue;
         }
         let out = guard.matcher.poll(now);
+        mask_alt_hold(&out);
         drop(guard);
         for f in out.events {
             tracing::debug!(action = ?f.action, phase = ?f.phase, "input: matched, queued for dispatch");
@@ -299,6 +304,15 @@ fn timer_loop(weak: Weak<Core>) {
             });
         }
     }
+}
+
+fn mask_alt_hold(out: &crate::matcher::Outcome) {
+    #[cfg(windows)]
+    if out.mask_alt {
+        crate::platform::win::mask_alt_hold();
+    }
+    #[cfg(not(windows))]
+    let _ = out;
 }
 
 /// One-shot swallow of the releases belonging to a just-recorded key/button, so
