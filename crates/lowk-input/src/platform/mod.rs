@@ -10,7 +10,7 @@ mod macos;
 use macos as imp;
 
 #[cfg(windows)]
-mod win;
+pub(crate) mod win;
 #[cfg(windows)]
 use win as imp;
 

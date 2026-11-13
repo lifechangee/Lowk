@@ -16,7 +16,9 @@ use std::time::Duration;
 use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::GetCurrentThreadId;
-use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VIRTUAL_KEY,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, GetCursorPos, GetMessageW, KillTimer, PeekMessageW, PostThreadMessageW, SetTimer,
     SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSG, MSLLHOOKSTRUCT, PM_NOREMOVE,
@@ -27,6 +29,45 @@ use windows::Win32::UI::WindowsAndMessaging::{
 const LLKHF_INJECTED: u32 = 0x10;
 const LLKHF_EXTENDED: u32 = 0x01;
 const LLMHF_INJECTED: u32 = 0x01;
+const MASK_VK: u16 = 0xE8;
+const MASK_TAG: usize = 0x4c4f574b;
+
+fn ignore_mask(vk: u16, flags: u32, extra: usize) -> bool {
+    vk == MASK_VK && flags & LLKHF_INJECTED != 0 && extra == MASK_TAG
+}
+
+#[cfg(test)]
+#[test]
+fn only_our_injected_mask_is_ignored() {
+    assert!(ignore_mask(MASK_VK, LLKHF_INJECTED, MASK_TAG));
+    assert!(!ignore_mask(MASK_VK, 0, MASK_TAG));
+    assert!(!ignore_mask(MASK_VK, LLKHF_INJECTED, 0));
+    assert!(!ignore_mask(0x41, LLKHF_INJECTED, MASK_TAG));
+}
+
+/// Called under the matcher lock when an Alt modifier-only hold actually starts, before it can
+/// process the release. The hook ignores these tagged events even when QA accepts injected input.
+pub(crate) fn mask_alt_hold() {
+    if HOOK_TID.load(Ordering::SeqCst) == 0 {
+        return;
+    }
+    let key = |up| INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: VIRTUAL_KEY(MASK_VK),
+                dwFlags: if up { KEYEVENTF_KEYUP } else { Default::default() },
+                dwExtraInfo: MASK_TAG,
+                ..Default::default()
+            },
+        },
+    };
+    let inputs = [key(false), key(true)];
+    // SAFETY: INPUT structures are initialized and live for the duration of SendInput.
+    if unsafe { SendInput(&inputs, std::mem::size_of::<INPUT>() as i32) } != inputs.len() as u32 {
+        tracing::warn!("input hook: could not inject the Alt menu mask");
+    }
+}
 
 /// Injected input (SendInput, remote tools) is ignored for users. A qa build accepts it only when the run
 /// opts in with `LOWK_QA_ACCEPT_INJECTED=1`, so scripts can drive modifier-only binds; read once.
@@ -272,6 +313,9 @@ fn os_mods() -> [bool; 8] {
 }
 
 fn on_key(msg: u32, kb: &KBDLLHOOKSTRUCT) -> bool {
+    if ignore_mask(kb.vkCode as u16, kb.flags.0, kb.dwExtraInfo) {
+        return false;
+    }
     if kb.flags.0 & LLKHF_INJECTED != 0 && !accept_injected() {
         return false;
     }
