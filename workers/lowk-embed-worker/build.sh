@@ -12,7 +12,8 @@ if [ ! -d "$SRC/.git" ]; then
   git clone --depth 1 --branch "$TAG" https://github.com/ggml-org/llama.cpp "$SRC"
 fi
 flags=(-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DLLAMA_CURL=OFF -DLLAMA_OPENSSL=OFF
-       -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=ON -DLLAMA_BUILD_SERVER=ON)
+       -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=ON -DLLAMA_BUILD_SERVER=ON
+       -DLLAMA_BUILD_UI=OFF -DLLAMA_USE_PREBUILT_UI=OFF)
 # Portable x86 baseline (see tools/worker-isa-flags.sh): never tune to the build machine.
 case "$(uname -m)" in
   x86_64|AMD64|amd64|i686) read -r -a isa <<< "$(../../tools/worker-isa-flags.sh)"; flags+=("${isa[@]}");;
