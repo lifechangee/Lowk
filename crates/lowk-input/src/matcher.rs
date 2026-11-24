@@ -46,6 +46,8 @@ impl Fire {
 pub struct Outcome {
     pub swallow: bool,
     pub events: Vec<Fire>,
+    /// A modifier-only hold started while Alt was down.
+    pub mask_alt: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -213,6 +215,7 @@ impl Matcher {
                 self.active.push((i, Held::Mods));
             }
         }
+        out.mask_alt = self.mods.alt && !out.events.is_empty();
         out
     }
 
@@ -303,7 +306,9 @@ impl Matcher {
                 });
                 if self.keys_down.is_empty() && self.mouse_down == 0 && m != Mods::NONE {
                     if self.hold_delay.is_zero() || holding {
-                        out.events.extend(self.fire_mods(wanted).events);
+                        let fired = self.fire_mods(wanted);
+                        out.mask_alt = fired.mask_alt;
+                        out.events.extend(fired.events);
                     } else if !wanted.is_empty() {
                         self.arm_mods(m, now);
                     }
@@ -352,6 +357,68 @@ impl Matcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn alt_mask_only_for_a_started_modifier_hold() {
+        let mut matcher = Matcher::default();
+        matcher.set_hold_delay(Duration::from_millis(500));
+        matcher.set_binds(vec![BindSpec {
+            action: ActionId::MoveHold,
+            trigger: Trigger::ModifierOnly { mods: Mods::ALT },
+            swallow: false,
+            template: None,
+        }]);
+        let now = Instant::now();
+        assert!(!matcher.handle_at(Raw::Mods(Mods::ALT), now).mask_alt);
+        assert!(!matcher.poll(now + Duration::from_millis(499)).mask_alt);
+        assert!(matcher.poll(now + Duration::from_millis(500)).mask_alt);
+        assert!(!matcher.poll(now + Duration::from_millis(501)).mask_alt);
+        assert!(!matcher.handle(Raw::Mods(Mods::NONE)).mask_alt);
+        assert!(!matcher.handle(Raw::Mods(Mods::CTRL)).mask_alt);
+        assert!(
+            !matcher
+                .handle(Raw::Key {
+                    code: "KeyA",
+                    down: true,
+                    repeat: false
+                })
+                .mask_alt
+        );
+    }
+
+    #[test]
+    fn ctrl_hold_and_alt_combo_do_not_request_a_mask() {
+        let mut matcher = Matcher::default();
+        matcher.set_binds(vec![
+            BindSpec {
+                action: ActionId::ClickHold,
+                trigger: Trigger::ModifierOnly { mods: Mods::CTRL },
+                swallow: false,
+                template: None,
+            },
+            BindSpec {
+                action: ActionId::Ask,
+                trigger: Trigger::Combo {
+                    mods: Mods::ALT,
+                    key: lowk_types::KeyCode::new("KeyA"),
+                },
+                swallow: false,
+                template: None,
+            },
+        ]);
+        let ctrl = matcher.handle(Raw::Mods(Mods::CTRL));
+        assert_eq!(ctrl.events.len(), 1);
+        assert!(!ctrl.mask_alt);
+        matcher.handle(Raw::Mods(Mods::NONE));
+        assert!(!matcher.handle(Raw::Mods(Mods::ALT)).mask_alt);
+        let combo = matcher.handle(Raw::Key {
+            code: "KeyA",
+            down: true,
+            repeat: false,
+        });
+        assert_eq!(combo.events.len(), 1);
+        assert!(!combo.mask_alt);
+    }
 
     fn fire(action: ActionId, phase: Phase) -> Fire {
         Fire {

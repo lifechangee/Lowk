@@ -59,6 +59,27 @@ public static class LowkWinLiveKeys {
     }
     [DllImport("user32.dll", SetLastError = true)]
     private static extern UInt32 SendInput(UInt32 nInputs, INPUT[] pInputs, Int32 cbSize);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern UInt32 GetWindowThreadProcessId(IntPtr window, out UInt32 processId);
+    private delegate bool EnumWindowsProc(IntPtr window, IntPtr param);
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr param);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, System.Text.StringBuilder text, int maxCount);
+    public static IntPtr FindMainWindow(UInt32 processId) {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows(delegate(IntPtr window, IntPtr param) {
+            UInt32 owner;
+            GetWindowThreadProcessId(window, out owner);
+            if (owner == processId && IsWindowVisible(window)) {
+                var title = new System.Text.StringBuilder(256);
+                GetWindowText(window, title, title.Capacity);
+                if (title.ToString() == "Lowk") { found = window; return false; }
+            }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
     public static void Key(UInt16 vk, UInt16 scan, bool up) {
         INPUT i = new INPUT();
         i.type = 1;
@@ -98,11 +119,34 @@ function Wait-ForLog([string]$Pattern, [int]$Seconds, [int]$Offset = 0) {
     return @()
 }
 
-function Invoke-Qa([string]$Command) {
+function Invoke-Qa([string]$Command, [int]$TimeoutSec = 10) {
     $headers = @{ 'X-Lowk-Qa-Token' = $script:QaToken }
     $response = Invoke-WebRequest -UseBasicParsing -Method Post -Uri ($script:QaUri + '/cmd') `
-        -Headers $headers -ContentType 'text/plain' -Body $Command -TimeoutSec 10
+        -Headers $headers -ContentType 'text/plain' -Body $Command -TimeoutSec $TimeoutSec
     return [string]$response.Content
+}
+
+function Invoke-OverlayEval([string]$Expression, [switch]$RequireTrue, [string]$Label) {
+    $raw = '<no response>'
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        $raw = Invoke-Qa ("eval overlay " + $Expression) 12
+        $result = $raw | ConvertFrom-Json
+        if ($result.ok -ne $true -or $null -eq $result.v -or ($RequireTrue -and ($result.v -isnot [bool] -or $result.v -ne $true))) {
+            throw 'eval returned an unexpected result'
+        }
+        $timer.Stop()
+        $result | Add-Member -NotePropertyName DurationMs -NotePropertyValue $timer.Elapsed.TotalMilliseconds
+        $script:ModeEvalTimeline += [pscustomobject]@{ Label = $Label; DurationMs = $timer.Elapsed.TotalMilliseconds; EndMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() }
+        return $result
+    }
+    catch {
+        $timer.Stop()
+        if ($Label -like '* poll') { $script:MaxPollLatency = [Math]::Max($script:MaxPollLatency, $timer.Elapsed.TotalMilliseconds) }
+        $excerpt = [string]$raw
+        if ($excerpt.Length -gt 300) { $excerpt = $excerpt.Substring(0, 300) }
+        throw ("overlay eval failed after {0:F1} ms: {1}; raw response: {2}" -f $timer.Elapsed.TotalMilliseconds, $_.Exception.Message, $excerpt)
+    }
 }
 
 function Get-DesktopScreenshot([string]$Name) {
@@ -119,7 +163,19 @@ function Get-DesktopScreenshot([string]$Name) {
     }
 }
 
+function Get-ForegroundProcessName {
+    $foregroundPid = [UInt32]0
+    [void][LowkWinLiveKeys]::GetWindowThreadProcessId([LowkWinLiveKeys]::GetForegroundWindow(), [ref]$foregroundPid)
+    $foregroundProcess = Get-Process -Id $foregroundPid -ErrorAction SilentlyContinue
+    if ($foregroundProcess) { return $foregroundProcess.ProcessName }
+    return 'unknown'
+}
+
 function Write-Check([string]$Name, [string]$Status, [string]$Reason, [string[]]$Evidence) {
+    if ($Name -eq 'ctrl-backslash-mode') {
+        $foregroundName = if ($script:ModeForegroundName) { $script:ModeForegroundName } else { Get-ForegroundProcessName }
+        $Reason += "; foreground: $foregroundName"
+    }
     $entry = '{0}: {1} - {2}' -f $Status, $Name, $Reason
     $script:Results += $entry
     Write-Host $entry
@@ -281,6 +337,11 @@ try {
     }
 
     $offset = Get-LogCount
+    $script:StartedProcess.Refresh()
+    $mainWindow = $script:StartedProcess.MainWindowHandle
+    if ($mainWindow -eq [IntPtr]::Zero -or -not [LowkWinLiveKeys]::SetForegroundWindow($mainWindow) -or [LowkWinLiveKeys]::GetForegroundWindow() -ne $mainWindow) {
+        throw 'Could not put the Lowk main window in the foreground for the Alt hold.'
+    }
     Send-Key 'Alt' $false
     Start-Sleep -Milliseconds 1300
     Send-Key 'Alt' $true
@@ -291,9 +352,154 @@ try {
 
     $demoStart = Invoke-Qa 'demo-start'
     $script:DemoMayBeRunning = $true
+    Start-Sleep -Milliseconds 1500
     $hidden = @(Wait-ForLog 'indicator changed.*to=Hidden' 5)
     if ($hidden.Count -gt 0) {
         Write-Check 'demo-start' 'PASS' "demo-start returned '$demoStart'; indicator became Hidden" $hidden
+        # Compare release-to-passive timing before and after hide/show during the call.
+        $modeHidden = $false
+        $modeCheckAvailable = $false
+        $timelineStart = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        $script:ModeEvalTimeline = @()
+        $script:MaxPollLatency = 0
+        try {
+            $foregroundPid = [UInt32]0
+            [void][LowkWinLiveKeys]::GetWindowThreadProcessId([LowkWinLiveKeys]::GetForegroundWindow(), [ref]$foregroundPid)
+            if ($foregroundPid -ne $script:StartedProcess.Id) {
+                $mainWindow = [LowkWinLiveKeys]::FindMainWindow([UInt32]$script:StartedProcess.Id)
+                if ($mainWindow -ne [IntPtr]::Zero) { [void][LowkWinLiveKeys]::SetForegroundWindow($mainWindow) }
+            }
+            $script:ModeForegroundName = Get-ForegroundProcessName
+            $window = Invoke-Qa 'win overlay' | ConvertFrom-Json
+            if (-not $window.exists -or -not $window.visible) {
+                Write-Check 'ctrl-backslash-mode' 'FAIL' 'overlay window is not visible during the demo call' @()
+            }
+            else {
+                $armTimer = [Diagnostics.Stopwatch]::StartNew()
+                $armError = 'no attempt made'
+                do {
+                    try {
+                        $armed = Invoke-OverlayEval '(() => { const el = document.querySelector(".ov"); if (!el || !window.MutationObserver || !window.requestAnimationFrame) return false; if (window.__lowkModeObserver) window.__lowkModeObserver.disconnect(); if (window.__lowkModeVisibility) document.removeEventListener("visibilitychange", window.__lowkModeVisibility); window.__lowkModeLog = []; const record = () => window.__lowkModeLog.push({ t: performance.timeOrigin + performance.now(), vis: document.visibilityState, mode: el.dataset.mode }); const observe = () => { record(); requestAnimationFrame(record); }; window.__lowkModeObserver = new MutationObserver(observe); window.__lowkModeObserver.observe(el, { attributes: true, attributeFilter: ["data-mode", "class"] }); window.__lowkModeVisibility = observe; document.addEventListener("visibilitychange", observe); record(); return true; })()' -RequireTrue -Label 'arm'
+                        $modeCheckAvailable = $true
+                        break
+                    }
+                    catch { $armError = $_.Exception.Message }
+                    if ($armTimer.Elapsed.TotalMilliseconds -ge 10000) { break }
+                    Start-Sleep -Milliseconds ([Math]::Min(200, [Math]::Max(0, 10000 - [int]$armTimer.Elapsed.TotalMilliseconds)))
+                } while ($armTimer.Elapsed.TotalMilliseconds -lt 10000)
+                if (-not $modeCheckAvailable) { Write-Check 'ctrl-backslash-mode' 'FAIL' "overlay unresponsive after Alt release: $armError" @() }
+            }
+            if ($modeCheckAvailable) {
+                $measurements = @{}
+                $evidence = @()
+                foreach ($phase in @('baseline', 'after')) {
+                    if ($phase -eq 'after') {
+                            $toggleOffset = Get-LogCount
+                            Send-Key 'Ctrl' $false; Start-Sleep -Milliseconds 40; Send-Key 'Backslash' $false
+                            $modeHidden = $true
+                            Start-Sleep -Milliseconds 50; Send-Key 'Backslash' $true; Send-Key 'Ctrl' $true
+                            Start-Sleep -Milliseconds 600
+                            Send-Key 'Ctrl' $false; Start-Sleep -Milliseconds 40; Send-Key 'Backslash' $false
+                            $modeHidden = $false
+                            Send-Key 'Backslash' $true; Send-Key 'Ctrl' $true
+                            Start-Sleep -Milliseconds 300
+                            $toggles = @(Get-NewLogLines $toggleOffset | Where-Object { $_ -match 'action=ToggleOverlay phase=Down' })
+                            $evidence += $toggles
+                            if ($toggles.Count -lt 2) { throw 'hide/show did not log both toggles' }
+                        }
+                    foreach ($key in @('Ctrl', 'Alt')) {
+                        $initial = Invoke-OverlayEval '(() => { const el = document.querySelector(".ov"); return el ? { mode: el.dataset.mode, vis: document.visibilityState } : null; })()' -Label "$key $phase initial"
+                        if ($initial.v.mode -ne 'passive') { throw "$key $phase started with DOM mode $($initial.v.mode), expected passive" }
+                        $pressMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                        try {
+                            Send-Key $key $false
+                            Start-Sleep -Milliseconds 1300
+                            $sample = Invoke-OverlayEval '(() => ({ mode: document.querySelector(".ov")?.dataset.mode, log: window.__lowkModeLog }))()' -Label "$key $phase hold"
+                            $highlighted = @($sample.v.log | Where-Object { $_.t -ge $pressMs -and $_.mode -and $_.mode -ne 'passive' }).Count -gt 0 -or ($sample.v.mode -and $sample.v.mode -ne 'passive')
+                        }
+                        finally {
+                            if ($script:Pressed[$key]) {
+                                $releaseMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                                Send-Key $key $true
+                            }
+                        }
+                        $nativeMs = $null; $domPollMs = $null; $domMs = $null
+                        $nativeMode = 'unavailable'; $domMode = 'unavailable'; $domSource = 'missing'
+                        $deadlineMs = $releaseMs + 2000
+                        do {
+                            try {
+                                $native = Invoke-Qa 'hover-state' | ConvertFrom-Json
+                                $nativeObservedMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                                if ($null -ne $native.mode) { $nativeMode = $native.mode }
+                                if ($null -eq $nativeMs -and $nativeMode -eq 'passive') { $nativeMs = $nativeObservedMs }
+                            } catch { $nativeMode = 'unavailable' }
+                            try {
+                                $returned = Invoke-OverlayEval '(() => ({ mode: document.querySelector(".ov")?.dataset.mode, log: window.__lowkModeLog }))()' -Label "$key $phase poll"
+                            } catch {
+                                if ($key -eq 'Alt') { throw "overlay unresponsive after Alt release: $($_.Exception.Message)" }
+                                throw
+                            }
+                            $script:MaxPollLatency = [Math]::Max($script:MaxPollLatency, $returned.DurationMs)
+                            $domObservedMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                            $domMode = $returned.v.mode
+                            if ($null -eq $domPollMs -and $domMode -eq 'passive') { $domPollMs = $domObservedMs }
+                            $passiveChanges = @($returned.v.log | Where-Object { $_.t -ge $releaseMs -and $_.mode -eq 'passive' })
+                            if ($passiveChanges.Count -gt 0) { $domMs = [double]$passiveChanges[0].t; $domSource = 'observer' }
+                            elseif ($null -ne $domPollMs) { $domMs = $domPollMs; $domSource = 'poll' }
+                            if ($null -ne $nativeMs -and $null -ne $domMs) { break }
+                            if ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() -lt $deadlineMs) { Start-Sleep -Milliseconds 10 }
+                        } while ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() -lt $deadlineMs)
+                        $measurements["$key-$phase"] = [pscustomobject]@{ Release = $releaseMs; Native = $nativeMs; Dom = $domMs; DomSource = $domSource; Highlighted = $highlighted; NativeMode = $nativeMode; DomMode = $domMode }
+                    }
+                }
+                $status = 'PASS'; $details = @()
+                foreach ($key in @('Ctrl', 'Alt')) {
+                    $base = $measurements["$key-baseline"]; $after = $measurements["$key-after"]
+                    $texts = @()
+                    foreach ($m in @($base, $after)) {
+                        $nativeDelay = if ($null -ne $m.Native) { '{0:F1}' -f ($m.Native - $m.Release) } else { "missing (last=$($m.NativeMode))" }
+                        $domDelay = if ($null -ne $m.Dom) { '{0:F1}' -f ($m.Dom - $m.Release) } else { "missing (last=$($m.DomMode))" }
+                        $highlight = if ($m.Highlighted) { 'on' } else { 'never on' }
+                        $texts += "release->native-passive=$nativeDelay ms, release->DOM-passive=$domDelay ms ($($m.DomSource)), highlight=$highlight"
+                    }
+                    $limit = if ($null -ne $base.Dom) { [math]::Max(150, ($base.Dom - $base.Release) + 100) } else { $null }
+                    if (-not $base.Highlighted -or -not $after.Highlighted -or $null -eq $limit -or $null -eq $after.Dom -or ($after.Dom - $after.Release) -gt $limit) { $status = 'FAIL' }
+                    $limitText = if ($null -ne $limit) { '{0:F1}' -f $limit } else { 'unavailable' }
+                    $details += "$key baseline [$($texts[0])]; after [$($texts[1])]; limit=$limitText ms"
+                }
+                if ($script:MaxPollLatency -gt 100) { $details += ('max poll eval latency={0:F1} ms (bounds measurement precision)' -f $script:MaxPollLatency) }
+                Write-Check 'ctrl-backslash-mode' $status ($details -join '; ') $evidence
+            }
+        }
+        catch {
+            $failure = "mode measurement failed: " + $_.Exception.Message
+            if ($script:MaxPollLatency -gt 100) { $failure += ('; max poll eval latency={0:F1} ms (bounds measurement precision)' -f $script:MaxPollLatency) }
+            Write-Check 'ctrl-backslash-mode' 'FAIL' $failure @()
+        }
+        finally {
+            foreach ($key in @('Backslash', 'Ctrl', 'Alt')) {
+                if ($script:Pressed[$key]) { try { Send-Key $key $true } catch { Write-Warning "Could not release $key : $_" } }
+            }
+            if ($modeHidden) {
+                try {
+                    Send-Key 'Ctrl' $false; Start-Sleep -Milliseconds 40; Send-Key 'Backslash' $false
+                    Send-Key 'Backslash' $true; Send-Key 'Ctrl' $true
+                } catch { Write-Warning "Could not restore overlay after mode check: $_" }
+            }
+            if ($modeCheckAvailable) {
+                try {
+                    $timeline = Invoke-OverlayEval 'window.__lowkModeLog' -Label 'timeline'
+                    if ($timeline.ok) {
+                        Write-Host '  overlay timeline (ms relative to instrumentation, visibility, mode):'
+                        foreach ($entry in @($timeline.v)) { Write-Host ('  {0:F1} ms  {1}  {2}' -f ([double]$entry.t - $timelineStart), $entry.vis, $entry.mode) }
+                    }
+                } catch { Write-Warning "Could not read overlay timeline: $_" }
+            }
+            if ($script:ModeEvalTimeline.Count -gt 0) {
+                Write-Host '  overlay eval calls (completion relative to instrumentation, duration):'
+                foreach ($call in $script:ModeEvalTimeline) { Write-Host ('  {0:F1} ms  {1}  {2:F1} ms' -f ($call.EndMs - $timelineStart), $call.Label, $call.DurationMs) }
+            }
+        }
         $stopResponse = Invoke-Qa 'demo-stop'
         $script:DemoMayBeRunning = $false
         $visibleAgain = @(Wait-ForLog 'indicator changed.*to=(Background|Attention)' 10)
@@ -305,6 +511,7 @@ try {
     }
     else {
         Write-Check 'demo-start' 'FAIL' "demo-start returned '$demoStart'; no Hidden indicator transition was logged" @()
+        Write-Check 'ctrl-backslash-mode' 'FAIL' 'demo did not reach the Hidden indicator state, so hold timing could not be measured' @()
         Write-Check 'demo-stop' 'SKIP' 'demo did not reach the Hidden state, so stop-state verification was not run' @()
     }
 }
