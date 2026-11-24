@@ -4,6 +4,8 @@
 // they scroll back to the end themselves). Reports `{ overflow, atEnd }` so the component can show «ещё ↓».
 export interface FollowOpts {
   idleMs: number;
+  /** Follow the end of this text element; later siblings (message footer) never pull it out of view. */
+  endSelector?: string;
   onState?: (s: { overflow: boolean; atEnd: boolean }) => void;
 }
 
@@ -16,6 +18,13 @@ export function follow(node: HTMLElement, initial: FollowOpts) {
   let lastSet = -1;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let last = '';
+  let lastEnd = -1;
+  let lastHeight = -1;
+
+  const textEnd = () => {
+    const text = opts.endSelector ? node.querySelector<HTMLElement>(opts.endSelector) : null;
+    return text ? text.getBoundingClientRect().bottom - node.getBoundingClientRect().top + node.scrollTop : node.scrollHeight;
+  };
 
   const dist = () => node.scrollHeight - node.clientHeight - node.scrollTop;
   const report = () => {
@@ -25,8 +34,8 @@ export function follow(node: HTMLElement, initial: FollowOpts) {
     last = key;
     opts.onState?.(s);
   };
-  const toEnd = () => {
-    node.scrollTop = node.scrollHeight;
+  const toEnd = (end = textEnd()) => {
+    node.scrollTop = Math.max(0, end - node.clientHeight);
     lastSet = node.scrollTop;
     report();
   };
@@ -34,10 +43,10 @@ export function follow(node: HTMLElement, initial: FollowOpts) {
     clearTimeout(timer);
     timer = undefined;
     pinned = true;
-    toEnd();
+    toEnd(node.scrollHeight); // explicit jump also reveals the message footer
   };
   const onScroll = () => {
-    if (dist() <= SLACK) {
+    if (textEnd() - node.clientHeight - node.scrollTop <= SLACK) {
       pinned = true;
       clearTimeout(timer);
     } else {
@@ -49,7 +58,12 @@ export function follow(node: HTMLElement, initial: FollowOpts) {
     report();
   };
   const onChange = () => {
-    if (pinned) toEnd();
+    const end = textEnd();
+    const changed = !opts.endSelector || Math.abs(end - lastEnd) > 0.5 || node.clientHeight !== lastHeight;
+    lastEnd = end;
+    lastHeight = node.clientHeight;
+    // Footer mutations (including Copy -> Copied) must preserve the reader's position.
+    if (pinned && changed) toEnd(end);
     else report();
   };
 
@@ -60,7 +74,7 @@ export function follow(node: HTMLElement, initial: FollowOpts) {
   mo.observe(node, { childList: true, subtree: true, characterData: true });
   const ro = new ResizeObserver(onChange);
   ro.observe(node);
-  toEnd();
+  onChange();
 
   return {
     update(o: FollowOpts) {

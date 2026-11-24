@@ -132,7 +132,9 @@ const ansState = (page: Page) =>
     const b = document.querySelector<HTMLElement>('.ans .body')!;
     const ans = document.querySelector('.ans')!.getBoundingClientRect();
     const ov = document.querySelector('.ov')!.getBoundingClientRect();
-    return { top: b.scrollTop, max: b.scrollHeight - b.clientHeight, ch: b.clientHeight, ansH: ans.height, ansBottom: ans.bottom, ovBottom: ov.bottom, text: b.innerText };
+    const text = b.querySelector('.bt')!.getBoundingClientRect();
+    const textEnd = text.bottom - b.getBoundingClientRect().top + b.scrollTop;
+    return { top: b.scrollTop, max: textEnd - b.clientHeight, ch: b.clientHeight, ansH: ans.height, ansBottom: ans.bottom, ovBottom: ov.bottom, text: b.innerText };
   });
 
 test('O7 a long streamed answer follows the stream and stays inside strict bounds', async ({ page }) => {
@@ -146,7 +148,7 @@ test('O7 a long streamed answer follows the stream and stays inside strict bound
   expect(s.text).toContain('Пункт 36');
   expect(Math.abs(s.ansH - h0)).toBeLessThanOrEqual(2); // the area did not grow with the text
   expect(s.ansBottom).toBeLessThanOrEqual(s.ovBottom + 1);
-  await expect(page.locator('.ans .more')).toHaveCount(0);
+  await expect(page.locator('.ans .more')).toBeVisible(); // footer is below the followed text
 });
 
 test('O7 scroll up (hold ⌃): stays put while streaming, «ещё ↓» appears, click or scrolling down resumes', async ({ page }) => {
@@ -169,7 +171,7 @@ test('O7 scroll up (hold ⌃): stays put while streaming, «ещё ↓» appears
   await stream(page, 30, 36);
   const end = await ansState(page);
   expect(end.top).toBeGreaterThanOrEqual(end.max - 4);
-  await expect(more).toHaveCount(0);
+  await expect(more).toBeVisible(); // finishing adds the scrollable footer
   // scrolling back down by hand also re-pins
   await wheel(page, '.ans .body', -300);
   await expect(more).toBeVisible();

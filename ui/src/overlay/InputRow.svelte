@@ -22,5 +22,5 @@
 
 <div class="inp" data-blk>
   <input bind:this={el} bind:value type="text" placeholder={ot('overlay.input.placeholder', store.lang)} autocomplete="off" spellcheck="false" onkeydown={key} />
-  <kbd>↵</kbd><kbd>Esc</kbd>
+  <kbd title={ot('overlay.hint.send', store.lang)} aria-label={ot('overlay.hint.send', store.lang)}>↵</kbd><kbd title={ot('overlay.hint.exit', store.lang)} aria-label={ot('overlay.hint.exit', store.lang)}>Esc</kbd>
 </div>

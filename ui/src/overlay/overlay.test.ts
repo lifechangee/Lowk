@@ -239,6 +239,31 @@ describe('S5 audio notice', () => {
 });
 
 describe('sources and refusals', () => {
+  it('renders B19 sources once and hides the whole footer while streaming', () => {
+    const s = new OverlayStore();
+    const doc = { kind: 'doc' as const, id: 'doc-1', folder: { kind: 'unsorted' as const }, title: '01_SHPARGALKA_zakrepit', at_s: null, page: null, heading_path: [], chunk_id: null, pinned: false };
+    s.applyLlm({ type: 'start', req_id: 'b19', qa_id: 'q' });
+    s.applyLlm({ type: 'delta', req_id: 'b19', text: 'Начало ответа.' });
+    s.applyLlm({ type: 'sources', req_id: 'b19', sources: [
+      { ...doc, kind: 'instructions', id: 'folder-1', title: 'Инструкции папки' },
+      ...Array.from({ length: 5 }, (_, i) => ({ ...doc, chunk_id: `chunk-${i}` })),
+    ], withheld: 2 });
+    s.imagesSent = 1;
+    const streaming = render(Answer, { props: { store: s } }).body;
+    expect(streaming).toContain('ans-cancel');
+    expect(streaming).not.toContain('ans-copy');
+    expect(streaming).not.toContain('ans-images');
+    expect(streaming).not.toContain('class="srcs"');
+    s.applyLlm({ type: 'done', req_id: 'b19', truncated: false, usage: null });
+    const finished = render(Answer, { props: { store: s } }).body;
+    expect(finished).not.toContain('ans-cancel');
+    expect(finished).toContain('ans-copy');
+    expect(finished).toContain('ans-images');
+    // title attribute + label, on a single document chip.
+    expect(finished.match(/01_SHPARGALKA_zakrepit/g)).toHaveLength(2);
+    expect(finished.indexOf('Начало ответа.')).toBeLessThan(finished.indexOf('ans-copy'));
+  });
+
   it('keeps the sources of the current answer and clears them on the next ask', () => {
     const s = new OverlayStore();
     const src = { kind: 'doc', id: 'd1', folder: { kind: 'unsorted' }, title: 'Spec.pdf', at_s: null, page: 12, heading_path: [], chunk_id: null, pinned: false } as never;
