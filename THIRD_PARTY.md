@@ -139,7 +139,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | concurrent-queue | 2.5.0 | Apache-2.0 OR MIT | <https://github.com/smol-rs/concurrent-queue> |
 | const-oid | 0.10.2 | Apache-2.0 OR MIT | <https://github.com/RustCrypto/formats> |
 | constant_time_eq | 0.4.2 | CC0-1.0 OR MIT-0 OR Apache-2.0 | <https://github.com/cesarb/constant_time_eq> |
-| cookie | 0.18.2 | MIT OR Apache-2.0 | <https://github.com/SergioBenitez/cookie-rs> |
+| cookie | 0.18.3 | MIT OR Apache-2.0 | <https://github.com/SergioBenitez/cookie-rs> |
 | core-foundation | 0.10.1 | MIT OR Apache-2.0 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation | 0.9.4 | MIT OR Apache-2.0 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 | <https://github.com/servo/core-foundation-rs> |
@@ -224,7 +224,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | foreign-types | 0.5.0 | MIT/Apache-2.0 | <https://github.com/sfackler/foreign-types> |
 | foreign-types-macros | 0.2.4 | MIT/Apache-2.0 | <https://github.com/sfackler/foreign-types> |
 | foreign-types-shared | 0.3.1 | MIT/Apache-2.0 | <https://github.com/sfackler/foreign-types> |
-| form_urlencoded | 1.2.2 | MIT OR Apache-2.0 | <https://github.com/servo/rust-url> |
+| form_urlencoded | 1.2.3 | MIT OR Apache-2.0 | <https://github.com/servo/rust-url> |
 | fsevent-sys | 4.1.0 | MIT | <https://github.com/octplane/fsevent-rust/tree/master/fsevent-sys> |
 | futures-channel | 0.3.34 | MIT OR Apache-2.0 | <https://github.com/rust-lang/futures-rs> |
 | futures-core | 0.3.34 | MIT OR Apache-2.0 | <https://github.com/rust-lang/futures-rs> |
@@ -637,7 +637,7 @@ Models are not part of the app: they are downloaded on demand from the source be
 | untrusted | 0.9.0 | ISC | <https://github.com/briansmith/untrusted> |
 | ureq | 3.4.2 | MIT OR Apache-2.0 | <https://github.com/algesten/ureq> |
 | ureq-proto | 0.6.5 | MIT OR Apache-2.0 | <https://github.com/algesten/ureq-proto> |
-| url | 2.5.8 | MIT OR Apache-2.0 | <https://github.com/servo/rust-url> |
+| url | 2.5.9 | MIT OR Apache-2.0 | <https://github.com/servo/rust-url> |
 | urlpattern | 0.6.0 | MIT | <https://github.com/denoland/rust-urlpattern> |
 | utf8-zero | 0.8.1 | MIT OR Apache-2.0 | <https://github.com/algesten/utf8-zero> |
 | utf8_iter | 1.0.4 | Apache-2.0 OR MIT | <https://github.com/hsivonen/utf8_iter> |
