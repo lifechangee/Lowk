@@ -8,19 +8,16 @@
 </script>
 
 <div class="foot" data-blk>
-  <div class="hints">
-    {#if store.mode === 'interactive'}
-      <span data-blk><kbd>Esc</kbd><span class="lbl">{ot('overlay.hint.exit', lang)}</span></span>
-      <span data-blk><kbd>↵</kbd><span class="lbl">{ot('overlay.hint.send', lang)}</span></span>
-    {:else}
+  {#if store.mode !== 'interactive'}
+    <div class="hints">
       {#if k.click}<span data-blk><kbd>{k.click}</kbd><span class="lbl">{ot('overlay.hint.click', lang)}</span></span>{/if}
       {#if k.ask}<span data-blk><kbd>{k.ask}</kbd><span class="lbl">{ot('overlay.hint.ask', lang)}</span></span>{/if}
       {#if k.complement}<span data-blk><kbd>{k.complement}</kbd><span class="lbl">{ot('overlay.hint.complement', lang)}</span></span>{/if}
       {#if store.scenario === 'listen' && k.mark}<span data-blk><kbd>{k.mark}</kbd><span class="lbl">{lang === 'ru' ? 'Отметить момент' : 'Mark moment'}</span></span>{/if}
       {#if store.scenario === 'listen' && k.recap}<span data-blk><kbd>{k.recap}</kbd><span class="lbl">{lang === 'ru' ? 'Что я пропустил?' : 'What did I miss?'}</span></span>{/if}
       {#if k.shot}<span data-blk><kbd>{k.shot}</kbd><span class="lbl">{ot('overlay.hint.shot', lang)}</span></span>{/if}
-    {/if}
-  </div>
+    </div>
+  {/if}
   <!-- Moving badge and toast live in this row (in flow): they can never hang outside the window or cover «Мой ответ». -->
   <div class="hints r2">
     {#if store.toast}

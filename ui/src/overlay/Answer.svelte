@@ -1,11 +1,11 @@
 <script lang="ts">
   import type { OverlayStore } from './store.svelte';
   import type { OverlaySource } from './source';
-  import type { SourceRef } from '../lib/ipc/bindings';
   import { splitBold } from './store.svelte';
   import { et, ot } from './i18n';
   import { copyPlainAnswer } from './clipboard';
   import { follow } from './follow';
+  import { groupSources } from './source-groups';
 
   let { store, source }: { store: OverlayStore; source?: OverlaySource } = $props();
   const ERR_KEYS: Record<string, Parameters<typeof ot>[0]> = {
@@ -17,12 +17,8 @@
     no_vision: 'overlay.answer.noVision',
   };
   const errKey = $derived(ERR_KEYS[store.errorCode ?? ''] ?? 'overlay.answer.error');
-  function label(s: SourceRef): string {
-    if (s.kind === 'instructions') return ot('overlay.src.instructions', lang);
-    const where = s.page != null ? `, ${ot('overlay.src.page', lang, { n: s.page })}` : s.at_s != null ? `, ${Math.floor(s.at_s / 60)}:${String(s.at_s % 60).padStart(2, '0')}` : '';
-    return `${s.title}${where}`;
-  }
   const lang = $derived(store.lang);
+  const sources = $derived(groupSources(store.sources, lang));
   const parts = $derived(splitBold(store.answer));
   const order = ['question', 'hint', 'my'] as const;
   const idx = $derived(order.indexOf(store.stage));
@@ -30,7 +26,7 @@
   let body: HTMLDivElement | undefined = $state();
   let more = $state(false);
   // Follows the stream; the person can scroll up (hold ⌃ / ⌘⇧I) and it then stays put until they scroll back to the end.
-  const opts = { idleMs: Infinity, onState: (s: { overflow: boolean; atEnd: boolean }) => (more = s.overflow && !s.atEnd) };
+  const opts = { idleMs: Infinity, endSelector: '.bt', onState: (s: { overflow: boolean; atEnd: boolean }) => (more = s.overflow && !s.atEnd) };
   async function copy() {
     try {
       await copyPlainAnswer(store.answer);
@@ -63,26 +59,30 @@
       {:else}
         {#each parts as p, i (i)}{#if p.bold}<b>{p.text}</b>{:else}{p.text}{/if}{/each}{#if store.streaming}<span class="caret"></span>{/if}
       {/if}
-    </div></div>
+    </div>
+      {#if !store.streaming}
+        <div class="message-footer" data-testid="ans-footer">
+          {#if store.cancelled}<span class="answer-status" role="status">{ot('overlay.answer.cancelled', lang)}</span>{/if}
+          {#if store.hasAnswered && !store.answerError}
+            <div class="answer-actions">
+              <button class="answer-action" type="button" data-testid="ans-copy" onclick={copy}>{ot(store.copied ? 'overlay.answer.copied' : 'overlay.answer.copy', lang)}</button>
+            </div>
+          {/if}
+          {#if store.imagesSent > 0 && !store.answerError}
+            <div class="srcs"><span class="chip held" data-testid="ans-images">{ot('overlay.answer.imagesSent', lang, { n: store.imagesSent })}</span></div>
+          {/if}
+          {#if sources.length || store.withheld}
+            <div class="srcs">
+              {#each sources as s, i (i)}<button class="chip lbl" title={s.ref.title} onclick={() => source?.openSource?.(s.ref)}>{s.label}</button>{/each}
+              {#if store.withheld}<span class="chip held">{ot('overlay.src.withheld', lang, { n: store.withheld })}</span>{/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
     {#if store.streaming}
       <button class="answer-action cancel" type="button" data-testid="ans-cancel" onclick={() => source?.cancelAnswer?.()}>{ot('overlay.answer.cancel', lang)}</button>
-    {:else if store.cancelled}
-      <span class="answer-status" role="status">{ot('overlay.answer.cancelled', lang)}</span>
     {/if}
     {#if more}<button class="more" tabindex="-1" data-testid="ans-more" onwheel={(e) => body?.scrollBy(0, e.deltaY)} onclick={() => body?.dispatchEvent(new Event('lowk-jump'))}>{ot('overlay.more.ans', lang)}</button>{/if}
   </div>
-  {#if store.hasAnswered && !store.streaming && !store.answerError}
-    <div class="answer-actions">
-      <button class="answer-action" type="button" data-testid="ans-copy" onclick={copy}>{ot(store.copied ? 'overlay.answer.copied' : 'overlay.answer.copy', lang)}</button>
-    </div>
-  {/if}
-  {#if store.imagesSent > 0 && !store.answerError}
-    <div class="srcs"><span class="chip held" data-testid="ans-images">{ot('overlay.answer.imagesSent', lang, { n: store.imagesSent })}</span></div>
-  {/if}
-  {#if store.sources.length || store.withheld}
-    <div class="srcs">
-      {#each store.sources as s, i (i)}<button class="chip lbl" title={s.title} onclick={() => source?.openSource?.(s)}>{label(s)}</button>{/each}
-      {#if store.withheld}<span class="chip held">{ot('overlay.src.withheld', lang, { n: store.withheld })}</span>{/if}
-    </div>
-  {/if}
 </div>
